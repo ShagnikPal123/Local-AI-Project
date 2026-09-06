@@ -66,6 +66,11 @@ const FOCAL = 760;
 /** World radius the node shell fills. */
 const SHELL = 250;
 const DUST_COUNT = 140;
+/** Zoom limits. Named because the wheel handler and applyZoom both need them,
+ *  and a wheel that stops zooming at a different point than the buttons do
+ *  reads as a bug. */
+const MIN_ZOOM = 0.35;
+const MAX_ZOOM = 4;
 
 interface Placed {
   node: FieldNode;
@@ -430,7 +435,7 @@ export function StrandField({
 
   const applyZoom = useCallback((factor: number) => {
     const view = viewRef.current;
-    view.zoom = Math.max(0.35, Math.min(4, view.zoom * factor));
+    view.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, view.zoom * factor));
     redrawIfStill();
   }, [redrawIfStill]);
 
@@ -446,10 +451,14 @@ export function StrandField({
     return () => { handleRef.current = null; };
   }, [handleRef, applyZoom, redrawIfStill]);
 
-  // Wheel zooms only with ctrl/cmd held. Swallowing a plain wheel over a canvas
-  // this tall would trap the page scroll: the field fills most of the panel, and
-  // a user reaching the widgets below it would find the page frozen. Ctrl+wheel
-  // is the same bargain an embedded map makes, and the +/- buttons cover the rest.
+  // A plain wheel over the canvas zooms, exactly like the + and - buttons.
+  //
+  // This used to require ctrl/cmd, to avoid trapping the page scroll: the field
+  // fills most of the panel, so someone scrolling toward the widgets below it
+  // would hit a dead zone. That trade is resolved differently now - the wheel
+  // zooms, and once the field is already at its zoom limit the event is left
+  // alone and the page scrolls normally. So the gesture does the obvious thing
+  // inside the canvas and stops holding the page hostage at the extremes.
   //
   // Attached by hand rather than via onWheel because React registers that
   // listener passive, and a passive listener cannot preventDefault.
@@ -457,9 +466,12 @@ export function StrandField({
     const canvas = canvasRef.current;
     if (!canvas) return;
     const onWheel = (event: WheelEvent) => {
-      if (!event.ctrlKey && !event.metaKey) return;
+      const zoomingIn = event.deltaY < 0;
+      const { zoom } = viewRef.current;
+      // At the limit in the direction being asked for, let the page have it.
+      if ((zoomingIn && zoom >= MAX_ZOOM) || (!zoomingIn && zoom <= MIN_ZOOM)) return;
       event.preventDefault();
-      applyZoom(event.deltaY < 0 ? 1.12 : 1 / 1.12);
+      applyZoom(zoomingIn ? 1.12 : 1 / 1.12);
     };
     canvas.addEventListener("wheel", onWheel, { passive: false });
     return () => canvas.removeEventListener("wheel", onWheel);
@@ -480,7 +492,7 @@ export function StrandField({
     >
       <canvas
         ref={canvasRef}
-        aria-label="Strand field. Drag to pan, ctrl and scroll to zoom, click a point for its detail."
+        aria-label="Strand field. Drag to pan, scroll to zoom, click a point for its detail."
         style={{ display: "block", touchAction: "none", cursor: "grab" }}
         onPointerDown={(e) => {
           e.currentTarget.setPointerCapture(e.pointerId);

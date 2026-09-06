@@ -18,6 +18,7 @@ the packaged behaviour without building.
 
 from __future__ import annotations
 
+import argparse
 import socket
 import sys
 import threading
@@ -29,6 +30,16 @@ HOST = "127.0.0.1"
 # Enough room to find a gap without scanning forever if something is holding a
 # whole range (a previous crashed instance, another dev server).
 PORT_SEARCH_LIMIT = 20
+
+
+def _port_is_free(port: int) -> bool:
+    """Whether we could bind ``port`` right now."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        try:
+            probe.bind((HOST, port))
+            return True
+        except OSError:
+            return False
 
 
 def find_free_port(preferred: int = DEFAULT_PORT, limit: int = PORT_SEARCH_LIMIT) -> int:
@@ -71,8 +82,33 @@ def open_browser_when_ready(port: int, timeout: float = 30.0) -> None:
     print(f"  Try opening http://localhost:{port}/ yourself.")
 
 
-def main() -> int:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(prog="Nyx", description="Nyx Ichos - local-first AI agent")
+    parser.add_argument(
+        "--no-browser",
+        action="store_true",
+        help="Start the engine without opening a browser. Used by the auto-start "
+             "task, where a browser window on every login would be an intrusion.",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=DEFAULT_PORT,
+        help=f"Preferred port (default {DEFAULT_PORT}). The next free port is used if taken.",
+    )
+    parser.add_argument(
+        "--strict-port",
+        action="store_true",
+        help="Fail instead of searching for a free port. The auto-start task uses "
+             "this so a second copy cannot quietly appear on a different port.",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
     import paths
+
+    args = parse_args(argv)
 
     print()
     print("  Nyx Ichos")
@@ -81,22 +117,33 @@ def main() -> int:
     print(f"  Data directory: {paths.DATA_DIR}")
 
     try:
-        port = find_free_port()
+        port = args.port if args.strict_port else find_free_port(args.port)
     except RuntimeError as error:
         print(f"\n  PROBLEM: {error}\n")
         return 1
 
-    if port != DEFAULT_PORT:
-        print(f"  Port {DEFAULT_PORT} was busy; using {port} instead.")
+    if args.strict_port and not _port_is_free(port):
+        # Already running is a success, not a failure: the auto-start task fires
+        # at logon and must not fight a copy the user started by hand.
+        print(f"  Nyx is already running on port {port}. Nothing to do.")
+        print(f"  Open http://localhost:{port}/")
+        return 0
 
-    print(f"  Opening http://localhost:{port}/ in your browser.")
+    if port != args.port:
+        print(f"  Port {args.port} was busy; using {port} instead.")
+
+    if args.no_browser:
+        print(f"  Running in the background on http://localhost:{port}/")
+    else:
+        print(f"  Opening http://localhost:{port}/ in your browser.")
     print()
     print("  Leave this window open while you use Nyx.")
     print("  Close it, or press Ctrl+C, to stop.")
     print("  " + "-" * 49)
     print()
 
-    threading.Thread(target=open_browser_when_ready, args=(port,), daemon=True).start()
+    if not args.no_browser:
+        threading.Thread(target=open_browser_when_ready, args=(port,), daemon=True).start()
 
     try:
         import uvicorn

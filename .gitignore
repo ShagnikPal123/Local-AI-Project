@@ -55,3 +55,19 @@ env/
 
 # Local backups taken before a destructive edit; not part of the project.
 *.bak
+
+# --- Local AI tooling, not part of the project -------------------------------
+# Agent definitions, editor settings and scratch tooling. These are how the code
+# gets written, not what the project is, and publishing them makes the repo read
+# like a workspace rather than an application. They stay on disk; they just are
+# not pushed.
+.claude/
+.freebuff/
+.vscode/
+.cursor/
+.aider*
+CLAUDE_ANTIGRAVITY_SYNC.md
+CLAUDE_TO_ANTIGRAVITY.md
+
+# A stray duplicate of openai_mcp. Kept locally; nothing imports it.
+openai_mcp - Copy/

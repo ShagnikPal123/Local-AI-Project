@@ -1,4 +1,0 @@
-{
-    "CodeGPT.apiKey": "CodeGPT Plus Beta",
-    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe"
-}

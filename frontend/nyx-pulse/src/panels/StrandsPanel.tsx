@@ -687,7 +687,7 @@ export function StrandsPanel({ state, onActivity }: {
                 </span>
               ))}
               <span style={{ color: "var(--color-neutral-700)" }}>
-                hover to slow it · drag to pan · ctrl+scroll or +/− to zoom · click a point
+                hover to slow it · drag to pan · scroll or +/− to zoom · click a point
               </span>
             </div>
 
