@@ -1,4 +1,6 @@
-# Local-First AI Assistant
+# Local-AI-Project
+
+An Local Ai that can search online and access other AI models for versatility and privacy.
 
 **Created by Shagnik**
 
@@ -18,11 +20,11 @@ cp .env.example .env.local
 ```
 
 **Required keys** (at least one):
-- `ANTHROPIC_API_KEY` — Claude (recommended primary)
-- `OPENAI_API_KEY` — GPT-4o (OpenAI)
-- `PERPLEXITY_API_KEY` — Perplexity Sonar (online search)
-- `OLLAMA_HOST` — Local Ollama (default: `http://localhost:11434`)
-- `OLLAMA_MODEL` — Model to use (default: `llama3.1`)
+- `ANTHROPIC_API_KEY` â€” Claude (recommended primary)
+- `OPENAI_API_KEY` â€” GPT-4o (OpenAI)
+- `PERPLEXITY_API_KEY` â€” Perplexity Sonar (online search)
+- `OLLAMA_HOST` â€” Local Ollama (default: `http://localhost:11434`)
+- `OLLAMA_MODEL` â€” Model to use (default: `llama3.1`)
 
 ### 3. Run the CLI
 ```bash
@@ -37,95 +39,95 @@ You'll see system status and be prompted to chat. Type `/help` for commands.
 
 ```
 Tier 1: Text Brain (DONE)
-  ├─ Conversation loop in pure text
-  ├─ Provider routing
-  └─ Message history
+  â”œâ”€ Conversation loop in pure text
+  â”œâ”€ Provider routing
+  â””â”€ Message history
 
 Tier 2: Function Calling
-  ├─ Models can invoke tools
-  └─ Typed tool registry
+  â”œâ”€ Models can invoke tools
+  â””â”€ Typed tool registry
 
 Tier 3: Speech I/O
-  ├─ Push-to-talk microphone input
-  ├─ Whisper STT
-  └─ TTS output
+  â”œâ”€ Push-to-talk microphone input
+  â”œâ”€ Whisper STT
+  â””â”€ TTS output
 
 Tier 4: Fine-Tuning
-  ├─ LoRA on local Ollama
-  └─ Personalized model
+  â”œâ”€ LoRA on local Ollama
+  â””â”€ Personalized model
 
 Tier 5: Proactive Agent
-  ├─ Background heartbeat
-  └─ Reminders & notifications
+  â”œâ”€ Background heartbeat
+  â””â”€ Reminders & notifications
 
 Tier 6: Memory & Learning
-  ├─ Vector embeddings
-  ├─ Conversation search
-  └─ Long-term context
+  â”œâ”€ Vector embeddings
+  â”œâ”€ Conversation search
+  â””â”€ Long-term context
 
 Tier 7: Multi-Platform
-  ├─ Web frontend
-  ├─ Mobile app
-  └─ Shared backend API
+  â”œâ”€ Web frontend
+  â”œâ”€ Mobile app
+  â””â”€ Shared backend API
 ```
 
-**Status: Tier 1 complete, all tests passing. Tier 2–3 ready for implementation.**
+**Status: Tier 1 complete, all tests passing. Tier 2â€“3 ready for implementation.**
 
 ## How Routing Works
 
 The `Router` class in `router.py` chooses a provider based on:
 
-1. **Device Capability** — detected at startup
+1. **Device Capability** â€” detected at startup
    ```
-   16GB+ RAM + 12GB+ VRAM → Large tier   → prefer local Ollama
-   8GB RAM + 6GB VRAM     → Medium tier  → prefer local Ollama
-   4GB RAM + 1GB VRAM     → Small tier   → prefer local Ollama
-   < 4GB RAM              → Tiny tier    → prefer online (Claude/GPT)
-   ```
-
-2. **Connectivity** — checked every request
-   ```
-   Online + capable device  → Ollama (privacy, speed)
-   Online + tiny device     → Claude/Perplexity (practical)
-   Offline                  → Ollama (only option)
+   16GB+ RAM + 12GB+ VRAM â†’ Large tier   â†’ prefer local Ollama
+   8GB RAM + 6GB VRAM     â†’ Medium tier  â†’ prefer local Ollama
+   4GB RAM + 1GB VRAM     â†’ Small tier   â†’ prefer local Ollama
+   < 4GB RAM              â†’ Tiny tier    â†’ prefer online (Claude/GPT)
    ```
 
-3. **Automatic Fallback** — if primary fails
+2. **Connectivity** â€” checked every request
    ```
-   Ollama fails + online → try Perplexity
-   Perplexity fails      → try Ollama
-   Both fail             → raise error
+   Online + capable device  â†’ Ollama (privacy, speed)
+   Online + tiny device     â†’ Claude/Perplexity (practical)
+   Offline                  â†’ Ollama (only option)
+   ```
+
+3. **Automatic Fallback** â€” if primary fails
+   ```
+   Ollama fails + online â†’ try Perplexity
+   Perplexity fails      â†’ try Ollama
+   Both fail             â†’ raise error
    ```
 
 ## Project Structure
 
 ```
-├── cli.py                           # Interactive CLI (text interface)
-├── chat_service.py                  # Conversation orchestration
-├── router.py                        # Provider routing logic
-├── config.py                        # Settings from .env
-├── connectivity.py                  # Network availability check
-├── device_profile.py                # Hardware detection
-├── tools.py                         # Tool registry (ready for Tier 2)
-│
-├── providers/
-│   ├── base.py                      # Provider interface
-│   ├── ollama_provider.py           # Local Ollama
-│   ├── openai_provider.py           # OpenAI GPT-4
-│   ├── anthropic_provider.py        # Claude
-│   └── perplexity_provider.py       # Perplexity Sonar
-│
-├── tests/
-│   ├── test_router.py               # Router logic (7 tests)
-│   ├── test_chat_service.py         # Chat loop (13 tests)
-│   ├── test_providers.py            # API providers (8 tests)
-│   └── test_*.py                    # Other components
-│
-├── AGENT.md                         # Agent specification & design
-├── requirements.txt                 # Python dependencies
-├── .env.example                     # Template for secrets
-├── .env.local                       # Your actual secrets (git-ignored)
-└── README.md                        # This file
+â”œâ”€â”€ cli.py                           # Interactive CLI (text interface)
+â”œâ”€â”€ chat_service.py                  # Conversation orchestration
+â”œâ”€â”€ router.py                        # Provider routing logic
+â”œâ”€â”€ config.py                        # Settings from .env
+â”œâ”€â”€ connectivity.py                  # Network availability check
+â”œâ”€â”€ device_profile.py                # Hardware detection
+â”œâ”€â”€ tools.py                         # Tool registry (ready for Tier 2)
+â”‚
+â”œâ”€â”€ providers/
+â”‚   â”œâ”€â”€ base.py                      # Provider interface
+â”‚   â”œâ”€â”€ ollama_provider.py           # Local Ollama
+â”‚   â”œâ”€â”€ openai_provider.py           # OpenAI GPT-4
+â”‚   â”œâ”€â”€ anthropic_provider.py        # Claude
+â”‚   â””â”€â”€ perplexity_provider.py       # Perplexity Sonar
+â”‚
+â”œâ”€â”€ tests/
+â”‚   â”œâ”€â”€ test_router.py               # Router logic (7 tests)
+â”‚   â”œâ”€â”€ test_chat_service.py         # Chat loop (13 tests)
+â”‚   â”œâ”€â”€ test_providers.py            # API providers (8 tests)
+â”‚   â””â”€â”€ test_*.py                    # Other components
+â”‚
+â”œâ”€â”€ AGENT.md                         # Agent specification & design
+â”œâ”€â”€ requirements.txt                 # Python dependencies
+â”œâ”€â”€ .env.example                     # Template for secrets
+â”œâ”€â”€ .env.local                       # Your actual secrets (git-ignored)
+â””â”€â”€ README.md                        # This file
 ```
 
 ## Running Tests
@@ -144,19 +146,19 @@ python -m pytest tests/ -vv --tb=short
 ## CLI Commands
 
 ### Interactive Commands
-- **Type normally** — send a message to the AI
-- **/help** — show available commands
-- **/status** — show device profile, connectivity, and routing status
-- **/history** — show conversation history so far
-- **/clear** — clear conversation (start fresh)
-- **/quit** — exit
+- **Type normally** â€” send a message to the AI
+- **/help** â€” show available commands
+- **/status** â€” show device profile, connectivity, and routing status
+- **/history** â€” show conversation history so far
+- **/clear** â€” clear conversation (start fresh)
+- **/quit** â€” exit
 
 ### Example Session
 ```
 $ python cli.py
 
 ================================================================
-Nyx Pulse — High-Quality Local-First AI Assistant
+Nyx Pulse â€” High-Quality Local-First AI Assistant
 ================================================================
 
 System & Hardware Status:
@@ -228,13 +230,13 @@ Goodbye!
 
 ## Key Design Principles
 
-1. **Text-First Brain** — Speech is a layer on top, not the foundation
-2. **One Unified Router** — All requests flow through the same decision logic
-3. **Fail Gracefully** — Errors are caught and formatted, never raw exceptions
-4. **No Hardcoded Secrets** — All API keys come from `.env`
-5. **Modular Providers** — Swappable, independently testable
-6. **Device-Aware from Day 1** — Hardware detection informs every decision
-7. **Mockable for Tests** — No real API calls in test suite
+1. **Text-First Brain** â€” Speech is a layer on top, not the foundation
+2. **One Unified Router** â€” All requests flow through the same decision logic
+3. **Fail Gracefully** â€” Errors are caught and formatted, never raw exceptions
+4. **No Hardcoded Secrets** â€” All API keys come from `.env`
+5. **Modular Providers** â€” Swappable, independently testable
+6. **Device-Aware from Day 1** â€” Hardware detection informs every decision
+7. **Mockable for Tests** â€” No real API calls in test suite
 
 ## What's Next
 
