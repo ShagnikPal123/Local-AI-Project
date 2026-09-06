@@ -58,7 +58,7 @@ export interface StrandFieldProps {
 /** Perspective distance. Larger flattens the cloud; smaller exaggerates it. */
 const FOCAL = 760;
 /** World radius the node shell fills. */
-const SHELL = 210;
+const SHELL = 250;
 const DUST_COUNT = 140;
 
 interface Placed {
@@ -168,6 +168,13 @@ export function StrandField({
   const sampleRef = useRef(sampleEnergy);
   const colorRef = useRef(kindColor);
   const sizeRef = useRef({ w: 0, h: 0, dpr: 1 });
+  // A virtual clock rather than wall time. Hovering eases it towards a crawl so
+  // a point can actually be clicked; scaling wall time directly would jump the
+  // rotation by however far the clock had already run.
+  const flowRef = useRef(0);
+  const flowSpeedRef = useRef(1);
+  const lastTsRef = useRef(0);
+  const hoverRef = useRef(false);
 
   sampleRef.current = sampleEnergy;
   colorRef.current = kindColor;
@@ -194,7 +201,14 @@ export function StrandField({
     const { w, h, dpr } = sizeRef.current;
     if (w === 0 || h === 0) return;
 
-    const t = reduced ? 0 : timeMs / 1000;
+    // Advance the virtual clock. dt is clamped so a backgrounded tab does not
+    // resume with one enormous jump.
+    const dt = lastTsRef.current === 0 ? 0 : Math.min(0.05, (timeMs - lastTsRef.current) / 1000);
+    lastTsRef.current = timeMs;
+    const speedTarget = hoverRef.current ? 0.12 : 1;
+    flowSpeedRef.current += (speedTarget - flowSpeedRef.current) * 0.08;
+    if (!reduced) flowRef.current += dt * flowSpeedRef.current;
+    const t = reduced ? 0 : flowRef.current;
 
     // Ease towards the requested energy so a burst of speech does not snap.
     const requested = sampleRef.current ? sampleRef.current(t) : 0;
@@ -224,7 +238,7 @@ export function StrandField({
       const z1 = px * sinY + pz * cosY;
       const y1 = py * cosX - z1 * sinX;
       const z2 = py * sinX + z1 * cosX;
-      const depth = FOCAL / (FOCAL + z2 + SHELL * 1.6);
+      const depth = FOCAL / (FOCAL + z2 + SHELL * 1.2);
       return { sx: cx + x1 * depth * zoom, sy: cy + y1 * depth * zoom, depth };
     };
 
@@ -233,10 +247,10 @@ export function StrandField({
       const bob = reduced ? 0 : Math.sin(t * d.speed + d.phase) * 26;
       const sway = reduced ? 0 : Math.cos(t * d.speed * 0.7 + d.phase) * 18;
       const p = project(d.x + sway, d.y + bob, d.z);
-      const alpha = Math.max(0, (p.depth - 0.45) * 0.5) * (0.35 + energy * 0.5);
+      const alpha = Math.max(0, (p.depth - 0.4) * 0.85) * (0.6 + energy * 0.4);
       if (alpha <= 0.004) continue;
       ctx.beginPath();
-      ctx.arc(p.sx, p.sy, Math.max(0.4, d.size * p.depth * zoom), 0, Math.PI * 2);
+      ctx.arc(p.sx, p.sy, Math.max(0.5, d.size * 1.25 * p.depth * zoom), 0, Math.PI * 2);
       ctx.fillStyle = "rgba(181,171,252," + alpha.toFixed(3) + ")";
       ctx.fill();
     }
@@ -409,12 +423,18 @@ export function StrandField({
     return () => { handleRef.current = null; };
   }, [handleRef, applyZoom, redrawIfStill]);
 
-  // Wheel is attached by hand because React's onWheel is registered passive, and
-  // a passive listener cannot preventDefault — the page would scroll as you zoom.
+  // Wheel zooms only with ctrl/cmd held. Swallowing a plain wheel over a canvas
+  // this tall would trap the page scroll: the field fills most of the panel, and
+  // a user reaching the widgets below it would find the page frozen. Ctrl+wheel
+  // is the same bargain an embedded map makes, and the +/- buttons cover the rest.
+  //
+  // Attached by hand rather than via onWheel because React registers that
+  // listener passive, and a passive listener cannot preventDefault.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const onWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey && !event.metaKey) return;
       event.preventDefault();
       applyZoom(event.deltaY < 0 ? 1.12 : 1 / 1.12);
     };
@@ -437,7 +457,7 @@ export function StrandField({
     >
       <canvas
         ref={canvasRef}
-        aria-label="Strand field. Drag to pan, scroll to zoom, click a point for its detail."
+        aria-label="Strand field. Drag to pan, ctrl and scroll to zoom, click a point for its detail."
         style={{ display: "block", touchAction: "none", cursor: "grab" }}
         onPointerDown={(e) => {
           e.currentTarget.setPointerCapture(e.pointerId);
@@ -467,7 +487,7 @@ export function StrandField({
           let bestDist = Infinity;
           for (const p of projectedRef.current) {
             const d = Math.hypot(p.sx - px, p.sy - py);
-            if (d < Math.max(14, p.r * 3) && d < bestDist) {
+            if (d < Math.max(20, p.r * 4) && d < bestDist) {
               best = p;
               bestDist = d;
             }
@@ -475,6 +495,8 @@ export function StrandField({
           const found = best ? placedRef.current.get(best.id) : undefined;
           onSelect(found ? found.node : null);
         }}
+        onPointerEnter={() => { hoverRef.current = true; }}
+        onPointerLeave={() => { hoverRef.current = false; dragRef.current = null; }}
         onPointerCancel={() => { dragRef.current = null; }}
       />
     </div>

@@ -108,6 +108,18 @@ Owner could access and use the app; these are the follow-ups, verbatim intent pr
 - [ ] **[S6] Draggable / pannable**, and able to grow large over time
       -> all of the above: `panels/StrandsPanel.tsx` (555 lines, largest panel), `widgets.py`
 
+### Tab editing (owner, after using it)
+- [ ] **[U5] You cannot tell whether a tab edit worked.** Asking it to "change the background to
+      green" gives no visible confirmation, and after clicking done every edit prompt the owner
+      typed disappears - so it is impossible to tell whether the change applied, is still running,
+      or was thrown away. Needs: optimistic/visible application of the change, a persistent record
+      of the edits made to a tab, and an explicit pending/applied/failed state.
+      -> `panels/DynamicTab.tsx` (edit panel), `tab_editor.py` (`interpret_locally`,
+         `parse_edit_reply`), `dynamic_tabs.py` (`TabStore.update`)
+      Note `tab_editor.interpret_locally` already handles colour changes deterministically and
+      offline, so "make it green" should be instant and never reach the model - if it feels slow
+      or silent, that path is not being hit.
+
 ### Accounts & permissions
 - [ ] **[A1] Admin permissions surfaced in the UI** + **account creation**
       -> `server.py` `/api/auth/claim` (new), `auth.py` `grant_role_as`,

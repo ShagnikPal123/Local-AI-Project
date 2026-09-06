@@ -101,6 +101,11 @@ export const api = {
   get: <T,>(path: string) => request<T>(path),
   post: <T,>(path: string, body?: unknown) =>
     request<T>(path, { method: "POST", body: JSON.stringify(body ?? {}) }),
+  // PATCH is how a tab is edited field-by-field (`PATCH /api/tabs/{id}`), which
+  // is what lets the tab creator hold the user to the name they typed even
+  // though the design step returns a name of the model's own choosing.
+  patch: <T,>(path: string, body?: unknown) =>
+    request<T>(path, { method: "PATCH", body: JSON.stringify(body ?? {}) }),
   del: <T,>(path: string) => request<T>(path, { method: "DELETE" }),
 };
 

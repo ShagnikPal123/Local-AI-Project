@@ -105,3 +105,29 @@ nav { border-top: 1px solid #20293b; padding-top: 12px; }.nav-item, .session { b
   .nyx-avatar__sparks i { animation: none; }
   .nyx-avatar__sparks i { opacity: .85; }
 }
+
+
+/* ---------------------------------------------------------------------------
+   Top tab bar
+   The bar scrolls sideways rather than wrapping: a wrapped nav changes height
+   whenever a user tab is added, which reflows every panel under it. The "All
+   tabs" menu is what guarantees reachability at narrow widths, not the scroll.
+   --------------------------------------------------------------------------- */
+.nyx-tabscroll { scrollbar-width: thin; scrollbar-color: var(--color-neutral-800) transparent; }
+.nyx-tabscroll::-webkit-scrollbar { height: 4px; }
+.nyx-tabscroll::-webkit-scrollbar-thumb { background: var(--color-neutral-800); border-radius: 4px; }
+.nyx-tabscroll::-webkit-scrollbar-track { background: transparent; }
+
+/* ---------------------------------------------------------------------------
+   Strands layout
+   A media query rather than an inline style because the field must get the whole
+   width on a narrow window, and inline styles cannot express a breakpoint.
+   --------------------------------------------------------------------------- */
+.strands-grid {
+  display: grid;
+  gap: 14px;
+  align-items: start;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 320px);
+}
+.strands-grid[data-expanded="true"] { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 900px) { .strands-grid { grid-template-columns: minmax(0, 1fr); } }
