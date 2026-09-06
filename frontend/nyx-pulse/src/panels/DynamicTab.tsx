@@ -314,21 +314,36 @@ function EditPanel({ spec, onChanged, onClose }: {
   const [error, setError] = useState("");
   const [history, setHistory] = useState<{ text: string; by: string }[]>([]);
 
+  const [outcome, setOutcome] = useState<string>("");
+
   async function apply(text: string) {
     const trimmed = text.trim();
     if (!trimmed || busy) return;
     setBusy(true);
     setError("");
-    const result = await api.post<{ tab: TabSpec; interpreted_by: string }>(
-      `/api/tabs/${spec.id}/edit`, { instruction: trimmed },
-    );
+    setOutcome("");
+    const result = await api.post<{
+      tab: TabSpec;
+      interpreted_by: string;
+      applied?: boolean;
+      summary?: string;
+    }>(`/api/tabs/${spec.id}/edit`, { instruction: trimmed });
     setBusy(false);
     if (!result.ok) {
       setError(result.error);
       return;
     }
+
     setHistory((h) => [{ text: trimmed, by: result.data.interpreted_by }, ...h].slice(0, 6));
-    setInstruction("");
+    // The instruction deliberately stays in the box. Clearing it on success was
+    // the reported complaint: with the text gone and the change sometimes subtle,
+    // there was no way to tell whether it had worked, been ignored, or still been
+    // running. Leaving it there means you can read what you asked, see the result
+    // beside it, and tweak the wording without retyping.
+    setOutcome(
+      result.data.summary ||
+        (result.data.applied === false ? "Nothing changed." : "Applied."),
+    );
     onChanged(result.data.tab);
   }
 
@@ -365,6 +380,28 @@ function EditPanel({ spec, onChanged, onClose }: {
           style={{ width: "100%", justifyContent: "center", opacity: busy || !instruction.trim() ? 0.5 : 1 }}>
           {busy ? "Applying…" : "Apply"}
         </button>
+
+        {busy && (
+          <div style={{ marginTop: 8 }} aria-live="polite">
+            <div className="nyx-progress"><span /></div>
+            <div style={{ fontSize: 11, color: "var(--color-neutral-600)", marginTop: 5, lineHeight: 1.5 }}>
+              Simple changes apply instantly. Anything with a title, a list of items, or
+              several parts is sent to the model, which takes a few seconds.
+            </div>
+          </div>
+        )}
+
+        {!busy && outcome && (
+          <div style={{
+            marginTop: 8, fontSize: 12, lineHeight: 1.5,
+            color: outcome === "Nothing changed."
+              ? "var(--color-warn)" : "var(--color-ok)",
+          }} aria-live="polite">
+            {outcome === "Nothing changed."
+              ? "Nothing changed — the tab already looked like that. Try being more specific."
+              : `Done: ${outcome}`}
+          </div>
+        )}
       </form>
 
       {error && (

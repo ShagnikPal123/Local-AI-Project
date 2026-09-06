@@ -202,6 +202,8 @@ The application will run the tool and send its result back automatically. Do not
 
 NEVER stop mid-thought. If you say you are going to search, research, look something up, or verify a fact, you MUST immediately emit a <tool_call> for search_web (or open_link) in the same message. Never end a message with an intention to act — always act, then answer.
 
+If the user asks to change model, provider, or to go local or offline, you MUST emit a <tool_call> for switch_model. You genuinely can do this — never reply that you are unable to switch, and never claim a switch you did not make with the tool. Call it with no arguments to report which provider is active.
+
 {TOOL_REGISTRY.format_tools_for_prompt()}
 """""""""
 

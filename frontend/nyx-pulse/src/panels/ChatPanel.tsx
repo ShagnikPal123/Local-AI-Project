@@ -10,8 +10,8 @@
  * choice matters: it applies to the next message, not retroactively.
  */
 
-import { useEffect, useRef } from "react";
-import { endpoints, type ChatMessage } from "../api";
+import { useEffect, useRef, useState } from "react";
+import { api, endpoints, type ChatMessage } from "../api";
 import { PanelShell } from "../components/Panel";
 import { AUTO_PROVIDER, ProviderPicker } from "../components/ProviderPicker";
 import type { AvatarState } from "../components/NyxAvatar";
@@ -48,6 +48,43 @@ export function ChatPanel({
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [messages.length]);
 
+  // A spinner says "something is happening"; it does not say "still happening".
+  // A request that takes twelve seconds looks identical to one that has hung,
+  // so the bar carries an elapsed count and names the provider being waited on.
+  const [elapsed, setElapsed] = useState(0);
+  const [waitingOn, setWaitingOn] = useState<string>("");
+
+  useEffect(() => {
+    if (!busy) { setElapsed(0); return; }
+    const started = Date.now();
+    const id = window.setInterval(() => setElapsed(Math.round((Date.now() - started) / 100) / 10), 100);
+    return () => window.clearInterval(id);
+  }, [busy]);
+
+  const [forking, setForking] = useState(false);
+
+  async function fork() {
+    if (forking) return;
+    setForking(true);
+    const result = await api.post<{ chat: { id: string; title: string } }>(
+      "/api/chats/fork", {},
+    );
+    setForking(false);
+    if (result.ok) {
+      // Say what happened rather than silently switching context. A branch that
+      // appears with no explanation is indistinguishable from losing the thread.
+      onMessages((m) => [...m, {
+        role: "assistant",
+        content:
+          `Branched into "${result.data.chat.title}". It starts with this conversation's recent ` +
+          "context and both chats remember the link, so they can be worked on separately and " +
+          "still be related afterwards.",
+      }]);
+    } else {
+      onMessages((m) => [...m, { role: "error", content: result.error }]);
+    }
+  }
+
   async function send() {
     const text = draft.trim();
     if (!text || busy) return;
@@ -56,6 +93,7 @@ export function ChatPanel({
     onDraft("");
     onBusy(true);
     onActivity?.("thinking");
+    setWaitingOn(provider === AUTO_PROVIDER ? "auto" : provider);
 
     const started = performance.now();
     const result = await endpoints.chat(text, provider || undefined);
@@ -87,18 +125,46 @@ export function ChatPanel({
       title="Chat"
       subtitle={subtitle}
       actions={
-        messages.length > 0 ? (
+        <div style={{ display: "flex", gap: 8 }}>
           <button
             className="btn btn-secondary"
-            onClick={() => onMessages(() => [])}
-            title="Clear the transcript shown here"
+            onClick={() => void fork()}
+            disabled={forking}
+            title="Start a linked chat that carries this conversation's context. Both chats remember the link, so work can be split and still be related."
           >
-            Clear
+            {forking ? "Branching…" : "Branch"}
           </button>
-        ) : undefined
+          {messages.length > 0 && (
+            <button
+              className="btn btn-secondary"
+              onClick={() => onMessages(() => [])}
+              title="Clear the transcript shown here"
+            >
+              Clear
+            </button>
+          )}
+        </div>
       }
     >
       <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0, gap: 12 }}>
+        {busy && (
+          <div aria-live="polite">
+            <div style={{
+              display: "flex", justifyContent: "space-between",
+              fontSize: 11, color: "var(--color-neutral-500)", marginBottom: 5,
+            }}>
+              <span>
+                {waitingOn && waitingOn !== "auto"
+                  ? `Waiting on ${waitingOn}…`
+                  : "Choosing a model and answering…"}
+              </span>
+              <span>{elapsed.toFixed(1)}s</span>
+            </div>
+            {/* Indeterminate on purpose: the server does not report progress, and
+                a bar that pretends to know how far along it is would be a lie. */}
+            <div className="nyx-progress"><span /></div>
+          </div>
+        )}
         <div ref={scrollRef} style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
           {messages.length === 0 && (
             <div style={{ color: "var(--color-neutral-600)", fontSize: 13, lineHeight: 1.7 }}>

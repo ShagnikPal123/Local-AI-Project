@@ -131,3 +131,42 @@ nav { border-top: 1px solid #20293b; padding-top: 12px; }.nav-item, .session { b
 }
 .strands-grid[data-expanded="true"] { grid-template-columns: minmax(0, 1fr); }
 @media (max-width: 900px) { .strands-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------------------------------------------------------------------------
+   Indeterminate progress bar
+   Used while a reply is in flight. Deliberately indeterminate: the server does
+   not report how far through a generation it is, and a bar that filled at a
+   made-up rate would be claiming knowledge it does not have. The elapsed
+   counter beside it is the honest signal that something is still happening.
+   --------------------------------------------------------------------------- */
+.nyx-progress {
+  position: relative;
+  height: 3px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--color-divider, rgba(255, 255, 255, .08));
+}
+.nyx-progress > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 38%;
+  border-radius: 999px;
+  background: linear-gradient(90deg,
+    transparent,
+    var(--color-accent, #9184d9),
+    color-mix(in srgb, var(--color-accent, #9184d9) 40%, transparent));
+  animation: nyx-progress-slide 1.15s ease-in-out infinite;
+}
+@keyframes nyx-progress-slide {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(320%); }
+}
+/* Reduced motion still needs to show that work is in progress, so the bar
+   stays visible and breathes instead of travelling. */
+@media (prefers-reduced-motion: reduce) {
+  .nyx-progress > span {
+    width: 100%;
+    animation: nyx-progress-pulse 1.8s ease-in-out infinite;
+  }
+  @keyframes nyx-progress-pulse { 0%,100% { opacity: .35 } 50% { opacity: .9 } }
+}

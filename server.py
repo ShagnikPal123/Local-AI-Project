@@ -214,6 +214,13 @@ class GrantRequest(BaseModel):
     role: str
 
 
+class ForkChatRequest(BaseModel):
+    """Branch a chat. Empty source forks whichever chat is active."""
+
+    source: str = ""
+    title: str = ""
+
+
 class PersonalityRequest(BaseModel):
     """Which personality to apply. Empty id restores the default voice."""
 
@@ -376,9 +383,33 @@ def _get_service(chat_id: Optional[str] = None) -> ChatService:
         return _services[key]
 
 
+def _tab_edit_service() -> ChatService:
+    """A tool-free service dedicated to translating tab edits into JSON.
+
+    Tab editing was borrowing an ordinary chat service, which carries the full
+    ~8KB tool schema, the memory context and the personality. None of that helps
+    turn "add a checklist called Weekly Goals" into a spec, and all of it is sent
+    on every edit - a request the user sits and waits on. Without tools the model
+    also cannot wander off into a search mid-edit.
+
+    web_access stays ON. Disabling it looked harmless - this never needs the web -
+    but it also drops every online provider from the router, and with no local
+    Ollama installed that leaves nothing to answer at all: the edit came back as
+    the offline courtesy text, which is not JSON, and surfaced as "the model did
+    not return a usable edit".
+    """
+    key = "__tabedit__"
+    with _services_lock:
+        if key not in _services:
+            _services[key] = ChatService(enable_tools=False)
+        return _services[key]
+
+
 def _chat_ids() -> List[str]:
     with _services_lock:
-        return list(_services.keys())
+        # The tab editor is machinery, not a conversation; listing it as a chat
+        # would put it in the user's chat count and switcher.
+        return [key for key in _services if not key.startswith("__")]
 
 
 def _get_folder_reader() -> FolderReader:
@@ -530,7 +561,37 @@ def chat(request: ChatRequest, _user=RequireChat) -> ChatResponse:
 @app.get("/api/chats")
 def list_chats() -> Dict[str, Any]:
     """List all concurrently active chat services."""
-    return {"chats": _chat_ids(), "count": len(_chat_ids())}
+    service = _get_service()
+    return {
+        "chats": _chat_ids(),
+        "count": len(_chat_ids()),
+        # The stored sessions, which carry titles and branch links. _chat_ids()
+        # only knows about services currently cached in memory.
+        "sessions": service.chat_store.list(),
+        "active": service.chat_store.data.get("active_chat", ""),
+    }
+
+
+@app.post("/api/chats/fork")
+def fork_chat(request: ForkChatRequest, _user=RequireChat) -> Dict[str, Any]:
+    """Branch the conversation into a linked chat.
+
+    Opening a blank chat loses the thread; continuing in the same one buries it.
+    A fork keeps both: the branch starts knowing where it came from, and each
+    side records the other, so several chats can work the same problem and still
+    be related afterwards.
+    """
+    service = _get_service(request.source or "default")
+    try:
+        branch = service.chat_store.fork(
+            source_id=request.source or None,
+            title=(request.title or "").strip() or None,
+        )
+    except RuntimeError as error:
+        # Raised when the source is missing, and when the chat limit is reached.
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    return {"chat": branch, "sessions": service.chat_store.list()}
 
 
 @app.post("/api/think")
@@ -1299,7 +1360,7 @@ def edit_tab_conversationally(tab_id: str, request: TabEditRequest, _user=Requir
     if changes is None:
         interpreted_by = "model"
         try:
-            service = _get_service("__tabedit__")
+            service = _tab_edit_service()
             reply, _provider = service.chat(build_edit_prompt(spec, request.instruction))
             changes = parse_edit_reply(reply)
         except TabSpecError as error:

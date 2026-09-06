@@ -980,3 +980,90 @@ TOOL_REGISTRY.register(
     handler=builtin_obsidian_list_notes,
 )
 
+
+
+def builtin_switch_model(provider: str = "", model: str = "") -> str:
+    """Change which provider or local model answers, for this and later turns.
+
+    Without this the assistant genuinely could not do what it was being asked:
+    /api/models/switch existed, but nothing exposed it as a tool, so "switch to
+    Groq" got an honest "I can't" and the user reasonably read that as a bug.
+
+    SETTINGS is a mutable dataclass read at call time, so the change applies to
+    the next request with no restart.
+    """
+    from config import SETTINGS
+    from router import _PAID_PROVIDERS
+
+    wanted = (provider or "").strip().lower()
+    known = {
+        "ollama", "claude", "anthropic", "openai", "gemini",
+        "kimi", "deepseek", "groq", "perplexity",
+    }
+
+    if not wanted and not model:
+        return (
+            f"Currently using {SETTINGS.preferred_online_provider} online"
+            f" (local model: {SETTINGS.ollama_model}). "
+            "Name a provider to switch, e.g. switch_model(provider='groq')."
+        )
+
+    if wanted:
+        if wanted == "anthropic":
+            wanted = "claude"
+        if wanted not in known:
+            return f"Unknown provider {provider!r}. Available: {', '.join(sorted(known))}."
+        # Refuse rather than silently ignore. Switching to a provider that the
+        # router will then filter out looks like the switch worked and the model
+        # stayed the same, which is the most confusing possible outcome.
+        if SETTINGS.free_only and wanted in _PAID_PROVIDERS:
+            return (
+                f"{wanted} is a paid provider and free-only mode is on, so the router "
+                "would ignore it. Set FREE_ONLY=false in .env.local to allow paid models."
+            )
+        SETTINGS.preferred_online_provider = wanted
+
+    if model:
+        clean = model.strip()
+        if wanted == "ollama" or (not wanted and SETTINGS.preferred_online_provider == "ollama"):
+            SETTINGS.ollama_model = clean
+        elif wanted in ("gemini", "") and SETTINGS.preferred_online_provider == "gemini":
+            SETTINGS.gemini_model = clean
+        elif wanted == "groq":
+            SETTINGS.groq_model = clean
+        elif wanted == "deepseek":
+            SETTINGS.deepseek_model = clean
+        elif wanted == "kimi":
+            SETTINGS.kimi_model = clean
+
+    return (
+        f"Switched. Online provider is now {SETTINGS.preferred_online_provider}"
+        + (f", model {model.strip()}" if model else "")
+        + ". This takes effect on the next reply."
+    )
+
+
+TOOL_REGISTRY.register(
+    name="switch_model",
+    description=(
+        "Change which AI provider or model answers. Use when the user asks to switch "
+        "models, use a different provider, or go local/offline. Call with no arguments "
+        "to report which is active."
+    ),
+    parameters=[
+        ToolParam(
+            name="provider",
+            param_type="string",
+            description="Provider to use: ollama, gemini, groq, claude, openai, deepseek, kimi, perplexity",
+            required=False,
+            enum_values=["ollama", "gemini", "groq", "claude", "openai", "deepseek", "kimi", "perplexity"],
+        ),
+        ToolParam(
+            name="model",
+            param_type="string",
+            description="Optional specific model name for that provider",
+            required=False,
+        ),
+    ],
+    handler=builtin_switch_model,
+)

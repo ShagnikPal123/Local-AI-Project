@@ -151,3 +151,63 @@ def test_the_edit_prompt_offers_a_way_to_refuse(spec):
 def test_a_name_stops_at_the_next_clause(spec, instruction, expected):
     """Otherwise 'call it Journal and make it green' names the tab all of that."""
     assert interpret_locally(spec, instruction)["label"] == expected
+
+
+# --- Regressions from a real report -----------------------------------------
+# "Even if I give it a lot of detail it won't change." Two separate causes, both
+# of which made a detailed edit look ignored rather than failed.
+
+def test_rename_does_not_swallow_the_words_naming_the_tab():
+    """"rename the tab to X" once produced the name "the tab to X".
+
+    Nothing consumed the filler between the verb and the name, so the words used
+    to *refer* to the tab became the tab's name - and because the edit did apply,
+    it read as the assistant mangling the request rather than failing it.
+    """
+    spec = build_spec(label="Search", blocks=[{"type": "chat", "title": "A"}])
+
+    for instruction in (
+        "rename the tab to Research Hub",
+        "rename it to Research Hub",
+        "call the tab Research Hub",
+        "name this tab Research Hub",
+    ):
+        changes = interpret_locally(spec, instruction)
+        assert changes is not None, instruction
+        assert changes["label"] == "Research Hub", f"{instruction!r} -> {changes['label']!r}"
+
+
+def test_detail_the_regexes_cannot_hold_goes_to_the_model():
+    """An instruction carrying a title or items must not be half-applied locally.
+
+    The local reader could see "add a checklist" and nothing else, so it created
+    a block called "Checklist" and silently dropped the requested name and every
+    item. Returning None is the correct answer: slower, and right.
+    """
+    spec = build_spec(label="Search", blocks=[{"type": "chat", "title": "A"}])
+
+    for instruction in (
+        "Add a checklist block titled Daily Review with items for inbox and calendar",
+        "add a notes block called Scratchpad",
+        "add a links block containing the docs and the repo",
+        "add a checklist named Morning with items: coffee, email",
+    ):
+        assert interpret_locally(spec, instruction) is None, instruction
+
+
+def test_plain_colour_phrasing_is_still_handled_locally():
+    """"change the background to green" is the phrasing people actually use.
+
+    Neither "change" nor "background" was a recognised verb, so the commonest
+    colour edit took a model round trip to reach the same answer.
+    """
+    spec = build_spec(label="Search", blocks=[{"type": "chat", "title": "A"}])
+
+    for instruction in (
+        "change the background to green",
+        "change the theme to red",
+        "set the accent to purple",
+    ):
+        changes = interpret_locally(spec, instruction)
+        assert changes is not None, instruction
+        assert changes["accent"].startswith("#"), instruction

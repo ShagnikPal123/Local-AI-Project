@@ -43,14 +43,37 @@ _COLOURS: Dict[str, str] = {
     "white": "#e9e9ed",
 }
 
+# "change the background to green" is the phrasing people actually reach for, and
+# neither "change" nor "background" was in this list - so the commonest colour
+# edit took the slow trip through the model to arrive at the same answer.
 _COLOUR_RE = re.compile(
-    r"\b(?:make|turn|colour|color|paint|set)\b[^.]*?\b(" + "|".join(_COLOURS) + r")\b",
+    r"\b(?:make|turn|colour|color|paint|set|change|background|accent|theme)\b"
+    r"[^.]*?\b(" + "|".join(_COLOURS) + r")\b",
     re.IGNORECASE,
 )
 _HEX_RE = re.compile(r"#[0-9a-fA-F]{6}\b")
+# "rename the tab to X" used to capture "the tab to X" as the name: nothing
+# consumed the filler between the verb and the name, so the words the user used
+# to refer to the tab ended up *being* the tab's name. The filler group is
+# explicit now, and `to` is required after it so a bare "rename the tab" cannot
+# swallow the rest of the sentence.
 _RENAME_RE = re.compile(
-    r"\b(?:rename(?:\s+it)?(?:\s+to)?|call\s+it|name\s+it|title\s+it)\s+"
+    r"\b(?:rename|call|name|title)\s+"
+    r"(?:(?:it|this|the|that)\s+)?(?:tab\s+)?"
+    r"(?:to\s+)?"
     r"[\"'“]?([A-Za-z0-9][A-Za-z0-9 &'-]{0,38})[\"'”]?",
+    re.IGNORECASE,
+)
+
+# Detail the local path cannot represent. A block title, a list of items, or an
+# explicit "with ..." clause all carry information the regexes silently drop, so
+# they must go to the model instead. Applying half of a detailed instruction and
+# reporting success is worse than taking the slower, correct route: it produced
+# a block called "Checklist" when the user asked for "Daily Review" with three
+# named items, and looked like the edit had simply been ignored.
+_DETAIL_RE = re.compile(
+    r"\b(?:titled|called|named|labell?ed|with\s+items?|containing|items?\s*:|"
+    r"for\s+\w+\s*,|include|including)\b",
     re.IGNORECASE,
 )
 
@@ -89,6 +112,12 @@ def interpret_locally(spec: TabSpec, instruction: str) -> Optional[Dict[str, Any
     """
     text = (instruction or "").strip()
     if not text:
+        return None
+
+    # Anything carrying structure the regexes cannot hold goes to the model.
+    # This check is the difference between "the edit did nothing" and "the edit
+    # took a second and was right".
+    if _DETAIL_RE.search(text):
         return None
 
     changes: Dict[str, Any] = {}

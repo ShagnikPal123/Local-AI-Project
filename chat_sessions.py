@@ -38,6 +38,51 @@ class ChatSessionStore:
         self.data["active_chat"] = chat_id
         self._save()
         return chat_id
+    def fork(self, source_id: str | None = None, title: str | None = None,
+             carry: int = 12) -> dict[str, Any]:
+        """Branch a new chat from an existing one, keeping the link between them.
+
+        Opening a blank chat loses the thread you were pulling on; continuing in
+        the same one buries it. A fork does neither: the new chat starts with a
+        summary of where it came from, and both ends record the relationship, so
+        work can be split across chats and still be reasoned about as one piece.
+
+        Only the tail is carried. Copying the whole history would double the
+        token cost of every later turn for context the branch usually does not
+        need, and the parent is still reachable through `parent_id`.
+        """
+        source = source_id or self.data.get("active_chat")
+        parent = self.data["chats"].get(source)
+        if parent is None:
+            raise RuntimeError("No such chat to fork from.")
+
+        parent_title = parent.get("title", source)
+        chat_id = self.create(title or f"{parent_title} — branch")
+
+        child = self.data["chats"][chat_id]
+        child["parent_id"] = source
+        child["parent_title"] = parent_title
+
+        tail = [m for m in parent.get("messages", []) if m.get("role") in ("user", "assistant")][-carry:]
+        if tail:
+            transcript = "\n".join(
+                f"{m['role']}: {str(m.get('content', ''))[:600]}" for m in tail
+            )
+            child["messages"].append({
+                "role": "system",
+                "content": (
+                    f"[Branched from “{parent_title}”]\n"
+                    "You are continuing that conversation in a separate thread. Recent context:\n"
+                    f"{transcript}"
+                ),
+            })
+
+        # Record the branch on the parent too, so the relationship is visible
+        # from either side rather than only from the child.
+        parent.setdefault("children", []).append(chat_id)
+        self._save()
+        return {"id": chat_id, **child}
+
     def ensure_active(self) -> str:
         active = self.data.get("active_chat")
         if active in self.data["chats"]:

@@ -63,6 +63,15 @@ _NEEDS_FULL_PIPELINE = (
     # machine / file actions
     "file", "folder", "directory", "open ", "run ", "execute", "screenshot",
     "clipboard", "browser", "download", "delete", "install",
+    # Changing the model or provider needs the switch_model tool, and the fast
+    # path has no tools at all. "switch to groq" is short enough to look trivial,
+    # so it took the fast path and the model answered - correctly, for that path -
+    # that it had no way to change providers. The request reads as randomly
+    # refused, because whether it worked depended on how long the sentence was.
+    "switch to", "switch model", "switch provider", "change model",
+    "change provider", "use gemini", "use groq", "use ollama", "use claude",
+    "use openai", "different model", "another model", "go offline", "go local",
+    "which model", "what model", "which provider",
     # multi-step reasoning
     "analyze", "compare", "design", "architecture", "plan", "strategy",
     "step by step", "walk me through", "pros and cons", "trade-off",
