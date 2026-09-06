@@ -1,0 +1,2075 @@
+"""FastAPI backend for Nyx Ichos — desktop and mobile access layer.
+
+Exposes the chat service, memory, personalities, speech patterns, and the
+folder reader over HTTP so the React frontend (frontend/nyx-pulse) and
+future mobile clients can talk to the same local brain.
+
+Run with:
+    uvicorn server:app --reload --port 8000
+
+Requires: pip install fastapi uvicorn
+"""
+
+from __future__ import annotations
+
+import threading
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel
+
+from chat_service import ChatService
+from folder_reader import FolderReader, FolderReaderError
+from personalities import (
+    PersonalityNotFoundError,
+    clear_custom_personality,
+    get_custom_personality,
+    list_personalities,
+    resolve_personality,
+    save_custom_personality,
+)
+from auth import (
+    check_password_policy,
+    AuthError,
+    Permission,
+    Role,
+    UnknownAccountError,
+    WeakPasswordError,
+    invite_link,
+)
+from rag_memory import RagMemory
+from server_auth import (
+    AUTH_STORE,
+    enforce_session_middleware,
+    RequireAdmin,
+    RequireChat,
+    RequireGrant,
+    RequireInvite,
+    RequireMachineControl,
+    RequirePublishChanges,
+    RequireReviewChanges,
+    is_claimed,
+)
+from speech_patterns import SpeechPatternStore
+
+try:
+    from fastapi import Depends, FastAPI, Header, HTTPException, Request
+    from fastapi.middleware.cors import CORSMiddleware
+except ImportError as exc:  # pragma: no cover - import guard for non-server use
+    raise ImportError(
+        "FastAPI is required for the server. Install it with: pip install fastapi uvicorn"
+    ) from exc
+
+
+app = FastAPI(
+    title="Nyx Ichos API",
+    version="0.1.0",
+    description="Local-first multi-agent AI assistant. Created by Shagnik.",
+    contact={"name": "Shagnik"},
+)
+
+def _allowed_origins() -> List[str]:
+    """CORS origins for this build.
+
+    A local build talks to itself and a dev server, so a wildcard is harmless.
+    A hosted build must not accept credentialed requests from anywhere — that
+    would let any page a user visits call this API with their session. Hosted
+    origins come from NYX_ALLOWED_ORIGINS, and an empty list is the safe answer
+    rather than a permissive default.
+    """
+    import os
+
+    from deploy_mode import is_hosted
+
+    configured = [
+        o.strip()
+        for o in (os.getenv("NYX_ALLOWED_ORIGINS") or "").split(",")
+        if o.strip()
+    ]
+
+    if is_hosted():
+        # Nothing is assumed. An empty list refuses every cross-origin call,
+        # which is the safe answer when nobody has said which sites may connect.
+        return configured
+
+    # A local build also accepts a hosted UI the user has pointed at it — the
+    # interface can live on the web while the brain stays on this machine. That
+    # only works if this origin is named explicitly, so it is still opt-in.
+    return [
+        "http://localhost:5173", "http://127.0.0.1:5173",
+        "http://localhost:8000", "http://127.0.0.1:8000",
+        "http://localhost:4173", "http://127.0.0.1:4173",
+        *configured,
+    ]
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_allowed_origins(),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Deny-by-default session gate. Every /api route except the public allowlist in
+# server_auth.PUBLIC_PATHS requires a session once an owner account exists, so a
+# newly added endpoint is protected without anyone having to remember.
+app.middleware("http")(enforce_session_middleware)
+
+
+@app.middleware("http")
+async def allow_anonymous_health_probe(request: Request, call_next):
+    """Let any page check whether the engine is alive.
+
+    The landing page has to answer one question - "is the engine running on this
+    machine?" - from whatever origin it happens to be served from: a file:// URL
+    (origin "null"), a hosted site, or a scratch port. The main CORS policy is a
+    fixed localhost allowlist, so all of those were refused and the page showed
+    "Engine not running" even while the engine was answering perfectly well.
+
+    Widening the global policy would be the wrong fix: it is credentialed, so it
+    guards real endpoints. Instead this exempts liveness only, and does it
+    WITHOUT credentials - a wildcard origin and cookies together is exactly the
+    combination that would let any page a user visits call this API as them.
+    /api/health returns no personal data; the deep variant is not exempted.
+    """
+    response = await call_next(request)
+    if request.url.path == "/api/health":
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Credentials"] = "false"
+        response.headers["Vary"] = "Origin"
+    return response
+
+# ---------------------------------------------------------------------------
+# Request/response models
+# ---------------------------------------------------------------------------
+
+
+class ChatRequest(BaseModel):
+    message: Optional[str] = None
+    messages: Optional[List[Dict[str, Any]]] = None
+    attribute_id: Optional[str] = None
+    personality_id: Optional[str] = None
+    personality_text: Optional[str] = None
+    use_rag: bool = True
+    model: Optional[str] = None
+    provider: Optional[str] = None
+    workspace_files: Optional[List[str]] = None
+    memories: Optional[List[str]] = None
+    chat_id: Optional[str] = None
+    background: bool = False
+
+
+class ChatResponse(BaseModel):
+    reply: str
+    response: Optional[str] = None
+    provider: str
+    metadata: Dict[str, Any] = {}
+    chat_id: str = "default"
+    thought_id: Optional[str] = None
+
+    def __init__(self, **data: Any):
+        if "response" not in data and "reply" in data:
+            data["response"] = data["reply"]
+        super().__init__(**data)
+
+
+class MemoryItem(BaseModel):
+    topic: str
+    content: str
+
+
+class FolderAddRequest(BaseModel):
+    name: str
+    path: str
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class JoinRequest(BaseModel):
+    invite: str
+    email: str
+    password: str = ""
+
+
+class InviteRequest(BaseModel):
+    role: str = "beta"
+    email: str = ""
+    base_url: str = "http://localhost:5173"
+
+
+class ClaimRequest(BaseModel):
+    """First-run ownership claim. Loopback-only; see claim_ownership."""
+
+    email: str
+    password: str
+
+
+class GrantRequest(BaseModel):
+    email: str
+    role: str
+
+
+class SpeedRequest(BaseModel):
+    mode: str = "auto"
+
+
+class AgentSpec(BaseModel):
+    name: str
+    goal: str = ""
+    role: str = "worker"
+    personality_id: Optional[str] = None
+
+
+class SpawnAgentRequest(BaseModel):
+    agents: List[AgentSpec] = []
+
+
+class PowerRequest(BaseModel):
+    mode: str = "auto"
+
+
+class WidgetRequest(BaseModel):
+    type: str
+    title: str = ""
+    config: Dict[str, Any] = {}
+
+
+class WidgetOrderRequest(BaseModel):
+    order: List[str] = []
+
+
+class ChangeRequest(BaseModel):
+    title: str
+    description: str = ""
+    target: str
+    content: str = ""
+    previous_content: str = ""
+    origin: str = "human"
+
+
+class RejectRequest(BaseModel):
+    reason: str = ""
+
+
+class RestoreRequest(BaseModel):
+    checkpoint_id: str = ""
+
+
+class GrantCapabilityRequest(BaseModel):
+    capability: str
+    scope: str = ""
+    ttl_seconds: int = 3600
+
+
+class RevokeCapabilityRequest(BaseModel):
+    capability: str = ""
+    all: bool = False
+
+
+class SkillRequest(BaseModel):
+    name: str
+    description: str = ""
+    instructions: str
+    triggers: List[str] = []
+
+
+class SkillFromTextRequest(BaseModel):
+    description: str
+
+
+class SkillToggleRequest(BaseModel):
+    enabled: bool = True
+
+
+class SkillPreviewRequest(BaseModel):
+    message: str = ""
+
+
+class TabCreateRequest(BaseModel):
+    label: str
+    blocks: List[Dict[str, Any]] = []
+    icon: str = "ph-squares-four"
+    description: str = ""
+    connectors: List[str] = []
+    accent: str = ""
+
+
+class TabFromTextRequest(BaseModel):
+    description: str
+
+
+class TabUpdateRequest(BaseModel):
+    label: Optional[str] = None
+    icon: Optional[str] = None
+    description: Optional[str] = None
+    blocks: Optional[List[Dict[str, Any]]] = None
+    connectors: Optional[List[str]] = None
+    accent: Optional[str] = None
+
+
+class TabEditRequest(BaseModel):
+    instruction: str
+
+
+class TabCombineRequest(BaseModel):
+    first: str
+    second: str
+    label: str = ""
+
+
+class SpeechLearnRequest(BaseModel):
+    messages: List[str]
+
+
+# ---------------------------------------------------------------------------
+# Shared service instances
+# ---------------------------------------------------------------------------
+
+# One ChatService per chat_id so multiple chats stay active concurrently —
+# the App can fire 2+ prompts across chats without them stepping on each other.
+_services: Dict[str, ChatService] = {}
+_services_lock = threading.Lock()
+_folder_reader: Optional[FolderReader] = None
+_speech: Optional[SpeechPatternStore] = None
+_rag: Optional[RagMemory] = None
+
+
+def _get_service(chat_id: Optional[str] = None) -> ChatService:
+    key = chat_id or "default"
+    with _services_lock:
+        if key not in _services:
+            _services[key] = ChatService()
+        return _services[key]
+
+
+def _chat_ids() -> List[str]:
+    with _services_lock:
+        return list(_services.keys())
+
+
+def _get_folder_reader() -> FolderReader:
+    global _folder_reader
+    if _folder_reader is None:
+        _folder_reader = FolderReader()
+    return _folder_reader
+
+
+def _get_speech() -> SpeechPatternStore:
+    global _speech
+    if _speech is None:
+        _speech = SpeechPatternStore()
+    return _speech
+
+
+def _get_rag() -> RagMemory:
+    global _rag
+    if _rag is None:
+        _rag = RagMemory(memory=_get_service().memory)
+    return _rag
+
+
+# ---------------------------------------------------------------------------
+# Health & status
+# ---------------------------------------------------------------------------
+
+
+def _build_info() -> Dict[str, Any]:
+    """What this build can do, so the UI never offers a missing capability."""
+    from deploy_mode import describe
+
+    return describe()
+
+
+@app.get("/api/health")
+def health() -> Dict[str, Any]:
+    """Return backend liveness and capability flags."""
+    return {
+        "status": "ok",
+        # Tells the frontend whether to show a login screen. An unclaimed install
+        # is a fresh local one and works without an account.
+        "claimed": is_claimed(),
+        "build": _build_info(),
+        "capabilities": [
+            "chat",
+            "memory",
+            "personalities",
+            "speech_patterns",
+            "folders",
+            "rag",
+            "multi_chat",
+            "background_thinking",
+            "math",
+            "knowledge",
+            "finance",
+            "multi_model",
+            "voice",
+        ],
+    }
+
+
+@app.get("/api/status")
+def status() -> Dict[str, Any]:
+    """Return service, router, and connector status."""
+    service = _get_service()
+    from knowledge import get_knowledge
+    from thought_loop import list_thoughts
+
+    return {
+        "service": service.get_status(),
+        "personality": resolve_personality() and resolve_personality().get("id"),
+        "folders": _get_folder_reader().list_folders(),
+        "speech_patterns": _get_speech().get_patterns(),
+        "knowledge": get_knowledge().status(),
+        "active_chats": _chat_ids(),
+        "background_thoughts": list_thoughts(),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Chat
+# ---------------------------------------------------------------------------
+
+
+@app.post("/api/chat", response_model=ChatResponse)
+def chat(request: ChatRequest, _user=RequireChat) -> ChatResponse:
+    """Send a message and receive a reply from the routed provider.
+
+    Each chat_id gets its own ChatService, so many chats can be active at once.
+    Set background=true to acknowledge immediately and finish the research in a
+    background thought; poll /api/think/{thought_id} for the final answer.
+    """
+    user_text = ""
+    if request.message and request.message.strip():
+        user_text = request.message.strip()
+    elif request.messages:
+        # Find last user message in the list
+        for m in reversed(request.messages):
+            if m.get("role") == "user" and m.get("content", "").strip():
+                user_text = m["content"].strip()
+                break
+
+    if not user_text:
+        raise HTTPException(status_code=400, detail="Message cannot be empty.")
+
+    chat_id = request.chat_id or "default"
+    service = _get_service(chat_id)
+    personality = resolve_personality(request.personality_id, request.personality_text)
+    if personality:
+        service.set_personality(personality)
+
+    rag_context = ""
+    if request.use_rag:
+        rag_context = _get_rag().build_context_prompt(user_text)
+
+    message = f"{rag_context}\n\n{user_text}" if rag_context else user_text
+
+    if request.background:
+        from thought_loop import start_background_thought
+
+        thinker = start_background_thought(service, message, attribute_id=request.attribute_id)
+        return ChatResponse(
+            reply=(
+                "I'm working on this in the background — researching and studying now. "
+                f"Thought ID: {thinker.thought.thought_id}"
+            ),
+            provider="background",
+            metadata={"rag": bool(rag_context), "background": True},
+            chat_id=chat_id,
+            thought_id=thinker.thought.thought_id,
+        )
+
+    reply, provider = service.chat(message, attribute_id=request.attribute_id)
+    return ChatResponse(
+        reply=reply,
+        response=reply,
+        provider=provider,
+        metadata={"rag": bool(rag_context)},
+        chat_id=chat_id,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Concurrent chats & background thoughts
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/chats")
+def list_chats() -> Dict[str, Any]:
+    """List all concurrently active chat services."""
+    return {"chats": _chat_ids(), "count": len(_chat_ids())}
+
+
+@app.post("/api/think")
+def start_thought(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Start a background thought; returns an id to poll for the final answer."""
+    from thought_loop import start_background_thought
+
+    task = (payload.get("task") or "").strip()
+    if not task:
+        raise HTTPException(status_code=400, detail="Task cannot be empty.")
+    chat_id = payload.get("chat_id") or "default"
+    thinker = start_background_thought(
+        _get_service(chat_id),
+        task,
+        attribute_id=payload.get("attribute_id"),
+    )
+    return {
+        "thought_id": thinker.thought.thought_id,
+        "chat_id": chat_id,
+        "status": thinker.status(),
+    }
+
+
+@app.get("/api/think")
+def list_background_thoughts() -> Dict[str, Any]:
+    """List all background thoughts (for live App/Web status)."""
+    from thought_loop import list_thoughts
+
+    return {"thoughts": list_thoughts()}
+
+
+@app.get("/api/think/{thought_id}")
+def thought_status(thought_id: str) -> Dict[str, Any]:
+    """Poll a background thought's live status and final result."""
+    from thought_loop import get_thought
+
+    thinker = get_thought(thought_id)
+    if thinker is None:
+        raise HTTPException(status_code=404, detail=f"Unknown thought: {thought_id}")
+    return thinker.status()
+
+
+# ---------------------------------------------------------------------------
+# Math & permanent general knowledge
+# ---------------------------------------------------------------------------
+
+
+@app.post("/api/math")
+def math_endpoint(payload: Dict[str, str]) -> Dict[str, Any]:
+    """Evaluate a math expression or solve an equation in x."""
+    from math_engine import MathError, evaluate, solve
+
+    expression = (payload.get("expression") or "").strip()
+    if not expression:
+        raise HTTPException(status_code=400, detail="Expression cannot be empty.")
+    try:
+        result = evaluate(expression)
+        return {"expression": expression, "result": result, "kind": "expression"}
+    except MathError:
+        pass
+    try:
+        solved = solve(expression)
+        return {**solved, "kind": "equation"}
+    except MathError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+
+
+@app.get("/api/knowledge")
+def knowledge_search(q: str, limit: int = 5) -> Dict[str, Any]:
+    """Search the permanent general knowledge base."""
+    from knowledge import get_knowledge
+
+    return {"query": q, "results": get_knowledge().search(q, limit=limit)}
+
+
+# ---------------------------------------------------------------------------
+# Models: list local (Ollama) and online providers, switch the active one
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/models")
+def list_models() -> Dict[str, Any]:
+    """List local Ollama models and configured online providers."""
+    from config import SETTINGS
+    from providers.anthropic_provider import AnthropicProvider
+    from providers.deepseek_provider import DeepSeekProvider
+    from providers.gemini_provider import GeminiProvider
+    from providers.groq_provider import GroqProvider
+    from providers.kimi_provider import KimiProvider
+    from providers.ollama_provider import OllamaProvider
+    from providers.openai_provider import OpenAIProvider
+    from providers.perplexity_provider import PerplexityProvider
+
+    local = OllamaProvider().list_models()
+    online = []
+    for name, provider in (
+        ("claude", AnthropicProvider()),
+        ("openai", OpenAIProvider()),
+        ("gemini", GeminiProvider()),
+        ("kimi", KimiProvider()),
+        ("deepseek", DeepSeekProvider()),
+        ("groq", GroqProvider()),
+        ("perplexity", PerplexityProvider()),
+    ):
+        online.append({"name": name, "configured": provider.is_available()})
+    return {
+        "local": local,
+        "local_active": SETTINGS.ollama_model,
+        "online": online,
+        "preferred_online": SETTINGS.preferred_online_provider,
+    }
+
+
+@app.post("/api/models/switch")
+def switch_model(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Switch the active local model or the preferred online provider."""
+    from config import SETTINGS
+    from providers.ollama_provider import OllamaProvider
+
+    target = (payload.get("model") or "").strip()
+    if not target:
+        raise HTTPException(status_code=400, detail="Model name cannot be empty.")
+
+    online_names = {"claude", "openai", "gemini", "kimi", "deepseek", "groq", "perplexity"}
+    if target.lower() in online_names:
+        SETTINGS.preferred_online_provider = target.lower()
+        return {"kind": "online", "model": target.lower(), "preferred": SETTINGS.preferred_online_provider}
+
+    local = OllamaProvider().list_models()
+    match = next((m for m in local if m == target or target in m), None)
+    if match:
+        SETTINGS.ollama_model = match
+        return {"kind": "local", "model": match, "active": SETTINGS.ollama_model}
+
+    raise HTTPException(status_code=404, detail=f"No local model or provider named '{target}'.")
+
+
+# ---------------------------------------------------------------------------
+# Voice: talk back, listen, voice selection, and voice-ID scan (App startup)
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/voice/status")
+def voice_status() -> Dict[str, Any]:
+    """Return voice enrollment status, active voice, mic, and installed voices.
+
+    The App can use this on startup to decide whether to ask for a voice scan.
+    """
+    import voice
+
+    return voice.voice_status()
+
+
+@app.get("/api/voice/voices")
+def voice_voices() -> Dict[str, Any]:
+    """List installed text-to-speech voices."""
+    import voice
+
+    return {"voices": voice.list_voices(), "active": voice.get_voice()}
+
+
+@app.post("/api/voice/speak")
+def voice_speak(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Speak text aloud through the selected (or requested) voice."""
+    import voice
+
+    text = (payload.get("text") or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Text cannot be empty.")
+    return {"message": voice.speak(text, voice=payload.get("voice"))}
+
+
+@app.post("/api/voice/listen")
+def voice_listen(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Listen to the microphone and return recognized speech (offline STT)."""
+    import voice
+
+    timeout = int(payload.get("timeout", 10))
+    text = voice.listen(timeout=timeout)
+    return {"text": text}
+
+
+@app.post("/api/voice/set")
+def voice_set(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Select which installed voice speaks."""
+    import voice
+
+    name = (payload.get("voice") or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Voice name cannot be empty.")
+    return {"message": voice.set_voice(name)}
+
+
+@app.post("/api/voice/scan")
+def voice_scan(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Voice ID: enroll (mode='enroll'), verify (mode='verify'), or status."""
+    import voice
+
+    mode = payload.get("mode", "status")
+    if mode == "enroll":
+        return voice.enroll_voice(label=payload.get("label", "user"), duration=float(payload.get("duration", 3.0)))
+    if mode == "verify":
+        return voice.verify_voice(duration=float(payload.get("duration", 3.0)))
+    return voice.voice_status()
+
+
+# ---------------------------------------------------------------------------
+# Finance tab: live market data + permanent financial knowledge + advice
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/finance/quote")
+def finance_quote(symbols: str) -> Dict[str, Any]:
+    """Fetch live quotes for comma-separated symbols."""
+    from connectors import CONNECTOR_REGISTRY
+
+    result = CONNECTOR_REGISTRY.execute("finance", "quote", symbols=symbols)
+    if not result.get("success"):
+        raise HTTPException(status_code=502, detail=result.get("error", "quote failed"))
+    return result
+
+
+@app.get("/api/finance/history")
+def finance_history(symbol: str, range: str = "3mo") -> Dict[str, Any]:
+    """Fetch daily price history for a symbol."""
+    from connectors import CONNECTOR_REGISTRY
+
+    result = CONNECTOR_REGISTRY.execute("finance", "history", symbol=symbol, range=range)
+    if not result.get("success"):
+        raise HTTPException(status_code=502, detail=result.get("error", "history failed"))
+    return result
+
+
+@app.get("/api/finance/status")
+def finance_status() -> Dict[str, Any]:
+    """Report US market open/close and connector health."""
+    from connectors import CONNECTOR_REGISTRY
+
+    result = CONNECTOR_REGISTRY.execute("finance", "market_status")
+    health = CONNECTOR_REGISTRY.health_status().get("finance", {})
+    return {"market": result, "connector": health}
+
+
+@app.get("/api/finance/knowledge")
+def finance_knowledge(q: str, limit: int = 5) -> Dict[str, Any]:
+    """Search the permanent financial literacy knowledge base."""
+    from finance import get_finance_knowledge
+
+    return {"query": q, "results": get_finance_knowledge().search(q, limit=limit)}
+
+
+@app.post("/api/finance/advice")
+def finance_advice(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Get grounded financial guidance from the finance advisor mode."""
+    from finance import advisor_context, finance_system_prompt
+
+    question = (payload.get("question") or "").strip()
+    if not question:
+        raise HTTPException(status_code=400, detail="Question cannot be empty.")
+    chat_id = payload.get("chat_id") or "default"
+    service = _get_service(chat_id)
+    context = advisor_context(question, memory=service.memory)
+    prompt = f"{finance_system_prompt()}\n\n{context}\n\n{question}" if context else question
+    reply, provider = service.chat(prompt, attribute_id="finance")
+    return {"reply": reply, "provider": provider, "chat_id": chat_id}
+
+
+# ---------------------------------------------------------------------------
+# Memory
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/memory")
+def list_memory() -> Dict[str, Any]:
+    """Return important memories and preferences."""
+    service = _get_service()
+    return {
+        "important": service.memory.get_important(),
+        "preferences": service.memory.data.get("preferences", {}),
+    }
+
+
+@app.post("/api/memory/important")
+def add_important(item: MemoryItem) -> Dict[str, str]:
+    """Store an important memory."""
+    service = _get_service()
+    service.remember_important(item.topic, item.content)
+    _get_rag().mark_dirty()
+    return {"status": "stored", "topic": item.topic}
+
+
+@app.delete("/api/memory/important/{topic}")
+def remove_important(topic: str) -> Dict[str, Any]:
+    """Remove an important memory by topic."""
+    service = _get_service()
+    removed = service.remove_important_memory(topic)
+    _get_rag().mark_dirty()
+    return {"removed": removed}
+
+
+@app.get("/api/memory/rag")
+def rag_search(q: str, limit: int = 5) -> Dict[str, Any]:
+    """Retrieve the most relevant memory entries for a query."""
+    results = _get_rag().search(q, limit=limit)
+    return {"query": q, "results": results}
+
+
+# ---------------------------------------------------------------------------
+# Personalities
+# ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# Admin change review (ROADMAP AA7-AA11)
+#
+# Every modification to the app becomes a reviewable record before it can reach
+# anyone else. Reviewing and publishing are separate permissions, and only the
+# owner may touch the base AI.
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/changes")
+def list_changes(_user=RequireReviewChanges) -> Dict[str, Any]:
+    """Every proposed and published change, newest first."""
+    from change_review import CHANGE_LOG
+
+    return {"changes": CHANGE_LOG.list_changes(), "summary": CHANGE_LOG.summary()}
+
+
+@app.post("/api/changes")
+def propose_change(request: ChangeRequest, user=RequireReviewChanges) -> Dict[str, Any]:
+    """Record a proposed change. Always starts as a draft."""
+    from change_review import CHANGE_LOG, ChangeError, ChangeOrigin
+
+    # Editing the base AI is a different act from editing a tab, and only the
+    # owner may do it.
+    if request.target.strip().lower() == "base_ai":
+        try:
+            AUTH_STORE.require_user(user, Permission.MODIFY_BASE_AI)
+        except AuthError as error:
+            raise HTTPException(status_code=403, detail=str(error)) from error
+
+    try:
+        change = CHANGE_LOG.propose(
+            title=request.title,
+            description=request.description,
+            author=user.email,
+            target=request.target,
+            content=request.content,
+            previous_content=request.previous_content,
+            origin=ChangeOrigin(request.origin),
+        )
+    except (ChangeError, ValueError) as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    from event_log import info
+
+    info(f"Change proposed: {change.title}", source="admin")
+    return {"change": change.as_dict()}
+
+
+@app.post("/api/changes/{change_id}/review")
+def review_change(change_id: str, user=RequireReviewChanges) -> Dict[str, Any]:
+    """Ask the AI to review a change, then move it into review.
+
+    The review is attached as notes; it never decides the outcome. A reviewer
+    prompted to approve would approve, which would defeat the point.
+    """
+    from change_review import CHANGE_LOG, ChangeError, ChangeStatus, build_review_prompt
+
+    change = CHANGE_LOG.get(change_id)
+    if change is None:
+        raise HTTPException(status_code=404, detail="No such change.")
+
+    try:
+        service = _get_service("__review__")
+        review, _provider = service.chat(build_review_prompt(change))
+    except Exception as error:  # pragma: no cover - provider dependent
+        review = f"AI review unavailable: {error}"
+
+    CHANGE_LOG.attach_review(change_id, review, reviewer=f"ai (requested by {user.email})")
+    if change.status is ChangeStatus.DRAFT:
+        try:
+            CHANGE_LOG.submit_for_review(change_id)
+        except ChangeError:
+            pass
+    return {"change": CHANGE_LOG.get(change_id).as_dict()}
+
+
+@app.post("/api/changes/{change_id}/approve")
+def approve_change(change_id: str, user=RequireReviewChanges) -> Dict[str, Any]:
+    from change_review import CHANGE_LOG, ChangeError
+
+    try:
+        change = CHANGE_LOG.approve(change_id, reviewer=user.email)
+    except ChangeError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return {"change": change.as_dict()}
+
+
+@app.post("/api/changes/{change_id}/reject")
+def reject_change(change_id: str, request: RejectRequest, user=RequireReviewChanges) -> Dict[str, Any]:
+    from change_review import CHANGE_LOG, ChangeError
+
+    try:
+        change = CHANGE_LOG.reject(change_id, reviewer=user.email, reason=request.reason)
+    except ChangeError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return {"change": change.as_dict()}
+
+
+@app.post("/api/changes/{change_id}/publish")
+def publish_change(change_id: str, user=RequirePublishChanges) -> Dict[str, Any]:
+    """Publish an approved change and apply it to the overlay.
+
+    The change is applied to the overlay layer, never to the shipped modules, and
+    a checkpoint is taken first. If applying fails the publish is refused rather
+    than leaving the record and the running app disagreeing about reality.
+    """
+    from change_review import CHANGE_LOG, ChangeError
+    from overlay import OVERLAY, OverlayError
+
+    change = CHANGE_LOG.get(change_id)
+    if change is None:
+        raise HTTPException(status_code=404, detail="No such change.")
+
+    try:
+        entry = OVERLAY.apply(
+            target=change.target,
+            value=change.content,
+            change_id=change_id,
+            applied_by=user.email,
+        )
+    except OverlayError as error:
+        raise HTTPException(
+            status_code=400, detail=f"Could not apply the change: {error}"
+        ) from error
+
+    # Self-revival (F3): verify the app still works with the change applied. A
+    # bad change is undone inside the same request that made it, rather than
+    # being discovered later by a confused user.
+    from health_check import run_health_check
+
+    health = run_health_check()
+    if not health["healthy"]:
+        OVERLAY.revert(change.target)
+        from event_log import error as log_error
+
+        log_error(
+            f"Auto-reverted {change.title}: health check failed "
+            f"({', '.join(health['failed'])})",
+            source="admin",
+        )
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": (
+                    "The change was applied, broke a health check, and has been "
+                    "automatically reverted. Nothing was published."
+                ),
+                "failed": health["failed"],
+                "health": health["results"],
+            },
+        )
+
+    try:
+        published = CHANGE_LOG.publish(change_id, publisher=user.email)
+    except ChangeError as error:
+        # The overlay accepted it but the record refused. Undo the application so
+        # the two never disagree about what is live.
+        OVERLAY.revert(change.target)
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    from event_log import ok
+
+    ok(f"Change published and applied: {published.title}", source="admin")
+    return {
+        "change": published.as_dict(),
+        "applied": entry.as_dict(),
+        "health": health,
+    }
+
+
+@app.post("/api/changes/{change_id}/rollback")
+def rollback_change(change_id: str, user=RequirePublishChanges) -> Dict[str, Any]:
+    """Revert a published change, removing its overlay entry."""
+    from change_review import CHANGE_LOG, ChangeError
+    from overlay import OVERLAY
+
+    try:
+        change = CHANGE_LOG.rollback(change_id, actor=user.email)
+    except ChangeError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    reverted = OVERLAY.revert(change.target)
+
+    from event_log import warn
+
+    warn(f"Change rolled back: {change.title}", source="admin")
+    return {"change": change.as_dict(), "overlay_reverted": reverted}
+
+
+@app.get("/api/health/deep")
+def deep_health(_user=RequireChat) -> Dict[str, Any]:
+    """Run the full health check on demand.
+
+    Distinct from `/api/health`, which is a cheap liveness ping the login screen
+    polls. This one actually exercises the subsystems.
+    """
+    from health_check import run_health_check
+
+    return run_health_check()
+
+
+@app.get("/api/overlay")
+def get_overlay(_user=RequireReviewChanges) -> Dict[str, Any]:
+    """What is currently layered on top of the shipped app, plus checkpoints."""
+    from overlay import OVERLAY
+
+    return OVERLAY.snapshot()
+
+
+@app.post("/api/overlay/restore")
+def restore_overlay(request: RestoreRequest, user=RequirePublishChanges) -> Dict[str, Any]:
+    """Roll the whole overlay back to a checkpoint (self code revival, F3)."""
+    from overlay import OVERLAY, OverlayError
+
+    try:
+        result = (
+            OVERLAY.restore(request.checkpoint_id)
+            if request.checkpoint_id
+            else OVERLAY.restore_latest()
+        )
+    except OverlayError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    from event_log import warn
+
+    warn(f"Overlay restored to {result['restored']} by {user.email}", source="admin")
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Machine control (ROADMAP V1-V8)
+#
+# Owner-only, and absent entirely from a hosted build — see deploy_mode.py.
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/machine")
+def machine_status(_user=RequireMachineControl) -> Dict[str, Any]:
+    """Active grants, the audit trail, and what can never be reached."""
+    from machine_control import MACHINE
+
+    return MACHINE.snapshot()
+
+
+@app.post("/api/machine/grant")
+def grant_capability(request: GrantCapabilityRequest, user=RequireMachineControl) -> Dict[str, Any]:
+    """Grant one capability, optionally scoped, always expiring."""
+    from machine_control import MACHINE, Capability, MachineControlError
+
+    try:
+        capability = Capability(request.capability.strip().lower())
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400, detail=f"Unknown capability: {request.capability}"
+        ) from error
+    try:
+        grant = MACHINE.grant(
+            capability,
+            scope=request.scope,
+            granted_by=user.email,
+            ttl_seconds=request.ttl_seconds,
+        )
+    except MachineControlError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return {"grant": grant.as_dict(), "machine": MACHINE.snapshot()}
+
+
+@app.post("/api/machine/revoke")
+def revoke_capability(request: RevokeCapabilityRequest, user=RequireMachineControl) -> Dict[str, Any]:
+    """Revoke one capability, or everything (the kill switch)."""
+    from machine_control import MACHINE, Capability
+
+    if request.all:
+        dropped = MACHINE.revoke_all(actor=user.email)
+        return {"revoked": dropped, "machine": MACHINE.snapshot()}
+
+    try:
+        capability = Capability(request.capability.strip().lower())
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400, detail=f"Unknown capability: {request.capability}"
+        ) from error
+    return {
+        "revoked": 1 if MACHINE.revoke(capability, actor=user.email) else 0,
+        "machine": MACHINE.snapshot(),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Dynamic tabs (ROADMAP CC1-CC12)
+#
+# A tab is a declarative spec the client renders. Nothing here is executed.
+# ---------------------------------------------------------------------------
+
+# Tabs that ship with the app, for fuzzy search to match against.
+SHIPPED_TABS = [
+    {"id": "strands", "label": "Strands"},
+    {"id": "chat", "label": "Chat"},
+    {"id": "dashboard", "label": "Dashboard"},
+    {"id": "work", "label": "Sessions and Memory"},
+    {"id": "models", "label": "Models"},
+    {"id": "agents", "label": "Agents"},
+    {"id": "connectors", "label": "Connectors"},
+    {"id": "store", "label": "Add capability skills"},
+    {"id": "power", "label": "Power"},
+    {"id": "admin", "label": "Admin changes"},
+    {"id": "settings", "label": "Settings"},
+]
+
+
+@app.get("/api/tabs")
+def list_dynamic_tabs(_user=RequireChat) -> Dict[str, Any]:
+    """The user's own tabs, plus the shipped set for reference."""
+    from dynamic_tabs import ALLOWED_CONNECTORS, BlockType, TAB_STORE
+
+    return {
+        "tabs": TAB_STORE.list_tabs(),
+        "shipped": SHIPPED_TABS,
+        "block_types": [b.value for b in BlockType],
+        "allowed_connectors": sorted(ALLOWED_CONNECTORS),
+    }
+
+
+@app.get("/api/tabs/search")
+def search_tabs(q: str = "", _user=RequireChat) -> Dict[str, Any]:
+    """Fuzzy tab search (CC2, CC6).
+
+    The user types what they call it, not what it is called. When nothing
+    matches, the reply says a new tab could be created instead.
+    """
+    from dynamic_tabs import TAB_STORE
+
+    results = TAB_STORE.find(q, shipped=SHIPPED_TABS)
+    return {
+        "query": q,
+        "results": results,
+        "offer_create": not results and bool(q.strip()),
+    }
+
+
+@app.post("/api/tabs")
+def create_tab(request: TabCreateRequest, user=RequireChat) -> Dict[str, Any]:
+    """Create a tab from an explicit spec."""
+    from dynamic_tabs import TAB_STORE, TabSpecError, build_spec
+
+    try:
+        spec = build_spec(
+            label=request.label,
+            blocks=request.blocks,
+            icon=request.icon,
+            description=request.description,
+            connectors=request.connectors,
+            accent=request.accent,
+            author=getattr(user, "email", ""),
+        )
+    except TabSpecError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    TAB_STORE.create(spec)
+
+    from event_log import info
+
+    info(f"Tab created: {spec.label}", source="tabs")
+    return {"tab": spec.as_dict()}
+
+
+@app.post("/api/tabs/from-description")
+def create_tab_from_description(request: TabFromTextRequest, user=RequireChat) -> Dict[str, Any]:
+    """Describe a tab in words; the agent designs it (CC4, CC5)."""
+    from dynamic_tabs import (
+        TAB_STORE,
+        TabSpecError,
+        build_spec,
+        build_tab_prompt,
+        parse_tab_reply,
+    )
+
+    if not request.description.strip():
+        raise HTTPException(status_code=400, detail="Describe what the tab is for.")
+
+    try:
+        service = _get_service("__tabs__")
+        reply, _provider = service.chat(build_tab_prompt(request.description))
+        data = parse_tab_reply(reply)
+    except TabSpecError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except Exception as error:  # pragma: no cover - provider dependent
+        raise HTTPException(status_code=503, detail=f"Model unavailable: {error}") from error
+
+    try:
+        spec = build_spec(
+            label=data.get("label", ""),
+            blocks=data.get("blocks", []),
+            icon=data.get("icon", "ph-squares-four"),
+            description=data.get("description", request.description[:200]),
+            connectors=data.get("connectors", []),
+            author=getattr(user, "email", ""),
+            source="agent",
+        )
+    except TabSpecError as error:
+        raise HTTPException(
+            status_code=422, detail=f"The design was not usable: {error}"
+        ) from error
+
+    TAB_STORE.create(spec)
+
+    from event_log import ok
+
+    ok(f"Tab designed from description: {spec.label}", source="tabs")
+    return {"tab": spec.as_dict()}
+
+
+@app.patch("/api/tabs/{tab_id}")
+def update_tab(tab_id: str, request: TabUpdateRequest, _user=RequireChat) -> Dict[str, Any]:
+    """Edit a tab (CC9, CC10). Every field is re-validated."""
+    from dynamic_tabs import TAB_STORE, TabSpecError
+
+    try:
+        spec = TAB_STORE.update(
+            tab_id,
+            label=request.label,
+            icon=request.icon,
+            description=request.description,
+            blocks=request.blocks,
+            connectors=request.connectors,
+            accent=request.accent,
+        )
+    except TabSpecError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return {"tab": spec.as_dict()}
+
+
+@app.post("/api/tabs/{tab_id}/edit")
+def edit_tab_conversationally(tab_id: str, request: TabEditRequest, _user=RequireChat) -> Dict[str, Any]:
+    """Change a tab by describing the change (CC9).
+
+    Unambiguous edits — colour, rename, add or remove a block — are read locally,
+    so they are instant and work offline. Anything else goes to the model, whose
+    reply is validated exactly like a hand-written edit.
+    """
+    from dynamic_tabs import TAB_STORE, TabSpecError
+    from tab_editor import build_edit_prompt, interpret_locally, parse_edit_reply
+
+    spec = TAB_STORE.get(tab_id)
+    if spec is None:
+        raise HTTPException(status_code=404, detail="No such tab.")
+    if not request.instruction.strip():
+        raise HTTPException(status_code=400, detail="Say what you want changed.")
+
+    changes = interpret_locally(spec, request.instruction)
+    interpreted_by = "local"
+
+    if changes is None:
+        interpreted_by = "model"
+        try:
+            service = _get_service("__tabedit__")
+            reply, _provider = service.chat(build_edit_prompt(spec, request.instruction))
+            changes = parse_edit_reply(reply)
+        except TabSpecError as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
+        except Exception as error:  # pragma: no cover - provider dependent
+            raise HTTPException(status_code=503, detail=f"Model unavailable: {error}") from error
+
+    try:
+        updated = TAB_STORE.update(tab_id, **changes)
+    except TabSpecError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    from event_log import info
+
+    info(f"Tab edited ({interpreted_by}): {updated.label}", source="tabs")
+    return {"tab": updated.as_dict(), "changes": changes, "interpreted_by": interpreted_by}
+
+
+@app.post("/api/tabs/combine")
+def combine_tabs(request: TabCombineRequest, _user=RequireChat) -> Dict[str, Any]:
+    """Merge two tabs into one (CC11). The originals are left alone."""
+    from dynamic_tabs import TAB_STORE, TabSpecError
+
+    try:
+        spec = TAB_STORE.combine(request.first, request.second, request.label)
+    except TabSpecError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return {"tab": spec.as_dict()}
+
+
+@app.delete("/api/tabs/{tab_id}")
+def delete_tab(tab_id: str, _user=RequireChat) -> Dict[str, Any]:
+    from dynamic_tabs import TAB_STORE
+
+    if not TAB_STORE.delete(tab_id):
+        raise HTTPException(status_code=404, detail="No such tab.")
+    return {"tabs": TAB_STORE.list_tabs()}
+
+
+# ---------------------------------------------------------------------------
+# Skills (ROADMAP U1-U5)
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/skills")
+def list_skills(_user=RequireChat) -> Dict[str, Any]:
+    """The skill library, built-ins first."""
+    from skills import SKILL_STORE
+
+    skills = SKILL_STORE.list_skills()
+    return {
+        "skills": skills,
+        "enabled": sum(1 for s in skills if s["enabled"]),
+        "total": len(skills),
+    }
+
+
+@app.post("/api/skills/preview")
+def preview_skills(request: SkillPreviewRequest, _user=RequireChat) -> Dict[str, Any]:
+    """Which skills a given message would attach, and why.
+
+    Useful for understanding why an answer came out the way it did — automatic
+    behaviour is only trustworthy if it can be inspected.
+    """
+    from skills import SKILL_STORE
+
+    selected = SKILL_STORE.select_for(request.message)
+    return {
+        "message": request.message,
+        "selected": [
+            {"id": s.skill_id, "name": s.name, "hits": s.match_score(request.message)}
+            for s in selected
+        ],
+    }
+
+
+@app.post("/api/skills")
+def add_skill(request: SkillRequest, user=RequireChat) -> Dict[str, Any]:
+    """Add a skill directly, with instructions already written."""
+    from skills import SKILL_STORE, SkillError
+
+    try:
+        skill = SKILL_STORE.add(
+            name=request.name,
+            description=request.description,
+            instructions=request.instructions,
+            triggers=request.triggers,
+            source="manual",
+            author=getattr(user, "email", ""),
+        )
+    except SkillError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    from event_log import info
+
+    info(f"Skill added: {skill.name}", source="skills")
+    return {"skill": skill.as_dict()}
+
+
+@app.post("/api/skills/from-conversation")
+def create_skill_from_description(request: SkillFromTextRequest, user=RequireChat) -> Dict[str, Any]:
+    """Describe a capability in words; the agent writes the skill (U2)."""
+    from skills import SKILL_STORE, SkillError, build_skill_prompt, parse_skill_reply
+
+    if not request.description.strip():
+        raise HTTPException(status_code=400, detail="Describe what the skill should do.")
+
+    try:
+        service = _get_service("__skills__")
+        reply, _provider = service.chat(build_skill_prompt(request.description))
+        parsed = parse_skill_reply(reply)
+    except SkillError as error:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Could not turn that into a skill: {error}",
+        ) from error
+    except Exception as error:  # pragma: no cover - provider dependent
+        raise HTTPException(status_code=503, detail=f"Model unavailable: {error}") from error
+
+    try:
+        skill = SKILL_STORE.add(
+            name=parsed["name"],
+            description=request.description.strip()[:200],
+            instructions=parsed["instructions"],
+            triggers=parsed["triggers"],
+            source="conversation",
+            author=getattr(user, "email", ""),
+        )
+    except SkillError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+    from event_log import ok
+
+    ok(f"Skill created from description: {skill.name}", source="skills")
+    return {"skill": skill.as_dict()}
+
+
+@app.post("/api/skills/{skill_id}/enabled")
+def set_skill_enabled(skill_id: str, request: SkillToggleRequest, _user=RequireChat) -> Dict[str, Any]:
+    from skills import SKILL_STORE, SkillError
+
+    try:
+        skill = SKILL_STORE.set_enabled(skill_id, request.enabled)
+    except SkillError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    return {"skill": skill.as_dict()}
+
+
+@app.delete("/api/skills/{skill_id}")
+def remove_skill(skill_id: str, _user=RequireChat) -> Dict[str, Any]:
+    from skills import SKILL_STORE, SkillError
+
+    try:
+        if not SKILL_STORE.remove(skill_id):
+            raise HTTPException(status_code=404, detail="No such skill.")
+    except SkillError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return {"skills": SKILL_STORE.list_skills()}
+
+
+@app.get("/api/events")
+def get_events(limit: int = 60, _user=RequireChat) -> Dict[str, Any]:
+    """Recent real system activity for the HUD log."""
+    from event_log import EVENT_LOG
+
+    return EVENT_LOG.snapshot(limit=max(1, min(limit, 200)))
+
+
+@app.get("/api/widgets")
+def get_widgets(_user=RequireChat) -> Dict[str, Any]:
+    """The user's HUD layout, plus the widget types they can add."""
+    from widgets import WIDGET_STORE
+
+    return {
+        "widgets": WIDGET_STORE.list_widgets(),
+        "available": WIDGET_STORE.available_types(),
+    }
+
+
+@app.post("/api/widgets")
+def add_widget(request: WidgetRequest, _user=RequireChat) -> Dict[str, Any]:
+    """Add a widget to the HUD."""
+    from widgets import WIDGET_STORE, WidgetType
+
+    try:
+        widget_type = WidgetType(request.type.strip().lower())
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400, detail=f"Unknown widget type: {request.type}"
+        ) from error
+    try:
+        widget = WIDGET_STORE.add(widget_type, request.title, request.config)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    from event_log import info
+
+    info(f"Widget added: {widget.type.value}", source="hud")
+    return {"widget": widget.as_dict(), "widgets": WIDGET_STORE.list_widgets()}
+
+
+@app.delete("/api/widgets/{widget_id}")
+def remove_widget(widget_id: str, _user=RequireChat) -> Dict[str, Any]:
+    from widgets import WIDGET_STORE
+
+    if not WIDGET_STORE.remove(widget_id):
+        raise HTTPException(status_code=404, detail="No such widget.")
+    return {"widgets": WIDGET_STORE.list_widgets()}
+
+
+@app.post("/api/widgets/order")
+def reorder_widgets(request: WidgetOrderRequest, _user=RequireChat) -> Dict[str, Any]:
+    from widgets import WIDGET_STORE
+
+    return {"widgets": WIDGET_STORE.reorder(request.order)}
+
+
+@app.post("/api/widgets/reset")
+def reset_widgets(_user=RequireChat) -> Dict[str, Any]:
+    from widgets import WIDGET_STORE
+
+    return {"widgets": WIDGET_STORE.reset()}
+
+
+@app.get("/api/strands")
+def get_strands(_user=RequireChat) -> Dict[str, Any]:
+    """The live strand graph for the HUD tab, built from real system state."""
+    from agent_team import AGENT_TEAM
+    from strands import build_strands
+
+    return build_strands(
+        memory=_get_service().memory,
+        team=AGENT_TEAM,
+        chat_ids=_chat_ids(),
+    )
+
+
+@app.get("/api/power")
+def get_power(_user=RequireChat) -> Dict[str, Any]:
+    """Power modes and what each one means on this specific machine."""
+    from resource_governor import GOVERNOR
+
+    return GOVERNOR.describe_modes()
+
+
+@app.post("/api/power")
+def set_power(request: PowerRequest, _user=RequireChat) -> Dict[str, Any]:
+    """Select a power mode.
+
+    The response reports the ceiling that actually resulted, which may be lower
+    than requested — the hardware safety floor overrides the setting.
+    """
+    from resource_governor import GOVERNOR, PowerMode
+
+    try:
+        mode = PowerMode(request.mode.strip().lower())
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400, detail=f"Unknown power mode: {request.mode}"
+        ) from error
+
+    ceiling = GOVERNOR.set_mode(mode)
+    return {"ceiling": ceiling.as_dict(), **GOVERNOR.describe_modes()}
+
+
+@app.get("/api/agents")
+def list_agents(_user=RequireChat) -> Dict[str, Any]:
+    """Live team status for the agent progress panel."""
+    from agent_team import AGENT_TEAM
+
+    AGENT_TEAM.ensure_default_subagents()
+    snapshot = AGENT_TEAM.snapshot()
+
+    # Pool stats describe anonymous execution capacity; the team describes who is
+    # doing what. The panel wants both.
+    try:
+        from agent_pool import get_agent_pool
+
+        snapshot["pool"] = get_agent_pool().get_pool_stats()
+    except Exception as error:  # pragma: no cover - pool is optional
+        snapshot["pool"] = {"error": str(error)}
+    return snapshot
+
+
+@app.post("/api/agents")
+def spawn_agent(request: SpawnAgentRequest, _user=RequireChat) -> Dict[str, Any]:
+    """Add one or more agents to the team.
+
+    Supports the shape Shagnik asked for directly: several agents in one call,
+    each with its own goal, one of them managing the others.
+    """
+    from agent_team import AGENT_TEAM, AgentRole
+
+    AGENT_TEAM.ensure_master()
+    created = []
+    for spec in request.agents:
+        try:
+            role = AgentRole(spec.role)
+        except ValueError as error:
+            raise HTTPException(
+                status_code=400, detail=f"Unknown role: {spec.role}"
+            ) from error
+        agent = AGENT_TEAM.spawn(
+            name=spec.name,
+            goal=spec.goal,
+            role=role,
+            personality_id=spec.personality_id,
+        )
+        created.append(agent.snapshot())
+    return {"created": created, "team": AGENT_TEAM.snapshot()}
+
+
+@app.delete("/api/agents/{agent_id}")
+def dismiss_agent(agent_id: str, _user=RequireChat) -> Dict[str, Any]:
+    """Remove an agent. Refuses to remove the master while workers remain."""
+    from agent_team import AGENT_TEAM
+
+    if not AGENT_TEAM.dismiss(agent_id):
+        raise HTTPException(
+            status_code=400,
+            detail="Agent not found, or it is the master and workers still depend on it.",
+        )
+    return {"team": AGENT_TEAM.snapshot()}
+
+
+@app.get("/api/speed")
+def get_speed(_user=RequireChat) -> Dict[str, Any]:
+    """Report the current speed mode and what each option means."""
+    service = _get_service()
+    return {
+        "mode": service.speed_mode.value,
+        "modes": [
+            {
+                "id": "auto",
+                "label": "Auto",
+                "description": "Decide per turn. Simple questions take the fast path; "
+                               "anything needing tools, fresh data, or code uses the full "
+                               "pipeline. Recommended.",
+            },
+            {
+                "id": "fast",
+                "label": "Fast",
+                "description": "Always answer directly with no tools. Much quicker, but "
+                               "cannot search, read files, or run code — so it can be wrong "
+                               "about anything current.",
+            },
+            {
+                "id": "full",
+                "label": "Full",
+                "description": "Always use the complete pipeline with tools. Slower on "
+                               "trivial questions, most thorough on hard ones.",
+            },
+        ],
+    }
+
+
+@app.post("/api/speed")
+def set_speed(request: SpeedRequest, _user=RequireChat) -> Dict[str, Any]:
+    """Override per-turn speed selection. 'auto' restores automatic behaviour."""
+    from fast_response import SpeedMode
+
+    try:
+        mode = SpeedMode(request.mode.strip().lower())
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400, detail=f"Unknown speed mode: {request.mode}"
+        ) from error
+
+    # Apply to every live chat so the change is not silently per-session.
+    with _services_lock:
+        for service in _services.values():
+            service.set_speed_mode(mode)
+    _get_service().set_speed_mode(mode)
+    return {"mode": mode.value}
+
+
+@app.get("/api/personalities")
+def personalities() -> Dict[str, Any]:
+    """List built-in personalities and the saved custom one."""
+    return {
+        "presets": list_personalities(),
+        "custom": get_custom_personality(),
+    }
+
+
+@app.post("/api/personalities/custom")
+def set_custom_personality(payload: Dict[str, str]) -> Dict[str, Any]:
+    """Save a custom personality description."""
+    description = (payload.get("description") or "").strip()
+    if not description:
+        raise HTTPException(status_code=400, detail="Description cannot be empty.")
+    return save_custom_personality(description)
+
+
+@app.delete("/api/personalities/custom")
+def delete_custom_personality() -> Dict[str, bool]:
+    """Remove the saved custom personality."""
+    return {"cleared": clear_custom_personality()}
+
+
+# ---------------------------------------------------------------------------
+# Speech patterns
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/speech")
+def speech_patterns() -> Dict[str, Any]:
+    """Return currently learned speech patterns."""
+    return {"patterns": _get_speech().get_patterns()}
+
+
+@app.post("/api/speech/learn")
+def learn_speech(payload: SpeechLearnRequest) -> Dict[str, Any]:
+    """Learn speech patterns from a batch of user messages."""
+    patterns = _get_speech().learn(payload.messages)
+    return {"patterns": patterns}
+
+
+@app.delete("/api/speech")
+def clear_speech() -> Dict[str, int]:
+    """Clear learned speech patterns."""
+    return {"cleared": _get_speech().clear()}
+
+
+# ---------------------------------------------------------------------------
+# Folder reader
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/folders")
+def folder_list() -> Dict[str, Any]:
+    """List registered folders."""
+    return {"folders": _get_folder_reader().list_folders()}
+
+
+@app.post("/api/folders")
+def folder_add(payload: FolderAddRequest) -> Dict[str, str]:
+    """Register a folder by name and path."""
+    try:
+        resolved = _get_folder_reader().add_folder(payload.name, payload.path)
+        return {"status": "registered", "name": payload.name, "path": resolved}
+    except FolderReaderError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+
+
+@app.delete("/api/folders/{name}")
+def folder_remove(name: str) -> Dict[str, Any]:
+    """Unregister a folder."""
+    try:
+        removed = _get_folder_reader().remove_folder(name)
+        return {"removed": removed}
+    except FolderReaderError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+
+
+@app.get("/api/folders/{name}/files")
+def folder_files(name: str, limit: int = 100) -> Dict[str, Any]:
+    """List files in a registered folder, any format."""
+    try:
+        return {"folder": name, "files": _get_folder_reader().list_files(name, limit=limit)}
+    except FolderReaderError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+
+
+@app.get("/api/folders/{name}/read")
+def folder_read(name: str, path: str) -> Dict[str, Any]:
+    """Read a file from a registered folder."""
+    try:
+        return _get_folder_reader().read_file(name, path)
+    except FolderReaderError as error:
+        raise HTTPException(status_code=404, detail=str(error))
+
+@app.get("/api/folders/{name}/search")
+def folder_search(name: str, q: str, limit: int = 10) -> Dict[str, Any]:
+    """Search text files in a registered folder for a query string."""
+    try:
+        return {"query": q, "results": _get_folder_reader().search_files(name, q, limit=limit)}
+    except FolderReaderError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+
+
+# ---------------------------------------------------------------------------
+# Connectors, Graphs, Homework, Storage & Database Endpoints
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/connectors")
+def list_connectors() -> Dict[str, Any]:
+    """List all registered connectors and their health status."""
+    from connectors import CONNECTOR_REGISTRY
+
+    return {
+        "connectors": CONNECTOR_REGISTRY.list_connectors(),
+        "health": CONNECTOR_REGISTRY.health_status(),
+    }
+
+
+@app.post("/api/connectors/{name}/execute")
+def execute_connector(name: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Execute an action on a named connector."""
+    from connectors import CONNECTOR_REGISTRY
+
+    action = payload.get("action", "")
+    params = payload.get("params", {})
+    return CONNECTOR_REGISTRY.execute(name, action, **params)
+
+
+@app.post("/api/graphs/create")
+def create_graph_endpoint(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Generate Mermaid and ASCII graphs from node and edge definitions."""
+    from graph_engine import GraphEngine
+
+    nodes = payload.get("nodes", [])
+    edges = payload.get("edges", [])
+    graph_type = payload.get("graph_type", "flowchart")
+    direction = payload.get("direction", "TD")
+    return GraphEngine.create_graph(nodes, edges, graph_type=graph_type, direction=direction)
+
+
+@app.post("/api/graphs/read")
+def read_graph_endpoint(payload: Dict[str, str]) -> Dict[str, Any]:
+    """Extract entities and relationship edges from plain text or diagrams."""
+    from graph_engine import GraphEngine
+
+    text = payload.get("text", "")
+    return GraphEngine.read_graph(text)
+
+
+@app.post("/api/homework/analyze")
+def homework_analyze_endpoint(payload: Dict[str, str]) -> Dict[str, Any]:
+    """Decompose homework problem into concept breakdown, steps, and hints."""
+    from homework_helper import HomeworkHelper
+
+    problem = payload.get("problem", "")
+    return HomeworkHelper.decompose_problem(problem)
+
+
+@app.get("/api/doctor")
+def doctor_diagnostics() -> Dict[str, Any]:
+    """Run full system diagnostics on providers, memory, and connectors."""
+    from connectivity import is_online
+    from connectors import CONNECTOR_REGISTRY
+    from device_profile import get_device_profile, select_tier
+
+    profile = get_device_profile(force_refresh=True)
+    tier = select_tier(profile)
+    return {
+        "status": "healthy",
+        "online": is_online(),
+        "hardware": {
+            "ram_gb": profile.ram_gb,
+            "vram_gb": profile.vram_gb,
+            "gpu_name": profile.gpu_name,
+            "cpu_cores": profile.cpu_cores,
+            "tier": tier.name,
+            "max_workers": tier.max_workers,
+        },
+        "connectors": CONNECTOR_REGISTRY.health_status(),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Personality error mapping
+# ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# Authentication & admin (ROADMAP AA1-AA6)
+#
+# The API is open while unclaimed (a fresh local install) and requires a session
+# the moment an owner account exists. Privileged routes are always gated.
+# ---------------------------------------------------------------------------
+
+
+@app.post("/api/auth/login")
+def login(request: LoginRequest) -> Dict[str, Any]:
+    """Exchange credentials for a session token."""
+    try:
+        token = AUTH_STORE.authenticate(request.email, request.password)
+    except AuthError as error:
+        # 401 with the store's deliberately non-specific message: it never
+        # reveals whether the account exists.
+        raise HTTPException(status_code=401, detail=str(error)) from error
+    user = AUTH_STORE.get_user(request.email)
+    return {"token": token, "user": user.public() if user else None}
+
+
+@app.post("/api/auth/logout")
+def logout(authorization: Optional[str] = Header(default=None)) -> Dict[str, Any]:
+    """Invalidate the caller's session."""
+    if authorization:
+        AUTH_STORE.logout(authorization.replace("Bearer ", "").strip())
+    return {"ok": True}
+
+
+@app.get("/api/auth/me")
+def whoami(user=RequireChat) -> Dict[str, Any]:
+    """Return the signed-in account, or the unclaimed-install marker."""
+    if user is None:
+        return {"claimed": False, "user": None}
+    return {"claimed": True, "user": user.public()}
+
+
+@app.post("/api/auth/join")
+def join(request: JoinRequest) -> Dict[str, Any]:
+    """Redeem a single-use invite and create the account."""
+    try:
+        user = AUTH_STORE.redeem_invite(request.invite, request.email, request.password)
+    except AuthError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return {"user": user.public()}
+
+
+@app.get("/api/admin/users")
+def admin_users(user=RequireAdmin) -> Dict[str, Any]:
+    """List accounts. Requires VIEW_ADMIN."""
+    return {"users": [u.public() for u in AUTH_STORE.users.values()]}
+
+
+@app.get("/api/admin/invites")
+def admin_invites(user=RequireInvite) -> Dict[str, Any]:
+    """List invites. Requires INVITE_TESTERS."""
+    return {
+        "invites": [
+            {
+                "token": i.token,
+                "role": i.role.value,
+                "email": i.email,
+                "created_by": i.created_by,
+                "expires_at": i.expires_at,
+                "redeemed_by": i.redeemed_by,
+                "valid": i.is_valid(),
+            }
+            for i in AUTH_STORE.invites.values()
+        ]
+    }
+
+
+@app.post("/api/admin/invites")
+def admin_create_invite(request: InviteRequest, user=RequireInvite) -> Dict[str, Any]:
+    """Mint a single-use beta invite and return its shareable link."""
+    try:
+        role = Role(request.role)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=f"Unknown role: {request.role}") from error
+    try:
+        invite = AUTH_STORE.mint_invite(user, role, request.email)
+    except AuthError as error:
+        raise HTTPException(status_code=403, detail=str(error)) from error
+
+    return {
+        "token": invite.token,
+        "role": invite.role.value,
+        "email": invite.email,
+        "expires_at": invite.expires_at,
+        "link": invite_link(request.base_url, invite.token),
+    }
+
+
+@app.post("/api/admin/grant")
+def admin_grant(request: GrantRequest, user=RequireGrant) -> Dict[str, Any]:
+    """Change an account's role. Owner only.
+
+    Delegates to AuthStore.grant_role_as rather than re-checking the owner rules
+    here. The previous version duplicated that policy inline and reached into the
+    store's private _save(), so the same rule lived in two places and could drift
+    apart silently.
+    """
+    try:
+        role = Role(request.role)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=f"Unknown role: {request.role}") from error
+
+    try:
+        target = AUTH_STORE.grant_role_as(user, request.email, role)
+    except UnknownAccountError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except AuthError as error:
+        raise HTTPException(status_code=403, detail=str(error)) from error
+
+    return {"user": target.public()}
+
+
+@app.post("/api/auth/claim")
+def claim_ownership(request: ClaimRequest, http_request: Request) -> Dict[str, Any]:
+    """Create the owner account on a fresh install, from the UI.
+
+    Claiming was CLI-only (`python admin_setup.py claim <email>`), which meant a
+    normal user had no way to secure their install without a terminal.
+
+    Two guards that matter:
+
+    * **Loopback only.** On an unclaimed install whoever calls this first becomes
+      the owner. Over the network that is a land-grab; from the local machine it
+      is the same trust level the CLI already had.
+    * **409 once claimed.** bootstrap_owner refuses a second owner anyway, but
+      answering plainly is better than surfacing a generic error.
+    """
+    client_host = http_request.client.host if http_request.client else ""
+    if client_host not in {"127.0.0.1", "::1", "localhost"}:
+        raise HTTPException(
+            status_code=403,
+            detail="Ownership can only be claimed from the machine running Nyx.",
+        )
+
+    if is_claimed():
+        raise HTTPException(
+            status_code=409,
+            detail="This install already has an owner. Sign in instead.",
+        )
+
+    # Check the password BEFORE creating anything. bootstrap_owner makes a
+    # passwordless owner, so validating afterwards left a half-made account on
+    # rejection: is_claimed() flipped to true, the install could never be claimed
+    # again, and an owner account sat there with no password set.
+    try:
+        check_password_policy(request.password)
+    except WeakPasswordError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    try:
+        AUTH_STORE.bootstrap_owner(request.email)
+        AUTH_STORE.set_password(request.email, request.password)
+        token = AUTH_STORE.authenticate(request.email, request.password)
+    except WeakPasswordError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except AuthError as error:
+        raise HTTPException(status_code=403, detail=str(error)) from error
+
+    user = AUTH_STORE.get_user(request.email)
+    return {"token": token, "user": user.public() if user else None}
+
+
+@app.exception_handler(PersonalityNotFoundError)
+async def personality_not_found_handler(request, exc: PersonalityNotFoundError):
+    from fastapi.responses import JSONResponse
+
+    return JSONResponse(status_code=404, content={"detail": str(exc)})
+
+
+# ---------------------------------------------------------------------------
+# Serve the built workspace (ROADMAP BB12)
+#
+# One process, one URL. Previously the UI needed a second terminal running the
+# Vite dev server on :5173, so anything pointing a user at the app hit
+# ERR_CONNECTION_REFUSED unless they happened to have started it. Serving the
+# built bundle from the API means `uvicorn server:app` is the whole product.
+#
+# Mounted last so it never shadows an /api route.
+# ---------------------------------------------------------------------------
+
+_FRONTEND_DIST = Path(__file__).resolve().parent / "frontend" / "nyx-pulse" / "dist"
+
+
+def _mount_frontend() -> bool:
+    """Serve the built frontend at / when it exists.
+
+    Returns whether it was mounted, so `/api/health` can tell the truth about
+    whether this install has a UI rather than assuming one.
+    """
+    index = _FRONTEND_DIST / "app" / "index.html"
+    if not index.is_file():
+        return False
+
+    from fastapi.responses import FileResponse
+    from fastapi.staticfiles import StaticFiles
+
+    # Hashed asset filenames, so they can be cached hard.
+    assets = _FRONTEND_DIST / "assets"
+    if assets.is_dir():
+        app.mount("/assets", StaticFiles(directory=str(assets)), name="assets")
+
+    favicon = _FRONTEND_DIST / "favicon.svg"
+    if favicon.is_file():
+        @app.get("/favicon.svg", include_in_schema=False)
+        @app.get("/favicon.ico", include_in_schema=False)
+        def icon() -> Any:
+            """Browsers request /favicon.ico unprompted; serve the SVG for both."""
+            return FileResponse(favicon, media_type="image/svg+xml")
+
+    @app.get("/", include_in_schema=False)
+    @app.get("/app", include_in_schema=False)
+    @app.get("/app/{_path:path}", include_in_schema=False)
+    def workspace(_path: str = "") -> Any:
+        """The single-page workspace. Every non-API path renders the app."""
+        return FileResponse(index)
+
+    return True
+
+
+_FRONTEND_MOUNTED = _mount_frontend()
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    print("Nyx Ichos — created by Shagnik")
+    if _FRONTEND_MOUNTED:
+        print("  workspace: http://127.0.0.1:8000/")
+    else:
+        print("  workspace: not built yet — run `npm run build` in frontend/nyx-pulse")
+    print("  API docs:  http://127.0.0.1:8000/docs")
+    uvicorn.run(app, host="127.0.0.1", port=8000)

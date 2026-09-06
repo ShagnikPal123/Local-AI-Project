@@ -1,0 +1,12 @@
+{
+  "preferences": {
+    "preferred_tone": "concise and practical"
+  },
+  "online_results": [
+    {
+      "provider": "perplexity",
+      "prompt": "debugging a Python error",
+      "result": "check the traceback first"
+    }
+  ]
+}

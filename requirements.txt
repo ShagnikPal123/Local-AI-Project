@@ -1,0 +1,17 @@
+# --- Core runtime ---
+python-dotenv
+requests
+colorama
+
+# --- Optional: desktop/mobile API server (server.py) ---
+fastapi
+uvicorn
+
+# --- Numerics / audio buffers (voice.py, graph_engine.py) ---
+numpy
+
+# --- Testing ---
+pytest
+# starlette's TestClient requires httpx2 at import time; fastapi.testclient
+# fails to import without it, which breaks collection of every server test.
+httpx2

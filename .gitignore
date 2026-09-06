@@ -1,0 +1,54 @@
+.env
+.env.*
+!.env.example
+__pycache__/
+.pytest_cache/
+models/
+device_profile.json
+attachments/
+compressed_prompt.txt
+training/proposals.json
+folder_registry.json
+voice_profile.json
+voice_tmp/
+auth.json
+
+# --- Secrets and personal data (added before the first commit) --------------
+# .env / .env.* were already covered; these were not, and every one of them
+# contains either credentials or the owner's real conversations.
+.secrets.json
+auth.json
+chats.json
+memory.json
+custom_personality.json
+speech_patterns.json
+overlay.json
+checkpoints/
+tabs.json
+widgets.json
+skills.json
+profiles/
+deploy_payload.json
+local_storage.json
+custom_db.json
+
+# Test scratch and build output
+local_pytest_tmp/
+_preview/
+dist/
+build/
+*.spec.bak
+node_modules/
+
+# The owner's Obsidian vault lives inside the tree; never commit notes.
+Real Nyx/
+
+# --- Virtualenvs ------------------------------------------------------------
+# None of these were ignored, so the first `git add -A` staged ~3,900 files of
+# nested interpreter internals (openai_mcp/.venv, .venv.broken/, and a stray
+# "openai_mcp - Copy"). A venv is machine-specific and must never be committed.
+.venv/
+**/.venv/
+.venv.broken/
+venv/
+env/

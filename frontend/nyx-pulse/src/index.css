@@ -1,0 +1,107 @@
+:root { font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #e8edf7; background: #090c12; font-synthesis: none; }
+* { box-sizing: border-box; } body { margin: 0; min-width: 320px; } button, textarea { font: inherit; } button { cursor: pointer; }
+.app-shell { min-height: 100vh; display: grid; grid-template-columns: 250px minmax(480px,1fr) 280px; background: radial-gradient(circle at 47% 0%, #17223c 0, #0b1019 34%, #090c12 74%); }
+.left-rail, .right-rail { background: #0c111bde; border-color: #20293b; border-style: solid; padding: 22px 16px; } .left-rail { border-width: 0 1px 0 0; display: flex; flex-direction: column; } .right-rail { border-width: 0 0 0 1px; }
+.brand { display: flex; gap: 10px; align-items: center; letter-spacing: 3px; margin: 4px 8px 28px; } .brand > span { color: #97aaff; font-size: 27px; } .brand strong { display: block; font-size: 17px; } .brand small { display: block; color: #8190ac; font-size: 9px; margin-top: 2px; }
+.new-chat, .composer button { border: 0; border-radius: 8px; background: linear-gradient(100deg,#7b84f8,#a66fff); color: white; padding: 11px 13px; font-weight: 700; text-align: left; box-shadow: 0 8px 25px #5969ff2b; }.new-chat { margin-bottom: 19px; }
+nav { border-top: 1px solid #20293b; padding-top: 12px; }.nav-item, .session { background: transparent; color: #9ba7be; border: 0; width: 100%; display: flex; gap: 11px; align-items: center; padding: 10px; text-align: left; border-radius: 7px; }.nav-item:hover, .session:hover, .nav-item.active, .session.active { background: #1b2436; color: #f3f6fd; }.nav-item.active { border-left: 2px solid #8d91ff; padding-left: 8px; }.session-label,.context-title { color: #68758e; font-size: 10px; font-weight: 800; letter-spacing: 1.5px; margin: 26px 9px 7px; }.sessions { overflow-y: auto; }.session { font-size: 12px; }.connection { margin-top: auto; color: #8190aa; font-size: 11px; padding: 16px 9px 0; }.status { display: inline-block; width: 7px; height: 7px; border-radius: 100%; background: #df6e80; margin-right: 7px; }.status.online { background: #5fd69b; box-shadow: 0 0 8px #5fd69b; }
+.workspace { min-width: 0; display: flex; flex-direction: column; max-height: 100vh; }.workspace-header { padding: 24px 34px 18px; border-bottom: 1px solid #20293b; display:flex; justify-content:space-between; align-items:center; }.eyebrow { display: block; color: #7181a0; font-size: 10px; letter-spacing: 1.5px; font-weight: 800; }.workspace h1,.panel h1 { font-size: 19px; margin: 5px 0 0; }.outline { color:#c8d3ef; background:#151d2c; border:1px solid #2a3750; padding:8px 11px; border-radius:7px; font-size:12px; }
+.message-list { flex: 1; overflow-y: auto; padding: 30px clamp(24px,6vw,86px); }.message { display: grid; grid-template-columns: 36px 1fr; gap: 14px; margin-bottom: 28px; }.avatar { height: 31px; width: 31px; border-radius: 8px; display:grid; place-items:center; font-size:9px; font-weight:800; background:#1d2940; color:#b8c7ec; }.assistant .avatar { background:linear-gradient(135deg,#806ee9,#5c93f5); color:white; }.message-meta { color:#9eabc2; font-size:12px; font-weight:700; }.message-meta time { color:#62708a; font-weight:400; margin-left:8px; }.message p { white-space: pre-wrap; color:#d8dfed; line-height:1.7; font-size:14px; margin:7px 0; }.message-actions button { border:0; background:transparent; color:#7181a0; font-size:11px; padding:0 12px 0 0; }
+.composer { margin: 0 30px 25px; padding: 12px; border: 1px solid #334260; background:#111826; border-radius:10px; box-shadow:0 10px 35px #02050b5e; }.composer textarea { resize: none; background:transparent; border:0; outline:none; width:100%; color:#ecf2ff; line-height:1.5; }.composer textarea::placeholder { color:#697895; }.composer div { display:flex; justify-content:space-between; align-items:center; color:#70809c; font-size:10px; }.composer button { padding:8px 13px; text-align:center; }.composer button:disabled { opacity:.6; cursor:wait; }
+.right-rail section { border-bottom:1px solid #20293b; padding: 18px 3px 20px; }.right-rail h2 { font-size:14px; margin:7px 0 2px; }.right-rail p,.right-rail small { color:#8492aa; font-size:11px; line-height:1.6; }.meter { height:4px; background:#202c41; border-radius:4px; overflow:hidden; margin:14px 0 9px; }.meter i { display:block; width:72%; height:100%; background:linear-gradient(90deg,#72cba7,#8886fa); }.file { display:flex; align-items:center; gap:7px; color:#adb9ce; font-size:11px; margin:12px 0; }.file input { accent-color:#8c85ff; }.file span { color:#8d86f9; }.add { border:0; background:transparent; color:#9a94ff; font-size:11px; padding:4px 0; }.handoff { display:flex; width:100%; justify-content:space-between; color:#b9c5dd; background:#151e2d; border:1px solid #26344b; border-radius:6px; padding:9px; margin-top:8px; font-size:11px; }.handoff b { color:#9a94ff; }
+.panel { padding: 56px clamp(30px,8vw,120px); overflow-y:auto; }.panel h1 { font-size:32px; }.panel-description { color:#95a3ba; margin-bottom:32px; }.list-card { background:#111827; border:1px solid #27334a; border-radius:10px; overflow:hidden; }.row-button,.memory-row,.setting { border:0; border-bottom:1px solid #27334a; width:100%; min-height:64px; color:#d9e2f2; background:transparent; padding:14px; display:flex; align-items:center; gap:12px; text-align:left; }.row-button:last-child,.memory-row:last-child,.setting:last-child { border-bottom:0; }.row-button span,.memory-row span { color:#918dff; }.row-button div { display:grid; gap:4px; }.row-button small { color:#8290a9; }.row-button b { margin-left:auto; color:#938dff; font-size:11px; }.memory-row p { flex:1; color:#c9d3e6; font-size:13px; }.memory-row button { color:#df8291; background:transparent; border:0; font-size:11px; }.setting { justify-content:space-between; color:#aebbd1; font-size:13px; }.good { color:#62ca98; }.bad { color:#ed8393; } code { color:#988eff; }.model-grid { display:grid; grid-template-columns:repeat(2,minmax(180px,1fr)); gap:14px; }.model-card { text-align:left; min-height:150px; color:#cbd5e9; background:#121a29; border:1px solid #2a374f; padding:17px; border-radius:10px; }.model-card.selected { border-color:#887ffb; box-shadow:0 0 0 1px #887ffb; }.model-card span,.model-card strong,.model-card small { display:block; }.model-card span { color:#9a94ff; margin-bottom:16px; }.model-card strong { font-size:14px; }.model-card small,.model-card p { color:#8190aa; font-size:11px; }.model-card p { line-height:1.5; }
+@media (max-width: 1050px) { .app-shell { grid-template-columns:220px 1fr; }.right-rail { display:none; } } @media (max-width:700px) { .app-shell { grid-template-columns:1fr; }.left-rail { display:none; }.workspace-header { padding:18px; }.message-list { padding:22px; }.composer { margin:0 16px 16px; }.model-grid { grid-template-columns:1fr; } }
+
+/* ---------------------------------------------------------------------------
+   Ichnos avatar
+   The character art is a raster asset; all motion here is CSS around it so the
+   image itself never repaints. State is shown by the halo and the orbiting
+   spark rather than by tinting the art, which fought its own palette.
+   --------------------------------------------------------------------------- */
+.nyx-avatar {
+  position: relative;
+  display: inline-block;
+  width: var(--nyx-avatar-size, 30px);
+  height: var(--nyx-avatar-size, 30px);
+  flex: none;
+  line-height: 0;
+}
+
+.nyx-avatar__art {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+  animation: nyx-bob 4.6s ease-in-out infinite;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--nyx-avatar-color) 45%, transparent));
+}
+
+/* Soft aura. Sits behind the art and breathes slightly out of phase with the
+   bob so the two never peak together, which would read as a single pulse. */
+.nyx-avatar__halo {
+  position: absolute;
+  inset: -14%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 50%,
+    color-mix(in srgb, var(--nyx-avatar-color) 38%, transparent) 0%,
+    transparent 68%
+  );
+  animation: nyx-halo 3.4s ease-in-out infinite;
+}
+
+/* A spark tracing the rim: the clearest "working" signal at 30px. */
+.nyx-avatar__orbit {
+  position: absolute;
+  inset: -8%;
+  z-index: 2;
+  border-radius: 50%;
+  animation: nyx-orbit 2.6s linear infinite;
+}
+.nyx-avatar__orbit::before {
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--nyx-avatar-color);
+  box-shadow: 0 0 6px 1px var(--nyx-avatar-color);
+}
+
+.nyx-avatar__sparks i {
+  position: absolute;
+  z-index: 2;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--nyx-avatar-color);
+  box-shadow: 0 0 5px 1px var(--nyx-avatar-color);
+  opacity: 0;
+  animation: nyx-spark 3.2s ease-in-out infinite;
+}
+
+.nyx-avatar[data-state="error"] .nyx-avatar__art { animation: nyx-shake .5s ease-in-out 2; }
+.nyx-avatar[data-state="thinking"] .nyx-avatar__art { animation-duration: 2.6s; }
+
+@keyframes nyx-bob   { 0%, 100% { transform: translateY(0) }   50% { transform: translateY(-7%) } }
+@keyframes nyx-halo  { 0%, 100% { opacity: .55; transform: scale(1) }
+                       50%      { opacity: .95; transform: scale(1.07) } }
+@keyframes nyx-orbit { to { transform: rotate(360deg) } }
+@keyframes nyx-spark { 0%, 100% { opacity: 0; transform: translateY(2px) scale(.6) }
+                       50%      { opacity: 1; transform: translateY(-3px) scale(1) } }
+@keyframes nyx-shake { 0%, 100% { transform: translateX(0) }
+                       25% { transform: translateX(-2px) } 75% { transform: translateX(2px) } }
+
+/* Motion here is decorative; the avatar reads fine perfectly still. */
+@media (prefers-reduced-motion: reduce) {
+  .nyx-avatar__art,
+  .nyx-avatar__halo,
+  .nyx-avatar__orbit,
+  .nyx-avatar__sparks i { animation: none; }
+  .nyx-avatar__sparks i { opacity: .85; }
+}

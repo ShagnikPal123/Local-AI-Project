@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nyx Ichos</title>
+<meta name="description" content="A local-first multi-agent AI assistant that runs on your own machine. Created by Shagnik.">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="apple-touch-icon" href="/favicon.svg">
+<meta name="theme-color" content="#161826">
+<style>
+  :root {
+    --bg:#161826; --nav:#12141f; --surface:#232532; --text:#e9e9ed;
+    --accent:#9184d9; --accent-400:#b5abfc; --accent-900:#2b2741;
+    --n400:#b2b6ca; --n500:#9397ab; --n600:#75798c; --n700:#595d6c;
+    --ok:#5ac08a; --warn:#e0b45a;
+    --divider: color-mix(in srgb,#e9e9ed 16%,transparent);
+    --mono:"JetBrains Mono",Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);line-height:1.6;
+    font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:820px;margin:0 auto;padding:0 22px}
+  header{padding:56px 0 30px;text-align:center}
+  /* Ichnos mark. The art is a raster asset; the motion around it is CSS, so the
+     image never repaints and the header stays cheap. */
+  .mark{position:relative;width:132px;height:132px;margin:0 auto 14px;display:block}
+  .mark__art{position:relative;z-index:1;width:100%;height:100%;object-fit:contain;
+    user-select:none;animation:mark-bob 5s ease-in-out infinite;
+    filter:drop-shadow(0 6px 22px rgba(124,92,232,.45))}
+  .mark__halo{position:absolute;inset:-12%;border-radius:50%;
+    background:radial-gradient(circle at 50% 50%,rgba(124,92,232,.38) 0%,transparent 68%);
+    animation:mark-halo 3.6s ease-in-out infinite}
+  .mark__spark{position:absolute;z-index:2;width:4px;height:4px;border-radius:50%;
+    background:#cbb6ff;box-shadow:0 0 7px 1px rgba(203,182,255,.9);opacity:0;
+    animation:mark-spark 3.4s ease-in-out infinite}
+  @keyframes mark-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  @keyframes mark-halo{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:.95;transform:scale(1.08)}}
+  @keyframes mark-spark{0%,100%{opacity:0;transform:translateY(3px) scale(.6)}
+    50%{opacity:1;transform:translateY(-4px) scale(1)}}
+  /* Decorative only - the mark reads fine perfectly still. */
+  @media (prefers-reduced-motion:reduce){
+    .mark__art,.mark__halo,.mark__spark{animation:none}
+    .mark__spark{opacity:.85}
+  }
+  h1{font-size:clamp(30px,6vw,44px);margin:0 0 6px;letter-spacing:-.02em}
+  .kicker{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--n600);margin-bottom:16px}
+  .lede{font-size:17px;color:var(--n400);max-width:560px;margin:0 auto}
+
+  .live{display:flex;align-items:center;gap:10px;justify-content:center;margin:26px 0 0;
+    padding:10px 16px;border-radius:999px;background:var(--nav);
+    box-shadow:inset 0 0 0 1px var(--divider);font-size:13px;width:fit-content;
+    margin-left:auto;margin-right:auto}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--n600);flex:none}
+  .dot.up{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+  .dot.down{background:var(--warn)}
+
+  .steps{counter-reset:step;margin:34px 0 10px;padding:0;list-style:none}
+  .step{position:relative;padding:0 0 26px 46px;counter-increment:step}
+  .step::before{content:counter(step);position:absolute;left:0;top:0;width:30px;height:30px;
+    border-radius:50%;background:var(--accent-900);color:var(--accent-400);
+    display:grid;place-items:center;font-size:14px;font-weight:600;
+    box-shadow:inset 0 0 0 1px var(--accent-700,#5d5294)}
+  .step::after{content:"";position:absolute;left:15px;top:34px;bottom:4px;width:1px;
+    background:var(--divider)}
+  .step:last-child::after{display:none}
+  .step.done::before{content:"✓";background:var(--ok);color:#14121f;box-shadow:none}
+  .step h3{margin:3px 0 5px;font-size:16px}
+  .step p{margin:0 0 11px;font-size:14px;color:var(--n400)}
+
+  .cmd{display:flex;align-items:stretch;gap:0;border-radius:8px;overflow:hidden;
+    background:var(--nav);box-shadow:inset 0 0 0 1px var(--divider)}
+  .cmd code{flex:1;font-family:var(--mono);font-size:12.5px;color:var(--accent-400);
+    padding:11px 13px;overflow-x:auto;white-space:nowrap}
+  .cmd button{flex:none;padding:0 15px;font-size:12px;color:var(--n500);
+    background:transparent;border:0;border-left:1px solid var(--divider);cursor:pointer}
+  .cmd button:hover{color:var(--text);background:#1a1d2b}
+
+  .btn{display:inline-block;text-align:center;padding:12px 20px;border-radius:8px;
+    font-size:14px;font-weight:500;text-decoration:none;border:0;cursor:pointer}
+  .btn-primary{background:var(--accent);color:#14121f}
+  .btn-primary:hover{background:var(--accent-400)}
+  .btn-primary:disabled{background:var(--nav);color:var(--n600);cursor:default;
+    box-shadow:inset 0 0 0 1px var(--divider)}
+  .btn-big{width:100%;padding:15px;font-size:15px}
+
+  .tabs{display:flex;gap:4px;margin-bottom:12px}
+  .tabs button{padding:6px 13px;font-size:12.5px;border-radius:6px;background:var(--nav);
+    color:var(--n500);border:0;cursor:pointer}
+  .tabs button[aria-selected="true"]{background:var(--accent-900);color:var(--accent-400)}
+
+  .note{background:var(--nav);border-left:3px solid var(--warn);border-radius:8px;
+    padding:15px 17px;margin:30px 0;font-size:13.5px;color:var(--n400)}
+  .note strong{color:var(--text)}
+  .hint{font-size:12.5px;color:var(--n600);margin-top:9px}
+  code.inline{font-family:var(--mono);font-size:12px;background:var(--nav);
+    padding:2px 6px;border-radius:4px;color:var(--accent-400)}
+
+  section{margin:38px 0}
+  h2{font-size:20px;margin:0 0 6px}
+  .sectionsub{font-size:14px;color:var(--n500);margin:0 0 18px}
+  .grid{display:grid;gap:13px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+  .feat{background:var(--surface);border-radius:8px;padding:15px 17px;box-shadow:inset 0 0 0 1px var(--divider)}
+  .feat b{font-size:13px;display:block;margin-bottom:3px}
+  .feat span{font-size:12px;color:var(--n500)}
+  footer{padding:30px 0 52px;text-align:center;font-size:12px;color:var(--n700)}
+  a{color:var(--accent)}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="mark" aria-hidden="true">
+      <span class="mark__halo"></span>
+      <img class="mark__art" src="/ichnos.png" alt="" width="132" height="132" draggable="false">
+      <span class="mark__spark" style="left:2%;top:24%;animation-delay:0s"></span>
+      <span class="mark__spark" style="left:92%;top:34%;animation-delay:.8s"></span>
+      <span class="mark__spark" style="left:14%;top:80%;animation-delay:1.6s"></span>
+      <span class="mark__spark" style="left:84%;top:76%;animation-delay:2.4s"></span>
+    </div>
+    <div class="kicker">Local-first agent</div>
+    <h1>Nyx Ichos</h1>
+    <p class="lede">
+      A multi-agent AI assistant that runs on your own machine. Your conversations,
+      memory, and files stay local — online providers are an option, never a requirement.
+    </p>
+
+    <div class="live">
+      <span class="dot" id="dot"></span>
+      <span id="live-text">Checking your machine…</span>
+    </div>
+  </header>
+
+  <!-- Workspace launch section -->
+  <section id="launch-actions" style="text-align:center;margin:24px 0;">
+    <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;">
+      <a class="btn btn-primary btn-big" id="btn-local-ws" href="http://localhost:8000/" target="_blank" rel="noopener">
+        Open Local Workspace (localhost:8000) →
+      </a>
+      <a class="btn btn-secondary btn-big" href="/app/" id="btn-hosted-ws">
+        Open Web Workspace (/app/) →
+      </a>
+    </div>
+    <p class="hint" id="ws-hint" style="margin-top:12px;">
+      Double-click <code class="inline">start.bat</code> on your machine to start the local engine, then open the workspace above.
+    </p>
+  </section>
+
+  <!-- Shown when it is not running or setup instructions are needed -->
+  <section id="setup">
+    <h2>Get it running</h2>
+    <p class="sectionsub">
+      Three steps, once. After that it is a single double-click.
+    </p>
+
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tab-win" aria-selected="true">Windows</button>
+      <button role="tab" id="tab-mac" aria-selected="false">macOS / Linux</button>
+    </div>
+
+    <ol class="steps">
+      <li class="step">
+        <h3>Get the code</h3>
+        <p>Clone the repository, or download and unzip it.</p>
+        <div class="cmd">
+          <code id="c-clone">git clone &lt;your-repo&gt; nyx-ichos</code>
+          <button data-copy="c-clone">Copy</button>
+        </div>
+      </li>
+
+      <li class="step">
+        <h3>Download the launcher</h3>
+        <p>
+          One file. Put it in the project folder — it installs anything missing the
+          first time you run it.
+        </p>
+        <button class="btn btn-primary" id="dl-launcher">Download launcher</button>
+        <p class="hint" id="dl-hint">Saves <code class="inline">start.bat</code>. It is already in the repo too.</p>
+      </li>
+
+      <li class="step">
+        <h3>Run it</h3>
+        <p id="run-text">Double-click <code class="inline">start.bat</code>. That is it — it opens your browser when ready.</p>
+        <div class="cmd">
+          <code id="c-run">start.bat</code>
+          <button data-copy="c-run">Copy</button>
+        </div>
+        <p class="hint">
+          Prefer to type it yourself? <span id="manual">.venv\Scripts\python.exe -m uvicorn server:app --port 8000</span>
+        </p>
+      </li>
+    </ol>
+
+    <p class="hint" style="margin-top:4px">
+      The button at the top turns on by itself once the engine answers — no refresh needed.
+    </p>
+  </section>
+
+  <div class="note">
+    <strong>Why there is no cloud version.</strong>
+    Nyx runs on your hardware on purpose. An endpoint that reads your filesystem or takes
+    screenshots becomes a remote-access tool the moment it is on the open internet, however
+    carefully it is gated — so machine control and self-modification are
+    <em>compiled out</em> of any hosted build, not merely switched off. This page hands you
+    over to the engine on your own computer, which is why it is private, and why it needs
+    the app installed first.
+  </div>
+
+  <section>
+    <h2>What it does</h2>
+    <div class="grid">
+      <div class="feat"><b>Strands</b><span>A live map of how your ideas, agents, and memories actually connect.</span></div>
+      <div class="feat"><b>Agent team</b><span>Named agents with their own goals, and a master that manages them.</span></div>
+      <div class="feat"><b>Skills</b><span>Describe a capability; it writes the skill and applies it automatically.</span></div>
+      <div class="feat"><b>Dynamic tabs</b><span>Ask for a tab and it builds one. Say "make it green" and it does.</span></div>
+      <div class="feat"><b>Hardware safety</b><span>Reads real GPU telemetry and throttles before the machine suffers.</span></div>
+      <div class="feat"><b>Power modes</b><span>Low to Max, or Auto — bounded by what your machine can actually take.</span></div>
+    </div>
+    <p class="hint">
+      <strong>No API key needed.</strong> A local Ollama model runs offline. Adding a key for
+      Gemini, OpenAI, Groq or DeepSeek turns on online providers and cross-model collaboration.
+    </p>
+  </section>
+
+  <footer>Created by Shagnik · Local-first, free to run</footer>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  const ENGINE = "http://127.0.0.1:8000";
+
+  const dot = document.getElementById("dot");
+  const liveText = document.getElementById("live-text");
+  const wsHint = document.getElementById("ws-hint");
+  const isHttps = window.location.protocol === "https:";
+
+  let reachable = false;
+
+  function setRunning(claimed) {
+    reachable = true;
+    dot.className = "dot up";
+    liveText.textContent = claimed
+      ? "Engine running on this machine — sign-in required"
+      : "Engine running on this machine";
+    if (wsHint) {
+      wsHint.innerHTML = '<strong>Engine detected!</strong> Click <em>Open Local Workspace</em> above to launch.';
+    }
+  }
+
+  function setStopped() {
+    reachable = false;
+    dot.className = "dot down";
+    if (isHttps) {
+      liveText.textContent = "Web view active — click below to connect to local engine";
+      if (wsHint) {
+        wsHint.innerHTML = 'Hosted on web. Start your engine with <code class="inline">start.bat</code> and click <em>Open Local Workspace</em> above.';
+      }
+    } else {
+      liveText.textContent = "Engine not running on this machine";
+      if (wsHint) {
+        wsHint.innerHTML = 'Run <code class="inline">start.bat</code> to start the local engine, then open the workspace above.';
+      }
+    }
+  }
+
+  async function probe() {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 2000);
+      const response = await fetch(ENGINE + "/api/health", {
+        signal: controller.signal, cache: "no-store",
+      });
+      clearTimeout(timer);
+      if (!response.ok) throw new Error("unhealthy");
+      const health = await response.json();
+      setRunning(Boolean(health.claimed));
+    } catch {
+      setStopped();
+    }
+  }
+
+  void probe();
+  setInterval(probe, 4000);
+
+  // --- copy buttons --------------------------------------------------------
+  document.querySelectorAll("[data-copy]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const text = document.getElementById(button.dataset.copy).textContent;
+      try {
+        await navigator.clipboard.writeText(text);
+        const original = button.textContent;
+        button.textContent = "Copied";
+        setTimeout(() => { button.textContent = original; }, 1400);
+      } catch {
+        button.textContent = "Press Ctrl+C";
+      }
+    });
+  });
+
+  // --- platform switch -----------------------------------------------------
+  const WINDOWS = {
+    clone: "git clone <your-repo> nyx-ichos",
+    run: "start.bat",
+    runText: 'Double-click <code class="inline">start.bat</code>. That is it — it opens your browser when ready.',
+    manual: ".venv\\Scripts\\python.exe -m uvicorn server:app --port 8000",
+    file: "start.bat",
+    hint: 'Saves <code class="inline">start.bat</code>. It is already in the repo too.',
+  };
+  const UNIX = {
+    clone: "git clone <your-repo> nyx-ichos",
+    run: "chmod +x start.sh && ./start.sh",
+    runText: 'Run <code class="inline">./start.sh</code> from the project folder. It opens your browser when ready.',
+    manual: ".venv/bin/python -m uvicorn server:app --port 8000",
+    file: "start.sh",
+    hint: 'Saves <code class="inline">start.sh</code>. It is already in the repo too.',
+  };
+
+  const tabWin = document.getElementById("tab-win");
+  const tabMac = document.getElementById("tab-mac");
+  let platform = WINDOWS;
+
+  function apply(next, winSelected) {
+    platform = next;
+    document.getElementById("c-clone").textContent = next.clone;
+    document.getElementById("c-run").textContent = next.run;
+    document.getElementById("run-text").innerHTML = next.runText;
+    document.getElementById("manual").textContent = next.manual;
+    document.getElementById("dl-hint").innerHTML = next.hint;
+    tabWin.setAttribute("aria-selected", String(winSelected));
+    tabMac.setAttribute("aria-selected", String(!winSelected));
+  }
+
+  tabWin.addEventListener("click", () => apply(WINDOWS, true));
+  tabMac.addEventListener("click", () => apply(UNIX, false));
+
+  // Preselect from the user agent, but let them override — detection is a
+  // convenience, not a claim about their machine.
+  if (!/Win/i.test(navigator.platform || navigator.userAgent)) {
+    apply(UNIX, false);
+  }
+
+  // --- launcher download ---------------------------------------------------
+  document.getElementById("dl-launcher").addEventListener("click", async () => {
+    const button = document.getElementById("dl-launcher");
+    try {
+      const response = await fetch("/" + platform.file);
+      if (!response.ok) throw new Error("missing");
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = platform.file;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      button.textContent = "Downloaded ✓";
+      setTimeout(() => { button.textContent = "Download launcher"; }, 2000);
+    } catch {
+      button.textContent = "Use the copy of it in the repo";
+    }
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,103 @@
+/* Design tokens from the Claude Design handoff, in the nocturne _ds stylesheet.
+   Kept as variables so the palette stays in one place and matches the mockup. */
+
+:root {
+  --color-bg: #161826;
+  --color-nav: #12141f;
+  --color-surface: #232532;
+  --color-surface-2: #1b1e2f;
+  --color-text: #e9e9ed;
+  --color-accent: #9184d9;
+  --color-accent-2: #a7a1db;
+  --color-divider: color-mix(in srgb, #e9e9ed 16%, transparent);
+
+  --color-neutral-100: #f3f5fe;
+  --color-neutral-300: #cfd3e5;
+  --color-neutral-400: #b2b6ca;
+  --color-neutral-500: #9397ab;
+  --color-neutral-600: #75798c;
+  --color-neutral-700: #595d6c;
+  --color-neutral-800: #3f424d;
+  --color-neutral-900: #292b31;
+
+  --color-accent-300: #d2cefd;
+  --color-accent-400: #b5abfc;
+  --color-accent-500: #968ae0;
+  --color-accent-700: #5d5294;
+  --color-accent-900: #2b2741;
+
+  --color-ok: #5ac08a;
+  --color-warn: #e0b45a;
+  --color-danger: #e07a7a;
+
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-heading: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+
+  --radius: 8px;
+  --den: 1;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root {
+  margin: 0;
+  height: 100%;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 15px;
+}
+
+a { color: var(--color-accent); text-decoration: none; }
+a:hover { color: var(--color-accent-400); }
+
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-thumb { background: var(--color-neutral-800); border-radius: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: inherit;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  transition: background 120ms ease, color 120ms ease;
+}
+.btn-primary { background: var(--color-accent); color: #14121f; font-weight: 500; }
+.btn-primary:hover { background: var(--color-accent-400); }
+.btn-secondary { background: var(--color-neutral-900); color: var(--color-neutral-300); }
+.btn-secondary:hover { background: var(--color-neutral-800); color: var(--color-text); }
+
+.card {
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: inset 0 0 0 1px var(--color-divider);
+}
+
+.label {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-neutral-600);
+}
+
+.muted { color: var(--color-neutral-500); }
+
+@keyframes nyxpulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+@keyframes nyxspin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes nyxcore {
+  0%, 100% { opacity: 0.4; transform: scale(0.94); }
+  50% { opacity: 1; transform: scale(1.04); }
+}

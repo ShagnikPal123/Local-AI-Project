@@ -1,0 +1,12 @@
+{
+  "preferences": {},
+  "online_results": [],
+  "conversation_checkpoints": [
+    {
+      "chat_id": "6550bfc6",
+      "summary": "user: Add 2 + 2 | assistant: The result is 4. | user: what is the latest news? | assistant: plain answer | user: verify this claim please | assistant: draft answer",
+      "next_step": "Continue from the latest saved exchange.",
+      "saved_at": "2026-08-19T01:18:42.991149+00:00"
+    }
+  ]
+}
