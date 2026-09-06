@@ -13,6 +13,7 @@
 import { useEffect, useState } from "react";
 import { api, endpoints, type StatusResponse } from "../api";
 import { ErrorState, Loading, PanelShell } from "../components/Panel";
+import { ProviderManager } from "../components/ProviderPicker";
 
 interface ModelsResponse {
   local: unknown;
@@ -179,37 +180,19 @@ export function ModelsPanel() {
           )}
         </div>
 
-        <div className="card">
-          <div className="label" style={{ marginBottom: 10 }}>Online providers</div>
-          {(models.online ?? []).map((p) => (
-            <div key={p.name} style={{
-              display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 13,
-            }}>
-              <span>
-                {p.name}
-                {p.name === models.preferred_online && (
-                  <span style={{ color: "var(--color-accent)", fontSize: 11, marginLeft: 8 }}>
-                    preferred
-                  </span>
-                )}
-              </span>
-              <span style={{
-                fontFamily: "var(--font-mono)", fontSize: 12,
-                color: p.configured ? "var(--color-ok)" : "var(--color-neutral-600)",
-              }}>
-                {p.configured ? "ready" : "no key"}
-              </span>
-            </div>
-          ))}
-          {router.free_only && (
-            <div style={{
-              marginTop: 10, fontSize: 12, color: "var(--color-neutral-500)", lineHeight: 1.6,
-            }}>
+        {/* Online providers, with add/test/remove where the backend supports it.
+            The component degrades to a read-only list built from /api/models
+            when the provider API is not present. */}
+        <ProviderManager />
+
+        {router.free_only && (
+          <div className="card">
+            <div style={{ fontSize: 12, color: "var(--color-neutral-500)", lineHeight: 1.6 }}>
               Free-only mode is on, so paid providers are excluded from routing even when a key
               is configured. Set <code>FREE_ONLY=false</code> in <code>.env.local</code> to allow them.
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </PanelShell>
   );

@@ -19,6 +19,14 @@ export interface TabBlock {
   config: Record<string, unknown>;
 }
 
+/** One applied change, as the server records it on the tab itself. */
+export interface TabEditRecord {
+  request: string;
+  summary: string;
+  at: number;
+  source: string;
+}
+
 export interface TabSpec {
   id: string;
   label: string;
@@ -28,6 +36,54 @@ export interface TabSpec {
   connectors: string[];
   accent: string;
   source: string;
+  /** Newer backends persist the edit trail on the tab; older ones omit it. */
+  edits?: TabEditRecord[];
+  updated_at?: number;
+}
+
+interface EditOutcome {
+  applied: boolean;
+  summary: string;
+  interpretedBy: string;
+  request: string;
+}
+
+function whenText(at: number): string {
+  if (!at) return "";
+  try {
+    return new Date(at * 1000).toLocaleString();
+  } catch {
+    return "";
+  }
+}
+
+/** The trail of what was asked for and what changed.
+ *
+ * Rendered in the tab body, not only inside the edit panel, because the
+ * complaint was precisely that closing the editor took the evidence with it.
+ */
+function EditHistory({ edits, compact }: { edits: TabEditRecord[]; compact?: boolean }) {
+  if (edits.length === 0) return null;
+  // Newest first: the change you just made is the one you are looking for.
+  const ordered = [...edits].reverse();
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: compact ? 7 : 9 }}>
+      {ordered.map((edit, i) => (
+        <div key={`${edit.at}-${i}`} style={{ lineHeight: 1.5 }}>
+          <div style={{ fontSize: compact ? 12 : 13, color: "var(--color-text)" }}>
+            “{edit.request}”
+          </div>
+          <div style={{ fontSize: compact ? 11 : 12, color: "var(--color-ok)", marginTop: 2 }}>
+            {edit.summary}
+          </div>
+          <div style={{ fontSize: 10, color: "var(--color-neutral-700)", marginTop: 2, fontFamily: "var(--font-mono)" }}>
+            {edit.source}
+            {whenText(edit.at) && ` · ${whenText(edit.at)}`}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function useLocalValue<T>(key: string, initial: T): [T, (v: T) => void] {

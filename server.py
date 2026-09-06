@@ -46,6 +46,7 @@ from server_auth import (
     RequireGrant,
     RequireInvite,
     RequireMachineControl,
+    RequireModifyAI,
     RequirePublishChanges,
     RequireReviewChanges,
     is_claimed,
@@ -323,6 +324,29 @@ class TabCombineRequest(BaseModel):
 
 class SpeechLearnRequest(BaseModel):
     messages: List[str]
+
+
+class ProviderAddRequest(BaseModel):
+    """Add a provider by name plus a key.
+
+    ``api_key`` carries no pydantic constraint on purpose. A failed field
+    validation is echoed back by FastAPI with the offending ``input`` value, so
+    constraining the key here would be a route that returns the key in its own
+    error response. It is validated in the handler instead, where the message
+    is written by hand.
+    """
+
+    name: str = ""
+    api_key: str = ""
+    endpoint: str = ""
+    model: str = ""
+    label: str = ""
+    api_key_name: str = ""
+    free: bool = True
+    timeout_seconds: int = 30
+    # Explicit opt-in for an endpoint on this machine (an Ollama-style local
+    # gateway). Off by default: without it a private URL is refused.
+    local: bool = False
 
 
 # ---------------------------------------------------------------------------

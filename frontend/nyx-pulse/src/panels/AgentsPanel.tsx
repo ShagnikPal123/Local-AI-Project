@@ -7,7 +7,7 @@
  * exactly like an idle one.
  */
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { agents as agentsApi, api } from "../api";
 import { ErrorState, Loading, PanelShell } from "../components/Panel";
 
@@ -51,7 +51,101 @@ const STATUS_COLOR: Record<Agent["status"], string> = {
   done: "var(--color-ok)",
 };
 
-function AgentRow({ agent }: { agent: Agent }) {
+const fieldStyle: React.CSSProperties = {
+  padding: "7px 9px",
+  background: "var(--color-nav)",
+  color: "var(--color-text)",
+  border: "none",
+  borderRadius: "var(--radius)",
+  boxShadow: "inset 0 0 0 1px var(--color-divider)",
+  font: "inherit",
+  fontSize: 13,
+};
+
+/** Name, goal, role — the three things POST /api/agents actually needs.
+ *
+ * The goal field is wide and prompts for detail on purpose: the panel already
+ * flags goals too short to act on, and the cheapest place to prevent that is
+ * before the agent exists.
+ */
+function CreateAgentForm({ onCreated, onCancel }: {
+  onCreated: () => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [goal, setGoal] = useState("");
+  const [role, setRole] = useState<"worker" | "master">("worker");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (busy || !name.trim()) return;
+    setBusy(true);
+    setError("");
+    const result = await agentsApi.create({ name: name.trim(), goal: goal.trim(), role });
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    setName("");
+    setGoal("");
+    setRole("worker");
+    await onCreated();
+  }
+
+  return (
+    <form onSubmit={submit} className="card" style={{ borderLeft: "3px solid var(--color-accent)" }}>
+      <div className="label" style={{ marginBottom: 9 }}>New agent</div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Name, e.g. Researcher"
+          autoFocus
+          style={{ ...fieldStyle, flex: 1, minWidth: 0 }}
+        />
+        <select
+          value={role}
+          onChange={(e) => setRole(e.target.value as "worker" | "master")}
+          style={{ ...fieldStyle, background: "var(--color-surface)" }}
+          title="A master coordinates the team; a worker carries out its own goal"
+        >
+          <option value="worker">worker</option>
+          <option value="master">master</option>
+        </select>
+      </div>
+      <textarea
+        value={goal}
+        onChange={(e) => setGoal(e.target.value)}
+        rows={2}
+        placeholder="Goal — what this agent is for. Be specific; a vague goal is flagged below."
+        style={{ ...fieldStyle, width: "100%", resize: "vertical", marginBottom: 8, lineHeight: 1.55 }}
+      />
+      {error && (
+        <div style={{ fontSize: 12, color: "var(--color-danger)", marginBottom: 8, lineHeight: 1.5 }}>
+          {error}
+        </div>
+      )}
+      <div style={{ display: "flex", gap: 8 }}>
+        <button
+          type="submit"
+          className="btn btn-primary"
+          disabled={busy || !name.trim()}
+          style={{ opacity: busy || !name.trim() ? 0.5 : 1 }}
+        >
+          {busy ? "Creating…" : "Create agent"}
+        </button>
+        <button type="button" className="btn btn-secondary" onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function AgentRow({ agent, onDismiss }: { agent: Agent; onDismiss: (id: string) => void }) {
   const color = STATUS_COLOR[agent.status];
   const isMaster = agent.role === "master";
   return (
@@ -83,6 +177,16 @@ function AgentRow({ agent }: { agent: Agent }) {
         }}>
           {agent.status}
         </span>
+        <button
+          className="btn btn-secondary"
+          onClick={() => onDismiss(agent.agent_id)}
+          title={isMaster
+            ? "The master cannot be dismissed while workers depend on it"
+            : `Dismiss ${agent.name}`}
+          style={{ fontSize: 11, padding: "2px 9px", color: "var(--color-danger)" }}
+        >
+          Dismiss
+        </button>
       </div>
 
       <div style={{ fontSize: 12, color: "var(--color-neutral-500)", lineHeight: 1.55, marginBottom: 4 }}>
@@ -112,10 +216,22 @@ function AgentRow({ agent }: { agent: Agent }) {
 export function AgentsPanel() {
   const [team, setTeam] = useState<TeamSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [actionError, setActionError] = useState("");
+
+  const load = useCallback(async () => {
+    const result = await api.get<TeamSnapshot>("/api/agents");
+    if (result.ok) {
+      setTeam(result.data);
+      setError(null);
+    } else {
+      setError(result.error);
+    }
+  }, []);
 
   useEffect(() => {
     let alive = true;
-    const load = async () => {
+    const tick = async () => {
       const result = await api.get<TeamSnapshot>("/api/agents");
       if (!alive) return;
       if (result.ok) {
@@ -125,14 +241,27 @@ export function AgentsPanel() {
         setError(result.error);
       }
     };
-    void load();
+    void tick();
     // Standing view, so it refreshes on its own rather than needing a reload.
-    const timer = setInterval(load, 3000);
+    const timer = setInterval(tick, 3000);
     return () => {
       alive = false;
       clearInterval(timer);
     };
   }, []);
+
+  // The backend refuses to dismiss the master while workers still depend on it,
+  // and that refusal is the useful message — show it rather than swallowing it.
+  async function dismiss(agentId: string) {
+    setActionError("");
+    const result = await agentsApi.remove<{ team: TeamSnapshot }>(agentId);
+    if (!result.ok) {
+      setActionError(result.error);
+      return;
+    }
+    if (result.data?.team) setTeam(result.data.team);
+    else await load();
+  }
 
   if (error && !team) return <PanelShell title="Agents"><ErrorState error={error} /></PanelShell>;
   if (!team) return <PanelShell title="Agents"><Loading what="Reading team status" /></PanelShell>;
@@ -144,8 +273,31 @@ export function AgentsPanel() {
     <PanelShell
       title="Agents"
       subtitle={`${team.total} on the team · ${team.working} working`}
+      actions={
+        <button className="btn btn-primary" onClick={() => setCreating((v) => !v)}>
+          {creating ? "Close" : "+ New agent"}
+        </button>
+      }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {creating && (
+          <CreateAgentForm
+            onCancel={() => setCreating(false)}
+            onCreated={async () => {
+              setCreating(false);
+              await load();
+            }}
+          />
+        )}
+
+        {actionError && (
+          <div className="card" style={{ borderLeft: "3px solid var(--color-danger)" }}>
+            <div style={{ fontSize: 13, color: "var(--color-danger)", lineHeight: 1.6 }}>
+              {actionError}
+            </div>
+          </div>
+        )}
+
         {throttled && (
           <div className="card" style={{ borderLeft: "3px solid var(--color-warn)" }}>
             <div className="label" style={{ marginBottom: 6 }}>Machine is limiting the team</div>
@@ -179,23 +331,38 @@ export function AgentsPanel() {
         )}
 
         <div className="card">
-          <div className="label" style={{ marginBottom: 4 }}>Team</div>
+          <div style={{ display: "flex", alignItems: "center", marginBottom: 4 }}>
+            <span className="label">Team</span>
+            <button
+              className="btn btn-secondary"
+              onClick={() => setCreating(true)}
+              style={{ marginLeft: "auto", fontSize: 12, padding: "4px 10px" }}
+            >
+              + New agent
+            </button>
+          </div>
           {team.agents.length === 0 ? (
             <div style={{ fontSize: 12, color: "var(--color-neutral-500)" }}>
               No agents yet.
             </div>
           ) : (
-            team.agents.map((a) => <AgentRow key={a.agent_id} agent={a} />)
+            team.agents.map((a) => (
+              <AgentRow key={a.agent_id} agent={a} onDismiss={(id) => void dismiss(id)} />
+            ))
           )}
+          <div style={{ fontSize: 11, color: "var(--color-neutral-600)", marginTop: 8, lineHeight: 1.5 }}>
+            Four standing roles are seeded automatically, so the team is never empty. Dismissing
+            one of those brings it back on the next refresh.
+          </div>
         </div>
 
         <div className="card" style={{ borderLeft: "3px solid var(--color-accent-700)" }}>
           <div className="label" style={{ marginBottom: 6 }}>Still to build</div>
           <div style={{ fontSize: 12, color: "var(--color-neutral-400)", lineHeight: 1.65 }}>
-            Spawning agents from this panel, the master actually delegating work to workers
-            (B1), auto scale-up and scale-down (B6), and the inter-agent message bus (B3).
-            Agents can be created via <code style={{ fontFamily: "var(--font-mono)" }}>POST /api/agents</code>{" "}
-            today, but nothing drives them from the chat loop yet.
+            The master actually delegating work to workers (B1), auto scale-up and scale-down
+            (B6), and the inter-agent message bus (B3). Agents can be created and dismissed from
+            this panel, but nothing drives them from the chat loop yet — a new agent sits idle
+            until that lands.
           </div>
         </div>
       </div>

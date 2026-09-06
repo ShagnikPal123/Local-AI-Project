@@ -26,6 +26,8 @@ from providers.perplexity_provider import PerplexityProvider
 _PAID_PROVIDERS = {"claude", "openai", "kimi", "deepseek", "perplexity"}
 # Free-first online order (gemini and groq both have free tiers).
 _FREE_FIRST_ORDER = ("gemini", "groq", "claude", "openai", "kimi", "deepseek", "perplexity")
+# Names owned by the shipped providers; a user-added spec may not take one.
+_BUILTIN_ROUTER_NAMES = frozenset(("ollama", *_FREE_FIRST_ORDER))
 
 
 def _log_event(message: str, source: str, ok: bool = True) -> None:
@@ -61,12 +63,54 @@ class Router:
             "groq": self.groq,
             "perplexity": self.perplexity,
         }
+        # Providers the user added at runtime. They are ordinary members of
+        # self.providers from here on, so the fallback chain, direct_chat, and
+        # multi_chat need no special case for them.
+        self.custom: Dict[str, CustomProvider] = {}
+        self.refresh_custom_providers()
         self.device_profile = get_device_profile()
         self.device_tier = select_tier(self.device_profile)
         self.web_access_enabled = web_access
         from web_access import set_enabled
 
         set_enabled(web_access)
+
+    def refresh_custom_providers(self) -> List[str]:
+        """Re-read user-added provider specs into this router.
+
+        Called at construction and again after a spec is written, so a provider
+        the user just added answers the very next message. Routers are cached
+        per chat (server._services), and without this a new provider would only
+        appear after a restart — the same "I configured it and nothing
+        happened" failure that reload_keys exists to prevent.
+
+        A broken store must never stop a router from being built, so the load
+        is best-effort and simply yields no custom providers on failure.
+        """
+        try:
+            rebuilt = build_custom_providers()
+        except Exception as error:  # pragma: no cover - defensive
+            _log_event(f"custom providers unavailable: {str(error)[:90]}", "router", ok=False)
+            rebuilt = {}
+
+        for name in list(self.custom):
+            if self.providers.get(name) is self.custom[name]:
+                self.providers.pop(name, None)
+        self.custom = {n: p for n, p in rebuilt.items() if n not in _BUILTIN_ROUTER_NAMES}
+        self.providers.update(self.custom)
+        return sorted(self.custom)
+
+    def _paid_names(self) -> set[str]:
+        """Provider names that cost money, built-in and user-added alike.
+
+        A user-added provider declares this itself: a spec flagged is_free is
+        treated like Gemini or Groq, and anything else like Claude or OpenAI.
+        Free-only mode has to hold for providers nobody had heard of when it
+        was written, or it is not a spending guarantee at all.
+        """
+        return set(_PAID_PROVIDERS) | {
+            name for name, provider in self.custom.items() if not provider.is_free
+        }
 
     def set_web_access(self, enabled: bool) -> None:
         """Enable or disable online provider access for future requests."""
@@ -89,11 +133,22 @@ class Router:
         return self.web_access_enabled and is_online()
 
     def _online_order(self) -> List[str]:
-        """Free-first provider order, dropping paid providers in free-only mode."""
+        """Free-first provider order, dropping paid providers in free-only mode.
+
+        User-added providers slot in behind the shipped ones of the same cost:
+        a free custom provider is a perfectly good fallback, but it should not
+        displace a provider the user has been relying on just because it was
+        added later. A custom provider named as `preferred` still leads.
+        """
         preferred = SETTINGS.preferred_online_provider
-        order = [preferred] + [name for name in _FREE_FIRST_ORDER if name != preferred]
+        custom_free = sorted(n for n, p in self.custom.items() if p.is_free)
+        custom_paid = sorted(n for n, p in self.custom.items() if not p.is_free)
+        order = [preferred]
+        order += [name for name in _FREE_FIRST_ORDER if name != preferred]
+        order += [name for name in (*custom_free, *custom_paid) if name != preferred]
         if SETTINGS.free_only:
-            order = [name for name in order if name not in _PAID_PROVIDERS]
+            paid = self._paid_names()
+            order = [name for name in order if name not in paid]
         return order
 
     def _is_local_suitable(self) -> bool:
@@ -143,7 +198,7 @@ class Router:
         """Talk to one named agent without changing local-first routing policy."""
         if provider_name not in self.providers:
             raise ProviderError(f"Unknown provider: {provider_name}")
-        if SETTINGS.free_only and provider_name in _PAID_PROVIDERS:
+        if SETTINGS.free_only and provider_name in self._paid_names():
             raise ProviderError(
                 f"{provider_name} is a paid provider and free-only mode is on "
                 "(set FREE_ONLY=false in .env.local to enable paid models)."
@@ -179,7 +234,10 @@ class Router:
         from concurrent.futures import ThreadPoolExecutor
 
         # Paid entries report [unavailable ...] via direct_chat's free-only gate.
-        names = provider_names or ["ollama", "claude", "openai", "gemini", "kimi", "deepseek", "groq", "perplexity"]
+        names = provider_names or [
+            "ollama", "claude", "openai", "gemini", "kimi", "deepseek", "groq",
+            "perplexity", *sorted(self.custom),
+        ]
         results = {}
 
         def _query_one(name: str) -> Tuple[str, str]:
@@ -317,6 +375,15 @@ class Router:
             "kimi_available": self.kimi.is_available(),
             "deepseek_available": self.deepseek.is_available(),
             "groq_available": self.groq.is_available(),
+            "custom_providers": [
+                {
+                    "name": name,
+                    "label": provider.label,
+                    "free": provider.is_free,
+                    "available": provider.is_available(),
+                }
+                for name, provider in sorted(self.custom.items())
+            ],
             "preferred_online_provider": SETTINGS.preferred_online_provider,
             "metrics": GLOBAL_METRICS.get_summary(),
         }
