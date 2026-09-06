@@ -127,75 +127,73 @@
       memory, and files stay local — online providers are an option, never a requirement.
     </p>
 
-    <div class="live">
-      <span class="dot" id="dot"></span>
-      <span id="live-text">Checking your machine…</span>
-    </div>
   </header>
 
-  <!-- Workspace launch section -->
-  <section id="launch-actions" style="text-align:center;margin:24px 0;">
-    <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;">
-      <a class="btn btn-primary btn-big" id="btn-local-ws" href="http://localhost:8000/" target="_blank" rel="noopener">
-        Open Local Workspace (localhost:8000) →
-      </a>
-      <a class="btn btn-secondary btn-big" href="/app/" id="btn-hosted-ws">
-        Open Web Workspace (/app/) →
-      </a>
-    </div>
-    <p class="hint" id="ws-hint" style="margin-top:12px;">
-      Double-click <code class="inline">start.bat</code> on your machine to start the local engine, then open the workspace above.
+  <!-- Download. This page is a front door and nothing more: the app is entirely
+       self-contained, so there is no engine to detect and no state to report.
+       The previous version polled http://127.0.0.1:8000 from here, which a
+       browser blocks outright when this page is served over HTTPS - so it sat
+       on "Engine not running" forever even when the engine was running fine. -->
+  <section id="launch-actions" style="text-align:center;margin:26px 0 8px;">
+    <a class="btn btn-primary btn-big" href="https://github.com/ShagnikPal123/Local-AI-Project/releases/latest"
+       rel="noopener">Download for Windows →</a>
+    <p class="hint" style="margin-top:12px;">
+      Unzip it and double-click <code class="inline">Nyx.exe</code>. No Python, no setup.
+      Your browser opens by itself.
+    </p>
+    <p class="hint" style="margin-top:14px;">
+      Already installed? It runs at
+      <a href="http://localhost:8000/" target="_blank" rel="noopener">localhost:8000</a>
+      while it is open.
+      &nbsp;·&nbsp; <a href="https://github.com/ShagnikPal123/Local-AI-Project" rel="noopener">Source on GitHub</a>
     </p>
   </section>
 
-  <!-- Shown when it is not running or setup instructions are needed -->
+  <!-- Two paths, honestly separated. The old version had one three-step flow
+       that began with `git clone`, which is a developer's path presented as
+       everyone's. Downloading a built app and building from source are
+       different audiences and should not share a numbered list. -->
   <section id="setup">
     <h2>Get it running</h2>
-    <p class="sectionsub">
-      Three steps, once. After that it is a single double-click.
-    </p>
-
-    <div class="tabs" role="tablist">
-      <button role="tab" id="tab-win" aria-selected="true">Windows</button>
-      <button role="tab" id="tab-mac" aria-selected="false">macOS / Linux</button>
-    </div>
+    <p class="sectionsub">Two ways in. Most people want the first.</p>
 
     <ol class="steps">
       <li class="step">
-        <h3>Get the code</h3>
-        <p>Clone the repository, or download and unzip it.</p>
+        <h3>Just use it</h3>
+        <p>
+          Download the zip, unzip it anywhere, and double-click
+          <code class="inline">Nyx.exe</code>. Your browser opens by itself.
+          Nothing else to install &mdash; Python and every dependency are already inside.
+        </p>
+        <a class="btn btn-primary" href="https://github.com/ShagnikPal123/Local-AI-Project/releases/latest" rel="noopener">
+          Download for Windows &rarr;
+        </a>
+        <p class="hint" style="margin-top:10px">
+          First run will say it cannot reach a model provider. Add a key to
+          <code class="inline">.env.local</code> in
+          <code class="inline">%LOCALAPPDATA%\NyxIchos\</code>, or install
+          <a href="https://ollama.com" rel="noopener">Ollama</a> and run with no key at all.
+        </p>
+      </li>
+
+      <li class="step">
+        <h3>Or run from source</h3>
+        <p>For development, or on macOS and Linux where there is no packaged build yet.</p>
         <div class="cmd">
-          <code id="c-clone">git clone &lt;your-repo&gt; nyx-ichos</code>
+          <code id="c-clone">git clone https://github.com/ShagnikPal123/Local-AI-Project.git nyx-ichos</code>
           <button data-copy="c-clone">Copy</button>
         </div>
-      </li>
-
-      <li class="step">
-        <h3>Download the launcher</h3>
-        <p>
-          One file. Put it in the project folder — it installs anything missing the
-          first time you run it.
+        <p style="margin-top:10px">
+          Then double-click <code class="inline">nyx.bat</code> (or run
+          <code class="inline">./nyx.sh</code>). It creates the environment and
+          installs whatever is missing on first run.
         </p>
-        <button class="btn btn-primary" id="dl-launcher">Download launcher</button>
-        <p class="hint" id="dl-hint">Saves <code class="inline">start.bat</code>. It is already in the repo too.</p>
-      </li>
-
-      <li class="step">
-        <h3>Run it</h3>
-        <p id="run-text">Double-click <code class="inline">start.bat</code>. That is it — it opens your browser when ready.</p>
         <div class="cmd">
-          <code id="c-run">start.bat</code>
+          <code id="c-run">nyx.bat</code>
           <button data-copy="c-run">Copy</button>
         </div>
-        <p class="hint">
-          Prefer to type it yourself? <span id="manual">.venv\Scripts\python.exe -m uvicorn server:app --port 8000</span>
-        </p>
       </li>
     </ol>
-
-    <p class="hint" style="margin-top:4px">
-      The button at the top turns on by itself once the engine answers — no refresh needed.
-    </p>
   </section>
 
   <div class="note">
@@ -231,60 +229,11 @@
 (() => {
   "use strict";
 
-  const ENGINE = "http://127.0.0.1:8000";
-
-  const dot = document.getElementById("dot");
-  const liveText = document.getElementById("live-text");
-  const wsHint = document.getElementById("ws-hint");
-  const isHttps = window.location.protocol === "https:";
-
-  let reachable = false;
-
-  function setRunning(claimed) {
-    reachable = true;
-    dot.className = "dot up";
-    liveText.textContent = claimed
-      ? "Engine running on this machine — sign-in required"
-      : "Engine running on this machine";
-    if (wsHint) {
-      wsHint.innerHTML = '<strong>Engine detected!</strong> Click <em>Open Local Workspace</em> above to launch.';
-    }
-  }
-
-  function setStopped() {
-    reachable = false;
-    dot.className = "dot down";
-    if (isHttps) {
-      liveText.textContent = "Web view active — click below to connect to local engine";
-      if (wsHint) {
-        wsHint.innerHTML = 'Hosted on web. Start your engine with <code class="inline">start.bat</code> and click <em>Open Local Workspace</em> above.';
-      }
-    } else {
-      liveText.textContent = "Engine not running on this machine";
-      if (wsHint) {
-        wsHint.innerHTML = 'Run <code class="inline">start.bat</code> to start the local engine, then open the workspace above.';
-      }
-    }
-  }
-
-  async function probe() {
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 2000);
-      const response = await fetch(ENGINE + "/api/health", {
-        signal: controller.signal, cache: "no-store",
-      });
-      clearTimeout(timer);
-      if (!response.ok) throw new Error("unhealthy");
-      const health = await response.json();
-      setRunning(Boolean(health.claimed));
-    } catch {
-      setStopped();
-    }
-  }
-
-  void probe();
-  setInterval(probe, 4000);
+  // No liveness probe. This page is a front door for the download; the app is
+  // self-contained and serves its own UI, so there is nothing here to detect.
+  // The old probe fetched http://127.0.0.1:8000 from an HTTPS page, which the
+  // browser blocks as mixed content before CORS is even consulted - so it
+  // reported "Engine not running" permanently, including when it was running.
 
   // --- copy buttons --------------------------------------------------------
   document.querySelectorAll("[data-copy]").forEach((button) => {
@@ -301,69 +250,12 @@
     });
   });
 
-  // --- platform switch -----------------------------------------------------
-  const WINDOWS = {
-    clone: "git clone <your-repo> nyx-ichos",
-    run: "start.bat",
-    runText: 'Double-click <code class="inline">start.bat</code>. That is it — it opens your browser when ready.',
-    manual: ".venv\\Scripts\\python.exe -m uvicorn server:app --port 8000",
-    file: "start.bat",
-    hint: 'Saves <code class="inline">start.bat</code>. It is already in the repo too.',
-  };
-  const UNIX = {
-    clone: "git clone <your-repo> nyx-ichos",
-    run: "chmod +x start.sh && ./start.sh",
-    runText: 'Run <code class="inline">./start.sh</code> from the project folder. It opens your browser when ready.',
-    manual: ".venv/bin/python -m uvicorn server:app --port 8000",
-    file: "start.sh",
-    hint: 'Saves <code class="inline">start.sh</code>. It is already in the repo too.',
-  };
+  // The platform switcher and the launcher-download handler lived here. Both
+  // referenced elements that no longer exist, and both existed to serve a
+  // start.bat that was never in this folder - clicking Download always 404'd
+  // and silently degraded to "Use the copy of it in the repo". The download is
+  // now a plain link to the GitHub release, which needs no JavaScript at all.
 
-  const tabWin = document.getElementById("tab-win");
-  const tabMac = document.getElementById("tab-mac");
-  let platform = WINDOWS;
-
-  function apply(next, winSelected) {
-    platform = next;
-    document.getElementById("c-clone").textContent = next.clone;
-    document.getElementById("c-run").textContent = next.run;
-    document.getElementById("run-text").innerHTML = next.runText;
-    document.getElementById("manual").textContent = next.manual;
-    document.getElementById("dl-hint").innerHTML = next.hint;
-    tabWin.setAttribute("aria-selected", String(winSelected));
-    tabMac.setAttribute("aria-selected", String(!winSelected));
-  }
-
-  tabWin.addEventListener("click", () => apply(WINDOWS, true));
-  tabMac.addEventListener("click", () => apply(UNIX, false));
-
-  // Preselect from the user agent, but let them override — detection is a
-  // convenience, not a claim about their machine.
-  if (!/Win/i.test(navigator.platform || navigator.userAgent)) {
-    apply(UNIX, false);
-  }
-
-  // --- launcher download ---------------------------------------------------
-  document.getElementById("dl-launcher").addEventListener("click", async () => {
-    const button = document.getElementById("dl-launcher");
-    try {
-      const response = await fetch("/" + platform.file);
-      if (!response.ok) throw new Error("missing");
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = platform.file;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-      button.textContent = "Downloaded ✓";
-      setTimeout(() => { button.textContent = "Download launcher"; }, 2000);
-    } catch {
-      button.textContent = "Use the copy of it in the repo";
-    }
-  });
 })();
 </script>
 </body>
