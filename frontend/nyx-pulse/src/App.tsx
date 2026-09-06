@@ -15,9 +15,11 @@ import {
   auth,
   endpoints,
   getToken,
+  loadChatHistory,
   setToken,
   setUnauthorizedHandler,
   type AccountUser,
+  type ChatMessage,
 } from "./api";
 import { JoinScreen, LoginScreen } from "./components/AuthScreen";
 import { NyxAvatar, type AvatarState } from "./components/NyxAvatar";
@@ -38,6 +40,18 @@ import { TopTabs } from "./components/TopTabs";
 import { StorePanel } from "./panels/StorePanel";
 
 const LAYOUT_KEY = "nyx.layout";
+const CHAT_KEY = "nyx.chat.transcript";
+const PROVIDER_KEY = "nyx.chat.provider";
+
+function readStoredTranscript(): ChatMessage[] {
+  try {
+    const raw = localStorage.getItem(CHAT_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return Array.isArray(parsed) ? (parsed as ChatMessage[]) : [];
+  } catch {
+    return [];
+  }
+}
 
 export default function App() {
   const [active, setActive] = useState<TabId>("chat");
@@ -124,6 +138,62 @@ export default function App() {
   }, []);
 
   const onActivity = useCallback((s: AvatarState) => setAvatar(s), []);
+
+  // The conversation lives here, not in ChatPanel.
+  //
+  // ChatPanel is unmounted every time another tab is selected, so anything it
+  // held in its own state vanished on the first tab switch — the "chats
+  // disappear" bug. App outlives every panel, so the transcript survives.
+  //
+  // A page reload is a separate problem: App unmounts too. The backend keeps
+  // each ChatService's history in memory but exposes no route that returns it
+  // (`/api/chats` lists chat ids only), so the transcript is mirrored to
+  // localStorage and re-read on boot. `loadChatHistory` still asks the server
+  // first and wins when a backend that does serve transcripts appears — the
+  // local mirror is the fallback, not the source of truth.
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(readStoredTranscript);
+  const [chatDraft, setChatDraft] = useState("");
+  const [chatBusy, setChatBusy] = useState(false);
+  const [chatRestored, setChatRestored] = useState<"server" | "local" | null>(() =>
+    readStoredTranscript().length > 0 ? "local" : null,
+  );
+  const [provider, setProvider] = useState<string>(() => {
+    try {
+      return localStorage.getItem(PROVIDER_KEY) ?? "";
+    } catch {
+      return "";
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(CHAT_KEY, JSON.stringify(chatMessages.slice(-200)));
+    } catch {
+      /* private browsing — the transcript still survives tab switches */
+    }
+  }, [chatMessages]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(PROVIDER_KEY, provider);
+    } catch {
+      /* private browsing — the choice simply will not persist */
+    }
+  }, [provider]);
+
+  useEffect(() => {
+    let alive = true;
+    void loadChatHistory().then((history) => {
+      // Only a non-empty server transcript replaces what is on screen. An empty
+      // one would silently wipe a conversation the user can still see.
+      if (!alive || !history || history.length === 0) return;
+      setChatMessages(history);
+      setChatRestored("server");
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // User-defined tabs (ROADMAP CC). Loaded from the server and appended to the
   // shipped set, so someone's own tabs sit alongside the built-in ones.
@@ -271,7 +341,20 @@ export default function App() {
 
       <main style={{ flex: 1, minWidth: 0, minHeight: 0, background: "var(--color-bg)" }}>
         {active === "strands" && <StrandsPanel state={avatar} onActivity={onActivity} />}
-        {active === "chat" && <ChatPanel onActivity={onActivity} />}
+        {active === "chat" && (
+          <ChatPanel
+            onActivity={onActivity}
+            messages={chatMessages}
+            onMessages={(update) => setChatMessages(update)}
+            draft={chatDraft}
+            onDraft={setChatDraft}
+            busy={chatBusy}
+            onBusy={setChatBusy}
+            provider={provider}
+            onProvider={setProvider}
+            restored={chatRestored}
+          />
+        )}
         {active === "dashboard" && <DashboardPanel />}
         {active === "work" && <WorkPanel />}
         {active === "models" && <ModelsPanel />}

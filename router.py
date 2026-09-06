@@ -12,6 +12,7 @@ from hardware_safety import SAFETY_MONITOR
 from metrics import GLOBAL_METRICS
 from providers.anthropic_provider import AnthropicProvider
 from providers.base import Provider, ProviderError
+from providers.custom import CustomProvider, build_custom_providers
 from providers.deepseek_provider import DeepSeekProvider
 from providers.gemini_provider import GeminiProvider
 from providers.groq_provider import GroqProvider

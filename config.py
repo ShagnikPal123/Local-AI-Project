@@ -2,7 +2,7 @@
 
 import os
 from secret_store import get_keys
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 
 from dotenv import load_dotenv
 
@@ -74,4 +74,31 @@ def load_settings() -> Settings:
 
 
 SETTINGS = load_settings()
+
+
+def reload_keys() -> list[str]:
+    """Re-read every API key into the live ``SETTINGS`` object, in place.
+
+    ``SETTINGS`` is a mutable dataclass that providers read at call time, so a
+    key saved through the UI or the CLI can take effect immediately. Without
+    this, the app would have to tell the user to restart right after they typed
+    their key in — the exact moment they will conclude it did not work.
+
+    Only ``*_api_key`` fields are refreshed. A wholesale reload would also reset
+    ``preferred_online_provider`` and ``ollama_model``, which ``/api/models/
+    switch`` sets deliberately at runtime; that regression is why this is
+    narrow rather than a plain ``SETTINGS = load_settings()``.
+
+    Returns the names of the fields that actually changed.
+    """
+    fresh = load_settings()
+    changed: list[str] = []
+    for field in fields(Settings):
+        if not field.name.endswith("_api_key"):
+            continue
+        value = getattr(fresh, field.name)
+        if value != getattr(SETTINGS, field.name):
+            setattr(SETTINGS, field.name, value)
+            changed.append(field.name)
+    return changed
 

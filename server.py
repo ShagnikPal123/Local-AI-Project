@@ -1278,14 +1278,30 @@ def edit_tab_conversationally(tab_id: str, request: TabEditRequest, _user=Requir
             raise HTTPException(status_code=503, detail=f"Model unavailable: {error}") from error
 
     try:
-        updated = TAB_STORE.update(tab_id, **changes)
+        updated = TAB_STORE.update(
+            tab_id,
+            request=request.instruction,
+            edit_source=interpreted_by,
+            **changes,
+        )
     except TabSpecError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
 
     from event_log import info
 
+    # applied says whether anything actually changed. An instruction can be
+    # understood and still be a no-op ("make it green" when it already is), and
+    # reporting that as success is what made editing feel like it did nothing.
+    applied = updated.edits[-1].summary if updated.edits else ""
     info(f"Tab edited ({interpreted_by}): {updated.label}", source="tabs")
-    return {"tab": updated.as_dict(), "changes": changes, "interpreted_by": interpreted_by}
+    return {
+        "tab": updated.as_dict(),
+        "changes": changes,
+        "interpreted_by": interpreted_by,
+        "applied": bool(applied),
+        "summary": applied or "Nothing changed - the tab already looked like that.",
+        "edits": [e.as_dict() for e in updated.edits],
+    }
 
 
 @app.post("/api/tabs/combine")

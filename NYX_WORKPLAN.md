@@ -60,6 +60,23 @@ is done when tests have run, a real provider call succeeded, and the browser pre
 
 ---
 
+## 1b. Clarification on the agent team (owner, 2026-09-05)
+
+> *"when I said create 4 agents manager, check, coder, and site/web dev I meant for you, claude"*
+
+The four roles are **Claude's own subagents**, not personas inside the app. Claude is the Manager
+and delegates to Coder / Site-Web-Dev / Checker subagents, each owning a disjoint file set so two
+agents never edit the same file. The in-app `AgentTeam` (`agent_team.py`,
+`ensure_default_subagents()`) is a *separate* thing that happens to use the same four names - do not
+confuse the two.
+
+Standing file ownership when delegating:
+- **Coder** - `*.py` at the root, `providers/`, `connectors/`, `tests/`
+- **Site/Web Dev** - `frontend/nyx-pulse/src/` only
+- **Checker** - runs pytest, drives the browser, verifies by execution; may reject and hand back
+- **Manager (Claude)** - `*.md`, sequencing, merging, and the final report
+
+
 ## 2. Now (max 3)
 
 - [x] **[P0] Handoff docs** -> `AGENTS.md`, this file, `.claude/CLAUDE.md`, `../CLAUDE_TO_ANTIGRAVITY.md`
@@ -79,6 +96,31 @@ is done when tests have run, a real provider call succeeded, and the browser pre
 - [x] **[Brand] Ichnos avatar** - the source artwork is the avatar, animated with CSS
       (`NyxAvatar.tsx` + `index.css`, and the site header mark). Bob, halo pulse, orbiting
       spark while busy, drifting sparks at large sizes, `prefers-reduced-motion` honoured.
+
+### Done since the last update
+- [x] **[U1] Tab rail moved to the top** - `TopTabs.tsx`, horizontal, scrolls rather than wraps,
+      with an "All tabs" overflow menu; verified at 375px.
+- [x] **[U2] Tab creation takes a name AND a description** - `TabFinder.tsx` two-field form.
+- [x] **[U3] Strands has its own composer**; **[U4]** "Awaiting command" replaced with
+      "Click Speak to talk, or type in the box below."
+- [x] **[S1][S2][S3][S4][S6]** Strands: 4s polling plus immediate refresh after send, a thinking/
+      replying state chip, honest labelling of where the voice energy comes from, a real 3D
+      perspective field, drag-pan and zoom.
+- [x] **[S7] Expands, never turns.** Replaced the per-frame Y/X rotation with a fixed viewing angle
+      plus a radial `expansion` scale, so points travel straight outward from the centre while Nyx
+      speaks and ease back after. Angles are never modified.
+- [x] **[U5-backend] Tab edits are now recorded.** `TabSpec` gained `edits[]` + `updated_at`;
+      `TabStore.update()` diffs before/after and stores what actually changed; the edit route
+      returns `applied`, `summary` and the history. An edit that is understood but changes nothing
+      now says so instead of reporting success.
+- [x] **Widgets cleaned** - `widgets.json` held 31 duplicate finance widgets with empty config,
+      each rendering "not wired yet". 35 -> 4. Backup at `widgets.json.bak`. The guard that stops
+      it recurring belongs in `widgets.py` (`_REQUIRED_CONFIG`) and is still open.
+- [x] **[P3] Standalone installer** - `launcher.py`, `nyx.spec`, `nyx.ico`,
+      `dist/NyxIchos-windows-x64.zip` (30 MB). Verified with no venv: took port 8001 when 8000 was
+      busy, served the UI, answered via gemini. A keyless install reports the real reason.
+- [x] **[A1-backend] Accounts** - `POST /api/auth/claim` (loopback-only, 409 once claimed, absent in
+      hosted mode); `AuthStore.grant_role_as` so the route stops duplicating owner rules.
 
 ## 2b. Next up
 
@@ -107,6 +149,12 @@ Owner could access and use the app; these are the follow-ups, verbatim intent pr
 - [ ] **[S5] React to speech** - move like a voice while the AI talks
 - [ ] **[S6] Draggable / pannable**, and able to grow large over time
       -> all of the above: `panels/StrandsPanel.tsx` (555 lines, largest panel), `widgets.py`
+- [ ] **[S7] Expansion on speech - outward only, never rotation.** While the AI is *speaking*
+      (not while idle, not while the user types), the field must **expand**: points translate
+      **radially outward from the centre** and settle back as speech ends. Explicitly NOT a
+      rotation, spin, or orbit - the owner called this out specifically. Implement as a per-point
+      radial offset scaled by the speech envelope, i.e. `p.xy += normalize(p.xy - centre) * amp`,
+      leaving each point's angle untouched. Any `rotate()` on the field breaks the requirement.
 
 ### Tab editing (owner, after using it)
 - [ ] **[U5] You cannot tell whether a tab edit worked.** Asking it to "change the background to
@@ -127,6 +175,17 @@ Owner could access and use the app; these are the follow-ups, verbatim intent pr
       The RBAC engine already exists with 134 tests; this is UI + a claim route.
 
 ### Speed
+- [ ] **[SP2] Switching the model must be easy, including by just asking.** Owner: *"when I ask
+      the AI it says it can't be done"*. Two halves:
+      (a) **UI** - a provider/model picker. In flight with the provider dropdown work.
+      (b) **The AI can do it itself.** `/api/models/switch` already exists (`server.py:571-593`) and
+      already assigns `SETTINGS.preferred_online_provider` / `SETTINGS.ollama_model` live - the
+      settings object is a mutable dataclass read at call time, so this needs **no restart**. What
+      is missing is a **tool** in `tools.py`'s `TOOL_REGISTRY` exposing it, which is why the model
+      truthfully says it cannot: it genuinely has no way to. Add `switch_model(provider, model)`
+      with the same validation the route uses, and let it report the switch back in the reply.
+      Guard: refuse a paid provider while `free_only` is on and say why, rather than silently
+      ignoring the request.
 - [ ] **[SP1] Make replies feel faster.** MEASURED: our code is not the bottleneck.
       `gemini-flash-lite-latest` median **1.30s** but max **10.42s** (free-tier variance).
       The configured `OPENAI_API_KEY` is valid but returns **429 - no quota/credits**, so it

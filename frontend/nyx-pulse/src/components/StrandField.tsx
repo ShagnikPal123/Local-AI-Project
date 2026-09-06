@@ -1,9 +1,15 @@
 /** The Strands field — a drifting 3D point cloud drawn on a 2D canvas.
  *
  * Depth is a real perspective divide, not a drop shadow: every point carries a z,
- * is rotated about the Y and X axes each frame, and is projected with
- * `FOCAL / (FOCAL + z)`. Near points are larger, brighter, and sweep past the far
- * ones — which is what makes the cloud read as a volume rather than a scatter plot.
+ * is tilted by a FIXED viewing angle, and is projected with `FOCAL / (FOCAL + z)`.
+ * Near points are larger and brighter, which is what makes the cloud read as a
+ * volume rather than a scatter plot.
+ *
+ * **It expands, it never turns.** An earlier version advanced a Y/X rotation every
+ * frame; that made a moving target of every node and was not what was wanted. The
+ * only motion now is radial: while Nyx speaks, each point's own vector is scaled so
+ * it travels straight out from the centre and eases back as speech ends. Angles are
+ * never touched, so nothing appears to spin or orbit.
  *
  * Canvas rather than DOM/CSS 3D because the node count grows without bound as the
  * user talks (that is the whole point of the tab), and a few hundred absolutely
@@ -223,21 +229,38 @@ export function StrandField({
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
 
-    // Rotation. Speed rises with energy, so the cloud visibly quickens while the
-    // agent is working and settles when it is not.
-    const ry = reduced ? 0.6 : t * (0.11 + energy * 0.34);
-    const rx = reduced ? 0.18 : Math.sin(t * 0.16) * 0.24 + 0.1;
-    const cosY = Math.cos(ry);
-    const sinY = Math.sin(ry);
-    const cosX = Math.cos(rx);
-    const sinX = Math.sin(rx);
+    // The field EXPANDS while Nyx speaks; it never turns.
+    //
+    // A fixed viewing angle is applied once so the cloud still reads as a
+    // volume, but it does not advance with time - an earlier version rotated
+    // about Y and X every frame, which made a moving target of every point and
+    // was explicitly not wanted. Motion now comes only from `expansion`, which
+    // pushes each point radially outward from the centre and lets it settle
+    // back as speech ends.
+    const VIEW_Y = 0.42;
+    const VIEW_X = 0.16;
+    const cosY = Math.cos(VIEW_Y);
+    const sinY = Math.sin(VIEW_Y);
+    const cosX = Math.cos(VIEW_X);
+    const sinX = Math.sin(VIEW_X);
     const zoom = view.zoom;
 
+    // 1.0 at rest. Speech drives it outward; the small idle term is a breath so
+    // the field is not perfectly frozen when nothing is happening.
+    const expansion = reduced
+      ? 1
+      : 1 + energy * 0.55 + Math.sin(t * 1.6) * 0.02 * (1 + energy * 3);
+
     const project = (px: number, py: number, pz: number) => {
-      const x1 = px * cosY - pz * sinY;
-      const z1 = px * sinY + pz * cosY;
-      const y1 = py * cosX - z1 * sinX;
-      const z2 = py * sinX + z1 * cosX;
+      // Scale the point's own vector: direction is untouched, only distance
+      // from the centre changes. This is what makes it expand rather than spin.
+      const ex = px * expansion;
+      const ey = py * expansion;
+      const ez = pz * expansion;
+      const x1 = ex * cosY - ez * sinY;
+      const z1 = ex * sinY + ez * cosY;
+      const y1 = ey * cosX - z1 * sinX;
+      const z2 = ey * sinX + z1 * cosX;
       const depth = FOCAL / (FOCAL + z2 + SHELL * 1.2);
       return { sx: cx + x1 * depth * zoom, sy: cy + y1 * depth * zoom, depth };
     };

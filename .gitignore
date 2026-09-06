@@ -52,3 +52,6 @@ Real Nyx/
 .venv.broken/
 venv/
 env/
+
+# Local backups taken before a destructive edit; not part of the project.
+*.bak

@@ -890,12 +890,13 @@ class CLI:
                 provider = parts[1].upper()
                 raw = parts[2] if len(parts) > 2 else getpass("API key(s), comma-separated: ")
                 keys = set_keys(f"{provider}_API_KEY", raw.split(","))
-                from config import SETTINGS
+                from config import reload_keys
 
-                if keys:
-                    attr_name = f"{provider.lower()}_api_key"
-                    if hasattr(SETTINGS, attr_name):
-                        setattr(SETTINGS, attr_name, keys[0])
+                # SETTINGS is read at call time, so refreshing it is all that
+                # stands between saving a key and using it. One shared helper
+                # rather than a setattr per call site, because the same "why is
+                # it still not configured?" bug is easy to reintroduce.
+                reload_keys()
                 print(f"{Fore.GREEN}Saved {len(keys)} key(s) for {provider}.{Style.RESET_ALL}\n")
                 return True
             elif command == "/agents":

@@ -198,9 +198,189 @@ export const admin = {
 export const endpoints = {
   health: () => api.get<HealthResponse>("/api/health"),
   status: () => api.get<StatusResponse>("/api/status"),
-  chat: (message: string) => api.post<ChatResponse>("/api/chat", { message }),
-  models: () => api.get<unknown>("/api/models"),
+  chat: (message: string, provider?: string) =>
+    api.post<ChatResponse>("/api/chat", provider ? { message, provider } : { message }),
+  models: () => api.get<ModelsResponse>("/api/models"),
   personalities: () => api.get<unknown>("/api/personalities"),
   memory: () => api.get<unknown>("/api/memory"),
-  chats: () => api.get<unknown>("/api/chats"),
+  chats: () => api.get<ChatsResponse>("/api/chats"),
+};
+
+// --- conversation history ------------------------------------------------------
+
+/** One turn as the UI holds it. `error` is a client-side pseudo-role. */
+export interface ChatMessage {
+  role: "user" | "assistant" | "error";
+  content: string;
+  provider?: string;
+  elapsedMs?: number;
+}
+
+/** `/api/chats` has had two shapes. The old one lists chat ids only; a newer
+ *  backend returns the conversations themselves. Accept either. */
+export interface ChatsResponse {
+  chats?: unknown;
+  count?: number;
+  [key: string]: unknown;
+}
+
+const ROLES = new Set(["user", "assistant"]);
+
+function turnsFrom(value: unknown): ChatMessage[] | null {
+  // System turns are prompt scaffolding (memory, speech patterns, personality)
+  // and are not part of what the user said — showing them would be a leak.
+  if (!Array.isArray(value)) return null;
+  const turns: ChatMessage[] = [];
+  for (const raw of value) {
+    if (!raw || typeof raw !== "object") continue;
+    const entry = raw as Record<string, unknown>;
+    const role = String(entry.role ?? "");
+    if (!ROLES.has(role)) continue;
+    const content = String(entry.content ?? entry.text ?? "");
+    if (!content.trim()) continue;
+    turns.push({
+      role: role as "user" | "assistant",
+      content,
+      provider: typeof entry.provider === "string" ? entry.provider : undefined,
+    });
+  }
+  return turns;
+}
+
+function findConversation(container: unknown, chatId: string): ChatMessage[] | null {
+  if (Array.isArray(container)) {
+    // Old shape: a plain list of ids, which carries no transcript at all.
+    if (container.every((c) => typeof c === "string")) return null;
+    const entries = container.filter((c) => c && typeof c === "object") as Record<string, unknown>[];
+    const match =
+      entries.find((c) => [c.id, c.chat_id, c.name].some((v) => v === chatId)) ?? entries[0];
+    if (!match) return null;
+    return turnsFrom(match.messages ?? match.history ?? match.turns ?? match.conversation);
+  }
+  if (container && typeof container === "object") {
+    const map = container as Record<string, unknown>;
+    const one = map[chatId];
+    if (one === undefined) return null;
+    if (Array.isArray(one)) return turnsFrom(one);
+    if (one && typeof one === "object") {
+      const record = one as Record<string, unknown>;
+      return turnsFrom(record.messages ?? record.history ?? record.turns);
+    }
+  }
+  return null;
+}
+
+/** Server-side transcript for a chat, or null when the backend does not expose one.
+ *
+ * `null` is a real answer, not a failure: the shipped `/api/chats` returns chat
+ * ids only (history lives in each ChatService in memory, with no route to read
+ * it). The caller falls back to its local mirror in that case rather than
+ * wiping a conversation the user can still see.
+ */
+export async function loadChatHistory(chatId = "default"): Promise<ChatMessage[] | null> {
+  const result = await endpoints.chats();
+  if (!result.ok) return null;
+  const data = result.data as Record<string, unknown>;
+  return (
+    findConversation(data.chats, chatId) ??
+    findConversation(data.conversations, chatId) ??
+    turnsFrom(data.messages)
+  );
+}
+
+// --- agents --------------------------------------------------------------------
+
+export interface AgentSpecInput {
+  name: string;
+  goal: string;
+  role: "worker" | "master";
+}
+
+export const agents = {
+  list: <T,>() => api.get<T>("/api/agents"),
+  create: <T,>(spec: AgentSpecInput) => api.post<T>("/api/agents", { agents: [spec] }),
+  remove: <T,>(agentId: string) => api.del<T>(`/api/agents/${encodeURIComponent(agentId)}`),
+};
+
+// --- providers -----------------------------------------------------------------
+
+/** A provider as the (new) `/api/providers` route describes it.
+ *
+ * `last4` is the only part of a key that ever crosses the wire — never render
+ * anything but the mask built from it.
+ */
+export interface ProviderInfo {
+  name: string;
+  configured: boolean;
+  last4?: string;
+  model?: string;
+  chat_url?: string;
+  preferred?: boolean;
+  builtin?: boolean;
+}
+
+export interface ModelsResponse {
+  local?: unknown;
+  local_active?: string;
+  online?: { name: string; configured: boolean }[];
+  preferred_online?: string;
+}
+
+/** How much of the provider surface this backend actually has.
+ *
+ * "full"    — /api/providers exists: list, add, test, delete.
+ * "reduced" — only /api/models: the built-in providers can be listed and chosen,
+ *             but nothing can be added from the UI.
+ * "offline" — neither answered.
+ */
+export type ProviderMode = "full" | "reduced" | "offline";
+
+export interface ProviderSnapshot {
+  mode: ProviderMode;
+  providers: ProviderInfo[];
+  preferred?: string;
+  /** Why the UI is in a reduced state, in words fit to show a user. */
+  note?: string;
+}
+
+function providersFromModels(data: ModelsResponse): ProviderInfo[] {
+  return (data.online ?? []).map((p) => ({
+    name: p.name,
+    configured: Boolean(p.configured),
+    preferred: p.name === data.preferred_online,
+    builtin: true,
+  }));
+}
+
+export const providers = {
+  /** Read the provider list, degrading to `/api/models` if the route is absent. */
+  async list(): Promise<ProviderSnapshot> {
+    const full = await api.get<{ providers?: ProviderInfo[]; preferred?: string }>("/api/providers");
+    if (full.ok && Array.isArray(full.data?.providers)) {
+      return {
+        mode: "full",
+        providers: full.data.providers,
+        preferred: full.data.preferred,
+      };
+    }
+    const models = await endpoints.models();
+    if (models.ok) {
+      return {
+        mode: "reduced",
+        providers: providersFromModels(models.data),
+        preferred: models.data.preferred_online,
+        note:
+          "This backend does not have the provider API yet, so providers can be chosen " +
+          "but not added from here. Keys for the built-in providers go in .env.local.",
+      };
+    }
+    return { mode: "offline", providers: [], note: models.error };
+  },
+  create: (body: { name: string; api_key: string; chat_url?: string; model?: string }) =>
+    api.post<{ provider?: ProviderInfo }>("/api/providers", body),
+  test: (name: string) =>
+    api.post<{ ok?: boolean; detail?: string; error?: string; message?: string }>(
+      `/api/providers/${encodeURIComponent(name)}/test`,
+    ),
+  remove: (name: string) => api.del<unknown>(`/api/providers/${encodeURIComponent(name)}`),
 };

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 import threading
 import uuid
 from dataclasses import dataclass, field
@@ -67,6 +68,32 @@ class Block:
         return {"type": self.type.value, "title": self.title, "config": dict(self.config)}
 
 
+#: Kept per tab. Long enough to show what you changed recently, short enough
+#: that tabs.json cannot grow without bound.
+_MAX_EDITS = 20
+
+
+@dataclass
+class TabEdit:
+    """One applied change to a tab, kept so the UI can prove it happened.
+
+    A tab used to record nothing about its own history, so after an edit there
+    was no way for the interface to show what had been asked for or whether it
+    landed - the change either appeared or it did not, with no explanation
+    either way. Storing the request alongside the resulting summary lets the
+    panel display "you asked X, this changed Y" and keep showing it.
+    """
+
+    request: str        # what the user actually typed
+    summary: str        # what changed, in plain words
+    at: float           # unix seconds
+    source: str = "local"   # local (deterministic) | model
+
+    def as_dict(self) -> Dict[str, Any]:
+        return {"request": self.request, "summary": self.summary,
+                "at": self.at, "source": self.source}
+
+
 @dataclass
 class TabSpec:
     tab_id: str
@@ -80,6 +107,8 @@ class TabSpec:
     source: str = "user"      # user | agent | derived
     # Set when this tab overrides a shipped one, so it can be reset (CC12).
     overrides: str = ""
+    edits: List["TabEdit"] = field(default_factory=list)
+    updated_at: float = 0.0
 
     def as_dict(self) -> Dict[str, Any]:
         return {
@@ -93,6 +122,8 @@ class TabSpec:
             "author": self.author,
             "source": self.source,
             "overrides": self.overrides,
+            "edits": [e.as_dict() for e in self.edits],
+            "updated_at": self.updated_at,
         }
 
     def search_terms(self) -> Set[str]:
@@ -100,6 +131,42 @@ class TabSpec:
             b.title for b in self.blocks
         )
         return set(_WORD_RE.findall(text.lower()))
+
+
+
+def _describe_changes(before: "TabSpec", after: "TabSpec") -> str:
+    """Summarise what actually changed, in words a person would use.
+
+    Reports the resulting state rather than the request, so an edit that was
+    understood but had no effect ("make it green" when it is already green)
+    reads as no change instead of as success.
+    """
+    parts: List[str] = []
+    if before.label != after.label:
+        parts.append(f"renamed to “{after.label}”")
+    if before.accent != after.accent:
+        parts.append(f"colour set to {after.accent}" if after.accent else "colour cleared")
+    if before.icon != after.icon:
+        parts.append(f"icon changed to {after.icon}")
+    if before.description != after.description:
+        parts.append("description updated")
+
+    old_titles = [b.title for b in before.blocks]
+    new_titles = [b.title for b in after.blocks]
+    if old_titles != new_titles:
+        added = [x for x in new_titles if x not in old_titles]
+        removed = [x for x in old_titles if x not in new_titles]
+        for title in added:
+            parts.append(f"added the “{title}” block")
+        for title in removed:
+            parts.append(f"removed the “{title}” block")
+        if not added and not removed:
+            parts.append("reordered the blocks")
+
+    if sorted(before.connectors) != sorted(after.connectors):
+        parts.append("connectors updated")
+
+    return "; ".join(parts)
 
 
 def _validate_icon(icon: str) -> str:
@@ -300,8 +367,20 @@ class TabStore:
             self._save()
             return spec
 
-    def update(self, tab_id: str, **changes: Any) -> TabSpec:
-        """Edit an existing tab (CC9, CC10). Every field is re-validated."""
+    def update(
+        self,
+        tab_id: str,
+        request: str = "",
+        edit_source: str = "local",
+        **changes: Any,
+    ) -> TabSpec:
+        """Edit an existing tab (CC9, CC10). Every field is re-validated.
+
+        ``request`` is what the user typed. It is recorded alongside a summary of
+        what actually changed, because an edit that silently succeeds is
+        indistinguishable from one that silently failed - which is exactly how
+        this felt to use.
+        """
         with self._lock:
             existing = self._tabs.get(tab_id)
             if existing is None:
@@ -322,6 +401,26 @@ class TabStore:
                 tab_id=tab_id,
             )
             spec.overrides = existing.overrides
+
+            # Compare against what was there before, not against the request, so
+            # the summary reports what the tab actually became. Asking for green
+            # and getting nothing must not read as success.
+            summary = _describe_changes(existing, spec)
+            spec.edits = list(existing.edits)
+            if summary:
+                spec.edits.append(
+                    TabEdit(
+                        request=(request or "").strip()[:200],
+                        summary=summary,
+                        at=time.time(),
+                        source=edit_source,
+                    )
+                )
+                spec.edits = spec.edits[-_MAX_EDITS:]
+                spec.updated_at = time.time()
+            else:
+                spec.updated_at = existing.updated_at
+
             self._tabs[tab_id] = spec
             self._save()
             return spec

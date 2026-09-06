@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { api } from "../api";
+import { agents as agentsApi, api } from "../api";
 import { ErrorState, Loading, PanelShell } from "../components/Panel";
 
 interface Agent {
