@@ -69,23 +69,29 @@ export function PowerPanel() {
   return (
     <PanelShell
       title="Power"
-      subtitle={`Device tier ${power.device_tier} · ${power.hardware_budget} safe workers`}
+      subtitle={`Device tier ${power.device_tier} · your hardware supports up to ${power.hardware_budget}`}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         {error && <ErrorState error={error} />}
 
+        {/* A ceiling, not a headcount. Presenting "3 agents" as a live number
+            invited the reading that three are running; nothing is running until
+            work needs it. What the user actually controls is the upper bound,
+            and Nyx spends under it as the task requires. */}
         <div className="card" style={{ borderLeft: "3px solid var(--color-accent)" }}>
-          <div className="label" style={{ marginBottom: 8 }}>Currently allowed</div>
+          <div className="label" style={{ marginBottom: 8 }}>Your limit</div>
+          <div style={{ fontSize: 12, color: "var(--color-neutral-500)", marginBottom: 12, lineHeight: 1.6 }}>
+            Nyx decides how much of this to use for any given task and stays under it.
+            Raising the limit permits more parallel work; it does not force any.
+          </div>
           <div style={{ display: "flex", gap: 22, flexWrap: "wrap", fontSize: 13 }}>
             <div>
               <div style={{ fontSize: 20, fontWeight: 600, color: "var(--color-accent)" }}>
-                {ceiling.max_workers}
+                up to {ceiling.max_agents}
               </div>
-              <div style={{ fontSize: 11, color: "var(--color-neutral-500)" }}>workers</div>
-            </div>
-            <div>
-              <div style={{ fontSize: 20, fontWeight: 600 }}>{ceiling.max_agents}</div>
-              <div style={{ fontSize: 11, color: "var(--color-neutral-500)" }}>agents</div>
+              <div style={{ fontSize: 11, color: "var(--color-neutral-500)" }}>
+                helpers at once
+              </div>
             </div>
             <div>
               <div style={{

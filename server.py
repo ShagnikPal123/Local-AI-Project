@@ -214,6 +214,12 @@ class GrantRequest(BaseModel):
     role: str
 
 
+class PersonalityRequest(BaseModel):
+    """Which personality to apply. Empty id restores the default voice."""
+
+    id: str = ""
+
+
 class SpeedRequest(BaseModel):
     mode: str = "auto"
 
@@ -1692,6 +1698,53 @@ def personalities() -> Dict[str, Any]:
     return {
         "presets": list_personalities(),
         "custom": get_custom_personality(),
+        "active": (_get_service().get_personality() or {}).get("id", ""),
+    }
+
+
+@app.get("/api/personality")
+def get_active_personality(_user=RequireChat) -> Dict[str, Any]:
+    """Report which personality is currently applied."""
+    active = _get_service().get_personality()
+    return {"active": (active or {}).get("id", ""), "personality": active}
+
+
+@app.post("/api/personality")
+def set_active_personality(request: PersonalityRequest, _user=RequireChat) -> Dict[str, Any]:
+    """Apply a personality to the assistant.
+
+    This route did not exist, which is why choosing a personality in Settings did
+    nothing: the panel could list presets and mark one selected in React state,
+    but had nowhere to send it, so every reply came back in the default voice.
+
+    An empty id clears the personality and restores the default voice.
+    """
+    wanted = (request.id or "").strip()
+
+    try:
+        # Apply to every live chat, matching /api/speed. A setting that only took
+        # effect in whichever conversation happened to be cached would look like
+        # it worked and then randomly not.
+        with _services_lock:
+            for service in _services.values():
+                if wanted:
+                    service.set_personality_from_id(wanted)
+                else:
+                    service.set_personality(None)
+        default = _get_service()
+        message = (
+            default.set_personality_from_id(wanted)
+            if wanted
+            else default.set_personality(None)
+        )
+    except PersonalityNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+
+    active = default.get_personality()
+    return {
+        "active": (active or {}).get("id", ""),
+        "personality": active,
+        "message": message,
     }
 
 

@@ -29,6 +29,8 @@ interface Personality {
 interface PersonalitiesResponse {
   presets?: Personality[];
   custom?: unknown;
+  /** Id of the personality the engine currently has applied; "" means default. */
+  active?: string;
 }
 
 function Section({ title, hint, children }: {
@@ -100,7 +102,12 @@ export function SettingsPanel() {
       if (!alive) return;
       if (s.ok) setSpeed(s.data);
       else setError(s.error);
-      if (p.ok) setPersonalities(p.data.presets ?? []);
+      if (p.ok) {
+        setPersonalities(p.data.presets ?? []);
+        // Reflect what the server actually has applied. Previously this
+        // always started at Default regardless of the real setting.
+        setActivePersonality(p.data.active ?? "");
+      }
     });
     return () => {
       alive = false;
@@ -116,6 +123,19 @@ export function SettingsPanel() {
     setSaving(false);
     if (!result.ok) {
       setSpeed({ ...speed, mode: previous });  // roll back on failure
+      setError(result.error);
+    }
+  }
+
+  async function choosePersonality(id: string) {
+    if (saving) return;
+    setSaving(true);
+    const previous = activePersonality;
+    setActivePersonality(id);                       // optimistic
+    const result = await api.post<{ active: string }>("/api/personality", { id });
+    setSaving(false);
+    if (!result.ok) {
+      setActivePersonality(previous);               // roll back on failure
       setError(result.error);
     }
   }
@@ -159,7 +179,7 @@ export function SettingsPanel() {
                 label="Default"
                 description="Concise and direct. No styling applied."
                 badge="recommended"
-                onSelect={() => setActivePersonality("")}
+                onSelect={() => void choosePersonality("")}
               />
               {personalities.map((p) => (
                 <Choice
@@ -167,13 +187,14 @@ export function SettingsPanel() {
                   selected={activePersonality === p.id}
                   label={p.display_name}
                   description={p.description}
-                  onSelect={() => setActivePersonality(p.id)}
+                  onSelect={() => void choosePersonality(p.id)}
                 />
               ))}
               <div style={{ fontSize: 11, color: "var(--color-neutral-600)", marginTop: 8, lineHeight: 1.6 }}>
-                Selection applies to new messages in this browser only. Persisting it per
-                account, the second personality axis (how the agent *behaves*, not just how it
-                sounds), and per-sub-agent personalities are still to build — roadmap Z2, Z3.
+                Applies to every conversation on this engine, immediately. Persisting it
+                per account, the second personality axis (how the agent <em>behaves</em>, not
+                just how it sounds), and per-sub-agent personalities are still to build —
+                roadmap Z2, Z3.
               </div>
             </>
           )}

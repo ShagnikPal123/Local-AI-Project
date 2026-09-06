@@ -153,6 +153,37 @@ class ChatService:
         if knowledge_context:
             self.conversation_history.append({"role": "system", "content": knowledge_context})
 
+    @staticmethod
+    def _capability_note() -> str:
+        """Tell the model its own parallel-work budget.
+
+        Asked "how many agents can you run?", the model had no idea and would
+        either invent a number or say it could not. The ceiling is a real setting
+        the user controls in Power, so the assistant should know it and answer
+        honestly. Stated as a limit rather than a headcount: nothing is running
+        until a task needs it, and the model should spend under the cap, not up
+        to it.
+
+        Never allowed to break a chat turn - a missing governor is not a reason
+        to fail a conversation.
+        """
+        try:
+            from resource_governor import GOVERNOR
+
+            ceiling = GOVERNOR.ceiling()
+            allowed = getattr(ceiling, "max_agents", None)
+            if allowed is None and isinstance(ceiling, dict):
+                allowed = ceiling.get("max_agents")
+            if not allowed:
+                return ""
+            return (
+                f"\nParallel work: you may enlist up to {allowed} helper agent(s) at once, "
+                "a limit the user sets under Power. Use as few as the task needs; "
+                "that number is a ceiling, not a target. If asked, state it plainly."
+            )
+        except Exception:
+            return ""
+
     def _default_system_prompt(self) -> str:
         """Return a coding-focused, precise system prompt for Nyx Pulse."""
         current_date = datetime.now().strftime("%B %d, %Y")
@@ -176,6 +207,7 @@ NEVER stop mid-thought. If you say you are going to search, research, look somet
 
         return f"""You are Nyx Ichos, a high-quality, local-first, multi-agent AI coding assistant.
 Current Date: {current_date}
+{self._capability_note()}
 
 Core Engineering Principles:
 1. Correctness & Security First: Inspect requirements and edge cases thoroughly. Avoid security vulnerabilities, path traversal, injection, or unsafe execution.
@@ -661,10 +693,21 @@ Be concise, precise, and helpful. Always check the current date before answering
         caller falls through to the full pipeline. Nothing is written to history
         on that path, so escalation leaves no trace of the abandoned attempt.
         """
-        lean_history = [
+        # The personality has to come along. This path skips the full history on
+        # purpose - that is what makes it cheap - but skipping the personality too
+        # meant a chosen voice silently did nothing on exactly the short, simple
+        # turns most likely to take this route. The setting looked broken because
+        # the only turns slow enough to show it were the rare ones.
+        lean_history: List[Dict[str, str]] = [
             {"role": "system", "content": FAST_SYSTEM_PROMPT},
-            {"role": "user", "content": user_message},
         ]
+        for message in self.conversation_history:
+            content = message.get("content", "")
+            if message.get("role") == "system" and content.startswith(self._PERSONALITY_PREFIX):
+                lean_history.append({"role": "system", "content": content})
+                break
+        lean_history.append({"role": "user", "content": user_message})
+
         try:
             response, provider = self.router.chat(lean_history)
         except ProviderError:
