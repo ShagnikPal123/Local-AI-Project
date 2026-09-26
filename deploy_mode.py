@@ -79,6 +79,8 @@ HOSTED_BLOCKED_PREFIXES = (
     "/api/curiosity",
     "/api/finance-lab",
     "/api/overlay/restore",
+    # Accounts split one PC's data into folders and restart the engine; a hosted build has real sign-in instead.
+    "/api/accounts",
     # First-run ownership claim. On a hosted deployment "whoever asks first
     # becomes the owner" is a land-grab, so the route simply does not exist
     # there; a hosted install is provisioned deliberately, not claimed.

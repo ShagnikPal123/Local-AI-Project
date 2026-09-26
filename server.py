@@ -2623,7 +2623,7 @@ def _include_routers() -> Dict[str, str]:
                         "routes_build", "routes_game", "routes_command_zone", "routes_core", "routes_collab", "routes_research", "routes_context",
                         "routes_absorb", "routes_local_models", "routes_diagram", "routes_screen", "routes_apply",
                         "routes_security", "routes_proto_voice", "routes_features", "routes_curiosity", "routes_finance_lab", "routes_voice_gestures",
-                        "routes_design",
+                        "routes_design", "routes_accounts",
                         "routes_freewill", "routes_identity0", "routes_office"):
         try:
             module = importlib.import_module(module_name)

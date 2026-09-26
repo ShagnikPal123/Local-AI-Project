@@ -13,6 +13,45 @@ prepare for it but thats it. Not changes." It was called Plan Null then, and ren
 the owner's request. On that day they handed parts of it to seven Claude sessions, so most of it is under way.
 **Anything no session has claimed stays prepare-only until the owner says to start it.**
 
+## DONE — 2026-09-26, later (session 1da8a0) — repo public, the jumping mode switch, Accounts, the ideas file
+
+**Future ideas the owner wants next are in `AI_HANDOFF/UPDATE_IDEAS.md`** (U1–U15: Research tab fix, image drawing tab,
+working Collab + repo link, "super free create", Swarm + Swarm/Auto chat modes, a Cloud environment button and Cloud
+mode, any-site connectors, better 3D / game / web dev with ways to try the result, remove Agent City, several offices at
+once, memory-field clutter). Ideas only — nothing there is built until the owner picks one.
+
+- **GitHub is public** (owner: "publish the github"). Before that, main's history was rewritten with git-filter-repo to
+  replace the owner's Obsidian key in two old files; every commit hash changed (main is 6da8606 and later), the latest
+  tree was byte-identical. GitHub still serves the pre-scrub commits to anyone who has their exact IDs, and the repo's
+  Activity page shows the force-push, so the owner should still reset the key in Obsidian.
+- **Normal · Co-work · Plan no longer jump under the mouse.** Hovering an option swapped in that option's description;
+  a longer one wrapped to another line, the row grew, the switch moved out from under the pointer, the hover ended, the
+  row shrank back under the pointer — a loop. The three descriptions now share one grid cell and only one is visible,
+  so the box keeps the tallest one's height (`components/chat/ModeSlider.tsx`, `chat.css`). Measured at a 330 px chat
+  sheet: the old box was 16 px for Normal and 32 px for Co-work/Plan; now 32 px whichever shows, switch top unchanged.
+- **Accounts** (owner: "add an accounts next to the logout place … a separate file division between account … account
+  creation with password if wanted, name of account … and add a purpose to semi feed the AI"):
+  - `paths.py`: an account is a folder. `ACCOUNT_SCOPED` stores (chats, internal chats, memory, personality, speech
+    patterns, predictions, notes, slides, brain, learning, uploads, attachments, research, absorb, data_process,
+    diagrams, offices) resolve inside `accounts/<id>/`; keys, sign-in, settings, models, tabs, skills, trading and
+    kahuna/ stay shared. "main" is the old data where it always was — nothing moved. `ACTIVE_ACCOUNT` is fixed at
+    import (from `accounts/index.json`, or `NYX_ACCOUNT`), because most stores open their file once.
+  - `local_accounts.py`: create (name, optional purpose, optional password ≥ 6 chars, scrypt hash only), update,
+    switch, remove (moves the folder to `accounts/_removed/`, never deletes; Main and the open account can't be
+    removed), 5 wrong passwords → 60 s lockout, `purpose_note()`.
+  - `routes_accounts.py` (`/api/accounts*`): the OWNER only — admins and testers are refused like Big Kahuna; absent
+    from hosted builds. Switching restarts the engine through the launcher; an engine started by hand says "Restart
+    Nyx to open …".
+  - `chat_service.py`: a "## This account" section in the standing instructions (and on the fast path) with the name,
+    the fact that other accounts' data is invisible, and the purpose in the owner's words.
+  - UI `components/accounts/AccountsButton.tsx` + `accounts.css`: the bar button (colour dot + name) before Log Out, the
+    Accounts sheet (list, Switch / Unlock & Switch, Edit, Remove, + New Account), and an "Opening …" screen above
+    the engine-off screen while it restarts.
+  - Tests `tests/test_local_accounts.py` (17) + the account block in `tests/test_server_auth.py`. LIVE-VERIFIED on a
+    scratch NYX_DATA_DIR: made "NIS" with a password, wrong password refused, switched, restarted into NIS, a new chat
+    landed in `accounts/nis/chats.json` and not Main's, and the model's prompt carried the purpose.
+  - `accounts/` is git-ignored and never ships in the release zip.
+
 ## DONE — 2026-09-26 (session 1da8a0) — website overhaul, GitHub push, publish (= Project Null N91, N4 in part)
 
 Owner: "I want my site to have a link to github, full over hall and redesign to match the design of the AI now …
@@ -39,7 +78,8 @@ add to the github." → the address is **https://nyx-ichos.vercel.app** (not the
 - README.md rewritten for the current app. Found, not fixed (chip task): server.py's shutdown hook awaits every asyncio
   task, including the server's own, so shutdown can hang. NOTE: `NYX_NO_BACKGROUND=1` does not stop the trading
   autopilot — any engine started in this folder resumes the owner's AI trader (ai.enabled, run_mode always).
-- Open for the owner: the GitHub repo is **private**, so visitors' GitHub link 404s until it is made public.
+- The GitHub repo was made **public** later the same day (see the next entry), after the Obsidian key was scrubbed from
+  its history.
 - How to publish the site again: build the zip from a clean checkout of the pushed commit (`git worktree add`, copy
   `frontend/nyx-pulse/dist` in, run its `build_release.py`), copy it to `site/downloads/NyxIchos-Windows.zip`, then from
   `site/`: `npx vercel deploy --prod --yes` (the CLI was signed in as shagnikpal-5976 on 2026-09-26; `site/.vercel`

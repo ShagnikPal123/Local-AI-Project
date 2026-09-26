@@ -26,7 +26,9 @@ multiple side-by-side profiles keep their state apart.
 
 from __future__ import annotations
 
+import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -59,14 +61,78 @@ def _resolve_data_dir() -> Path:
 #: Directory for mutable state (chats, memory, credentials, layout).
 DATA_DIR: Path = _resolve_data_dir()
 
+# --- Accounts (local_accounts.py) --------------------------------------------------
+# The owner can keep separate accounts on one PC ("user1", "NIS", …) for different things.
+# An account is a folder: the stores below belong to one account, everything else (keys,
+# sign-in, settings, models, tabs, skills, trading, Nyx's own training) is shared. "main"
+# is the data that was here before accounts existed, so it lives where it always has.
+
+MAIN_ACCOUNT = "main"
+
+#: First path segment of every store that belongs to one account.
+ACCOUNT_SCOPED = frozenset({
+    "chats.json", "internal_chats.json", "memory.json", "custom_personality.json", "speech_patterns.json",
+    "predictions.json", "notes", "slides", "brain", "learning", "uploads", "attachments", "research",
+    "absorb", "data_process", "diagrams", "offices",
+})
+
+_ACCOUNT_ID = re.compile(r"[a-z0-9][a-z0-9-]{0,39}")
+
+
+def accounts_index_path() -> Path:
+    """The list of accounts and which one opens. Shared, so it is never inside an account."""
+    return DATA_DIR / "accounts" / "index.json"
+
+
+def _resolve_active_account() -> str:
+    """The account this process works in, fixed at start: switching restarts the engine,
+    because nearly every store opens its file once. NYX_ACCOUNT overrides it (tests)."""
+    wanted = os.getenv("NYX_ACCOUNT", "").strip().lower()
+    known: set = set()
+    try:
+        index = json.loads(accounts_index_path().read_text(encoding="utf-8"))
+        known = {str(a.get("id")) for a in index.get("accounts", []) if isinstance(a, dict)}
+        wanted = wanted or str(index.get("active") or "").strip().lower()
+    except (OSError, ValueError, AttributeError):
+        pass
+    if wanted and wanted != MAIN_ACCOUNT and _ACCOUNT_ID.fullmatch(wanted) and (wanted in known or os.getenv("NYX_ACCOUNT")):
+        return wanted
+    return MAIN_ACCOUNT
+
+
+#: The account whose chats, memory and files this engine reads and writes.
+ACTIVE_ACCOUNT: str = _resolve_active_account()
+
+
+def valid_account_id(account_id: str) -> bool:
+    return account_id == MAIN_ACCOUNT or bool(_ACCOUNT_ID.fullmatch(account_id or ""))
+
+
+def account_dir(account_id: str) -> Path:
+    """Where one account's own stores live ("main" is the data directory itself)."""
+    if account_id == MAIN_ACCOUNT:
+        return DATA_DIR
+    if not _ACCOUNT_ID.fullmatch(account_id or ""):
+        raise ValueError(f"Not an account id: {account_id!r}")
+    return DATA_DIR / "accounts" / account_id
+
+
+def is_account_scoped(name: str) -> bool:
+    first = name.replace("\\", "/").lstrip("/").split("/", 1)[0]
+    return first in ACCOUNT_SCOPED or first.startswith("chats.backup-")
+
 
 def data_path(name: str) -> Path:
     """Return the absolute path for a mutable state file.
 
     The parent directory is created on demand so a first run on a clean machine
-    does not have to special-case a missing data directory.
+    does not have to special-case a missing data directory. A store that belongs
+    to one account resolves inside the running account's folder.
     """
-    target = DATA_DIR / name
+    base = DATA_DIR
+    if ACTIVE_ACCOUNT != MAIN_ACCOUNT and is_account_scoped(name):
+        base = account_dir(ACTIVE_ACCOUNT)
+    target = base / name
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
     except OSError:

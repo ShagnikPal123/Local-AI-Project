@@ -57,6 +57,8 @@ EXCLUDE = [
     # The developers' handoff quotes the owner's requests word for word. Nyx reads it
     # only in the developer copy (handoff_tools says so when it is missing).
     "AI_HANDOFF/*",
+    # The owner's accounts: their chats, memory and files, and the password hashes that guard them.
+    "accounts/*",
 ]
 
 #: A value after one of these names means a real secret is about to ship.

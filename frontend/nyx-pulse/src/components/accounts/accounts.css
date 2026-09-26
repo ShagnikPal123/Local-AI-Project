@@ -1,0 +1,99 @@
+/* Accounts (AccountsButton.tsx). Built on theme.css tokens so it sits beside Log Out as one of the bar's own
+   controls. Contrast on the sheet (#0e0e13): name #f5f5f7 18.9:1, purpose #a1a1aa 7.6:1, hints #8e8e96 6.0:1. */
+
+.acct-btn { display: inline-flex; align-items: center; gap: 7px; min-height: 32px; max-width: 220px; padding: 0 12px 0 10px;
+  border: 0; border-radius: 9px; font: inherit; font-size: 13px; font-weight: 600; color: var(--color-neutral-300);
+  background: #0b0b10; box-shadow: inset 0 0 0 1px var(--color-divider-strong); cursor: pointer;
+  transition: background 140ms ease, color 140ms ease, transform 90ms var(--ease-out); }
+.acct-btn:hover { background: var(--color-surface-3); color: var(--color-text); }
+.acct-btn:active { transform: translateY(1px) scale(0.975); box-shadow: var(--press); }
+.acct-btn:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.acct-btn__dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.acct-btn__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.acct-scrim { position: fixed; inset: 0; z-index: 210; display: grid; place-items: center; padding: 16px;
+  background: rgba(0, 0, 0, 0.62); animation: acct-fade 160ms ease-out; }
+.acct-sheet { width: min(560px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; display: grid; gap: 14px;
+  padding: 20px 20px 16px; border-radius: 20px; background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-divider-strong), inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 30px 80px rgba(0, 0, 0, 0.7); }
+.acct-sheet .btn-small { min-height: 30px; padding: 4px 12px; font-size: 12.5px; }
+.acct-sheet__head { display: flex; align-items: flex-start; gap: 12px; }
+.acct-sheet__head h2 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.015em; }
+.acct-sheet__head p { margin: 4px 0 0; font-size: 13.5px; color: var(--color-neutral-500); }
+.acct-close { margin-left: auto; flex: none; width: 32px; height: 32px; border-radius: 50%; font-size: 13px;
+  color: var(--color-neutral-400); background: var(--color-surface-2); }
+.acct-close:hover { color: var(--color-text); background: var(--color-surface-3); }
+.acct-close:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+.acct-banner { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 12px; border-radius: 12px;
+  font-size: 13.5px; color: var(--color-accent-300); background: var(--color-accent-900);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 40%, transparent); }
+.acct-banner span { flex: 1 1 200px; }
+.acct-notice { margin: 0; font-size: 13px; color: var(--color-ok); }
+
+.acct-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.acct-row { border-radius: 14px; padding: 12px 12px 12px 14px; background: var(--color-surface-2);
+  box-shadow: inset 0 0 0 1px var(--color-divider); }
+.acct-row.is-running { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 55%, transparent); }
+.acct-row__main { display: flex; align-items: flex-start; gap: 11px; }
+.acct-row__dot { width: 10px; height: 10px; margin-top: 5px; border-radius: 50%; flex: none; }
+.acct-row__text { flex: 1; min-width: 0; }
+.acct-row__name { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; font-size: 15px; font-weight: 600; }
+.acct-row__lock { display: inline-flex; color: var(--color-neutral-500); }
+.acct-row__purpose { margin: 3px 0 0; font-size: 13px; line-height: 1.45; color: var(--color-neutral-500);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.acct-row__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; flex: none; }
+.acct-chip { padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; color: var(--color-accent-300);
+  background: var(--color-accent-900); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 45%, transparent); }
+.acct-chip--next { color: var(--color-info); background: rgba(100, 210, 255, 0.1); box-shadow: inset 0 0 0 1px rgba(100, 210, 255, 0.35); }
+.acct-danger:hover { color: #ffb4ae; }
+
+.acct-new { justify-self: start; }
+.acct-form, .acct-inline { display: grid; gap: 10px; }
+.acct-form { padding: 14px; border-radius: 14px; background: var(--color-surface-2); box-shadow: inset 0 0 0 1px var(--color-divider); }
+.acct-form h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.acct-inline { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--color-divider); }
+.acct-inline p { margin: 0; font-size: 13.5px; color: var(--color-neutral-400); }
+.acct-inline--danger p b { color: #ffb4ae; }
+.acct-form__pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.acct-form__actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+
+.acct-field { display: grid; gap: 5px; }
+.acct-field__label { font-size: 12.5px; font-weight: 600; color: var(--color-neutral-300); }
+.acct-field__hint { font-size: 12px; color: var(--color-neutral-600); }
+.acct-field input, .acct-field textarea { width: 100%; min-height: 36px; padding: 8px 10px; border: 0; border-radius: 9px;
+  font: inherit; font-size: 14px; color: var(--color-text); background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 0 0 1px var(--color-divider); resize: vertical; }
+.acct-field input:focus-visible, .acct-field textarea:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 0; }
+.acct-field input:disabled { opacity: 0.5; }
+.acct-field input::placeholder, .acct-field textarea::placeholder { color: var(--color-neutral-600); }
+.acct-check { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--color-neutral-300); }
+.acct-error { margin: 0; font-size: 13px; color: #ffb4ae; }
+.acct-remove { color: #fff; background: #c0362c; box-shadow: var(--lift); }
+.acct-remove:hover:not(:disabled) { background: #d8453a; }
+
+.acct-foot { display: grid; gap: 4px; padding-top: 4px; }
+.acct-foot p { margin: 0; font-size: 12px; line-height: 1.5; color: var(--color-neutral-600); }
+
+/* Above the engine-off screen (z-index 1000) while Nyx restarts into the chosen account. */
+.acct-switching { position: fixed; inset: 0; z-index: 1100; display: grid; place-content: center; justify-items: center;
+  gap: 10px; padding: 24px; text-align: center; background: #000; }
+.acct-switching__dot { width: 16px; height: 16px; border-radius: 50%; animation: nyxpulse 1.6s ease-in-out infinite; }
+.acct-switching h2 { margin: 6px 0 0; font-size: 22px; font-weight: 600; letter-spacing: -0.015em; }
+.acct-switching p { margin: 0; max-width: 380px; font-size: 14px; color: var(--color-neutral-400); }
+.acct-switching__slow { color: var(--color-neutral-500) !important; font-size: 13px !important; }
+
+@keyframes acct-fade { from { opacity: 0; } to { opacity: 1; } }
+
+@media (max-width: 560px) {
+  .acct-row__main { flex-wrap: wrap; }
+  .acct-row__actions { width: 100%; justify-content: flex-start; padding-left: 21px; }
+  .acct-form__pair { grid-template-columns: 1fr; }
+  .acct-btn__name { max-width: 90px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .acct-scrim { animation: none; }
+  .acct-switching__dot { animation: none; }
+  .acct-btn { transition: none; }
+  .acct-btn:active { transform: none; }
+}

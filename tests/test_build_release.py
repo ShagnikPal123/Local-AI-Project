@@ -25,6 +25,6 @@ def test_a_real_looking_hex_token_next_to_it_still_stops_the_build(tmp_path, mon
 
 def test_owner_data_never_ships():
     for name in ("chats.json", "memory.json", ".env.local", ".secrets.json", "logs/engine.log", "site/index.html",
-                 "AI_HANDOFF/01_GOALS.md"):
+                 "AI_HANDOFF/01_GOALS.md", "accounts/index.json", "accounts/nis/chats.json"):
         assert build_release._excluded(name), name
     assert not build_release._excluded("server.py")

@@ -25,6 +25,7 @@ import { JoinScreen, LoginScreen } from "./components/AuthScreen";
 import { NyxAvatar, type AvatarState } from "./components/NyxAvatar";
 import { visibleTabs, type ShellLayout, type TabId } from "./tabs";
 import { QuitButton } from "./components/QuitButton";
+import { AccountsButton } from "./components/accounts/AccountsButton";
 import { BuildPanel } from "./panels/BuildPanel";
 import { DynamicTab, type TabSpec } from "./panels/DynamicTab";
 import { TabFinder } from "./components/TabFinder";
@@ -358,6 +359,8 @@ export default function App() {
               {user.role === "owner" ? "Owner" : user.role} · Sign out
             </button>
           )}
+          {/* Accounts sit next to Log Out: separate spaces on this PC, each with its own files (owner, 2026-09-26). */}
+          {(!user || user.role === "owner") && <AccountsButton />}
           {(!user || user.role === "owner" || user.role === "admin") && <QuitButton signedIn={Boolean(user)} />}
         </div>
       </header>

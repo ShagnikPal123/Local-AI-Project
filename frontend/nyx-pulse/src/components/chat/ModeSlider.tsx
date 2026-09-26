@@ -22,6 +22,7 @@ export const MODE_LABELS: Record<ChatMode, { name: string; short: string; means:
 };
 
 const KEY = "nyx.chat.mode";
+const BUSY_NOTE = " It is working now — send another and it runs alongside.";
 
 export function readMode(chatId: string): ChatMode {
   try {
@@ -72,9 +73,18 @@ export function ModeSlider({ chatId, mode, onChange, busy }: {
           </button>
         ))}
       </div>
-      <span className="mode-slider__means" id={`mode-means-${open ?? mode}`}>
-        {MODE_LABELS[open ?? mode].means}
-        {busy && mode === "cowork" ? " It is working now — send another and it runs alongside." : ""}
+      {/* All three descriptions are laid out on top of each other and only one is shown, so
+          the box is always as tall as the longest. It used to hold just the one being shown:
+          hovering Plan swapped in a longer line, the row grew, the switch jumped up out from
+          under the mouse, the hover ended, the row shrank back under the mouse — and it kept
+          bouncing until the pointer happened to rest somewhere else. */}
+      <span className="mode-slider__means">
+        {(Object.keys(MODE_LABELS) as ChatMode[]).map((key) => (
+          <span key={key} id={`mode-means-${key}`} data-shown={(open ?? mode) === key} aria-hidden={(open ?? mode) !== key}>
+            {MODE_LABELS[key].means}
+            {key === "cowork" && busy && mode === "cowork" ? BUSY_NOTE : ""}
+          </span>
+        ))}
       </span>
     </div>
   );

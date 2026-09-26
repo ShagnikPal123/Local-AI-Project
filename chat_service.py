@@ -325,6 +325,8 @@ If the user asks to change model or provider, or to go local/offline, call switc
 
         team = self._team_note()
         team_section = f"\n\n## Your team\n{team}" if team else ""
+        account = self._account_note()
+        account_section = f"\n\n## This account\n{account}" if account else ""
         roles = self._model_roles_note() if self.enable_tools else ""
         roles_section = (
             f"\n\n{roles}\nWhen a tool result starts with [Model · job], name that model in your reply "
@@ -348,11 +350,21 @@ If the user asks to change model or provider, or to go local/offline, call switc
    {{"type": "line" | "bar" | "scatter" | "area", "title": "...", "x": [...], "series": [{{"name": "...", "values": [...]}}], "xLabel": "...", "yLabel": "..."}}
    or a math function: {{"type": "function", "title": "...", "expressions": ["sin(x)", "x^2/10"], "from": -10, "to": 10}}.
    The chat draws it. Python goes in ```python blocks; the chat cannot run it, so never claim output you did not get from a tool.
-{QUESTION_RULE}
+{QUESTION_RULE}{account_section}
 
 ## This computer
 {self._environment_note()}
 {self._permissions_note()}{team_section}{roles_section}{tools_section}"""
+
+    @staticmethod
+    def _account_note() -> str:
+        """Which account this engine works in and what the owner made it for (local_accounts)."""
+        try:
+            import local_accounts
+
+            return local_accounts.purpose_note()
+        except Exception:  # noqa: BLE001 - an account note is context, never a reason a turn fails
+            return ""
 
     def add_attribute_guidance(self, attribute_id: str) -> None:
         """Append safe attribute guidance as a separate system message."""
@@ -854,6 +866,9 @@ If the user asks to change model or provider, or to go local/offline, call switc
             if message.get("role") == "system" and content.startswith(self._PERSONALITY_PREFIX):
                 lean_history.append({"role": "system", "content": content})
                 break
+        account = self._account_note()  # so does the account it is working in
+        if account:
+            lean_history.append({"role": "system", "content": "[This account]\n" + account})
         lean_history.append({"role": "user", "content": user_message})
 
         try:

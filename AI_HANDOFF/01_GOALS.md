@@ -636,3 +636,25 @@ Queued after Request S, in the owner's order: **T** GitHub fully updated and upl
 
 Verbatim text and a preparation index: `AI_HANDOFF/PROJECT_NULL.md`. The owner: "make sure this is known as plan null. The
 biggest thing we are fixing updating and everything. Do not act on it prepare for it but thats it. Not changes."
+
+## 2026-09-26 (session 1da8a0) — the website, GitHub, the mode switch, Accounts, and future ideas
+
+```text
+So I want my site to have a link to github, full over hall and redesign to match the design of the AI now. I would like the Ai to also have a better time for uploading websites or running locally. Then on the site I want there to be a download link for the site next to github. Make sure github is fully updated. Then publish it. Before publishing make sure everything is polished and has no errors.
+```
+
+```text
+Site as in the website not the AI. https://nyx-ichos-268a6wxcj-shagnikpal-5976s-projects.vercel.app/#install. Also if you could rename it. I would rather just have the AI name in there and add to the github if not already in there
+```
+
+```text
+Can you aalso finish the redessign for https://nyx-ichos-268a6wxcj-shagnikpal-5976s-projects.vercel.app/#install     and add the things I wanted like the downlaod button and updated everything. Then publish the giuthub
+```
+
+```text
+After this one change is the normal, co work, and plan things mobve up and down really fast making it hard to clicka nd it wont stop until my mouse is placesd at a specific place, fix this and then update repo. Also add an accounts next to the logout place in the image. In here it locally creates a separaste file division between account if the suer wanst different acocunts for different things. Add a account creation with password if wanted, name of account *user1, NIS, or whastevr the suer weishes) and add a purpose to semi feed the AI to makes urie it knwos why thisaccount si specifal
+```
+
+Done (START_HERE.md, 2026-09-26 entries): the site at https://nyx-ichos.vercel.app, the repo pushed, scrubbed and made
+public, the switch fix, Accounts. The owner's further ideas, sent in the same conversation, are verbatim in
+`AI_HANDOFF/UPDATE_IDEAS.md` — not started.

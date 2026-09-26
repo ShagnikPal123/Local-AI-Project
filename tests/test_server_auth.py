@@ -887,3 +887,62 @@ def test_a_beta_tester_cannot_reach_the_third_mind(client, beta_token, method, p
     response = (call(path, json=body, headers=_auth(beta_token)) if body is not None
                 else call(path, headers=_auth(beta_token)))
     assert response.status_code == 403, f"beta tester reached {path}"
+
+
+# --- Accounts hold the owner's own chats, memory and files: the owner's alone --------------------------------------
+
+ACCOUNT_ROUTES = [
+    ("get", "/api/accounts", None),
+    ("post", "/api/accounts", {"name": "NIS"}),
+    ("patch", "/api/accounts/main", {"purpose": "x"}),
+    ("post", "/api/accounts/main/switch", {}),
+    ("post", "/api/accounts/nis/remove", {}),
+]
+
+
+@pytest.mark.parametrize("method,path,body", ACCOUNT_ROUTES)
+def test_account_routes_refuse_anonymous_callers(client, store, method, path, body):
+    _claim(store)
+    call = getattr(client, method)
+    response = call(path, json=body) if body is not None else call(path)
+    assert response.status_code in (401, 403), f"{path} was reachable anonymously"
+
+
+@pytest.mark.parametrize("method,path,body", ACCOUNT_ROUTES)
+def test_a_beta_tester_cannot_reach_account_routes(client, beta_token, method, path, body):
+    call = getattr(client, method)
+    response = (call(path, json=body, headers=_auth(beta_token)) if body is not None
+                else call(path, headers=_auth(beta_token)))
+    assert response.status_code == 403, f"beta tester reached {path}"
+
+
+@pytest.mark.parametrize("method,path,body", ACCOUNT_ROUTES)
+def test_an_admin_cannot_reach_account_routes(client, admin_token, method, path, body):
+    call = getattr(client, method)
+    response = (call(path, json=body, headers=_auth(admin_token)) if body is not None
+                else call(path, headers=_auth(admin_token)))
+    assert response.status_code == 403, f"an admin reached {path}"
+
+
+def test_the_owner_can_make_and_list_accounts(client, store, tmp_path, monkeypatch):
+    import local_accounts
+    import paths
+
+    monkeypatch.setattr(paths, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(paths, "ACTIVE_ACCOUNT", paths.MAIN_ACCOUNT)
+    local_accounts._FAILS.clear()
+    _claim(store)
+    headers = _auth(_login(client))
+    made = client.post("/api/accounts", json={"name": "NIS", "purpose": "school", "password": "hunter22"}, headers=headers)
+    assert made.status_code == 200, made.text
+    assert made.json()["account"]["locked"] and "hunter22" not in made.text
+    listing = client.get("/api/accounts", headers=headers).json()
+    assert [a["name"] for a in listing["accounts"]] == ["Main", "NIS"] and listing["running"] == "main"
+    wrong = client.post("/api/accounts/nis/switch", json={"password": "wrong-pass"}, headers=headers)
+    assert wrong.status_code == 403
+
+
+def test_account_routes_do_not_exist_on_a_hosted_build():
+    import deploy_mode
+
+    assert any("/api/accounts".startswith(prefix) for prefix in deploy_mode.HOSTED_BLOCKED_PREFIXES)
