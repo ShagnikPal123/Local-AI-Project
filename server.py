@@ -12,9 +12,17 @@ Requires: pip install fastapi uvicorn
 
 from __future__ import annotations
 
+import logging
+import os
 import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+import quiet_windows
+
+# Before anything can start a child process: no console window may pop up in
+# front of the owner and take the keyboard (Plan Null N87).
+quiet_windows.install()
 
 from pydantic import BaseModel
 
@@ -112,6 +120,38 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Speed. Responses over 1 KB are compressed (the UI bundle drops from ~310 KB to
+# ~90 KB on the wire). Starlette excludes Server-Sent Events from compression,
+# so streaming turns are never buffered.
+from starlette.middleware.gzip import GZipMiddleware  # noqa: E402
+
+app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=6)
+
+# "Leave the site and come back": a first-party nyx_client cookie identifies this
+# browser, so /api/client/state can restore its tabs, drafts and active chat.
+# Pure ASGI (headers only), so streaming turns are not buffered.
+try:
+    from client_state import ClientCookieMiddleware
+
+    app.add_middleware(ClientCookieMiddleware)
+except Exception:  # pragma: no cover - persistence is an extra, never a startup failure
+    pass
+
+
+@app.middleware("http")
+async def cache_static_assets(request: Request, call_next):
+    """Let browsers keep hashed build files for a year.
+
+    Vite names every asset by content hash, so a changed file is a new URL and
+    "immutable" is safe. Without this each page load re-validated the bundle.
+    The app shell (/) stays no-cache so a rebuild is picked up immediately.
+    """
+    response = await call_next(request)
+    if request.url.path.startswith("/assets/") and response.status_code == 200:
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return response
+
+
 # Deny-by-default session gate. Every /api route except the public allowlist in
 # server_auth.PUBLIC_PATHS requires a session once an owner account exists, so a
 # newly added endpoint is protected without anyone having to remember.
@@ -199,7 +239,10 @@ class JoinRequest(BaseModel):
 class InviteRequest(BaseModel):
     role: str = "beta"
     email: str = ""
-    base_url: str = "http://localhost:5173"
+    # Empty means "use the address this request came in on"; see
+    # admin_create_invite. A hardcoded default here pointed invites at the dev
+    # server for everyone who minted one from the real app.
+    base_url: str = ""
 
 
 class ClaimRequest(BaseModel):
@@ -236,6 +279,9 @@ class AgentSpec(BaseModel):
     goal: str = ""
     role: str = "worker"
     personality_id: Optional[str] = None
+    emoji: str = ""
+    #: Start working on the goal immediately (the UI's "Create and start").
+    run: bool = False
 
 
 class SpawnAgentRequest(BaseModel):
@@ -323,6 +369,11 @@ class TabUpdateRequest(BaseModel):
     blocks: Optional[List[Dict[str, Any]]] = None
     connectors: Optional[List[str]] = None
     accent: Optional[str] = None
+    #: Request H16: picture/colour/gradient background and how the text boxes look.
+    background: Optional[Dict[str, Any]] = None
+    theme: Optional[Dict[str, Any]] = None
+    #: Words for the edit history ("Added a timer").
+    request: Optional[str] = None
 
 
 class TabEditRequest(BaseModel):
@@ -375,12 +426,47 @@ _speech: Optional[SpeechPatternStore] = None
 _rag: Optional[RagMemory] = None
 
 
+_chat_store_singleton: Any = None
+
+
+def _shared_chat_store() -> Any:
+    """One ChatSessionStore for the whole server.
+
+    Every ChatService used to open its own copy of chats.json and append to
+    whichever chat was globally "active", so two chat tabs wrote into the same
+    stored conversation and their saves could overwrite each other.
+    """
+    global _chat_store_singleton
+    with _services_lock:
+        if _chat_store_singleton is None:
+            from chat_sessions import ChatSessionStore
+            from memory import MemoryStore
+
+            _chat_store_singleton = ChatSessionStore(memory_store=MemoryStore())
+        return _chat_store_singleton
+
+
 def _get_service(chat_id: Optional[str] = None) -> ChatService:
     key = chat_id or "default"
+    store = _shared_chat_store()
     with _services_lock:
         if key not in _services:
-            _services[key] = ChatService()
+            if key.startswith("__"):
+                # Machinery (tab design, tab edits) gets its own store. Sharing the
+                # user's wrote raw JSON design prompts into their real chat history.
+                from chat_sessions import ChatSessionStore
+                from paths import data_path
+
+                _services[key] = ChatService(chat_store=ChatSessionStore(data_path("internal_chats.json")))
+            else:
+                bound = key if key != "default" and store.exists(key) else None
+                _services[key] = ChatService(chat_store=store, chat_id=bound)
         return _services[key]
+
+
+def _forget_service(chat_id: str) -> None:
+    with _services_lock:
+        _services.pop(chat_id, None)
 
 
 def _tab_edit_service() -> ChatService:
@@ -401,7 +487,13 @@ def _tab_edit_service() -> ChatService:
     key = "__tabedit__"
     with _services_lock:
         if key not in _services:
-            _services[key] = ChatService(enable_tools=False)
+            from chat_sessions import ChatSessionStore
+            from paths import data_path
+
+            _services[key] = ChatService(
+                enable_tools=False,
+                chat_store=ChatSessionStore(data_path("internal_chats.json")),
+            )
         return _services[key]
 
 
@@ -470,6 +562,144 @@ def health() -> Dict[str, Any]:
             "voice",
         ],
     }
+
+
+# ---------------------------------------------------------------------------
+# Engine control — the launcher's side of "one click to turn on"
+# ---------------------------------------------------------------------------
+
+#: Filled in by ``launcher.Engine`` when the engine runs under the tray launcher
+#: (stop/restart callables, port, pid). Empty when started with plain uvicorn,
+#: in which case there is no supervisor to hand a restart to.
+ENGINE_HOOKS: Dict[str, Any] = {}
+
+_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
+
+# Shutdown timeout for background tasks (seconds), configurable via env
+SHUTDOWN_TIMEOUT = float(os.getenv("NYX_SHUTDOWN_TIMEOUT", "5"))
+
+
+def require_local_owner(
+    http_request: Request,
+    authorization: Optional[str] = Header(default=None),
+) -> Any:
+    """Owner-level actions on this machine's own engine.
+
+    Stopping or restarting the engine, or changing whether it starts with
+    Windows, belongs to whoever owns the machine. On an unclaimed install that is
+    whoever sits at it, so the caller must be on loopback. Once claimed, it takes
+    an admin session, so an invited tester cannot switch the owner's engine off.
+    """
+    from server_auth import current_user
+
+    if is_claimed():
+        user = current_user(authorization)
+        if user is None:
+            raise HTTPException(status_code=401, detail="Sign in required.")
+        from auth import has_permission
+
+        if not has_permission(user.role, Permission.VIEW_ADMIN):
+            raise HTTPException(status_code=403, detail="Only the owner or an admin can control the engine.")
+        return user
+    client_host = http_request.client.host if http_request.client else ""
+    if client_host not in _LOOPBACK_HOSTS:
+        raise HTTPException(status_code=403, detail="The engine can only be controlled from this computer.")
+    return None
+
+
+class AutostartRequest(BaseModel):
+    enabled: bool = True
+
+
+def _engine_snapshot() -> Dict[str, Any]:
+    import os
+
+    import launcher
+    import paths
+
+    return {
+        "managed": bool(ENGINE_HOOKS.get("launcher")),
+        "port": ENGINE_HOOKS.get("port"),
+        "pid": ENGINE_HOOKS.get("pid") or os.getpid(),
+        "autostart": launcher.autostart_enabled(),
+        "link_registered": launcher.url_handler_registered(),
+        "data_dir": str(paths.DATA_DIR),
+        "log": str(launcher.log_path()),
+    }
+
+
+@app.get("/api/engine")
+def engine_status(_user=RequireChat) -> Dict[str, Any]:
+    """How this engine was started, and whether one-click start is wired up."""
+    return _engine_snapshot()
+
+
+def _later(action: Any, delay: float = 0.4) -> None:
+    """Run ``action`` after the HTTP response has had time to leave."""
+    timer = threading.Timer(delay, action)
+    timer.daemon = True
+    timer.start()
+
+
+@app.post("/api/engine/stop")
+def engine_stop(_owner=Depends(require_local_owner)) -> Dict[str, Any]:
+    """Stop the engine (tray Quit, nyx://stop, the web UI's power button)."""
+    stop = ENGINE_HOOKS.get("stop")
+    if not callable(stop):
+        raise HTTPException(
+            status_code=409,
+            detail="This engine was started by hand (uvicorn), not by the Nyx launcher; stop it there.",
+        )
+    _later(stop)
+    return {"ok": True, "action": "stop"}
+
+
+@app.post("/api/engine/restart")
+def engine_restart(_owner=Depends(require_local_owner)) -> Dict[str, Any]:
+    """Restart as a fresh process so code and configuration changes take effect."""
+    restart = ENGINE_HOOKS.get("restart")
+    if not callable(restart):
+        raise HTTPException(
+            status_code=409,
+            detail="This engine was started by hand (uvicorn), not by the Nyx launcher; restart it there.",
+        )
+    _later(restart)
+    return {"ok": True, "action": "restart"}
+
+
+_ADMIN_CONSOLE: Dict[str, Any] = {}
+
+
+@app.post("/api/engine/admin-console")
+def engine_admin_console(_owner=Depends(require_local_owner)) -> Dict[str, Any]:
+    """Start the admin access server (testers, access keys, applications, audit) and return its URL.
+
+    It runs inside this engine on a loopback-only port, started on first use so a
+    normal session does not carry a second listening server.
+    """
+    import os
+    import socket
+
+    port = int(os.getenv("NYX_ADMIN_PORT", "8765"))
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        in_use = probe.connect_ex(("127.0.0.1", port)) == 0
+    if not in_use and not _ADMIN_CONSOLE:
+        try:
+            import admin_server
+
+            _ADMIN_CONSOLE["server"], _ADMIN_CONSOLE["port"] = admin_server.start_in_thread(port)
+        except Exception as error:  # noqa: BLE001 - reported to the owner
+            raise HTTPException(status_code=500, detail=f"The admin console could not start: {error}") from error
+    return {"url": f"http://127.0.0.1:{port}/", "started": not in_use}
+
+
+@app.post("/api/engine/autostart")
+def engine_autostart(request: AutostartRequest, _owner=Depends(require_local_owner)) -> Dict[str, Any]:
+    """Turn start-with-Windows on or off."""
+    import launcher
+
+    launcher.set_autostart(request.enabled)
+    return _engine_snapshot()
 
 
 @app.get("/api/status")
@@ -672,6 +902,24 @@ def knowledge_search(q: str, limit: int = 5) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
+_SHARED_OLLAMA: Any = None
+
+
+def _shared_ollama() -> Any:
+    """One shared Ollama probe for the model listings.
+
+    A fresh OllamaProvider has an empty availability cache, so every call paid
+    the full loopback timeout (~0.5 s) whenever Ollama is not installed — on
+    every Models tab open and every provider picker.
+    """
+    global _SHARED_OLLAMA
+    if _SHARED_OLLAMA is None:
+        from providers.ollama_provider import OllamaProvider
+
+        _SHARED_OLLAMA = OllamaProvider()
+    return _SHARED_OLLAMA
+
+
 @app.get("/api/models")
 def list_models() -> Dict[str, Any]:
     """List local Ollama models and configured online providers."""
@@ -681,11 +929,13 @@ def list_models() -> Dict[str, Any]:
     from providers.gemini_provider import GeminiProvider
     from providers.groq_provider import GroqProvider
     from providers.kimi_provider import KimiProvider
+    from providers.nvidia_provider import NvidiaProvider
     from providers.ollama_provider import OllamaProvider
     from providers.openai_provider import OpenAIProvider
     from providers.perplexity_provider import PerplexityProvider
+    from providers.qwen_provider import QwenProvider
 
-    local = OllamaProvider().list_models()
+    local = _shared_ollama().list_models()
     online = []
     for name, provider in (
         ("claude", AnthropicProvider()),
@@ -694,7 +944,9 @@ def list_models() -> Dict[str, Any]:
         ("kimi", KimiProvider()),
         ("deepseek", DeepSeekProvider()),
         ("groq", GroqProvider()),
+        ("nvidia", NvidiaProvider()),
         ("perplexity", PerplexityProvider()),
+        ("qwen", QwenProvider()),
     ):
         online.append({"name": name, "configured": provider.is_available()})
     return {
@@ -705,22 +957,48 @@ def list_models() -> Dict[str, Any]:
     }
 
 
+@app.get("/api/models/active")
+def active_model(_user=RequireChat) -> Dict[str, Any]:
+    """Which provider answers by default right now — the chat dropdown syncs to this."""
+    from config import SETTINGS
+
+    name = SETTINGS.preferred_online_provider
+    model = getattr(SETTINGS, f"{name}_model", "") if name else ""
+    return {"provider": name, "model": model or "", "local_model": SETTINGS.ollama_model}
+
+
 @app.post("/api/models/switch")
 def switch_model(payload: Dict[str, Any]) -> Dict[str, Any]:
     """Switch the active local model or the preferred online provider."""
     from config import SETTINGS
     from providers.ollama_provider import OllamaProvider
 
-    target = (payload.get("model") or "").strip()
+    target = (payload.get("model") or payload.get("provider") or "").strip()
     if not target:
         raise HTTPException(status_code=400, detail="Model name cannot be empty.")
 
-    online_names = {"claude", "openai", "gemini", "kimi", "deepseek", "groq", "perplexity"}
-    if target.lower() in online_names:
-        SETTINGS.preferred_online_provider = target.lower()
-        return {"kind": "online", "model": target.lower(), "preferred": SETTINGS.preferred_online_provider}
+    # Any provider the router knows, custom ones included. When it cannot answer,
+    # say why instead of switching to something that will be skipped (Request G9:
+    # the dropdown "didn't switch" while asking in chat did).
+    router = _get_service(None).router
+    name = target.lower()
+    if name == "anthropic":
+        name = "claude"
+    if name in getattr(router, "providers", {}) and name != "ollama":
+        reason = router.unavailable_reason(name, explicit=True) if hasattr(router, "unavailable_reason") else None
+        if reason:
+            raise HTTPException(status_code=409, detail=f"Can't switch to {name}: {reason}.")
+        SETTINGS.preferred_online_provider = name
+        try:
+            import model_choice
 
-    local = OllamaProvider().list_models()
+            # Survives restarts (H6) and counts as the owner allowing a billable key (H11).
+            model_choice.remember(name)
+        except Exception:  # pragma: no cover
+            pass
+        return {"kind": "online", "model": name, "preferred": SETTINGS.preferred_online_provider}
+
+    local = _shared_ollama().list_models()
     match = next((m for m in local if m == target or target in m), None)
     if match:
         SETTINGS.ollama_model = match
@@ -1287,7 +1565,14 @@ def create_tab_from_description(request: TabFromTextRequest, user=RequireChat) -
 
     try:
         service = _get_service("__tabs__")
-        reply, _provider = service.chat(build_tab_prompt(request.description))
+        prompt = build_tab_prompt(request.description)
+        try:
+            import design_sense  # decide the look for this request, not from habit (N88)
+
+            prompt += "\n\n" + design_sense.brief_for_prompt(request.description)
+        except Exception:  # pragma: no cover - the brief is an improvement, not a requirement
+            pass
+        reply, _provider = service.chat(prompt)
         data = parse_tab_reply(reply)
     except TabSpecError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
@@ -1325,12 +1610,15 @@ def update_tab(tab_id: str, request: TabUpdateRequest, _user=RequireChat) -> Dic
     try:
         spec = TAB_STORE.update(
             tab_id,
+            request=request.request or "",
             label=request.label,
             icon=request.icon,
             description=request.description,
             blocks=request.blocks,
             connectors=request.connectors,
             accent=request.accent,
+            background=request.background,
+            theme=request.theme,
         )
     except TabSpecError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
@@ -1645,9 +1933,10 @@ def set_power(request: PowerRequest, _user=RequireChat) -> Dict[str, Any]:
 @app.get("/api/agents")
 def list_agents(_user=RequireChat) -> Dict[str, Any]:
     """Live team status for the agent progress panel."""
+    from agent_runtime import sync_team
     from agent_team import AGENT_TEAM
 
-    AGENT_TEAM.ensure_default_subagents()
+    sync_team(AGENT_TEAM)
     snapshot = AGENT_TEAM.snapshot()
 
     # Pool stats describe anonymous execution capacity; the team describes who is
@@ -1668,10 +1957,12 @@ def spawn_agent(request: SpawnAgentRequest, _user=RequireChat) -> Dict[str, Any]
     Supports the shape Shagnik asked for directly: several agents in one call,
     each with its own goal, one of them managing the others.
     """
+    from agent_runtime import start_agent_task, tool_create_agent
     from agent_team import AGENT_TEAM, AgentRole
 
     AGENT_TEAM.ensure_master()
     created = []
+    started = []
     for spec in request.agents:
         try:
             role = AgentRole(spec.role)
@@ -1679,14 +1970,143 @@ def spawn_agent(request: SpawnAgentRequest, _user=RequireChat) -> Dict[str, Any]
             raise HTTPException(
                 status_code=400, detail=f"Unknown role: {spec.role}"
             ) from error
-        agent = AGENT_TEAM.spawn(
-            name=spec.name,
-            goal=spec.goal,
-            role=role,
-            personality_id=spec.personality_id,
-        )
+        agent = None
+        if role is AgentRole.WORKER and spec.goal.strip():
+            # A worker with a goal joins the real roster, so it can be handed
+            # work (by the Manager in chat, or by "run" below). An in-memory
+            # spawn could be seen but never do anything — the "agents don't
+            # update" complaint, because there was nothing to update.
+            tool_create_agent(spec.name, spec.goal, emoji=spec.emoji or "🤖")
+            agent = next((a for a in AGENT_TEAM.members() if a.name.lower() == spec.name.strip().lower()), None)
+        if agent is None:
+            agent = AGENT_TEAM.spawn(
+                name=spec.name,
+                goal=spec.goal,
+                role=role,
+                personality_id=spec.personality_id,
+            )
         created.append(agent.snapshot())
-    return {"created": created, "team": AGENT_TEAM.snapshot()}
+        if spec.run and spec.goal.strip() and role is AgentRole.WORKER:
+            started.append(start_agent_task(agent.name, spec.goal, role=_role_name(_user)))
+    return {"created": created, "started": started, "team": AGENT_TEAM.snapshot()}
+
+
+class AgentTaskRequest(BaseModel):
+    task: str
+    context: str = ""
+
+
+def _role_name(user: Any) -> str:
+    role = getattr(user, "role", None)
+    return getattr(role, "value", None) or "local"
+
+
+@app.post("/api/agents/{agent_name}/tasks")
+def give_agent_task(agent_name: str, request: AgentTaskRequest, _user=RequireChat) -> Dict[str, Any]:
+    """Hand one agent a task directly and watch it at /api/turns/{turn_id}/stream."""
+    from agent_runtime import roster_entry, start_agent_task
+
+    if not request.task.strip():
+        raise HTTPException(status_code=400, detail="Say what the agent should do.")
+    entry = roster_entry(agent_name)
+    if entry is None:
+        raise HTTPException(status_code=404, detail=f"No agent called {agent_name!r}.")
+    if entry.get("role") == "master":
+        raise HTTPException(status_code=400, detail="The Manager works through chat; send it a message there.")
+    return start_agent_task(entry["name"], request.task, context=request.context, role=_role_name(_user))
+
+
+@app.get("/api/agents/details")
+def agents_details(_user=RequireChat) -> Dict[str, Any]:
+    """Every agent's goal, purpose, model, consult settings, status and recent work (Request H2)."""
+    from agent_runtime import all_agent_details
+
+    return {"agents": all_agent_details()}
+
+
+@app.post("/api/agents/subagents")
+def create_subagent_route(fields: Dict[str, Any], _user=RequireChat) -> Dict[str, Any]:
+    """The Sub-agents tab: make one with its model and consult settings.
+
+    Then, as the owner asked (2026-09-15), start it three ways: on nothing, on a task in the
+    background, or in its own chat — with or without a first message.
+    """
+    from agent_runtime import create_subagent, start_agent_task
+
+    try:
+        props = create_subagent(fields)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    task = str(fields.get("task") or "").strip()
+    chat_id = ""
+    started = None
+    if fields.get("start_chat"):
+        store = _shared_chat_store()
+        chat_id = store.create(title=f"{props.get('emoji', '')} {props['name']}".strip())
+        store.set_agent(chat_id, props["name"])
+    elif task:
+        started = start_agent_task(props["name"], task, role=_role_name(_user))
+    return {"agent": props, "started": started, "chat_id": chat_id, "task": task if chat_id else ""}
+
+
+class ChatAgentRequest(BaseModel):
+    agent: str = ""
+
+
+@app.post("/api/chats/{chat_id}/agent")
+def link_chat_to_agent(chat_id: str, request: ChatAgentRequest, _user=RequireChat) -> Dict[str, Any]:
+    """Give this chat to one agent (empty name hands it back to the Manager)."""
+    from agent_runtime import roster_entry_exact
+
+    name = request.agent.strip()
+    if name and roster_entry_exact(name) is None:
+        raise HTTPException(status_code=404, detail=f"No agent called {name!r}.")
+    try:
+        chat = _shared_chat_store().set_agent(chat_id, name)
+    except KeyError as error:
+        raise HTTPException(status_code=404, detail="No such chat.") from error
+    return {"chat_id": chat_id, "agent": chat.get("agent", ""), "title": chat.get("title", "")}
+
+
+@app.get("/api/agents/{agent_name}/chats")
+def chats_of_agent(agent_name: str, _user=RequireChat) -> Dict[str, Any]:
+    store = _shared_chat_store()
+    ids = store.chats_for_agent(agent_name)
+    summaries = [s for s in store.summaries() if s.get("id") in set(ids)] if hasattr(store, "summaries") else []
+    return {"agent": agent_name, "chats": summaries or [{"id": cid, "title": cid} for cid in ids]}
+
+
+@app.delete("/api/agents/subagents/{agent_name}")
+def delete_subagent_route(agent_name: str, _user=RequireChat) -> Dict[str, Any]:
+    from agent_runtime import remove_custom_agent
+
+    if not remove_custom_agent(agent_name):
+        raise HTTPException(status_code=404, detail="Only agents made in chat or in the Sub-agents tab can be deleted.")
+    return {"deleted": agent_name}
+
+
+@app.get("/api/agents/{agent_name}/properties")
+def get_agent_properties(agent_name: str, _user=RequireChat) -> Dict[str, Any]:
+    """One agent's settings, live status and recent work — the Properties sheet (Request G16b)."""
+    from agent_runtime import agent_properties
+
+    props = agent_properties(agent_name)
+    if props is None:
+        raise HTTPException(status_code=404, detail=f"No agent called {agent_name!r}.")
+    return {"agent": props}
+
+
+@app.patch("/api/agents/{agent_name}")
+def patch_agent(agent_name: str, changes: Dict[str, Any], _user=RequireChat) -> Dict[str, Any]:
+    """Change an agent's objective, instructions, model, tools… Built-in agents keep edits as an overlay."""
+    from agent_runtime import update_agent
+
+    try:
+        return {"agent": update_agent(agent_name, changes)}
+    except KeyError as error:
+        raise HTTPException(status_code=404, detail=str(error).strip("'\"")) from error
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
 
 
 @app.delete("/api/agents/{agent_id}")
@@ -2063,8 +2483,16 @@ def admin_invites(user=RequireInvite) -> Dict[str, Any]:
 
 
 @app.post("/api/admin/invites")
-def admin_create_invite(request: InviteRequest, user=RequireInvite) -> Dict[str, Any]:
-    """Mint a single-use beta invite and return its shareable link."""
+def admin_create_invite(
+    request: InviteRequest, http_request: Request, user=RequireInvite
+) -> Dict[str, Any]:
+    """Mint a single-use beta invite and return its shareable link.
+
+    The link is built against the address this request actually arrived on
+    unless the caller names one. It used to fall back to the Vite dev server,
+    so an invite minted from the packaged app pointed at a port the recipient
+    has nothing running on.
+    """
     try:
         role = Role(request.role)
     except ValueError as error:
@@ -2079,7 +2507,7 @@ def admin_create_invite(request: InviteRequest, user=RequireInvite) -> Dict[str,
         "role": invite.role.value,
         "email": invite.email,
         "expires_at": invite.expires_at,
-        "link": invite_link(request.base_url, invite.token),
+        "link": invite_link(request.base_url or str(http_request.base_url), invite.token),
     }
 
 
@@ -2175,6 +2603,188 @@ async def personality_not_found_handler(request, exc: PersonalityNotFoundError):
 # Mounted last so it never shadows an /api route.
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Live routes, tool modules, and capability routers
+# ---------------------------------------------------------------------------
+
+def _include_routers() -> Dict[str, str]:
+    """Attach route modules that exist on this install; report the ones that do not.
+
+    The capability routers (system specs, computer control, email, access keys,
+    voices) are separate modules so they can land and be tested independently.
+    A missing optional dependency must cost its own routes, never the server.
+    """
+    import importlib
+
+    status: Dict[str, str] = {}
+    for module_name in ("routes_live", "routes_system", "routes_computer", "routes_email",
+                        "routes_access", "routes_voice", "routes_learning", "routes_providers", "routes_models",
+                        "routes_improve", "routes_intelligence", "routes_notes", "routes_code", "routes_trading", "routes_key_pool",
+                        "routes_build", "routes_game", "routes_command_zone", "routes_core", "routes_collab", "routes_research", "routes_context",
+                        "routes_absorb", "routes_local_models", "routes_diagram", "routes_screen", "routes_apply",
+                        "routes_security", "routes_proto_voice", "routes_features", "routes_curiosity", "routes_finance_lab", "routes_voice_gestures",
+                        "routes_design",
+                        "routes_freewill", "routes_identity0", "routes_office"):
+        try:
+            module = importlib.import_module(module_name)
+        except ModuleNotFoundError as error:
+            status[module_name] = "not installed yet" if error.name == module_name else f"missing {error.name}"
+            continue
+        except Exception as error:  # noqa: BLE001
+            status[module_name] = f"{type(error).__name__}: {error}"
+            continue
+        router = getattr(module, "router", None)
+        if router is None:
+            status[module_name] = "no router"
+            continue
+        app.include_router(router)
+        status[module_name] = "ok"
+    return status
+
+
+ROUTER_STATUS = _include_routers()
+
+try:
+    # Probe slow connector checks (Obsidian's REST port) before anyone opens a
+    # tab that lists them.
+    from connectors import CONNECTOR_REGISTRY as _CONNECTORS
+
+    _CONNECTORS.warm()
+except Exception:  # pragma: no cover - warming is an optimisation only
+    pass
+
+try:
+    from tool_setup import register_all_tools
+
+    register_all_tools()
+except Exception:  # pragma: no cover - tools failing to register must not stop the API
+    pass
+
+
+class PresencePing(BaseModel):
+    tab: str = ""
+
+
+@app.post("/api/presence")
+def presence_ping(body: PresencePing, _user=RequireChat) -> Dict[str, Any]:
+    """The web UI's throttled "someone is using me" heartbeat (real input only)."""
+    import presence
+
+    presence.mark_active("input", tab=body.tab)
+    try:
+        from predictor import PREDICTOR
+
+        if body.tab:
+            PREDICTOR.observe_tab(body.tab)
+        else:
+            PREDICTOR.observe_activity()
+    except Exception:  # pragma: no cover - predictions are a hint
+        pass
+    return presence.snapshot()
+
+
+@app.get("/api/presence")
+def presence_state(_user=RequireChat) -> Dict[str, Any]:
+    import presence
+
+    return presence.snapshot()
+
+
+@app.on_event("shutdown")
+async def _shutdown_background_work() -> None:
+    """Guarantee lingering background tasks or loops terminate within a timeout during shutdown."""
+    import asyncio
+    logger = logging.getLogger("nyx.server")
+    
+    # Stop known background services first
+    try:
+        from predictor import SCHEDULER
+        if hasattr(SCHEDULER, "stop") and callable(SCHEDULER.stop):
+            if asyncio.iscoroutinefunction(SCHEDULER.stop):
+                await asyncio.shield(asyncio.wait_for(SCHEDULER.stop(), timeout=SHUTDOWN_TIMEOUT))
+            else:
+                SCHEDULER.stop()
+    except asyncio.TimeoutError:
+        logger.warning("scheduler shutdown timed out after %.1fs", SHUTDOWN_TIMEOUT, exc_info=True)
+    except Exception:
+        logger.warning("scheduler shutdown failed", exc_info=True)
+    
+    # Wait for any remaining background tasks to complete
+    pending = [t for t in asyncio.all_tasks() if not t.done() and t is not asyncio.current_task()]
+    if pending:
+        logger.info("Waiting for %d background tasks to complete (timeout=%.1fs)", len(pending), SHUTDOWN_TIMEOUT)
+        for task in pending:
+            try:
+                await asyncio.wait_for(task, timeout=SHUTDOWN_TIMEOUT)
+            except asyncio.TimeoutError:
+                logger.warning("Background task %r exceeded shutdown timeout, cancelling", task)
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+                except Exception:
+                    logger.exception("Error after cancelling task %r", task)
+            except Exception:
+                logger.exception("Background task %r raised during shutdown", task)
+
+
+@app.on_event("startup")
+def _resume_background_work() -> None:
+    """Long-running owner-started work (improvement autopilot) continues after a restart."""
+    if os.getenv("PYTEST_CURRENT_TEST") or os.getenv("NYX_NO_BACKGROUND"):
+        return
+    try:
+        import storage_budget
+
+        # Keep growing stores inside their budgets (owner, 2026-09-15: "doesn't take too much storage").
+        storage_budget.start_background()
+    except Exception:  # pragma: no cover
+        logging.getLogger("nyx.server").warning("storage budget did not start", exc_info=True)
+    try:
+        from improve_autopilot import AUTOPILOT
+
+        AUTOPILOT.resume_on_startup()
+    except Exception:  # pragma: no cover - a stale run file must not stop the API
+        logging.getLogger("nyx.server").warning("could not resume the improvement autopilot", exc_info=True)
+    try:
+        from identity0 import jobs as kahuna_jobs
+
+        # Training its own model takes hours; a sleep or a restart should not end it (Request S4).
+        picked_up = kahuna_jobs.recover()
+        if picked_up:
+            logging.getLogger("nyx.server").info("Big Kahuna resumed training %s", picked_up["id"])
+        from identity0 import api as kahuna_api
+
+        kahuna_api.warm_up()  # the first spoken turn should not be the slow one (Request S22)
+    except Exception:  # pragma: no cover - never at the cost of the API starting
+        logging.getLogger("nyx.server").warning("could not resume Big Kahuna's training", exc_info=True)
+
+    def grow_on_first_run() -> None:
+        # The brain starts from what is already on this PC; Nyx Core from the turns already learned.
+        try:
+            import nyx_core
+            import super_brain
+
+            if super_brain.BRAIN.counts()["nodes"] == 0:
+                super_brain.BRAIN.seed(background=False)
+            nyx_core.CORE.bootstrap_from_history()
+        except Exception:  # pragma: no cover
+            logging.getLogger("nyx.server").warning("brain first-run growth failed", exc_info=True)
+
+    threading.Thread(target=grow_on_first_run, name="nyx-brain-first-run", daemon=True).start()
+
+    try:
+        from predictor import SCHEDULER
+
+        restart = ENGINE_HOOKS.get("restart")
+        if callable(restart):
+            SCHEDULER._restart = restart
+        SCHEDULER.start()
+    except Exception:  # pragma: no cover
+        logging.getLogger("nyx.server").warning("idle scheduler did not start", exc_info=True)
+
+
 _FRONTEND_DIST = Path(__file__).resolve().parent / "frontend" / "nyx-pulse" / "dist"
 
 
@@ -2204,12 +2814,37 @@ def _mount_frontend() -> bool:
             """Browsers request /favicon.ico unprompted; serve the SVG for both."""
             return FileResponse(favicon, media_type="image/svg+xml")
 
+    service_worker = _FRONTEND_DIST / "sw.js"
+    if service_worker.is_file():
+        @app.get("/sw.js", include_in_schema=False)
+        def shell_cache_worker() -> Any:
+            """The worker that keeps the app loadable while the engine is off.
+
+            Never cached itself, so a fix to it reaches browsers on the next load.
+            """
+            return FileResponse(
+                service_worker,
+                media_type="application/javascript",
+                headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"},
+            )
+
     @app.get("/", include_in_schema=False)
     @app.get("/app", include_in_schema=False)
     @app.get("/app/{_path:path}", include_in_schema=False)
+    @app.get("/join", include_in_schema=False)
     def workspace(_path: str = "") -> Any:
-        """The single-page workspace. Every non-API path renders the app."""
-        return FileResponse(index)
+        """The single-page workspace, at every path the app is linked to.
+
+        `/join` is here because that is where invite links point: auth.py builds
+        `{base}/join?invite=…` and the app reads the token out of the query
+        string. Without this route every invite we ever sent 404'd, which is
+        why it is listed explicitly rather than left to a catch-all — a
+        catch-all would also swallow genuine 404s from the API.
+
+        no-cache so a rebuilt UI is picked up immediately; the service worker
+        holds the offline copy, not the browser's HTTP cache.
+        """
+        return FileResponse(index, headers={"Cache-Control": "no-cache"})
 
     return True
 

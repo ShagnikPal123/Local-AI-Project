@@ -160,8 +160,17 @@ def build_edit_prompt(spec: TabSpec, instruction: str) -> str:
         f"Current tab:\n{json.dumps(spec.as_dict(), indent=2)[:2000]}\n\n"
         f"They said: {instruction}\n\n"
         "Reply with JSON only, no prose. Use only these keys: label, icon, "
-        "description, accent, blocks, connectors. Omit anything unchanged.\n"
+        "description, accent, blocks, connectors, background, theme. Omit anything unchanged. "
+        "blocks replaces the whole list, so keep existing blocks you are not removing.\n"
         f"Block types: {', '.join(b.value for b in BlockType)}.\n"
+        "Block configs: list {items: [..]}; chart {chart: {type: line|bar|scatter|area|function, title, x: [..], "
+        "series: [{name, values: [..]}]} or {type: function, expressions: [\"sin(x)\"], from, to}}; "
+        "tracker {unit, goal, kind: number|yes_no}; timer {mode: countdown|stopwatch|pomodoro, minutes, "
+        "ai_prompt (what Nyx should do when it ends)}; ai_task {prompt, every_minutes (0 = only on demand, else >= 5)}; "
+        "competition {game: tictactoe|connect4, difficulty: easy|hard}; game {game: snake|memory|tictactoe}.\n"
+        "background: {kind: none|color|gradient|image, value: #rrggbb or https picture link, colors: [#rrggbb, #rrggbb], "
+        "angle, dim: 0-0.9}. theme (the text boxes): {surface: solid|glass|clear, font: system|rounded|serif|mono, "
+        "text: #rrggbb, radius: 0-28}. A game request should add a game block and usually a matching background and theme.\n"
         f"Connectors: {', '.join(sorted(ALLOWED_CONNECTORS))}.\n"
         "accent must be #rrggbb. icon must be a Phosphor name like ph-note.\n"
         "If the request cannot be expressed as a change to this tab, reply "
@@ -194,7 +203,7 @@ def parse_edit_reply(reply: str) -> Dict[str, Any]:
     if data.get("error"):
         raise TabSpecError(str(data["error"])[:200])
 
-    allowed = {"label", "icon", "description", "accent", "blocks", "connectors"}
+    allowed = {"label", "icon", "description", "accent", "blocks", "connectors", "background", "theme"}
     changes = {k: v for k, v in data.items() if k in allowed}
     if not changes:
         raise TabSpecError("The model did not name anything to change.")

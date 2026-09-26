@@ -249,12 +249,21 @@ export function ProviderPicker({ value, onChange, compact }: {
   );
 }
 
-/** The full list, for the Models panel: status, key mask, test, remove, add. */
+/** The full list, for the Models panel: status, key mask, test, remove, add.
+ *
+ * Every provider without a key gets an inline key field, and every free-tier
+ * provider (NVIDIA NIM, Groq, Gemini…) gets its signup link — the key itself
+ * is one click away, and the field to paste it into is right here. A key is
+ * never displayed: the server returns last4 and nothing more.
+ */
 export function ProviderManager() {
   const { snapshot, reload } = useProviders();
   const [adding, setAdding] = useState(false);
   const [testing, setTesting] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, { ok: boolean; text: string }>>({});
+  const [keyDraft, setKeyDraft] = useState("");
+  const [keyFor, setKeyFor] = useState<string | null>(null);
+  const [savingKey, setSavingKey] = useState(false);
 
   async function test(name: string) {
     setTesting(name);
@@ -275,6 +284,16 @@ export function ProviderManager() {
     await reload();
   }
 
+  async function removeKey(name: string) {
+    const result = await providers.removeKey(name);
+    if (!result.ok) {
+      setResults((r) => ({ ...r, [name]: { ok: false, text: result.error } }));
+      return;
+    }
+    setResults((r) => ({ ...r, [name]: { ok: true, text: "Key removed — add a new one any time." } }));
+    await reload();
+  }
+
   if (!snapshot) {
     return (
       <div className="card">
@@ -285,6 +304,21 @@ export function ProviderManager() {
   }
 
   const canManage = snapshot.mode === "full";
+
+  async function saveKey(name: string) {
+    if (!keyDraft.trim()) return;
+    setSavingKey(true);
+    const result = await providers.setKey(name, keyDraft.trim());
+    setSavingKey(false);
+    setKeyDraft("");
+    setKeyFor(null);
+    if (!result.ok) {
+      setResults((r) => ({ ...r, [name]: { ok: false, text: result.error } }));
+      return;
+    }
+    setResults((r) => ({ ...r, [name]: { ok: true, text: `Saved ${result.data.masked} — ready to use now.` } }));
+    await reload();
+  }
 
   return (
     <div className="card">
@@ -313,10 +347,29 @@ export function ProviderManager() {
 
       {snapshot.providers.map((p: ProviderInfo) => {
         const result = results[p.name];
+        const signingUp = keyFor === p.name;
+        // Big Kahuna is Nyx's own brain on this PC: no key, no account, always on.
+        const own = p.name === "identity0";
         return (
           <div key={p.name} style={{ padding: "8px 0", boxShadow: "inset 0 -1px 0 var(--color-divider)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 13 }}>{p.name}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 13 }}>{p.label || p.name}</span>
+              {p.free && (
+                <span style={{
+                  fontSize: 11, letterSpacing: ".06em", color: "var(--color-ok)",
+                  border: "1px solid var(--color-divider)", borderRadius: 4, padding: "1px 5px",
+                }}>
+                  FREE TIER
+                </span>
+              )}
+              {own && (
+                <span style={{
+                  fontSize: 11, letterSpacing: ".06em", color: "var(--color-accent)",
+                  border: "1px solid var(--color-accent)", borderRadius: 4, padding: "1px 5px",
+                }}>
+                  MAIN BRAIN · NO KEY
+                </span>
+              )}
               {p.preferred && (
                 <span style={{ fontSize: 11, color: "var(--color-accent)" }}>preferred</span>
               )}
@@ -330,12 +383,33 @@ export function ProviderManager() {
                   marginLeft: "auto",
                   fontFamily: "var(--font-mono)",
                   fontSize: 12,
-                  color: p.configured ? "var(--color-ok)" : "var(--color-neutral-600)",
+                  color: own || p.configured ? "var(--color-ok)" : "var(--color-neutral-600)",
                 }}
               >
-                {p.configured ? "ready" : "no key"}
+                {own ? "always on" : p.configured ? "ready" : "no key"}
               </span>
-              {canManage && (
+              {canManage && p.signup_url && (
+                <a
+                  className="btn btn-secondary"
+                  href={p.signup_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={`Get a key at ${p.signup_url}`}
+                  style={{ fontSize: 11, padding: "3px 9px", textDecoration: "none" }}
+                >
+                  Get a key↗
+                </a>
+              )}
+              {canManage && !own && (
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => { setKeyFor(signingUp ? null : p.name); setKeyDraft(""); }}
+                  style={{ fontSize: 11, padding: "3px 9px" }}
+                >
+                  {signingUp ? "Cancel" : p.configured ? "Replace key" : "Add key"}
+                </button>
+              )}
+              {p.configured && canManage && !own && (
                 <>
                   <button
                     className="btn btn-secondary"
@@ -347,7 +421,8 @@ export function ProviderManager() {
                   </button>
                   <button
                     className="btn btn-secondary"
-                    onClick={() => void remove(p.name)}
+                    onClick={() => void removeKey(p.name)}
+                    title="Forget the stored key(s) for this provider"
                     style={{ fontSize: 11, padding: "3px 9px", color: "var(--color-danger)" }}
                   >
                     Remove
@@ -355,6 +430,32 @@ export function ProviderManager() {
                 </>
               )}
             </div>
+            {signingUp && canManage && (
+              <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center" }}>
+                <input
+                  type="password"
+                  autoComplete="off"
+                  value={keyDraft}
+                  onChange={(e) => setKeyDraft(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void saveKey(p.name); } }}
+                  placeholder={`Paste your ${p.label || p.name} API key`}
+                  autoFocus
+                  style={{
+                    flex: 1, padding: "6px 9px", background: "var(--color-nav)",
+                    color: "var(--color-text)", border: "none", borderRadius: "var(--radius)",
+                    boxShadow: "inset 0 0 0 1px var(--color-divider)", font: "inherit", fontSize: 13,
+                  }}
+                />
+                <button
+                  className="btn btn-primary"
+                  onClick={() => void saveKey(p.name)}
+                  disabled={savingKey || !keyDraft.trim()}
+                  style={{ fontSize: 12, padding: "5px 12px", opacity: savingKey || !keyDraft.trim() ? 0.5 : 1 }}
+                >
+                  {savingKey ? "Saving…" : "Save key"}
+                </button>
+              </div>
+            )}
             {result && (
               <div
                 style={{
@@ -370,6 +471,41 @@ export function ProviderManager() {
           </div>
         );
       })}
+
+      {canManage && (snapshot.presets?.length ?? 0) > 0 && (
+        <div style={{ marginTop: 12 }}>
+          <div className="label" style={{ marginBottom: 8 }}>Free providers worth adding</div>
+          {snapshot.presets!.map((preset) => (
+            <div key={preset.name} style={{
+              display: "flex", alignItems: "center", gap: 8, padding: "6px 0",
+              boxShadow: "inset 0 -1px 0 var(--color-divider)", fontSize: 12,
+            }}>
+              <div style={{ minWidth: 0 }}>
+                <div>{preset.label}</div>
+                {preset.notes && (
+                  <div style={{ fontSize: 11, color: "var(--color-neutral-600)", lineHeight: 1.5 }}>
+                    {preset.notes}
+                  </div>
+                )}
+              </div>
+              {preset.signup_url && (
+                <a
+                  className="btn btn-secondary"
+                  href={preset.signup_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ marginLeft: "auto", fontSize: 11, padding: "3px 9px", textDecoration: "none", flex: "none" }}
+                >
+                  Get a key↗
+                </a>
+              )}
+            </div>
+          ))}
+          <div style={{ fontSize: 11, color: "var(--color-neutral-600)", marginTop: 6, lineHeight: 1.5 }}>
+            After signing up, paste the key with “Add key” above — it is stored on this machine only.
+          </div>
+        </div>
+      )}
 
       {adding && (
         <AddProviderForm

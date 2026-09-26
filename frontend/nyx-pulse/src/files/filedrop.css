@@ -1,0 +1,71 @@
+/* The drop box and the "added" line. Both sit above every panel and sheet. */
+
+.filedrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2200;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(10px);
+  animation: filedrop-in 140ms ease-out;
+  pointer-events: none; /* the window's own drop handler does the work */
+}
+
+.filedrop__box {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 34px 44px;
+  min-width: min(420px, 82vw);
+  text-align: center;
+  color: var(--color-accent);
+  border-radius: 22px;
+  border: 2px dashed var(--color-accent);
+  background: var(--color-nav);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+}
+
+.filedrop__title {
+  font-family: var(--font-heading);
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.filedrop__sub {
+  font-size: 13px;
+  color: var(--color-neutral-500);
+}
+
+.filedrop__note {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  z-index: 2200;
+  padding: 8px 14px;
+  font-size: 13px;
+  color: var(--color-text);
+  background: var(--color-surface-2);
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px var(--color-divider), 0 10px 30px rgba(0, 0, 0, 0.5);
+  animation: filedrop-note-in 160ms ease-out;
+}
+
+@keyframes filedrop-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+/* The note is already centred with a transform, so its entrance keeps it. */
+@keyframes filedrop-note-in {
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .filedrop,
+  .filedrop__note { animation: none; }
+}

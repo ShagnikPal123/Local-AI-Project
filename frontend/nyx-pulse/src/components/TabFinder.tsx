@@ -151,7 +151,7 @@ export function TabFinder({ onOpen, onCreated, onClose }: {
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontSize: 13 }}>{hit.label}</span>
-                  <span style={{ fontSize: 10, textTransform: "uppercase", color: "var(--color-neutral-600)" }}>
+                  <span style={{ fontSize: 11, textTransform: "uppercase", color: "var(--color-neutral-600)" }}>
                     {hit.source}
                   </span>
                 </div>

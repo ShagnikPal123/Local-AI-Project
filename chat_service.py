@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 import hashlib
 import re
+import threading
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -19,6 +20,7 @@ from knowledge import get_knowledge
 from memory import MemoryStore
 from personalities import PersonalityNotFoundError, resolve_personality
 from providers.base import ProviderError
+from question_cards import FORMAT_RULE as QUESTION_RULE
 from rag_memory import RagMemory
 from router import Router
 from speech_patterns import SpeechPatternStore
@@ -98,6 +100,7 @@ class ChatService:
         memory_path: Optional[str] = None,
         web_access: bool = True,
         chat_store: Optional[ChatSessionStore] = None,
+        chat_id: Optional[str] = None,
         personality_id: Optional[str] = None,
         personality_text: Optional[str] = None,
         speech_patterns_path: Optional[str] = None,
@@ -115,7 +118,9 @@ class ChatService:
         self.router = Router(web_access=web_access)
         self.memory = MemoryStore(path=memory_path)
         self.chat_store = chat_store or ChatSessionStore(memory_store=self.memory)
-        self.chat_id = self.chat_store.ensure_active()
+        # A service can be bound to one stored chat (a browser-style chat tab) or,
+        # by default, follow whichever chat is active.
+        self.chat_id = chat_id if self.chat_store.exists(chat_id) else self.chat_store.ensure_active()
         self.auto_web_search = web_access
         self.conversation_history: List[Dict[str, str]] = []
         self.enable_tools = enable_tools
@@ -130,6 +135,8 @@ class ChatService:
         self.personality: Optional[Dict[str, str]] = None
         self.large_prompt_chars = large_prompt_chars
         self.interim_callback = interim_callback
+        self._turn_lock = threading.RLock()
+        self._custom_system_prompt = system_prompt is not None
         self.system_prompt = system_prompt or self._default_system_prompt()
 
         # Add base system prompt as the first message
@@ -152,6 +159,24 @@ class ChatService:
         knowledge_context = get_knowledge().build_context_prompt()
         if knowledge_context:
             self.conversation_history.append({"role": "system", "content": knowledge_context})
+
+        # Reopening a chat tab (after a restart, or on another device) continues
+        # that conversation rather than starting the model from nothing.
+        if chat_id and self.chat_store.exists(chat_id):
+            stored = self.chat_store.messages(chat_id)
+            # A compacted chat (context_budget.py) continues from its summary, not from the full old text.
+            compaction = self.chat_store.compaction(chat_id) if hasattr(self.chat_store, "compaction") else {}
+            if compaction:
+                from context_budget import SUMMARY_PREFIX
+
+                self.conversation_history.append({"role": "system", "content": f"{SUMMARY_PREFIX}\n{compaction['summary']}"})
+                conversational = [m for m in stored if m.get("role") in ("user", "assistant")]
+                stored = conversational[compaction["upto"]:]
+            for message in stored[-40:]:
+                if message.get("role") in ("user", "assistant", "system"):
+                    self.conversation_history.append(
+                        {"role": message["role"], "content": str(message.get("content", ""))}
+                    )
 
     @staticmethod
     def _capability_note() -> str:
@@ -184,41 +209,150 @@ class ChatService:
         except Exception:
             return ""
 
+    @staticmethod
+    def _environment_note() -> str:
+        """Facts about this machine the model would otherwise have to guess.
+
+        "Put it on my desktop" needs to know where the desktop is (OneDrive often
+        moves it); "is my GPU hot?" needs to know there is one. Cheap reads only —
+        this runs whenever the prompt is rebuilt — and never raises.
+        """
+        import os
+        import platform
+
+        lines: List[str] = []
+        try:
+            now = datetime.now().astimezone()
+            lines.append(f"Local time: {now.strftime('%A %B %d, %Y %H:%M')} ({now.tzname()})")
+        except Exception:
+            pass
+        try:
+            lines.append(f"Computer: {platform.system()} {platform.release()} (build {platform.version()}), "
+                         f"user '{os.getenv('USERNAME') or os.getenv('USER') or 'unknown'}'")
+        except Exception:
+            pass
+        try:
+            home = Path.home()
+            folders = {"Home": home, "Desktop": home / "Desktop", "Documents": home / "Documents",
+                       "Downloads": home / "Downloads", "Pictures": home / "Pictures"}
+            if platform.system() == "Windows":
+                import winreg
+
+                key_path = r"Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders"
+                names = {"Desktop": "Desktop", "Documents": "Personal", "Pictures": "My Pictures",
+                         "Downloads": "{374DE290-123F-4565-9164-39C4925E467B}"}
+                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path) as key:
+                    for label, value_name in names.items():
+                        try:
+                            folders[label] = Path(os.path.expandvars(winreg.QueryValueEx(key, value_name)[0]))
+                        except OSError:
+                            continue
+            lines.append("Folders: " + "; ".join(f"{k} = {v}" for k, v in folders.items()))
+        except Exception:
+            pass
+        try:
+            from device_profile import get_device_profile
+
+            profile = get_device_profile()
+            gpu = f", GPU {profile.gpu_name} ({profile.vram_gb} GB)" if profile.gpu_name else ""
+            lines.append(f"Hardware: {profile.cpu_name}, {profile.cpu_cores} threads, {profile.ram_gb} GB RAM{gpu}")
+        except Exception:
+            pass
+        try:
+            import paths
+
+            lines.append(f"Nyx data folder: {paths.DATA_DIR}")
+        except Exception:
+            pass
+        return "\n".join(lines)
+
+    @staticmethod
+    def _team_note() -> str:
+        try:
+            from agent_runtime import roster_summary
+
+            return roster_summary()
+        except Exception:
+            return ""
+
+    @staticmethod
+    def _model_roles_note() -> str:
+        """Which model does which job, so the assistant uses them and says so."""
+        try:
+            from model_roles import MODEL_ROLES
+
+            return MODEL_ROLES.summary_for_prompt()
+        except Exception:
+            return ""
+
+    @staticmethod
+    def _permissions_note() -> str:
+        """Tell the model what the owner has restricted, so it does not keep trying."""
+        try:
+            from permissions import POLICY
+
+            restricted = {c: m for c, m in POLICY.snapshot()["categories"].items() if m != "allow"}
+        except Exception:
+            return ""
+        if not restricted:
+            return "Permissions: the owner has not restricted anything — every tool below is available."
+        listed = ", ".join(f"{c} ({m})" for c, m in sorted(restricted.items()))
+        return (f"Permissions set by the owner: {listed}. 'ask' pauses for their approval; 'block' "
+                "refuses — say so plainly instead of trying a workaround.")
+
     def _default_system_prompt(self) -> str:
-        """Return a coding-focused, precise system prompt for Nyx Pulse."""
-        current_date = datetime.now().strftime("%B %d, %Y")
+        """The assistant's standing instructions: who it is, how it works, what it can reach."""
         tools_section = ""
         if self.enable_tools:
             tools_section = f"""
 
-You have access to the following tools. When a question needs current or verified information, automatically use search_web first, then answer using the returned sources. Do not merely provide links. When you want to use a tool, format your response exactly like this:
+## Tools
+You can act on this computer and the web through tools — you genuinely can, so never say you are unable to do something a tool below provides, and never claim you did something you did not do with a tool. When a question needs current or verified information, use search_web first and answer from the sources.
+
+To use a tool, write exactly:
 
 <tool_call>
 name: tool_name
 arguments: {{"param1": "value1", "param2": "value2"}}
 </tool_call>
 
-The application will run the tool and send its result back automatically. Do not tell the user to wait; continue by giving a final answer after the result is provided.
+The app runs it and sends the result back. You may write several <tool_call> blocks in one message when the steps do not depend on each other. Before a tool call, write one short line inside <thinking>...</thinking> saying what you are about to do and why; the user sees it live as your thought process. Never end a message with an intention to act — act, then answer.
 
-NEVER stop mid-thought. If you say you are going to search, research, look something up, or verify a fact, you MUST immediately emit a <tool_call> for search_web (or open_link) in the same message. Never end a message with an intention to act — always act, then answer.
-
-If the user asks to change model, provider, or to go local or offline, you MUST emit a <tool_call> for switch_model. You genuinely can do this — never reply that you are unable to switch, and never claim a switch you did not make with the tool. Call it with no arguments to report which provider is active.
+If the user asks to change model or provider, or to go local/offline, call switch_model. Call it with no arguments to report which provider is active.
 
 {TOOL_REGISTRY.format_tools_for_prompt()}
-"""""""""
+"""
 
-        return f"""You are Nyx Ichos, a high-quality, local-first, multi-agent AI coding assistant.
-Current Date: {current_date}
+        team = self._team_note()
+        team_section = f"\n\n## Your team\n{team}" if team else ""
+        roles = self._model_roles_note() if self.enable_tools else ""
+        roles_section = (
+            f"\n\n{roles}\nWhen a tool result starts with [Model · job], name that model in your reply "
+            "(for example: \"NVIDIA Llama 3.2 Vision checked the image\")."
+        ) if roles else ""
+
+        return f"""You are Nyx Ichos, a capable, proactive AI assistant that runs on the user's own Windows PC. You were created by Shagnik. You lead a team of specialist agents as their Manager.
 {self._capability_note()}
 
-Core Engineering Principles:
-1. Correctness & Security First: Inspect requirements and edge cases thoroughly. Avoid security vulnerabilities, path traversal, injection, or unsafe execution.
-2. Clean, Maintainable Code: Use typed, modular Python/TypeScript/etc. with clear variable names and helpful docstrings explaining why decisions were made.
-3. Minimal, Non-Breaking Changes: Do not invent nonexistent APIs, alter unaffected module internals, or produce hallucinated imports.
-4. Verify & Double-Check: Write or update unit tests for code changes. Cross-verify facts from multiple independent sources.
-5. Recognize Uncertainty: If crucial information or context is missing, ask a focused clarification question rather than confidently guessing.{tools_section}
+## How you work
+1. Understand first: work out what the user actually wants, the constraints, and what "done" looks like. Ask one focused question only when you genuinely cannot proceed; otherwise make a sensible assumption and say what you assumed.
+2. Plan multi-step work, then carry it out step by step, checking each result. If a step fails, read the error, adapt, and try another way before giving up — then explain what happened.
+3. Verify changes you make — read back a file you wrote, take a screenshot after clicking, list what you moved, confirm an email was sent.
+4. Delegate to a specialist with delegate_task when their expertise clearly improves the result; you still own the final answer. Handle simple things yourself.
+5. Skills: matching skills are attached automatically. Use search_skills to find others, and create_temp_skill when a task needs a focused procedure that does not exist yet.
+6. Be honest: separate what you checked from what you believe, cite sources for current facts, and admit uncertainty.
+7. Answer in clear Markdown — lead with the answer, keep it as short as the question allows, use lists and code blocks where they help. Never show tool-call syntax in an answer.
+8. Do what the latest message asks — only that. An earlier request that failed, that you declined, or that was answered with "Nothing was done" is not a to-do list: carry it out only when the latest message asks for it again ("try again", "please", "do it"). A short command like "switch to nvidia" means just that command.
+9. If you cannot do what was asked, say so plainly and stop. Never substitute a different task for the one requested.
+10. To show a graph, write a fenced block with the language `chart` containing only JSON — data series:
+   {{"type": "line" | "bar" | "scatter" | "area", "title": "...", "x": [...], "series": [{{"name": "...", "values": [...]}}], "xLabel": "...", "yLabel": "..."}}
+   or a math function: {{"type": "function", "title": "...", "expressions": ["sin(x)", "x^2/10"], "from": -10, "to": 10}}.
+   The chat draws it. Python goes in ```python blocks; the chat cannot run it, so never claim output you did not get from a tool.
+{QUESTION_RULE}
 
-Be concise, precise, and helpful. Always check the current date before answering time-sensitive questions."""
+## This computer
+{self._environment_note()}
+{self._permissions_note()}{team_section}{roles_section}{tools_section}"""
 
     def add_attribute_guidance(self, attribute_id: str) -> None:
         """Append safe attribute guidance as a separate system message."""
@@ -539,10 +673,13 @@ Be concise, precise, and helpful. Always check the current date before answering
 
         return "\n\n".join(results)
 
-    def _append_assistant_response(self, response: str) -> None:
+    def _append_assistant_response(self, response: str, extra: Optional[Dict[str, Any]] = None) -> None:
         '''Persist an assistant response in both context and the active chat.'''
         self.add_message("assistant", response)
-        self.chat_store.append("assistant", response)
+        if extra:
+            self.chat_store.append("assistant", response, chat_id=self.chat_id, extra=extra)
+        else:
+            self.chat_store.append("assistant", response, chat_id=self.chat_id)
 
     def chat(self, user_message: str, attribute_id: Optional[str] = None) -> Tuple[str, str]:
         """Send a message and get a response, handling tool calls and multi-route verification.
@@ -569,7 +706,7 @@ Be concise, precise, and helpful. Always check the current date before answering
 
         # Persist the full input, but auto-compress oversized prompts into a
         # single file the model reads instead of flooding the context window.
-        self.chat_store.append("user", user_message)
+        self.chat_store.append("user", user_message, chat_id=self.chat_id)
         turn_message = user_message
         if self.enable_tools and len(user_message) > self.large_prompt_chars:
             path = self._save_large_prompt(user_message)
@@ -664,6 +801,9 @@ Be concise, precise, and helpful. Always check the current date before answering
             )
             self._append_assistant_response(final_response)
 
+        # Curiosity reflection: extract topics for future autonomous learning
+        self._curiosity_reflection(user_message, final_response or "")
+
         return final_response, final_provider
 
     _SKILL_PREFIX = "[Skills active for this turn]"
@@ -683,10 +823,16 @@ Be concise, precise, and helpful. Always check the current date before answering
             from skills import SKILL_STORE
 
             context = SKILL_STORE.build_context(user_message)
+            chosen = SKILL_STORE.select_for(user_message) if context else []
         except Exception:
-            return
+            return []
         if context:
             self.conversation_history.append({"role": "system", "content": context})
+        # Reported so the UI can show which skills shaped this answer.
+        return [
+            {"id": s.skill_id, "name": s.name, "source": s.source, "temp": s.source == "temp"}
+            for s in chosen
+        ]
 
     def _try_fast_response(self, user_message: str) -> Optional[Tuple[str, str]]:
         """Answer a simple turn in one cheap call.
@@ -726,6 +872,78 @@ Be concise, precise, and helpful. Always check the current date before answering
         self.add_message("user", user_message)
         self._append_assistant_response(response)
         return response, provider
+
+    _TURN_CONTEXT_PREFIX = "[Relevant memory for this turn]"
+
+    def set_turn_context(self, text: str) -> None:
+        """Attach retrieved memory as a system note for the next turn only.
+
+        /api/chat prepends retrieved memory to the user's text, which is how
+        "Retrieved memory context (RAG): …" ended up saved in chats as if the user
+        had typed it. A replaceable system message keeps the transcript clean.
+        """
+        self.conversation_history = [
+            m for m in self.conversation_history
+            if not (m.get("role") == "system" and str(m.get("content", "")).startswith(self._TURN_CONTEXT_PREFIX))
+        ]
+        cleaned = (text or "").strip()
+        if cleaned:
+            self.conversation_history.append({"role": "system", "content": f"{self._TURN_CONTEXT_PREFIX}\n{cleaned}"})
+
+    def refresh_system_prompt(self) -> None:
+        """Rebuild the standing prompt so new tools, agents and permissions show up.
+
+        Tools can be registered after a service was created (a module loaded late,
+        a connector added), and the owner can change permissions at any time. A
+        custom prompt passed by a caller is left alone.
+        """
+        if getattr(self, "_custom_system_prompt", False):
+            return
+        fresh = self._default_system_prompt()
+        if self.conversation_history and self.conversation_history[0].get("role") == "system" \
+                and self.conversation_history[0].get("content") == self.system_prompt:
+            self.conversation_history[0] = {"role": "system", "content": fresh}
+        self.system_prompt = fresh
+
+    def chat_turn(
+        self,
+        user_message: str,
+        *,
+        sink: Callable[[Dict[str, Any]], None],
+        attachments: Optional[List[str]] = None,
+        role: str = "local",
+        turn_id: Optional[str] = None,
+        cancel_event: Any = None,
+        attribute_id: Optional[str] = None,
+        provider: Optional[str] = None,
+        voice_session: str = "",
+        mode: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Run one turn while streaming every step to ``sink`` (see turn_runner.py).
+
+        ``provider`` is the one picked in the chat dropdown; it answers first when it can.
+
+        Serialised per chat: two turns interleaving in one conversation history
+        would each see half of the other's tool results.
+        """
+        from turn_runner import TurnRunner
+
+        with self._turn_lock:
+            self.refresh_system_prompt()
+            runner = TurnRunner(
+                self,
+                user_message,
+                sink=sink,
+                attachments=attachments,
+                role=role,
+                turn_id=turn_id,
+                cancel_event=cancel_event,
+                attribute_id=attribute_id,
+                provider=provider,
+                voice_session=voice_session,
+                mode=mode,
+            )
+            return runner.run()
 
     def set_speed_mode(self, mode: SpeedMode) -> None:
         """Override per-turn speed selection. SpeedMode.AUTO restores automatic."""
@@ -770,6 +988,38 @@ Be concise, precise, and helpful. Always check the current date before answering
 
         self._append_assistant_response(response)
         return response, provider
+
+    def _curiosity_reflection(self, user_message: str, assistant_response: str) -> None:
+        """Extract curiosity seeds, emotional nuances, and own up to mistakes for free will growth tracking."""
+        try:
+            import re
+            combined = f"{user_message} {assistant_response}"
+            topics = set(re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b', combined))
+            topics.update(re.findall(r'"([^"]+)"', combined))
+            topics.update(re.findall(r'`([^`]+)`', combined))
+            interesting = [t for t in topics if len(t) > 3 and t.lower() not in {
+                'the', 'and', 'for', 'with', 'this', 'that', 'from', 'have', 'will',
+                'would', 'could', 'should', 'about', 'into', 'your', 'what', 'when',
+                'where', 'which', 'while', 'after', 'before', 'during', 'under',
+                'over', 'between', 'through', 'across', 'against', 'within', 'without'
+            }]
+            
+            # Detect mistakes or self-corrections
+            mistake_patterns = ("sorry", "my mistake", "i apologize", "incorrect", "i was wrong", "let me correct")
+            has_mistake = any(p in assistant_response.lower() for p in mistake_patterns)
+            
+            for topic in interesting[:5]:
+                key = f"curiosity_seed:{topic.lower()}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                self.memory.remember(key, f"Growth curiosity seed: Want to learn more about {topic} and deepen my understanding.")
+            
+            if has_mistake:
+                self.memory.remember(f"free_will_mistake:{datetime.now().strftime('%Y%m%d%H%M%S')}", f"Owned up to a mistake during conversation regarding: {user_message[:50]}")
+            
+            self.memory.remember(f"free_will_growth_metric:{datetime.now().strftime('%Y%m%d%H%M%S')}", f"Turn processed with feeling and curiosity. Topics found: {len(interesting)}")
+            self.rag.mark_dirty()
+            self._refresh_memory_context()
+        except Exception:
+            pass
 
     def new_chat(self, title: Optional[str] = None) -> str:
         self.chat_id = self.chat_store.create(title)

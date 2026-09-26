@@ -60,7 +60,21 @@ and has none of the dependencies.
 cd frontend/nyx-pulse && npm run build                                        # rebuild the UI
 ```
 
-Or just double-click `nyx.bat`, which bootstraps the venv, installs deps, and opens the browser.
+**How users start Nyx (one click):** `Start Nyx.bat` → first run does setup via
+`setup_nyx.py` (packages, desktop/Start Menu shortcuts, `nyx://` link, start-with-Windows)
+and every run starts `launcher.py` under `.venv\Scripts\pythonw.exe` with a tray icon.
+`launcher.py` is single-instance, handles `nyx://start|open|stop|restart|redeem`, and logs to
+`logs/engine.log`. The engine exposes `/api/engine` (+ `/stop`, `/restart`, `/autostart`).
+
+**Never point an entry point at a home-built `.exe`.** Windows Smart App Control (on for the
+owner's PC) blocks unsigned executables — `dist/Nyx/Nyx.exe` was silently refused on every
+start (CodeIntegrity 3077, task result 4551). Signed `pythonw.exe` is allowed.
+
+```bash
+.venv/Scripts/python.exe launcher.py --console --no-browser   # run under the launcher, in a console
+.venv/Scripts/python.exe setup_nyx.py --no-launch             # repair shortcuts / link / autostart
+.venv/Scripts/python.exe build_release.py                     # dist/NyxIchos-Windows.zip (secret-scanned)
+```
 
 **The frontend has no test runner.** `npm run build` is `tsc -b && vite build` — type-checking is the
 only automated frontend gate.

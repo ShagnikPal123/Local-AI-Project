@@ -72,7 +72,7 @@ export function TopTabs({ tabs, userTabs, active, density, onSelect, onNewTab }:
       }}
     >
       {label}
-      {pinned && <span style={{ fontSize: 9, color: "var(--color-accent)" }}>●</span>}
+      {pinned && <span style={{ fontSize: 11, color: "var(--color-accent)" }}>●</span>}
     </button>
   );
 

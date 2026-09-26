@@ -8,53 +8,73 @@
  * The old Rail/Strip switch is now a density control (see components/TopTabs).
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { BackgroundLayer } from "./components/BackgroundLayer";
+import { ClapListener } from "./components/clap/ClapListener";
 import "./theme.css";
 import {
   api,
   auth,
   endpoints,
   getToken,
-  loadChatHistory,
   setToken,
   setUnauthorizedHandler,
   type AccountUser,
-  type ChatMessage,
 } from "./api";
 import { JoinScreen, LoginScreen } from "./components/AuthScreen";
 import { NyxAvatar, type AvatarState } from "./components/NyxAvatar";
 import { visibleTabs, type ShellLayout, type TabId } from "./tabs";
-import { ChatPanel } from "./panels/ChatPanel";
-import { DashboardPanel } from "./panels/DashboardPanel";
-import { ModelsPanel } from "./panels/ModelsPanel";
-import { SettingsPanel } from "./panels/SettingsPanel";
-import { ConnectorsPanel } from "./panels/ConnectorsPanel";
-import { WorkPanel } from "./panels/WorkPanel";
-import { AgentsPanel } from "./panels/AgentsPanel";
-import { StrandsPanel } from "./panels/StrandsPanel";
-import { PowerPanel } from "./panels/PowerPanel";
-import { AdminPanel } from "./panels/AdminPanel";
+import { QuitButton } from "./components/QuitButton";
+import { BuildPanel } from "./panels/BuildPanel";
 import { DynamicTab, type TabSpec } from "./panels/DynamicTab";
 import { TabFinder } from "./components/TabFinder";
+import { EngineGate } from "./components/EngineGate";
+import { ComputerBanner } from "./components/ComputerBanner";
+import { Companion } from "./components/kahuna/Companion";
 import { TopTabs } from "./components/TopTabs";
-import { StorePanel } from "./panels/StorePanel";
+import { onWorkspaceEvent } from "./state/workspaceEvents";
+import { startVoicePlayer } from "./voice/voicePlayer";
+import { FileDropOverlay } from "./files/FileDropOverlay";
+import { VoiceListener } from "./voice/VoiceListener";
+import { ProtoVoiceDock } from "./components/voice/ProtoVoiceDock";
+
+// Every tab is its own chunk (2026-09-16). The shell used to import all of them up front,
+// three.js and the chart and code views included, so the first paint downloaded ~1.2 MB
+// before anything could show. Now only the open tab is fetched.
+const NyxPanel = lazy(() => import("./panels/NyxPanel").then((m) => ({ default: m.NyxPanel })));
+const LearnPanel = lazy(() => import("./panels/LearnPanel").then((m) => ({ default: m.LearnPanel })));
+const NotesPanel = lazy(() => import("./panels/notes/NotesPanel").then((m) => ({ default: m.NotesPanel })));
+const CodePanel = lazy(() => import("./panels/code/CodePanel").then((m) => ({ default: m.CodePanel })));
+const SubAgentsPanel = lazy(() => import("./panels/SubAgentsPanel").then((m) => ({ default: m.SubAgentsPanel })));
+const CollabPanel = lazy(() => import("./panels/CollabPanel").then((m) => ({ default: m.CollabPanel })));
+const TradingPanel = lazy(() => import("./panels/trading/TradingPanel").then((m) => ({ default: m.TradingPanel })));
+const GameStudioPanel = lazy(() => import("./panels/game/GameStudioPanel").then((m) => ({ default: m.GameStudioPanel })));
+const DashboardPanel = lazy(() => import("./panels/DashboardPanel").then((m) => ({ default: m.DashboardPanel })));
+const ModelsPanel = lazy(() => import("./panels/ModelsPanel").then((m) => ({ default: m.ModelsPanel })));
+const KeysPanel = lazy(() => import("./panels/KeysPanel").then((m) => ({ default: m.KeysPanel })));
+const SettingsPanel = lazy(() => import("./panels/SettingsPanel").then((m) => ({ default: m.SettingsPanel })));
+const ConnectorsPanel = lazy(() => import("./panels/ConnectorsPanel").then((m) => ({ default: m.ConnectorsPanel })));
+const WorkPanel = lazy(() => import("./panels/WorkPanel").then((m) => ({ default: m.WorkPanel })));
+const AgentsPanel = lazy(() => import("./panels/AgentsPanel").then((m) => ({ default: m.AgentsPanel })));
+const StrandsPanel = lazy(() => import("./panels/StrandsPanel").then((m) => ({ default: m.StrandsPanel })));
+const PowerPanel = lazy(() => import("./panels/PowerPanel").then((m) => ({ default: m.PowerPanel })));
+const ImprovePanel = lazy(() => import("./panels/ImprovePanel").then((m) => ({ default: m.ImprovePanel })));
+const AbsorbPanel = lazy(() => import("./panels/absorb/AbsorbPanel").then((m) => ({ default: m.AbsorbPanel })));
+const ScreenSharePanel = lazy(() => import("./panels/screen/ScreenSharePanel").then((m) => ({ default: m.ScreenSharePanel })));
+const ApplyPanel = lazy(() => import("./panels/apply/ApplyPanel").then((m) => ({ default: m.ApplyPanel })));
+const FreeWillPanel = lazy(() => import("./panels/freewill/FreeWillPanel").then((m) => ({ default: m.FreeWillPanel })));
+const KahunaPanel = lazy(() => import("./panels/kahuna/KahunaPanel").then((m) => ({ default: m.KahunaPanel })));
+const OfficePanel = lazy(() => import("./panels/office/OfficePanel").then((m) => ({ default: m.OfficePanel })));
+const AdminPanel = lazy(() => import("./panels/AdminPanel").then((m) => ({ default: m.AdminPanel })));
+const StorePanel = lazy(() => import("./panels/StorePanel").then((m) => ({ default: m.StorePanel })));
 
 const LAYOUT_KEY = "nyx.layout";
-const CHAT_KEY = "nyx.chat.transcript";
 const PROVIDER_KEY = "nyx.chat.provider";
 
-function readStoredTranscript(): ChatMessage[] {
-  try {
-    const raw = localStorage.getItem(CHAT_KEY);
-    const parsed = raw ? JSON.parse(raw) : null;
-    return Array.isArray(parsed) ? (parsed as ChatMessage[]) : [];
-  } catch {
-    return [];
-  }
-}
-
 export default function App() {
-  const [active, setActive] = useState<TabId>("chat");
+  const [active, setActiveRaw] = useState<TabId>("nyx");
+  // Chat and the brain live together now; old links to either land on the Nyx tab.
+  const setActive = useCallback((tab: TabId) => setActiveRaw(tab === "chat" ? "nyx" : tab), []);
   const [layout, setLayout] = useState<ShellLayout>(() => {
     try {
       return (localStorage.getItem(LAYOUT_KEY) as ShellLayout) || "rail";
@@ -116,17 +136,28 @@ export default function App() {
 
   useEffect(() => {
     let alive = true;
-    const ping = async () => {
+    let timer = 0;
+    // One failed ping is not "off": a restart takes a second or two, and a
+    // gate that flashes up and away again reads as a crash. Confirm with a quick
+    // second look before showing the Turn on screen.
+    const ping = async (confirming = false) => {
       const result = await endpoints.health();
       if (!alive) return;
-      setOnline(result.ok);
-      if (result.ok) setClaimed(Boolean(result.data.claimed));
+      if (result.ok) {
+        setOnline(true);
+        setClaimed(Boolean(result.data.claimed));
+      } else if (confirming) {
+        setOnline(false);
+      } else {
+        timer = window.setTimeout(() => void ping(true), 1500);
+        return;
+      }
+      timer = window.setTimeout(() => void ping(false), 5000);
     };
     void ping();
-    const timer = setInterval(ping, 10_000);
     return () => {
       alive = false;
-      clearInterval(timer);
+      window.clearTimeout(timer);
     };
   }, []);
 
@@ -139,24 +170,9 @@ export default function App() {
 
   const onActivity = useCallback((s: AvatarState) => setAvatar(s), []);
 
-  // The conversation lives here, not in ChatPanel.
-  //
-  // ChatPanel is unmounted every time another tab is selected, so anything it
-  // held in its own state vanished on the first tab switch — the "chats
-  // disappear" bug. App outlives every panel, so the transcript survives.
-  //
-  // A page reload is a separate problem: App unmounts too. The backend keeps
-  // each ChatService's history in memory but exposes no route that returns it
-  // (`/api/chats` lists chat ids only), so the transcript is mirrored to
-  // localStorage and re-read on boot. `loadChatHistory` still asks the server
-  // first and wins when a backend that does serve transcripts appears — the
-  // local mirror is the fallback, not the source of truth.
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(readStoredTranscript);
-  const [chatDraft, setChatDraft] = useState("");
-  const [chatBusy, setChatBusy] = useState(false);
-  const [chatRestored, setChatRestored] = useState<"server" | "local" | null>(() =>
-    readStoredTranscript().length > 0 ? "local" : null,
-  );
+  // The conversation no longer lives here: turns live in the module turn
+  // store and transcripts in the ChatPanel's per-chat map, both of which
+  // outlive every remount. App keeps only the provider choice.
   const [provider, setProvider] = useState<string>(() => {
     try {
       return localStorage.getItem(PROVIDER_KEY) ?? "";
@@ -167,33 +183,43 @@ export default function App() {
 
   useEffect(() => {
     try {
-      localStorage.setItem(CHAT_KEY, JSON.stringify(chatMessages.slice(-200)));
-    } catch {
-      /* private browsing — the transcript still survives tab switches */
-    }
-  }, [chatMessages]);
-
-  useEffect(() => {
-    try {
       localStorage.setItem(PROVIDER_KEY, provider);
     } catch {
       /* private browsing — the choice simply will not persist */
     }
   }, [provider]);
 
+  // One live workspace connection for the whole shell: toasts, cross-window
+  // turn summaries, theme/tab/agent events. The hook itself reconnects with
+  // backoff; this effect just ties its lifetime to the app's.
+  useEffect(() => onWorkspaceEvent(() => {}), []);
+  // Nyx's `speak` tool broadcasts `voice.say`; one open window plays it.
+  useEffect(() => { startVoicePlayer(); }, []);
+
+  // Presence: a heartbeat on real input (at most once a minute) and on every tab change.
+  // It tells the engine when the owner is away (quiet work) and teaches next-tab predictions.
+  useEffect(() => {
+    let last = 0;
+    const ping = () => {
+      const now = Date.now();
+      if (now - last < 60_000) return;
+      last = now;
+      void api.post("/api/presence", {});
+    };
+    const events = ["pointerdown", "keydown", "wheel"] as const;
+    events.forEach((name) => window.addEventListener(name, ping, { passive: true }));
+    return () => events.forEach((name) => window.removeEventListener(name, ping));
+  }, []);
+  const [nextTab, setNextTab] = useState<{ tab: string; confidence: number } | null>(null);
   useEffect(() => {
     let alive = true;
-    void loadChatHistory().then((history) => {
-      // Only a non-empty server transcript replaces what is on screen. An empty
-      // one would silently wipe a conversation the user can still see.
-      if (!alive || !history || history.length === 0) return;
-      setChatMessages(history);
-      setChatRestored("server");
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
+    void api.post("/api/presence", { tab: active }).then(() =>
+      api.get<{ next_tab: { tab: string; confidence: number } | null }>("/api/predict").then((result) => {
+        if (alive && result.ok) setNextTab(result.data.next_tab);
+      }),
+    );
+    return () => { alive = false; };
+  }, [active]);
 
   // User-defined tabs (ROADMAP CC). Loaded from the server and appended to the
   // shipped set, so someone's own tabs sit alongside the built-in ones.
@@ -214,6 +240,10 @@ export default function App() {
         e.preventDefault();
         setFinderOpen(true);
       }
+      // F7 is caret browsing in Chrome and Edge: it puts a blinking caret in
+      // text nobody can type into. One stray press made the app look broken,
+      // so the key does nothing here (Project Null N101).
+      if (e.key === "F7" && !e.ctrlKey && !e.metaKey && !e.altKey) e.preventDefault();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -221,17 +251,36 @@ export default function App() {
 
   // Presentation only — the server enforces the real boundary on every request.
   const tabs = visibleTabs(user?.role);
+
+  // "/tab learn", "Create a skill instead": open a tab by id or by its label.
+  useEffect(() => {
+    const onOpen = (event: Event) => {
+      const wanted = String((event as CustomEvent<{ tab?: string }>).detail?.tab ?? "").trim().toLowerCase();
+      const all = [...tabs.map((t) => ({ id: t.id as string, label: t.label })), ...userTabs.map((t) => ({ id: t.id, label: t.label || t.id }))];
+      const hit = all.find((t) => t.id === wanted || t.label.toLowerCase() === wanted)
+        ?? all.find((t) => wanted && (t.label.toLowerCase().startsWith(wanted) || t.id.startsWith(wanted)));
+      if (hit) setActive(hit.id as TabId);
+    };
+    window.addEventListener("nyx:open-tab", onOpen);
+    return () => window.removeEventListener("nyx:open-tab", onOpen);
+  }, [tabs, userTabs]);
   const activeUserTab = userTabs.find((t) => t.id === active);
 
   async function deleteUserTab(tabId: string) {
     await api.del(`/api/tabs/${tabId}`);
-    setActive("strands");
+    setActive("nyx");
     await loadUserTabs();
   }
 
   const hostTone =
     online === null ? "var(--color-neutral-600)" : online ? "var(--color-ok)" : "var(--color-warn)";
-  const hostLabel = online === null ? "Connecting" : online ? "Local" : "Backend offline";
+  const hostLabel = online === null ? "Connecting" : online ? "Running on this PC" : "Off";
+
+  // When the engine is off, nothing on the page can work, so the fix gets the
+  // whole screen (EngineGate) rather than a badge. Coming back from off reloads
+  // the page: tabs, chats and settings were all unreachable while it was down.
+  const offlineNow = online === false;
+  const engineCameBack = useCallback(() => window.location.reload(), []);
 
   // An invite link takes priority over everything: the recipient has no account yet.
   if (invite) {
@@ -261,56 +310,38 @@ export default function App() {
 
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      <header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 14,
-          padding: "10px 16px",
-          background: "linear-gradient(180deg,#1b1e2f,#161826)",
-          boxShadow: "inset 0 -1px 0 var(--color-divider)",
-          flex: "none",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-          <NyxAvatar state={avatar} size={30} />
+      <BackgroundLayer />
+      {/* Listens for the sounds you taught it when you are away or offline (N86). */}
+      <ClapListener />
+      <header className="shell-bar">
+        <div className="shell-brand">
+          <NyxAvatar state={avatar} size={28} />
           <div style={{ lineHeight: 1 }}>
-            <div style={{ fontFamily: "var(--font-heading)", fontWeight: 500, fontSize: 15, letterSpacing: ".02em" }}>
-              Nyx Ichos
-            </div>
-            <div style={{ fontSize: 9, letterSpacing: ".16em", textTransform: "uppercase", color: "var(--color-neutral-500)", marginTop: 3 }}>
-              Created by Shagnik
-            </div>
+            <div className="shell-brand__name">NYX ICHOS</div>
+            <div className="shell-brand__by">Created by Shagnik</div>
           </div>
         </div>
 
-        <div
-          className="btn btn-secondary"
-          title={online ? "Backend reachable" : "Start the backend with uvicorn"}
-          style={{ cursor: "default", flex: "none" }}
+        <button
+          className="shell-host"
+          onClick={() => setActive("settings")}
+          title={online ? "Nyx's engine is running on this computer — engine settings" : "Nyx's engine is off"}
         >
-          <span style={{ width: 8, height: 8, borderRadius: "50%", background: hostTone, display: "inline-block" }} />
+          <span className="shell-host__dot" style={{ background: hostTone, boxShadow: `0 0 8px ${hostTone}` }} />
           {hostLabel}
-        </div>
+        </button>
+
+        {nextTab && nextTab.tab !== active && nextTab.confidence >= 0.4 && tabs.some((t) => t.id === nextTab.tab) && (
+          <button className="shell-host" onClick={() => setActive(nextTab.tab as TabId)}
+            title={`You usually go here next (${Math.round(nextTab.confidence * 100)}% of the time)`}>
+            Next: {tabs.find((t) => t.id === nextTab.tab)?.label} →
+          </button>
+        )}
 
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-          <div
-            style={{ display: "flex", background: "var(--color-neutral-900)", borderRadius: "var(--radius)", padding: 2 }}
-            title="How much room each tab takes in the bar"
-          >
+          <div className="segmented" title="How much room each tab takes in the bar">
             {(["rail", "strip"] as ShellLayout[]).map((l) => (
-              <button
-                key={l}
-                onClick={() => setLayout(l)}
-                className="btn"
-                aria-pressed={layout === l}
-                style={{
-                  padding: "5px 12px",
-                  fontSize: 12,
-                  background: layout === l ? "var(--color-neutral-800)" : "transparent",
-                  color: layout === l ? "var(--color-text)" : "var(--color-neutral-500)",
-                }}
-              >
+              <button key={l} onClick={() => setLayout(l)} aria-pressed={layout === l}>
                 {l === "rail" ? "Comfortable" : "Compact"}
               </button>
             ))}
@@ -327,6 +358,7 @@ export default function App() {
               {user.role === "owner" ? "Owner" : user.role} · Sign out
             </button>
           )}
+          {(!user || user.role === "owner" || user.role === "admin") && <QuitButton signedIn={Boolean(user)} />}
         </div>
       </header>
 
@@ -340,30 +372,37 @@ export default function App() {
       />
 
       <main style={{ flex: 1, minWidth: 0, minHeight: 0, background: "var(--color-bg)" }}>
-        {active === "strands" && <StrandsPanel state={avatar} onActivity={onActivity} />}
-        {active === "chat" && (
-          <ChatPanel
-            onActivity={onActivity}
-            messages={chatMessages}
-            onMessages={(update) => setChatMessages(update)}
-            draft={chatDraft}
-            onDraft={setChatDraft}
-            busy={chatBusy}
-            onBusy={setChatBusy}
-            provider={provider}
-            onProvider={setProvider}
-            restored={chatRestored}
-          />
+        <Suspense fallback={<div className="tab-loading" role="status"><span className="tab-loading__dot" />Opening…</div>}>
+        {active === "nyx" && (
+          <NyxPanel onActivity={onActivity} provider={provider} onProvider={setProvider} onOpenTab={(tab) => setActive(tab as TabId)} />
         )}
+        {active === "learn" && <LearnPanel />}
+        {active === "notes" && <NotesPanel />}
+        {active === "code" && <CodePanel />}
+        {active === "subagents" && <SubAgentsPanel />}
+        {active === "collab" && <CollabPanel />}
+        {active === "trading" && <TradingPanel />}
+        {active === "build" && <BuildPanel />}
+        {active === "games" && <GameStudioPanel />}
+        {active === "strands" && <StrandsPanel state={avatar} onActivity={onActivity} />}
         {active === "dashboard" && <DashboardPanel />}
         {active === "work" && <WorkPanel />}
         {active === "models" && <ModelsPanel />}
+        {active === "keys" && <KeysPanel />}
         {active === "agents" && <AgentsPanel />}
         {active === "connectors" && <ConnectorsPanel />}
         {active === "store" && <StorePanel />}
         {active === "power" && <PowerPanel />}
+        {active === "improve" && <ImprovePanel />}
+        {active === "absorb" && <AbsorbPanel />}
+        {active === "screen" && <ScreenSharePanel />}
+        {active === "apply" && <ApplyPanel />}
+        {active === "freewill" && <FreeWillPanel />}
+        {active === "kahuna" && <KahunaPanel />}
+        {active === "office" && <OfficePanel />}
         {active === "admin" && <AdminPanel />}
         {active === "settings" && <SettingsPanel />}
+        </Suspense>
         {activeUserTab && (
           <DynamicTab
             spec={activeUserTab}
@@ -374,6 +413,13 @@ export default function App() {
           />
         )}
       </main>
+
+      {offlineNow && <EngineGate onOnline={engineCameBack} />}
+      <ComputerBanner />
+      <Companion />
+      <FileDropOverlay />
+      <VoiceListener />
+      <ProtoVoiceDock />
 
       {finderOpen && (
         <TabFinder

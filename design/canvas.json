@@ -1,0 +1,24 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 1440, "h": 900, "title": "Workspace — tabs, depth, colour", "is_interactive": true },
+    { "file": "Settings.dc.html", "x": 1560, "y": 0, "w": 1440, "h": 900, "title": "Settings — Appearance", "is_interactive": true },
+    { "file": "Motion.dc.html", "x": 780, "y": 1080, "w": 1440, "h": 760, "title": "Handoff — motion & depth spec" }
+  ],
+  "annotations": [
+    {
+      "id": "try-me",
+      "x": 0,
+      "y": -150,
+      "w": 430,
+      "text": "Both top artboards are live — click the tabs and the swatches.\n\nTabs: each lifts, tilts a degree toward you, and blooms in its own hue. The panel slides up behind it.\n\nSwatches (bottom right of the workspace, and all of Settings) re-tint the whole surface."
+    },
+    {
+      "id": "spec-note",
+      "x": 780,
+      "y": 930,
+      "w": 400,
+      "text": "The numbers, so the build matches the mockup instead of approximating it. One easing curve — cubic-bezier(.22, 1, .36, 1) — across every transition."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}

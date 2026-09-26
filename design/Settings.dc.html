@@ -1,0 +1,274 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap">
+  <style>
+    body { margin: 0; font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif; }
+    a { color: #b5abfc; text-decoration: none; }
+    a:hover { color: #d2cefd; }
+    h1, h2, h3, .display { font-family: "Space Grotesk", "Inter", system-ui, sans-serif; }
+
+    .lift {
+      border-radius: 14px;
+      background: linear-gradient(180deg, #262939 0%, #1e2130 100%);
+      box-shadow:
+        inset 0 1px 0 rgba(233,233,237,.10),
+        0 1px 0 rgba(0,0,0,.5),
+        0 14px 34px -18px rgba(0,0,0,.9);
+    }
+
+    /* A swatch is a physical chip: lit along the top, seated in a well.
+       Selected state is a ring gapped off the chip so it reads on any hue. */
+    .sw {
+      width: 46px; height: 46px; border-radius: 13px; cursor: pointer;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.32), 0 7px 16px -9px #000;
+      transition: transform 220ms cubic-bezier(.22,1,.36,1), box-shadow 220ms ease;
+    }
+    .sw:hover { transform: translateY(-3px) scale(1.05); }
+    .sw-on { transform: translateY(-3px) scale(1.06); }
+
+    .seg {
+      padding: 8px 14px; border-radius: 9px; font-size: 12.5px; font-weight: 500;
+      color: #9397ab; cursor: pointer;
+      transition: background 200ms ease, color 200ms ease, transform 200ms cubic-bezier(.22,1,.36,1);
+    }
+    .seg:hover { color: #e9e9ed; }
+    .seg-on {
+      color: #f3f5fe;
+      background: linear-gradient(180deg, #30344a, #272b3c);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.13), 0 5px 14px -8px #000;
+    }
+
+    @keyframes riseIn { from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: none } }
+    .rise { animation: riseIn 340ms cubic-bezier(.22,1,.36,1) both; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .sw, .seg, .rise { transition: none; animation: none; }
+      .sw:hover, .sw-on, .seg-on { transform: none; }
+    }
+  </style>
+</helmet>
+
+<div style="width: 1440px; height: 900px; background:
+     radial-gradient(1000px 560px at 20% -10%, {{glow}} 0%, transparent 60%),
+     #161826; color: #e9e9ed; overflow: hidden; padding: 30px 34px;
+     display: flex; flex-direction: column; gap: 20px;">
+
+  <div>
+    <div style="font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #75798c;">Settings</div>
+    <h1 class="display" style="margin: 5px 0 0; font-size: 27px; letter-spacing: -.02em;">Appearance</h1>
+    <div style="font-size: 13px; color: #9397ab; margin-top: 5px;">
+      Pick a base colour and Nyx re-tints everything — tabs, buttons, the Strands field, the glow behind it all.
+    </div>
+  </div>
+
+  <div style="flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 520px; gap: 20px;">
+
+    <!-- Controls ---------------------------------------------------------- -->
+    <div style="display: flex; flex-direction: column; gap: 16px; min-height: 0;">
+
+      <div class="lift rise" style="padding: 20px 22px;">
+        <div style="display: flex; align-items: baseline; gap: 9px; margin-bottom: 4px;">
+          <h3 class="display" style="margin: 0; font-size: 15.5px;">Base colour</h3>
+          <span style="font-size: 12px; color: #75798c;">{{accentName}}</span>
+        </div>
+        <div style="font-size: 12.5px; color: #9397ab; line-height: 1.6; margin-bottom: 15px;">
+          Everything accented follows this. Each tab still keeps its own hue so you can tell them apart at a glance.
+        </div>
+        <div style="display: flex; gap: 11px; flex-wrap: wrap;">
+          <sc-for list="{{swatches}}" as="w" hint-placeholder-count="8">
+            <div class="{{w.cls}}" onClick="{{w.pick}}" title="{{w.name}}"
+                 style="background: linear-gradient(160deg, {{w.light}}, {{w.hue}}); box-shadow: {{w.ring}};"></div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div class="lift rise" style="padding: 20px 22px;">
+        <h3 class="display" style="margin: 0 0 4px; font-size: 15.5px;">Depth</h3>
+        <div style="font-size: 12.5px; color: #9397ab; line-height: 1.6; margin-bottom: 14px;">
+          How much the surfaces lift off the background. Flat is calmer and faster on an older machine.
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <sc-for list="{{depths}}" as="d" hint-placeholder-count="3">
+            <div class="{{d.cls}}" onClick="{{d.pick}}">{{d.label}}</div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div class="lift rise" style="padding: 20px 22px;">
+        <h3 class="display" style="margin: 0 0 4px; font-size: 15.5px;">Motion</h3>
+        <div style="font-size: 12.5px; color: #9397ab; line-height: 1.6; margin-bottom: 14px;">
+          Tab changes, the Strands field, and the working bar. Set to Off, Nyx follows your system setting instead.
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <sc-for list="{{motions}}" as="m" hint-placeholder-count="3">
+            <div class="{{m.cls}}" onClick="{{m.pick}}">{{m.label}}</div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div class="lift rise" style="padding: 16px 22px; display: flex; align-items: center; gap: 13px;">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" style="flex: none;">
+          <circle cx="12" cy="12" r="8.6" stroke="#75798c" stroke-width="1.6"/>
+          <path d="M12 7.9v4.6" stroke="#75798c" stroke-width="1.7" stroke-linecap="round"/>
+          <circle cx="12" cy="16" r="1" fill="#75798c"/>
+        </svg>
+        <div style="font-size: 12.5px; color: #9397ab; line-height: 1.55;">
+          Saved on this machine, applied straight away. Nothing here leaves your computer.
+        </div>
+      </div>
+    </div>
+
+    <!-- Live preview ------------------------------------------------------ -->
+    <div class="lift" style="padding: 18px; display: flex; flex-direction: column; min-height: 0;
+                             box-shadow: inset 0 1px 0 rgba(233,233,237,.10), 0 1px 0 rgba(0,0,0,.5),
+                                         0 18px 40px -20px rgba(0,0,0,.95), 0 0 0 1px {{ring}};">
+      <div style="font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: #75798c; margin-bottom: 12px;">
+        Preview — live
+      </div>
+
+      <div style="border-radius: 12px; overflow: hidden; flex: 1; min-height: 0; display: flex; flex-direction: column;
+                  background: radial-gradient(600px 300px at 20% -20%, {{glow}}, transparent 62%), #12141f;
+                  box-shadow: inset 0 0 0 1px rgba(233,233,237,.08);">
+
+        <div style="display: flex; gap: 3px; padding: 12px 14px 0;">
+          <sc-for list="{{previewTabs}}" as="p" hint-placeholder-count="4">
+            <div style="{{p.style}}">
+              <span style="width: 6px; height: 6px; border-radius: 50%; background: {{p.hue}}; box-shadow: 0 0 8px {{p.hue}};"></span>
+              {{p.label}}
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="padding: 16px 15px; display: flex; flex-direction: column; gap: 11px; flex: 1;">
+          <div style="align-self: flex-end; max-width: 74%; padding: 9px 13px; border-radius: 12px 12px 3px 12px;
+                      font-size: 12.5px; line-height: 1.5; background: {{userBubble}};
+                      box-shadow: inset 0 1px 0 rgba(255,255,255,.09);">
+            Does this colour actually change everything?
+          </div>
+          <div style="align-self: flex-start; max-width: 82%; padding: 10px 13px; border-radius: 12px 12px 12px 3px;
+                      font-size: 12.5px; line-height: 1.55; background: #1c1f30;
+                      box-shadow: inset 0 1px 0 rgba(255,255,255,.07);">
+            Yes — tabs, buttons, the glow behind the workspace, and the Strands field all read from it.
+          </div>
+
+          <div style="margin-top: auto; display: flex; gap: 8px; align-items: center;">
+            <div style="flex: 1; padding: 9px 12px; border-radius: 11px; font-size: 12.5px; color: #75798c;
+                        background: #1a1d2c; box-shadow: inset 0 0 0 1px rgba(233,233,237,.09);">Message Nyx…</div>
+            <div style="padding: 9px 16px; border-radius: 11px; font-size: 12.5px; font-weight: 600; color: #14121f;
+                        background: linear-gradient(180deg, {{accentLight}}, {{accent}});
+                        box-shadow: 0 8px 18px -10px {{accent}}, inset 0 1px 0 rgba(255,255,255,.42);">Send</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: 13px; display: flex; gap: 9px;">
+        <div style="flex: 1; padding: 10px; border-radius: 11px; text-align: center; font-size: 12.5px; font-weight: 600;
+                    color: #14121f; background: linear-gradient(180deg, {{accentLight}}, {{accent}});
+                    box-shadow: 0 9px 20px -11px {{accent}}, inset 0 1px 0 rgba(255,255,255,.42);">Apply</div>
+        <div style="padding: 10px 16px; border-radius: 11px; font-size: 12.5px; color: #cfd3e5; background: #292b31;
+                    box-shadow: inset 0 0 0 1px rgba(233,233,237,.10);">Reset</div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{
+  "accent": {"editor": "color", "default": "#9184d9", "section": "Theme",
+             "options": ["#9184d9", "#5ad6e0", "#5ac08a", "#e0b45a"]},
+  "$preview": {"width": 1440, "height": 900}
+}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { accent: null, depth: "lifted", motion: "full" };
+  }
+
+  renderVals() {
+    const accent = this.state.accent || this.props.accent || "#9184d9";
+
+    // Named, not just hex. A colour picker that only shows swatches makes the
+    // user guess what they picked when they come back to change it.
+    const palette = [
+      { hue: "#9184d9", name: "Nocturne" },
+      { hue: "#5ad6e0", name: "Signal" },
+      { hue: "#5ac08a", name: "Fern" },
+      { hue: "#e0b45a", name: "Ember" },
+      { hue: "#e07ac0", name: "Bloom" },
+      { hue: "#e07a7a", name: "Coral" },
+      { hue: "#7f9ee8", name: "Harbour" },
+      { hue: "#b5abfc", name: "Haze" },
+    ];
+
+    const current = palette.filter((p) => p.hue === accent)[0];
+
+    const swatches = palette.map((p) => ({
+      hue: p.hue,
+      name: p.name,
+      light: p.hue + "cc",
+      cls: p.hue === accent ? "sw sw-on" : "sw",
+      ring:
+        p.hue === accent
+          ? "inset 0 1px 0 rgba(255,255,255,.35), 0 0 0 3px #161826, 0 0 0 5px " + p.hue + ", 0 10px 22px -10px " + p.hue
+          : "inset 0 1px 0 rgba(255,255,255,.32), 0 7px 16px -9px #000",
+      pick: () => this.setState({ accent: p.hue }),
+    }));
+
+    const seg = (list, key) =>
+      list.map((o) => ({
+        label: o.label,
+        cls: this.state[key] === o.id ? "seg seg-on" : "seg",
+        pick: () => this.setState({ [key]: o.id }),
+      }));
+
+    const depths = seg(
+      [{ id: "flat", label: "Flat" }, { id: "lifted", label: "Lifted" }, { id: "deep", label: "Deep" }],
+      "depth"
+    );
+    const motions = seg(
+      [{ id: "off", label: "Off" }, { id: "subtle", label: "Subtle" }, { id: "full", label: "Full" }],
+      "motion"
+    );
+
+    const glowByDepth = { flat: "0d", lifted: "1f", deep: "33" };
+
+    const tabHues = ["#9184d9", "#5ad6e0", "#5ac08a", "#e0b45a"];
+    const previewTabs = ["Strands", "Chat", "Dash", "Models"].map((label, i) => {
+      const on = i === 1;
+      return {
+        label: label,
+        hue: tabHues[i],
+        style:
+          "display:inline-flex;align-items:center;gap:6px;padding:7px 11px 8px;font-size:11.5px;font-weight:500;" +
+          "border-radius:9px 9px 3px 3px;" +
+          (on
+            ? "color:#f3f5fe;background:linear-gradient(180deg,#2b2f42,#232739);" +
+              "box-shadow:inset 0 1px 0 rgba(255,255,255,.14);transform:translateY(-3px);"
+            : "color:#9397ab;"),
+      };
+    });
+
+    return {
+      accent: accent,
+      accentLight: accent + "cc",
+      accentName: current ? current.name : accent,
+      glow: accent + glowByDepth[this.state.depth],
+      ring: accent + "2e",
+      userBubble: "linear-gradient(180deg, " + accent + "3d, " + accent + "26)",
+      swatches: swatches,
+      depths: depths,
+      motions: motions,
+      previewTabs: previewTabs,
+    };
+  }
+}
+</script>
+</body>
+</html>

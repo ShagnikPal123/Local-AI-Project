@@ -1,0 +1,41 @@
+/* Clap (Project Null N86): the sounds Nyx answers to, and when its ear is open. */
+.clap { display: grid; gap: 12px; }
+.clap__loading { color: var(--color-neutral-400); font-size: 13px; }
+.clap__switch { display: flex; align-items: flex-start; gap: 9px; font-size: 13.5px; line-height: 1.5; }
+.clap__note { margin: 0; font-size: 12.5px; color: var(--color-neutral-400); line-height: 1.55; max-width: 62ch; }
+
+.clap__rows { display: grid; gap: 8px; }
+.clap__row { display: grid; gap: 8px; padding: 10px 12px; border-radius: 12px; background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-divider); opacity: 0.72; }
+.clap__row.is-on { opacity: 1; }
+.clap__row-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.clap__row-name { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.clap__kind { font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-neutral-500); }
+.clap__heard { margin-left: auto; font-size: 12px; color: var(--color-neutral-500); }
+.clap__row-body { display: grid; gap: 8px; }
+.clap__row-body label { display: grid; gap: 3px; font-size: 12.5px; color: var(--color-neutral-400); }
+.clap__row-body input, .clap__row-body select, .clap__teach input, .clap__greeting input, .clap__greeting select {
+  min-height: 32px; padding: 6px 9px; border: none; border-radius: 9px; font: inherit; font-size: 13px;
+  color: var(--color-text); background: var(--color-surface-2, #15151c); box-shadow: inset 0 0 0 1px var(--color-divider);
+}
+.clap__when { display: flex; flex-wrap: wrap; gap: 6px; }
+.clap__when-chip { padding: 4px 10px; border: none; border-radius: 999px; font: inherit; font-size: 12px;
+  color: var(--color-neutral-400); background: var(--color-surface-2, #15151c); cursor: pointer;
+  box-shadow: inset 0 0 0 1px var(--color-divider); }
+.clap__when-chip.is-on { color: var(--color-on-accent); background: var(--color-accent); }
+
+.clap__teach { display: grid; gap: 10px; padding: 12px; border-radius: 12px; background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-accent); }
+.clap__teach label { display: grid; gap: 3px; font-size: 12.5px; color: var(--color-neutral-400); }
+.clap__takes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.clap__take { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; font-size: 12px;
+  color: var(--color-neutral-500); background: var(--color-surface-2, #15151c); box-shadow: inset 0 0 0 1px var(--color-divider); }
+.clap__take.is-done { color: var(--color-on-accent); background: var(--color-accent); }
+.clap__teach-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.clap__add { justify-self: start; }
+.clap__tuning label, .clap__greeting label { display: grid; gap: 3px; font-size: 12.5px; color: var(--color-neutral-400); }
+.clap__tuning small { color: var(--color-neutral-500); }
+.clap__greeting { display: grid; gap: 8px; padding-top: 10px; box-shadow: inset 0 1px 0 var(--color-divider); }
+.clap__greeting b { font-size: 13.5px; color: var(--color-text); }
+.is-live { animation: clap-live 1.1s ease-in-out infinite; }
+@keyframes clap-live { 50% { opacity: 0.6; } }

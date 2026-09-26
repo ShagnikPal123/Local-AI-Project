@@ -2,260 +2,895 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Nyx Ichos</title>
-<meta name="description" content="A local-first multi-agent AI assistant that runs on your own machine. Created by Shagnik.">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nyx Ichos — a local-first AI for your PC</title>
+<meta name="description" content="Nyx Ichos is a personal AI that runs on your own Windows PC. It remembers, talks, researches and works with a team of agents. Free to download.">
+<link rel="canonical" href="https://nyx-ichos.vercel.app/">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-<link rel="apple-touch-icon" href="/favicon.svg">
-<meta name="theme-color" content="#161826">
+<link rel="apple-touch-icon" href="/ichnos-96.webp">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://nyx-ichos.vercel.app/">
+<meta property="og:title" content="Nyx Ichos — a local-first AI for your PC">
+<meta property="og:description" content="A personal AI that runs on your own computer. Free for Windows 10 and 11.">
+<meta name="twitter:card" content="summary">
 <style>
+  /* Tokens are the app's own (frontend/nyx-pulse/src/theme.css), so the site and
+     Nyx read as one product. Black-first and dark only, like the app: the page
+     opens on the same living memory field the Nyx tab does. Contrast against
+     #000 — text 19.6:1, secondary 8.1:1, tertiary 6.4:1, accent 8.6:1, and a
+     black label on the accent 8.6:1. */
+  @property --fill { syntax: "<percentage>"; inherits: true; initial-value: 0%; }
   :root {
-    --bg:#161826; --nav:#12141f; --surface:#232532; --text:#e9e9ed;
-    --accent:#9184d9; --accent-400:#b5abfc; --accent-900:#2b2741;
-    --n400:#b2b6ca; --n500:#9397ab; --n600:#75798c; --n700:#595d6c;
-    --ok:#5ac08a; --warn:#e0b45a;
-    --divider: color-mix(in srgb,#e9e9ed 16%,transparent);
-    --mono:"JetBrains Mono",Consolas,monospace;
+    --bg: #000000;
+    --nav: #07070a;
+    --surface: #0e0e13;
+    --surface-2: #15151c;
+    --surface-3: #1d1d26;
+    --text: #f5f5f7;
+    --n300: #d1d1d6;
+    --n400: #c7c7cc;
+    --n500: #a1a1aa;
+    --n600: #8e8e96;
+    --n700: #5a5a63;           /* borders only, never text */
+    --accent: #a594ff;
+    --accent-300: #d6ceff;
+    --accent-400: #bdb2ff;
+    --accent-700: #5b4fc0;
+    --accent-900: #1d1830;
+    --ok: #30d158;
+    --info: #64d2ff;
+    --warn: #ffd60a;
+    --divider: rgba(255, 255, 255, .10);
+    --divider-strong: rgba(255, 255, 255, .18);
+    --glass-fill: rgba(18, 18, 24, .62);
+    --glass-edge: rgba(255, 255, 255, .12);
+    --glass-blur: blur(28px) saturate(1.4);
+    --lift: inset 0 1px 0 rgba(255, 255, 255, .09), 0 1px 2px rgba(0, 0, 0, .6), 0 6px 18px rgba(0, 0, 0, .35);
+    --press: inset 0 2px 5px rgba(0, 0, 0, .55);
+    --ease-out: cubic-bezier(.22, 1, .36, 1);
+    --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", Inter, system-ui, sans-serif;
+    --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI Variable Display", "Segoe UI", Inter, system-ui, sans-serif;
+    --font-mono: "SF Mono", ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+    --page: 1120px;
+    --gutter: clamp(16px, 4vw, 32px);
+    color-scheme: dark;
   }
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--text);line-height:1.6;
-    font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
-  .wrap{max-width:820px;margin:0 auto;padding:0 22px}
-  header{padding:56px 0 30px;text-align:center}
-  /* Ichnos mark. The art is a raster asset; the motion around it is CSS, so the
-     image never repaints and the header stays cheap. */
-  .mark{position:relative;width:132px;height:132px;margin:0 auto 14px;display:block}
-  .mark__art{position:relative;z-index:1;width:100%;height:100%;object-fit:contain;
-    user-select:none;animation:mark-bob 5s ease-in-out infinite;
-    filter:drop-shadow(0 6px 22px rgba(124,92,232,.45))}
-  .mark__halo{position:absolute;inset:-12%;border-radius:50%;
-    background:radial-gradient(circle at 50% 50%,rgba(124,92,232,.38) 0%,transparent 68%);
-    animation:mark-halo 3.6s ease-in-out infinite}
-  .mark__spark{position:absolute;z-index:2;width:4px;height:4px;border-radius:50%;
-    background:#cbb6ff;box-shadow:0 0 7px 1px rgba(203,182,255,.9);opacity:0;
-    animation:mark-spark 3.4s ease-in-out infinite}
-  @keyframes mark-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
-  @keyframes mark-halo{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:.95;transform:scale(1.08)}}
-  @keyframes mark-spark{0%,100%{opacity:0;transform:translateY(3px) scale(.6)}
-    50%{opacity:1;transform:translateY(-4px) scale(1)}}
-  /* Decorative only - the mark reads fine perfectly still. */
-  @media (prefers-reduced-motion:reduce){
-    .mark__art,.mark__halo,.mark__spark{animation:none}
-    .mark__spark{opacity:.85}
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 76px; -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 17px/1.55 var(--font-body);
+    -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
   }
-  h1{font-size:clamp(30px,6vw,44px);margin:0 0 6px;letter-spacing:-.02em}
-  .kicker{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--n600);margin-bottom:16px}
-  .lede{font-size:17px;color:var(--n400);max-width:560px;margin:0 auto}
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: var(--accent-300); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+  .skip { position: absolute; left: 12px; top: -60px; z-index: 50; padding: 10px 14px; border-radius: 10px;
+    background: var(--accent); color: #000; font-weight: 600; }
+  .skip:focus { top: 12px; color: #000; }
+  .page { width: min(var(--page), 100%); margin: 0 auto; padding: 0 var(--gutter); }
 
-  .live{display:flex;align-items:center;gap:10px;justify-content:center;margin:26px 0 0;
-    padding:10px 16px;border-radius:999px;background:var(--nav);
-    box-shadow:inset 0 0 0 1px var(--divider);font-size:13px;width:fit-content;
-    margin-left:auto;margin-right:auto}
-  .dot{width:8px;height:8px;border-radius:50%;background:var(--n600);flex:none}
-  .dot.up{background:var(--ok);box-shadow:0 0 8px var(--ok)}
-  .dot.down{background:var(--warn)}
+  /* HUD captions: the app's small monospace labels. */
+  .cap { font-family: var(--font-mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--n500); }
 
-  .steps{counter-reset:step;margin:34px 0 10px;padding:0;list-style:none}
-  .step{position:relative;padding:0 0 26px 46px;counter-increment:step}
-  .step::before{content:counter(step);position:absolute;left:0;top:0;width:30px;height:30px;
-    border-radius:50%;background:var(--accent-900);color:var(--accent-400);
-    display:grid;place-items:center;font-size:14px;font-weight:600;
-    box-shadow:inset 0 0 0 1px var(--accent-700,#5d5294)}
-  .step::after{content:"";position:absolute;left:15px;top:34px;bottom:4px;width:1px;
-    background:var(--divider)}
-  .step:last-child::after{display:none}
-  .step.done::before{content:"✓";background:var(--ok);color:#14121f;box-shadow:none}
-  .step h3{margin:3px 0 5px;font-size:16px}
-  .step p{margin:0 0 11px;font-size:14px;color:var(--n400)}
+  /* --- Glass bar, as in the app's header --------------------------------------- */
+  .bar { position: fixed; z-index: 20; top: 0; left: 0; right: 0; }
+  .bar__in { display: flex; align-items: center; gap: 14px; height: 60px; }
+  .bar::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--glass-fill);
+    -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+    box-shadow: inset 0 -1px 0 var(--divider); opacity: 0; transition: opacity 200ms ease; }
+  .bar.is-scrolled::before { opacity: 1; }
+  .brand { display: flex; align-items: center; gap: 10px; color: var(--text); min-height: 44px; }
+  .brand:hover { color: var(--text); }
+  .brand img { width: 34px; height: 34px; border-radius: 10px; background: #0c0c10;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .16); }
+  .brand__name { display: grid; line-height: 1.15; }
+  .brand__name b { font-family: var(--font-mono); font-size: 13px; letter-spacing: .18em; }
+  .brand__name span { font-family: var(--font-mono); font-size: 11px; letter-spacing: .14em; color: var(--n500); }
+  .bar nav { margin-left: auto; display: flex; gap: 4px; }
+  .bar nav a { padding: 8px 12px; border-radius: 999px; font-size: 14px; color: var(--n400); }
+  .bar nav a:hover { color: var(--text); background: rgba(255, 255, 255, .06); }
+  .bar__actions { display: flex; align-items: center; gap: 8px; }
+  .icon-btn { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 999px;
+    color: var(--n300); background: var(--surface-2); box-shadow: var(--lift);
+    transition: background 140ms ease, color 140ms ease, transform 90ms var(--ease-out); }
+  .icon-btn:hover { background: var(--surface-3); color: var(--text); }
+  .icon-btn:active { transform: translateY(1px) scale(.96); box-shadow: var(--press); }
 
-  .cmd{display:flex;align-items:stretch;gap:0;border-radius:8px;overflow:hidden;
-    background:var(--nav);box-shadow:inset 0 0 0 1px var(--divider)}
-  .cmd code{flex:1;font-family:var(--mono);font-size:12.5px;color:var(--accent-400);
-    padding:11px 13px;overflow-x:auto;white-space:nowrap}
-  .cmd button{flex:none;padding:0 15px;font-size:12px;color:var(--n500);
-    background:transparent;border:0;border-left:1px solid var(--divider);cursor:pointer}
-  .cmd button:hover{color:var(--text);background:#1a1d2b}
+  /* --- Buttons: tactile, with a press that sinks (theme.css) ---------------------- */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px;
+    padding: 0 22px; border-radius: 999px; font-size: 16px; font-weight: 600; letter-spacing: -.005em;
+    white-space: nowrap; user-select: none;
+    transition: background 140ms ease, color 140ms ease, box-shadow 140ms ease, transform 90ms var(--ease-out); }
+  .btn:active { transform: translateY(1px) scale(.975); box-shadow: var(--press); }
+  .btn-secondary { background: var(--surface-2); color: var(--n300); box-shadow: var(--lift); }
+  .btn-secondary:hover { background: var(--surface-3); color: var(--text); }
+  .btn-small { min-height: 36px; padding: 0 14px; font-size: 14px; gap: 8px; }
 
-  .btn{display:inline-block;text-align:center;padding:12px 20px;border-radius:8px;
-    font-size:14px;font-weight:500;text-decoration:none;border:0;cursor:pointer}
-  .btn-primary{background:var(--accent);color:#14121f}
-  .btn-primary:hover{background:var(--accent-400)}
-  .btn-primary:disabled{background:var(--nav);color:var(--n600);cursor:default;
-    box-shadow:inset 0 0 0 1px var(--divider)}
-  .btn-big{width:100%;padding:15px;font-size:15px}
+  /* --- The download button ----------------------------------------------------------
+     The owner's spec: hovering fills it to half; clicking changes "Download" to
+     "Downloading" and the rest fills with the real download percentage. One custom
+     property drives both the fill and a black copy of the label clipped to the same
+     width, so the words turn dark exactly where the violet reaches them and stay
+     readable at every point of the fill. */
+  .dl { --fill: 0%; position: relative; display: inline-grid; min-height: 48px; min-width: 244px; padding: 0;
+    border-radius: 999px; overflow: hidden; isolation: isolate; cursor: pointer;
+    font-size: 16px; font-weight: 600; letter-spacing: -.005em; white-space: nowrap; user-select: none;
+    color: var(--accent-300); background: var(--accent-900);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent), var(--lift);
+    transition: --fill 340ms var(--ease-out), transform 90ms var(--ease-out), box-shadow 140ms ease; }
+  .dl:hover, .dl:focus-visible { --fill: 50%; }
+  .dl:active { transform: translateY(1px) scale(.975); }
+  .dl[data-state="downloading"] { transition: --fill 160ms linear, transform 90ms var(--ease-out); cursor: progress; }
+  .dl[data-state="done"] { --fill: 100%; }
+  .dl__fill { position: absolute; z-index: -1; inset: 0 auto 0 0; width: var(--fill);
+    background: linear-gradient(90deg, #9483ff 0%, var(--accent) 55%, var(--accent-400) 100%); }
+  .dl__label { grid-area: 1 / 1; display: flex; align-items: center; justify-content: center; gap: 10px;
+    padding: 0 26px; }
+  .dl__label--ink { color: #000; clip-path: inset(0 calc(100% - var(--fill)) 0 0); }
+  .dl svg { flex: none; }
+  .dl[data-state="downloading"] .dl__arrow { animation: dl-bob 1s ease-in-out infinite; }
+  @keyframes dl-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(2px); } }
+  .dl--compact { min-height: 36px; min-width: 0; font-size: 14px; }
+  .dl--compact .dl__label { padding: 0 15px; gap: 8px; }
 
-  .tabs{display:flex;gap:4px;margin-bottom:12px}
-  .tabs button{padding:6px 13px;font-size:12.5px;border-radius:6px;background:var(--nav);
-    color:var(--n500);border:0;cursor:pointer}
-  .tabs button[aria-selected="true"]{background:var(--accent-900);color:var(--accent-400)}
+  /* --- Hero: the memory field ---------------------------------------------------- */
+  .hero { position: relative; min-height: min(100vh, 920px); min-height: min(100svh, 920px); display: flex; align-items: flex-end;
+    padding: 108px 0 clamp(40px, 7vh, 72px); isolation: isolate; overflow: hidden; }
+  .field { position: absolute; inset: 0; z-index: -2; width: 100%; height: 100%; display: block; }
+  .hero::after { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    background:
+      linear-gradient(0deg, #000 0%, rgba(0, 0, 0, .78) 22%, rgba(0, 0, 0, 0) 58%),
+      radial-gradient(120% 70% at 0% 100%, rgba(0, 0, 0, .7) 0%, rgba(0, 0, 0, 0) 60%); }
+  .tags { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
+  .tag { position: absolute; left: 0; top: 0; display: grid; grid-template-columns: auto 1fr; column-gap: 7px;
+    align-items: center; padding: 5px 10px 5px 8px; border-radius: 8px; background: rgba(0, 0, 0, .62);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14); will-change: transform; opacity: 0;
+    transition: opacity 600ms ease; }
+  .tags.is-ready .tag { opacity: 1; }
+  .tag i { width: 7px; height: 7px; border-radius: 50%; }
+  .tag b { font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .tag span { grid-column: 2; font-family: var(--font-mono); font-size: 11px; color: var(--n500); white-space: nowrap; }
 
-  .note{background:var(--nav);border-left:3px solid var(--warn);border-radius:8px;
-    padding:15px 17px;margin:30px 0;font-size:13.5px;color:var(--n400)}
-  .note strong{color:var(--text)}
-  .hint{font-size:12.5px;color:var(--n600);margin-top:9px}
-  code.inline{font-family:var(--mono);font-size:12px;background:var(--nav);
-    padding:2px 6px;border-radius:4px;color:var(--accent-400)}
+  .hero__grid { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 32px; align-items: end; }
+  .hero h1 { margin: 10px 0 14px; font-family: var(--font-display); font-weight: 600; letter-spacing: -.035em;
+    line-height: .95; font-size: clamp(52px, 9vw, 112px); text-shadow: 0 2px 30px rgba(0, 0, 0, .8); }
+  .lede { margin: 0; max-width: 34em; font-size: clamp(17px, 1.6vw, 20px); line-height: 1.5; color: var(--n400); }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+  .cta__note { margin: 14px 0 0; font-size: 14px; color: var(--n600); }
+  .cta__note a { color: var(--n400); text-decoration: underline; text-decoration-color: var(--n700);
+    text-underline-offset: 3px; }
+  .cta__note a:hover { color: var(--text); }
+  .cta__cancel { margin-left: 6px; padding: 2px 6px; border-radius: 6px; color: var(--accent); font-size: 14px; }
+  .cta__cancel:hover { background: rgba(255, 255, 255, .06); }
 
-  section{margin:38px 0}
-  h2{font-size:20px;margin:0 0 6px}
-  .sectionsub{font-size:14px;color:var(--n500);margin:0 0 18px}
-  .grid{display:grid;gap:13px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
-  .feat{background:var(--surface);border-radius:8px;padding:15px 17px;box-shadow:inset 0 0 0 1px var(--divider)}
-  .feat b{font-size:13px;display:block;margin-bottom:3px}
-  .feat span{font-size:12px;color:var(--n500)}
-  footer{padding:30px 0 52px;text-align:center;font-size:12px;color:var(--n700)}
-  a{color:var(--accent)}
-  .hidden{display:none}
+  .glass { background: var(--glass-fill); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+    box-shadow: inset 0 0 0 1px var(--glass-edge), inset 0 1px 0 rgba(255, 255, 255, .08), 0 20px 60px rgba(0, 0, 0, .55); }
+  .hud { border-radius: 16px; padding: 14px 16px 12px; }
+  .hud__head { display: flex; align-items: center; gap: 8px; color: var(--text); }
+  .hud__dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+  .hud dl { margin: 12px 0 0; display: grid; gap: 7px; }
+  .hud dl div { display: flex; justify-content: space-between; gap: 12px; }
+  .hud dt { font-family: var(--font-mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--n500); padding-top: 1px; }
+  .hud dd { margin: 0; font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* --- Sections ----------------------------------------------------------------- */
+  section.block { padding: clamp(64px, 10vw, 112px) 0 0; }
+  .block h2 { margin: 8px 0 10px; font-family: var(--font-display); font-weight: 600; letter-spacing: -.025em;
+    line-height: 1.05; font-size: clamp(32px, 4.4vw, 48px); }
+  .block__sub { margin: 0 0 32px; max-width: 38em; color: var(--n500); }
+
+  .card { position: relative; border-radius: 16px; padding: 20px 22px; background: var(--surface);
+    box-shadow: inset 0 0 0 1px var(--divider), inset 0 1px 0 rgba(255, 255, 255, .04); }
+  .card h3 { margin: 0 0 6px; font-size: 18px; font-weight: 600; letter-spacing: -.01em; }
+  .card p { margin: 0; font-size: 15px; color: var(--n400); }
+
+  /* Install: a real sequence, so it is numbered. */
+  .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px;
+    grid-template-columns: repeat(3, minmax(0, 1fr)); counter-reset: step; }
+  .steps li { counter-increment: step; display: flex; flex-direction: column; gap: 14px; }
+  .steps li .cap::before { content: "Step " counter(step); }
+  .steps .card { flex: 1; }
+  .steps .card > .cap { display: block; margin-bottom: 12px; color: var(--accent); }
+  .steps kbd { font-family: var(--font-body); font-size: 14px; font-weight: 600; color: var(--text);
+    padding: 1px 7px; border-radius: 6px; background: var(--surface-3); box-shadow: inset 0 -1px 0 rgba(255, 255, 255, .08); }
+  .step__action { margin-top: 16px; }
+
+  .later { margin-top: 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px;
+    padding: 16px 20px; border-radius: 16px; background: var(--nav); box-shadow: inset 0 0 0 1px var(--divider); }
+  .later p { margin: 0; flex: 1 1 320px; font-size: 15px; color: var(--n400); }
+  .later strong { color: var(--text); font-weight: 600; }
+  .later__missing { flex-basis: 100%; margin: 0; font-size: 14px; color: var(--accent-300); }
+
+  details { margin-top: 12px; border-radius: 16px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--divider); }
+  summary { list-style: none; display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 0 20px;
+    cursor: pointer; font-weight: 600; font-size: 16px; border-radius: 16px; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: ""; margin-left: auto; width: 9px; height: 9px; border-right: 2px solid var(--n500);
+    border-bottom: 2px solid var(--n500); transform: rotate(45deg) translateY(-3px); transition: transform 200ms var(--ease-out); }
+  details[open] summary::after { transform: rotate(-135deg) translateY(-2px); }
+  summary:hover { background: rgba(255, 255, 255, .03); }
+  summary span { font-weight: 400; color: var(--n500); font-size: 14px; }
+  .details__body { padding: 0 20px 20px; color: var(--n400); font-size: 15px; }
+  .details__body p { margin: 0 0 12px; }
+  .details__body ol { margin: 0 0 12px; padding-left: 20px; }
+  .details__body li { margin: 4px 0; }
+  .details__body strong { color: var(--text); font-weight: 600; }
+
+  .cmd { display: flex; align-items: stretch; margin: 8px 0 14px; border-radius: 10px; overflow: hidden;
+    background: var(--nav); box-shadow: inset 0 0 0 1px var(--divider); }
+  .cmd code { flex: 1; min-width: 0; padding: 12px 14px; font: 13px/1.5 var(--font-mono); color: var(--accent-300);
+    white-space: pre; overflow-x: auto; }
+  .cmd button { flex: none; min-width: 72px; padding: 0 14px; font-size: 13px; font-weight: 600; color: var(--n400);
+    border-left: 1px solid var(--divider); }
+  .cmd button:hover { color: var(--text); background: rgba(255, 255, 255, .05); }
+
+  /* What's inside: the app's tab dots, one colour per part. */
+  .inside { display: grid; gap: 12px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .inside .card { padding: 18px 20px 20px; transition: box-shadow 200ms ease, transform 200ms var(--ease-out); }
+  .inside .card:hover { box-shadow: inset 0 0 0 1px var(--divider-strong), inset 0 1px 0 rgba(255, 255, 255, .06); }
+  .inside h3 { display: flex; align-items: center; gap: 9px; font-size: 16px; }
+  .inside h3 i { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--dot, var(--accent)); }
+  .inside p { font-size: 14.5px; line-height: 1.5; }
+
+  .trio { display: grid; gap: 12px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .trio .cap { display: block; margin-bottom: 10px; }
+
+  footer { margin-top: clamp(72px, 10vw, 120px); padding: 28px 0 44px; border-top: 1px solid var(--divider); }
+  .foot { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; font-size: 14px; color: var(--n600); }
+  .foot nav { display: flex; gap: 20px; margin-left: auto; }
+  .foot a { color: var(--n400); }
+  .foot a:hover { color: var(--text); }
+
+  /* --- Narrow widths -------------------------------------------------------------- */
+  @media (max-width: 980px) {
+    .inside { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .hero__grid { grid-template-columns: 1fr; }
+    .hud { max-width: 420px; }
+  }
+  @media (max-width: 760px) {
+    .bar nav { display: none; }
+    .bar__actions { margin-left: auto; }
+    .steps, .trio { grid-template-columns: 1fr; }
+    .tags { display: none; }
+    .hero { min-height: 0; padding-top: 128px; }
+    .cta > * { flex: 1 1 100%; }
+    .dl, .cta .btn { min-height: 52px; }
+    .dl--compact { min-height: 44px; }
+    .icon-btn { width: 44px; height: 44px; }
+  }
+  @media (max-width: 520px) {
+    .inside { grid-template-columns: 1fr; }
+    .brand__name span { display: none; }
+    .bar .dl--compact .dl__word { display: none; }
+  }
+
+  /* --- Accessibility answers (same as the app) ------------------------------------- */
+  @media (prefers-reduced-transparency: reduce) {
+    .glass, .bar::before { background: #101016; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  }
+  @media (prefers-contrast: more) {
+    :root { --divider: rgba(255, 255, 255, .32); --n500: #c7c7cc; --n600: #b0b0b8; --glass-fill: rgba(10, 10, 14, .94); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .btn, .icon-btn, .dl, .bar::before, summary::after, .tag { transition: none; }
+    .btn:active, .icon-btn:active, .dl:active { transform: none; }
+    .dl[data-state="downloading"] .dl__arrow { animation: none; }
+  }
 </style>
 </head>
 <body>
-<div class="wrap">
+<a class="skip" href="#main">Skip to content</a>
 
-  <header>
-    <div class="mark" aria-hidden="true">
-      <span class="mark__halo"></span>
-      <img class="mark__art" src="/ichnos.png" alt="" width="132" height="132" draggable="false">
-      <span class="mark__spark" style="left:2%;top:24%;animation-delay:0s"></span>
-      <span class="mark__spark" style="left:92%;top:34%;animation-delay:.8s"></span>
-      <span class="mark__spark" style="left:14%;top:80%;animation-delay:1.6s"></span>
-      <span class="mark__spark" style="left:84%;top:76%;animation-delay:2.4s"></span>
+<header class="bar" id="bar">
+  <div class="page bar__in">
+    <a class="brand" href="/" aria-label="Nyx Ichos, home">
+      <img src="/ichnos-96.webp" alt="" width="34" height="34">
+      <span class="brand__name"><b>NYX ICHOS</b><span>CREATED BY SHAGNIK</span></span>
+    </a>
+    <nav aria-label="On this page">
+      <a href="#install">Install</a>
+      <a href="#inside">What’s Inside</a>
+      <a href="#privacy">Privacy</a>
+    </nav>
+    <div class="bar__actions">
+      <a class="icon-btn" href="https://github.com/ShagnikPal123/Local-AI-Project" rel="noopener"
+         aria-label="Nyx Ichos on GitHub" title="View on GitHub">
+        <svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      </a>
+      <a class="dl dl--compact" href="/downloads/NyxIchos-Windows.zip" download data-dl aria-label="Download Nyx for Windows">
+        <span class="dl__fill" aria-hidden="true"></span>
+        <span class="dl__label" data-dl-label><svg class="dl__arrow" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5"/><path d="M5 19h14"/></svg><span data-dl-text><span class="dl__word">Download</span></span></span>
+        <span class="dl__label dl__label--ink" aria-hidden="true" data-dl-label></span>
+      </a>
     </div>
-    <div class="kicker">Local-first agent</div>
-    <h1>Nyx Ichos</h1>
-    <p class="lede">
-      A multi-agent AI assistant that runs on your own machine. Your conversations,
-      memory, and files stay local — online providers are an option, never a requirement.
-    </p>
-
-  </header>
-
-  <!-- Download. This page is a front door and nothing more: the app is entirely
-       self-contained, so there is no engine to detect and no state to report.
-       The previous version polled http://127.0.0.1:8000 from here, which a
-       browser blocks outright when this page is served over HTTPS - so it sat
-       on "Engine not running" forever even when the engine was running fine. -->
-  <section id="launch-actions" style="text-align:center;margin:26px 0 8px;">
-    <a class="btn btn-primary btn-big" href="https://github.com/ShagnikPal123/Local-AI-Project/releases/latest"
-       rel="noopener">Download for Windows →</a>
-    <p class="hint" style="margin-top:12px;">
-      Unzip it and double-click <code class="inline">Nyx.exe</code>. No Python, no setup.
-      Your browser opens by itself.
-    </p>
-    <p class="hint" style="margin-top:14px;">
-      Already installed? It runs at
-      <a href="http://localhost:8000/" target="_blank" rel="noopener">localhost:8000</a>
-      while it is open.
-      &nbsp;·&nbsp; <a href="https://github.com/ShagnikPal123/Local-AI-Project" rel="noopener">Source on GitHub</a>
-    </p>
-  </section>
-
-  <!-- Two paths, honestly separated. The old version had one three-step flow
-       that began with `git clone`, which is a developer's path presented as
-       everyone's. Downloading a built app and building from source are
-       different audiences and should not share a numbered list. -->
-  <section id="setup">
-    <h2>Get it running</h2>
-    <p class="sectionsub">Two ways in. Most people want the first.</p>
-
-    <ol class="steps">
-      <li class="step">
-        <h3>Just use it</h3>
-        <p>
-          Download the zip, unzip it anywhere, and double-click
-          <code class="inline">Nyx.exe</code>. Your browser opens by itself.
-          Nothing else to install &mdash; Python and every dependency are already inside.
-        </p>
-        <a class="btn btn-primary" href="https://github.com/ShagnikPal123/Local-AI-Project/releases/latest" rel="noopener">
-          Download for Windows &rarr;
-        </a>
-        <p class="hint" style="margin-top:10px">
-          First run will say it cannot reach a model provider. Add a key to
-          <code class="inline">.env.local</code> in
-          <code class="inline">%LOCALAPPDATA%\NyxIchos\</code>, or install
-          <a href="https://ollama.com" rel="noopener">Ollama</a> and run with no key at all.
-        </p>
-      </li>
-
-      <li class="step">
-        <h3>Or run from source</h3>
-        <p>For development, or on macOS and Linux where there is no packaged build yet.</p>
-        <div class="cmd">
-          <code id="c-clone">git clone https://github.com/ShagnikPal123/Local-AI-Project.git nyx-ichos</code>
-          <button data-copy="c-clone">Copy</button>
-        </div>
-        <p style="margin-top:10px">
-          Then double-click <code class="inline">nyx.bat</code> (or run
-          <code class="inline">./nyx.sh</code>). It creates the environment and
-          installs whatever is missing on first run.
-        </p>
-        <div class="cmd">
-          <code id="c-run">nyx.bat</code>
-          <button data-copy="c-run">Copy</button>
-        </div>
-      </li>
-    </ol>
-  </section>
-
-  <div class="note">
-    <strong>Why there is no cloud version.</strong>
-    Nyx runs on your hardware on purpose. An endpoint that reads your filesystem or takes
-    screenshots becomes a remote-access tool the moment it is on the open internet, however
-    carefully it is gated — so machine control and self-modification are
-    <em>compiled out</em> of any hosted build, not merely switched off. This page hands you
-    over to the engine on your own computer, which is why it is private, and why it needs
-    the app installed first.
   </div>
+</header>
 
-  <section>
-    <h2>What it does</h2>
-    <div class="grid">
-      <div class="feat"><b>Strands</b><span>A live map of how your ideas, agents, and memories actually connect.</span></div>
-      <div class="feat"><b>Agent team</b><span>Named agents with their own goals, and a master that manages them.</span></div>
-      <div class="feat"><b>Skills</b><span>Describe a capability; it writes the skill and applies it automatically.</span></div>
-      <div class="feat"><b>Dynamic tabs</b><span>Ask for a tab and it builds one. Say "make it green" and it does.</span></div>
-      <div class="feat"><b>Hardware safety</b><span>Reads real GPU telemetry and throttles before the machine suffers.</span></div>
-      <div class="feat"><b>Power modes</b><span>Low to Max, or Auto — bounded by what your machine can actually take.</span></div>
+<main id="main">
+  <!-- The memory field: the same idea as the Nyx tab's Second Brain. Decorative, so
+       it never takes a click; with reduced motion it is drawn once and holds still. -->
+  <section class="hero" aria-labelledby="hero-title">
+    <canvas class="field" id="field" aria-hidden="true"></canvas>
+    <div class="tags" id="tags" aria-hidden="true"></div>
+
+    <div class="page hero__grid">
+      <div>
+        <div class="cap">Local-first AI · for Windows</div>
+        <h1 id="hero-title">Nyx Ichos</h1>
+        <p class="lede">A personal AI that lives on your own PC. It remembers what matters, talks with you,
+          researches and runs a team of agents — and your chats, memory and files stay on your computer.</p>
+
+        <div class="cta" id="get">
+          <a class="dl" href="/downloads/NyxIchos-Windows.zip" download data-dl data-primary aria-label="Download Nyx for Windows">
+            <span class="dl__fill" aria-hidden="true"></span>
+            <span class="dl__label" data-dl-label><svg class="dl__arrow" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5"/><path d="M5 19h14"/></svg><span data-dl-text>Download for Windows</span></span>
+            <span class="dl__label dl__label--ink" aria-hidden="true" data-dl-label></span>
+          </a>
+          <a class="btn btn-secondary" href="https://github.com/ShagnikPal123/Local-AI-Project" rel="noopener">
+            <svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+            View on GitHub
+          </a>
+        </div>
+        <p class="cta__note" id="dl-note">Free · <span data-dl-size>6.8 MB</span> zip ·
+          <a href="#install">How to install</a></p>
+        <p class="sr-only" aria-live="polite" id="dl-live"></p>
+      </div>
+
+      <aside class="hud glass" aria-label="About this download">
+        <div class="hud__head"><span class="hud__dot" aria-hidden="true"></span><span class="cap" style="color:var(--text)">This build</span></div>
+        <dl>
+          <div><dt>Runs on</dt><dd>Windows 10 · 11</dd></div>
+          <div><dt>Download</dt><dd><span data-dl-size>6.8 MB</span> zip</dd></div>
+          <div><dt>First setup</dt><dd>About 2 minutes</dd></div>
+          <div><dt>Key needed</dt><dd>None with Ollama</dd></div>
+          <div><dt>Updated</dt><dd>Sep 26, 2026</dd></div>
+        </dl>
+      </aside>
     </div>
-    <p class="hint">
-      <strong>No API key needed.</strong> A local Ollama model runs offline. Adding a key for
-      Gemini, OpenAI, Groq or DeepSeek turns on online providers and cross-model collaboration.
-    </p>
   </section>
 
-  <footer>Created by Shagnik · Local-first, free to run</footer>
-</div>
+  <section class="block" id="install" aria-labelledby="install-title">
+    <div class="page">
+      <div class="cap">Install</div>
+      <h2 id="install-title">Running in three steps</h2>
+      <p class="block__sub">Once, a couple of minutes. After that Nyx is one click away — and it starts
+        with Windows, waiting by the clock.</p>
+
+      <ol class="steps">
+        <li>
+          <div class="card">
+            <span class="cap" aria-hidden="true"></span>
+            <h3>Download</h3>
+            <p>Get <strong style="color:var(--text);font-weight:600">NyxIchos-Windows.zip</strong>. It is the whole
+              app — no installer, nothing else to fetch by hand.</p>
+            <div class="step__action">
+              <a class="dl dl--compact" href="/downloads/NyxIchos-Windows.zip" download data-dl aria-label="Download Nyx for Windows">
+                <span class="dl__fill" aria-hidden="true"></span>
+                <span class="dl__label" data-dl-label><svg class="dl__arrow" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5"/><path d="M5 19h14"/></svg><span data-dl-text>Download</span></span>
+                <span class="dl__label dl__label--ink" aria-hidden="true" data-dl-label></span>
+              </a>
+            </div>
+          </div>
+        </li>
+        <li>
+          <div class="card">
+            <span class="cap" aria-hidden="true"></span>
+            <h3>Extract</h3>
+            <p>Right-click the zip and choose <kbd>Extract All</kbd>. Windows can’t run Nyx from inside a zip,
+              so this step matters.</p>
+          </div>
+        </li>
+        <li>
+          <div class="card">
+            <span class="cap" aria-hidden="true"></span>
+            <h3>Start Nyx</h3>
+            <p>Open the folder and double-click <kbd>Start Nyx</kbd>. The first time, it installs Python if you
+              need it, adds a <strong style="color:var(--text);font-weight:600">Nyx Ichos</strong> icon to your
+              desktop and opens Nyx in your browser.</p>
+          </div>
+        </li>
+      </ol>
+
+      <div class="later">
+        <p><strong>Already set up?</strong> Launch Nyx from here. The first time, your browser asks whether to
+          open Nyx — choose <strong>Open</strong>.</p>
+        <a class="btn btn-secondary btn-small" id="launch" href="nyx://open">Launch Nyx</a>
+        <p class="later__missing" id="launch-missing" hidden>Nothing opened? Nyx isn’t set up on this PC yet —
+          download it and run <strong>Start Nyx</strong> once. After that, this button works.</p>
+      </div>
+
+      <details>
+        <summary>If Windows stops it <span>SmartScreen, Python, a slow first run</span></summary>
+        <div class="details__body">
+          <p><strong>“Windows protected your PC.”</strong> Nyx isn’t signed by a paid certificate yet, so Windows
+            asks first. Choose <strong>More info</strong>, then <strong>Run anyway</strong>. Every line it runs is
+            in the source on GitHub.</p>
+          <p><strong>Python didn’t install.</strong> Start Nyx uses Windows’ own installer (winget). If that’s
+            missing, install Python 3.11 or newer from python.org, then double-click Start Nyx again.</p>
+          <p><strong>The first run seems slow.</strong> It downloads about 80 MB of packages once. Later starts
+            take seconds.</p>
+          <p style="margin:0"><strong>Something else?</strong> Double-click Start Nyx again — it picks up where it
+            stopped, and prints the first error if one happens.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>Run from source <span>For developers</span></summary>
+        <div class="details__body">
+          <p>Clone the repository, then double-click <strong>Start Nyx.bat</strong> in the folder — the same
+            one-time setup runs, and the desktop icon points at your checkout.</p>
+          <div class="cmd"><code id="c-clone">git clone https://github.com/ShagnikPal123/Local-AI-Project.git nyx-ichos</code><button type="button" data-copy="c-clone">Copy</button></div>
+          <p>Prefer to do it by hand? From the project folder:</p>
+          <div class="cmd"><code id="c-manual">python -m venv .venv
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+cd frontend\nyx-pulse &amp;&amp; npm install &amp;&amp; npm run build &amp;&amp; cd ..\..
+.venv\Scripts\python.exe -m uvicorn server:app --port 8000</code><button type="button" data-copy="c-manual">Copy</button></div>
+          <p style="margin:0">Then open <a href="http://localhost:8000/" rel="noopener">localhost:8000</a>.
+            The engine serves the app itself — one process, no second server.</p>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <section class="block" id="inside" aria-labelledby="inside-title">
+    <div class="page">
+      <div class="cap">What’s inside</div>
+      <h2 id="inside-title">One assistant, many rooms</h2>
+      <p class="block__sub">Every part is a tab in the app, and they share one memory — so what you tell Nyx in
+        one place, it knows in the others.</p>
+      <div class="inside">
+        <div class="card" style="--dot:#a594ff"><h3><i aria-hidden="true"></i>Second Brain</h3>
+          <p>A living map of everything Nyx reads, says and learns. Search it, or fly through it.</p></div>
+        <div class="card" style="--dot:#bdb2ff"><h3><i aria-hidden="true"></i>Big Kahuna</h3>
+          <p>Its main brain. It sends each request to the model that does it best, and trains a small model of
+            its own on your PC.</p></div>
+        <div class="card" style="--dot:#64d2ff"><h3><i aria-hidden="true"></i>Agents &amp; Office Space</h3>
+          <p>Named agents with their own jobs. Hand a big task to an office of them and watch it split up.</p></div>
+        <div class="card" style="--dot:#30d158"><h3><i aria-hidden="true"></i>Voice</h3>
+          <p>Talk hands-free. It answers out loud, keeps listening while it speaks, and never hears itself.</p></div>
+        <div class="card" style="--dot:#ffd60a"><h3><i aria-hidden="true"></i>Screen Share</h3>
+          <p>Show it a window and it points to what to click. It acts only when you say so.</p></div>
+        <div class="card" style="--dot:#ff9f0a"><h3><i aria-hidden="true"></i>Research &amp; Notes</h3>
+          <p>Cited research reports, and study tools that turn your slides into notes and quizzes.</p></div>
+        <div class="card" style="--dot:#ff6fae"><h3><i aria-hidden="true"></i>Code &amp; Build</h3>
+          <p>Open a folder and edit it together, or design 3D-printable parts and the circuits inside them.</p></div>
+        <div class="card" style="--dot:#5ac8fa"><h3><i aria-hidden="true"></i>Trading Practice</h3>
+          <p>Paper trading with simulated money, fees and market hours. Real money only if you connect it.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="privacy" aria-labelledby="privacy-title">
+    <div class="page">
+      <div class="cap">Privacy</div>
+      <h2 id="privacy-title">Yours, on your PC</h2>
+      <p class="block__sub">An assistant that can see your screen and open your files belongs on your computer,
+        not on someone’s server.</p>
+      <div class="trio">
+        <div class="card"><span class="cap">Local</span><h3>Your data stays home</h3>
+          <p>Chats, memory, notes and files are kept on your computer. Nothing is uploaded to run Nyx.</p></div>
+        <div class="card"><span class="cap">Optional</span><h3>Keys are up to you</h3>
+          <p>With <a href="https://ollama.com" rel="noopener">Ollama</a> it runs offline with no key at all. Add
+            Gemini, Groq, NVIDIA or others for online models when you want them.</p></div>
+        <div class="card"><span class="cap">On purpose</span><h3>No cloud copy</h3>
+          <p>Machine control and self-editing are left out of any hosted build entirely — not switched off,
+            absent — so they only ever exist on your own PC.</p></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="page foot">
+    <span>Nyx Ichos · Created by Shagnik · Free to run</span>
+    <nav aria-label="Footer">
+      <a href="#install">Install</a>
+      <a href="https://github.com/ShagnikPal123/Local-AI-Project" rel="noopener">GitHub</a>
+      <a href="/downloads/NyxIchos-Windows.zip" download data-dl-plain>Download</a>
+    </nav>
+  </div>
+</footer>
 
 <script>
 (() => {
   "use strict";
+  const still = window.matchMedia("(prefers-reduced-motion: reduce)");
 
-  // No liveness probe. This page is a front door for the download; the app is
-  // self-contained and serves its own UI, so there is nothing here to detect.
-  // The old probe fetched http://127.0.0.1:8000 from an HTTPS page, which the
-  // browser blocks as mixed content before CORS is even consulted - so it
-  // reported "Engine not running" permanently, including when it was running.
+  // --- The glass bar gains its material once the page scrolls under it ----------
+  const bar = document.getElementById("bar");
+  const onScroll = () => bar.classList.toggle("is-scrolled", window.scrollY > 8);
+  window.addEventListener("scroll", onScroll, { passive: true });
+  onScroll();
 
-  // --- copy buttons --------------------------------------------------------
-  document.querySelectorAll("[data-copy]").forEach((button) => {
-    button.addEventListener("click", async () => {
-      const text = document.getElementById(button.dataset.copy).textContent;
-      try {
-        await navigator.clipboard.writeText(text);
-        const original = button.textContent;
-        button.textContent = "Copied";
-        setTimeout(() => { button.textContent = original; }, 1400);
-      } catch {
-        button.textContent = "Press Ctrl+C";
-      }
-    });
+  // --- Download ---------------------------------------------------------------------
+  // Every download button on the page is one control with one state. It really
+  // downloads: the bytes are read here so the fill follows the true percentage,
+  // then saved. Anything the browser can't do (no streams, an error) falls back to
+  // the plain link the button already is, so a click always ends in a file.
+  const FILE = "/downloads/NyxIchos-Windows.zip";
+  const NAME = "NyxIchos-Windows.zip";
+  const GITHUB = "https://github.com/ShagnikPal123/Local-AI-Project";
+  const buttons = Array.from(document.querySelectorAll("[data-dl]"));
+  const live = document.getElementById("dl-live");
+  const note = document.getElementById("dl-note");
+  const noteHTML = note ? note.innerHTML : "";
+  let knownBytes = 0;
+  let job = null;
+
+  // The black label is a copy of the light one; keep them identical.
+  const syncInk = (button) => {
+    const [light, ink] = button.querySelectorAll("[data-dl-label]");
+    if (light && ink) ink.innerHTML = light.innerHTML;
+  };
+  const originals = new Map(buttons.map((b) => [b, b.querySelector("[data-dl-text]").innerHTML]));
+  // Compact buttons (the bar, step 1) show the short form so they keep their size.
+  const setText = (html, short) => buttons.forEach((b) => {
+    const compact = b.classList.contains("dl--compact");
+    b.querySelector("[data-dl-text]").innerHTML = html == null ? originals.get(b) : (compact && short ? short : html);
+    syncInk(b);
+  });
+  const setFill = (percent) => buttons.forEach((b) => {
+    if (percent == null) b.style.removeProperty("--fill");
+    else b.style.setProperty("--fill", Math.max(0, Math.min(100, percent)).toFixed(1) + "%");
+  });
+  const setState = (state) => buttons.forEach((b) => {
+    if (state) b.dataset.state = state; else delete b.dataset.state;
+    b.setAttribute("aria-busy", state === "downloading" ? "true" : "false");
+  });
+  const say = (text) => { if (live) live.textContent = text; };
+  const mb = (bytes) => (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  buttons.forEach(syncInk);
+
+  const reset = () => {
+    job = null;
+    setState(null);
+    setFill(null);
+    setText(null);
+    if (note) note.innerHTML = noteHTML;
+    showSize();
+  };
+  const showSize = () => {
+    if (knownBytes) document.querySelectorAll("[data-dl-size]").forEach((el) => { el.textContent = mb(knownBytes); });
+  };
+  const saveBlob = (blob) => {
+    const url = URL.createObjectURL(blob);
+    const link = Object.assign(document.createElement("a"), { href: url, download: NAME });
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  };
+  const plain = () => { window.location.href = FILE; };
+
+  // Is the build on this site? If it isn't deployed yet, send people to GitHub
+  // rather than to a 404, and say so plainly.
+  let hosted = true;
+  fetch(FILE, { method: "HEAD", cache: "no-store" }).then((response) => {
+    if (!response.ok) throw new Error(String(response.status));
+    knownBytes = Number(response.headers.get("content-length") || 0);
+    showSize();
+  }).catch(() => {
+    hosted = false;
+    buttons.forEach((b) => { b.href = GITHUB; b.removeAttribute("download"); });
+    document.querySelectorAll("[data-dl-plain]").forEach((a) => { a.href = GITHUB; });
+    if (note) note.innerHTML = "The download is being updated — get Nyx from <a href=\"" + GITHUB + "\" rel=\"noopener\">GitHub</a> for now.";
   });
 
-  // The platform switcher and the launcher-download handler lived here. Both
-  // referenced elements that no longer exist, and both existed to serve a
-  // start.bat that was never in this folder - clicking Download always 404'd
-  // and silently degraded to "Use the copy of it in the repo". The download is
-  // now a plain link to the GitHub release, which needs no JavaScript at all.
+  const start = async () => {
+    if (job || !hosted) return;
+    if (!window.ReadableStream || !window.AbortController) { plain(); return; }
+    const controller = new AbortController();
+    job = { controller };
+    setState("downloading");
+    setFill(50);                                   // it starts where the hover fill left off
+    setText("Downloading 0%", "0%");
+    say("Downloading Nyx.");
+    if (note) {
+      note.innerHTML = "Downloading " + NAME + "… <button type=\"button\" class=\"cta__cancel\" id=\"dl-cancel\">Cancel</button>";
+      document.getElementById("dl-cancel").addEventListener("click", () => controller.abort());
+    }
+    try {
+      const response = await fetch(FILE, { signal: controller.signal });
+      if (!response.ok || !response.body) throw new Error("HTTP " + response.status);
+      const total = Number(response.headers.get("content-length") || 0) || knownBytes;
+      const reader = response.body.getReader();
+      const parts = [];
+      let got = 0;
+      let spoken = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        parts.push(value);
+        got += value.length;
+        if (total) {
+          const share = Math.min(1, got / total);
+          setFill(50 + share * 50);                // the rest of the button fills as it arrives
+          setText("Downloading " + Math.floor(share * 100) + "%", Math.floor(share * 100) + "%");
+          if (share * 4 >= spoken + 1) { spoken = Math.floor(share * 4); if (spoken < 4) say(spoken * 25 + " percent."); }
+        } else {
+          setText("Downloading " + mb(got), mb(got));
+        }
+      }
+      saveBlob(new Blob(parts, { type: "application/zip" }));
+      setState("done");
+      setFill(100);
+      setText("Downloaded", "Done");
+      say("Download complete. Open the zip, choose Extract All, then double-click Start Nyx.");
+      if (note) note.innerHTML = "Saved " + NAME + ". Next: <a href=\"#install\">Extract All, then Start Nyx</a>.";
+      setTimeout(() => { if (job && job.controller === controller) reset(); }, 8000);
+    } catch (error) {
+      const cancelled = controller.signal.aborted;
+      reset();
+      if (cancelled) { say("Download cancelled."); return; }
+      say("The download didn't finish. Trying the direct link.");
+      plain();                                     // an ordinary download still gets the file
+    }
+  };
 
+  buttons.forEach((b) => b.addEventListener("click", (event) => {
+    if (!hosted) return;                           // it's a GitHub link now; let it be one
+    event.preventDefault();
+    if (job) {                                     // a second click shows where it is, never restarts
+      document.getElementById("get").scrollIntoView({ block: "center", behavior: still.matches ? "auto" : "smooth" });
+      return;
+    }
+    start();
+  }));
+
+  // --- Launch Nyx ---------------------------------------------------------------------
+  // A page can't start a program, but it can follow nyx://, which Windows hands to the
+  // launcher that Start Nyx registered. If nothing takes focus, Nyx isn't set up here.
+  const launch = document.getElementById("launch");
+  if (launch) launch.addEventListener("click", () => {
+    let handedOff = false;
+    const onBlur = () => { handedOff = true; };
+    window.addEventListener("blur", onBlur, { once: true });
+    setTimeout(() => {
+      window.removeEventListener("blur", onBlur);
+      if (!handedOff && document.hasFocus()) document.getElementById("launch-missing").hidden = false;
+    }, 2200);
+  });
+
+  // --- Copy buttons -------------------------------------------------------------------
+  document.querySelectorAll("[data-copy]").forEach((button) => button.addEventListener("click", async () => {
+    const text = document.getElementById(button.dataset.copy).textContent;
+    try {
+      await navigator.clipboard.writeText(text);
+      button.textContent = "Copied";
+    } catch {
+      button.textContent = "Press Ctrl+C";
+    }
+    setTimeout(() => { button.textContent = "Copy"; }, 1600);
+  }));
+
+  // --- The memory field ------------------------------------------------------------------
+  // The Nyx tab's Second Brain, quieter: a band of stars (what it has read), clusters of
+  // coloured memories linked to each other, and now and then an impulse running along a
+  // link — the field lighting up as it thinks. Paused when off screen or in a hidden tab.
+  const canvas = document.getElementById("field");
+  const tagLayer = document.getElementById("tags");
+  if (!canvas || !canvas.getContext) return;
+  const ctx = canvas.getContext("2d", { alpha: false });
+  // x is a share of the width; y a share of the empty sky between the bar and the text.
+  const CLUSTERS = [
+    { color: "#a594ff", x: 0.30, y: 0.40, name: "Second Brain", sub: "remembers what matters" },
+    { color: "#64d2ff", x: 0.52, y: 0.78, name: "Office Space", sub: "agents at work" },
+    { color: "#30d158", x: 0.71, y: 0.22, name: "Voice", sub: "listens while it talks" },
+    { color: "#ffd60a", x: 0.88, y: 0.66, name: "Big Kahuna", sub: "picks the best model" },
+  ];
+  const hero = canvas.closest(".hero");
+  const heroText = hero ? hero.querySelector(".hero__grid") : null;
+  let W = 0, H = 0, dpr = 1, p0, p1, dir, nrm, spread;
+  let stars = [], nodes = [], links = [], pulses = [], haze = null, tags = [];
+  let running = false, onScreen = true, last = 0, nextPulse = 0, raf = 0;
+
+  const gauss = () => { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+  const along = (t, off) => [p0[0] + (p1[0] - p0[0]) * t + nrm[0] * off, p0[1] + (p1[1] - p0[1]) * t + nrm[1] * off];
+
+  const build = () => {
+    const rect = canvas.getBoundingClientRect();
+    W = Math.max(1, rect.width); H = Math.max(1, rect.height);
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+    // The band runs top-left to lower-right, as in the app, which leaves the title
+    // (bottom left) and the build card (right) on the darker sky.
+    p0 = [W * 0.16, -H * 0.12]; p1 = [W * 0.86, H * 1.12];
+    const len = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]);
+    dir = [(p1[0] - p0[0]) / len, (p1[1] - p0[1]) / len];
+    nrm = [-dir[1], dir[0]];
+    spread = Math.max(70, Math.min(W, 1400) * 0.11);
+
+    const count = Math.round(Math.min(2400, Math.max(500, (W * H) / 620)));
+    stars = [];
+    for (let i = 0; i < count; i += 1) {
+      const wide = Math.random() < 0.22;
+      stars.push({
+        t: Math.random() * 1.1 - 0.05,
+        off: wide ? (Math.random() - 0.5) * Math.max(W, H) * 1.3 : gauss() * spread * (0.55 + Math.random() * 0.7),
+        z: 0.3 + Math.random() * 0.7,
+        r: Math.random() < 0.07 ? 1.5 + Math.random() * 0.8 : 0.7 + Math.random() * 0.8,
+        a: wide ? 0.3 + Math.random() * 0.4 : 0.45 + Math.random() * 0.55,
+        hue: Math.random() < 0.12 ? 320 + Math.random() * 25 : 238 + Math.random() * 34,
+        tw: 0.4 + Math.random() * 1.4, ph: Math.random() * 6.28,
+      });
+    }
+
+    // The glow of the band, drawn once per size.
+    haze = document.createElement("canvas");
+    haze.width = canvas.width; haze.height = canvas.height;
+    const h = haze.getContext("2d");
+    h.scale(dpr, dpr);
+    h.fillStyle = "#000"; h.fillRect(0, 0, W, H);
+    for (let i = 0; i <= 16; i += 1) {
+      const [x, y] = along(i / 16, gauss() * spread * 0.25);
+      const radius = spread * (1.4 + Math.random() * 1.2);
+      const g = h.createRadialGradient(x, y, 0, x, y, radius);
+      const warm = i > 5 && i < 11 && Math.random() < 0.5;
+      g.addColorStop(0, warm ? "rgba(160,100,200,0.19)" : "rgba(101,89,210,0.2)");
+      g.addColorStop(0.5, "rgba(60,50,140,0.06)");
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      h.fillStyle = g; h.fillRect(0, 0, W, H);
+    }
+    const dust = Math.round(Math.min(9000, (W * H) / 140));
+    for (let i = 0; i < dust; i += 1) {
+      const [x, y] = along(Math.random() * 1.1 - 0.05, gauss() * spread * 0.62);
+      h.fillStyle = "rgba(220,214,255," + (0.06 + Math.random() * 0.26).toFixed(3) + ")";
+      h.fillRect(x, y, 1, 1);
+    }
+
+    nodes = []; links = [];
+    // The sky the clusters may use: below the bar, above the headline and the build card.
+    const heroRect = hero ? hero.getBoundingClientRect() : { top: 0 };
+    const textTop = heroText ? heroText.getBoundingClientRect().top - heroRect.top : H * 0.55;
+    const skyTop = W >= 760 ? 96 : 84;
+    const sky = Math.max(0, textTop - (W >= 760 ? 56 : 28) - skyTop);
+    const roomy = sky >= 150 && W >= 760;
+    const cluster_r = Math.min(spread * 0.8, sky * (roomy ? 0.34 : 0.3));
+    // Too little sky (a short phone screen): stars only, nothing near the words.
+    const clusters = cluster_r >= 18 ? CLUSTERS : [];
+    clusters.forEach((cluster, c) => {
+      const ax = W * cluster.x;
+      const ay = skyTop + cluster_r + Math.max(0, sky - 2 * cluster_r) * cluster.y;
+      const anchor = { x: ax, y: ay, bx: ax, by: ay, r: 3.4, color: cluster.color, c, orbit: 0, spin: 0, ang: 0 };
+      nodes.push(anchor);
+      const members = [anchor];
+      const n = 7 + (c % 2) * 2;
+      for (let k = 0; k < n; k += 1) {
+        const ang = Math.random() * Math.PI * 2;
+        const dist = cluster_r * (0.4 + Math.random() * 0.6);
+        const node = { bx: ax + Math.cos(ang) * dist, by: ay + Math.sin(ang) * dist * 0.8, r: 1.4 + Math.random() * 1.3,
+          color: cluster.color, c, orbit: 3 + Math.random() * 7, spin: (Math.random() - 0.5) * 0.5, ang: Math.random() * 6.28 };
+        node.x = node.bx; node.y = node.by;
+        nodes.push(node);
+        members.push(node);
+        links.push([anchor, node, 0.24]);
+      }
+      for (let k = 1; k < members.length; k += 1) {       // each memory also knows its nearest neighbour
+        let best = null, bestD = Infinity;
+        for (let m = 1; m < members.length; m += 1) {
+          if (m === k) continue;
+          const d = Math.hypot(members[k].bx - members[m].bx, members[k].by - members[m].by);
+          if (d < bestD) { bestD = d; best = members[m]; }
+        }
+        if (best && k < members.indexOf(best)) links.push([members[k], best, 0.16]);
+      }
+    });
+    const anchors = nodes.filter((n) => n.r === 3.4);
+    for (let i = 0; i < anchors.length - 1; i += 1) links.push([anchors[i], anchors[i + 1], 0.09]);
+    pulses = [];
+
+    // Tags ride on the four anchors, like the labels in the app's field.
+    if (tagLayer) {
+      tagLayer.textContent = "";
+      tagLayer.hidden = !roomy;                      // never over the headline; skip them when there's no sky
+      tags = (roomy ? clusters : []).map((cluster, c) => {
+        const el = document.createElement("div");
+        el.className = "tag";
+        el.innerHTML = "<i style=\"background:" + cluster.color + ";box-shadow:0 0 8px " + cluster.color + "\"></i><b></b><span></span>";
+        el.querySelector("b").textContent = cluster.name;
+        el.querySelector("span").textContent = cluster.sub;
+        tagLayer.appendChild(el);
+        return { el, node: anchors[c], flip: anchors[c].x > W - 200 };
+      });
+      requestAnimationFrame(() => tagLayer.classList.add("is-ready"));
+    }
+  };
+
+  const draw = (now) => {
+    const dt = last ? Math.min(0.05, (now - last) / 1000) : 0;
+    last = now;
+    const time = now / 1000;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.drawImage(haze, 0, 0, W, H);
+
+    for (const s of stars) {
+      s.t += dt * 0.0022 * s.z;
+      if (s.t > 1.05) s.t -= 1.1;
+      const [x, y] = along(s.t, s.off);
+      if (x < -2 || y < -2 || x > W + 2 || y > H + 2) continue;
+      const flicker = 0.75 + 0.25 * Math.sin(time * s.tw + s.ph);
+      ctx.fillStyle = "hsla(" + s.hue + ",70%,86%," + (s.a * flicker).toFixed(3) + ")";
+      ctx.fillRect(x - s.r / 2, y - s.r / 2, s.r, s.r);
+    }
+
+    for (const n of nodes) {
+      if (!n.orbit) continue;
+      n.ang += dt * n.spin;
+      n.x = n.bx + Math.cos(n.ang) * n.orbit;
+      n.y = n.by + Math.sin(n.ang) * n.orbit;
+    }
+    ctx.lineWidth = 1;
+    for (const [a, b, alpha] of links) {
+      ctx.strokeStyle = a.c === b.c ? a.color : "#bdb2ff";
+      ctx.globalAlpha = alpha;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    for (const n of nodes) {
+      ctx.globalAlpha = 0.18;
+      ctx.fillStyle = n.color;
+      ctx.beginPath(); ctx.arc(n.x, n.y, n.r * 3.2, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.beginPath(); ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2); ctx.fill();
+    }
+
+    if (running && now > nextPulse && links.length) {
+      const link = links[Math.floor(Math.random() * links.length)];
+      pulses.push({ a: link[0], b: link[1], start: now, color: link[0].color });
+      nextPulse = now + 420 + Math.random() * 700;
+    }
+    pulses = pulses.filter((p) => now - p.start < 900);
+    for (const p of pulses) {
+      const k = (now - p.start) / 900;
+      const x = p.a.x + (p.b.x - p.a.x) * k, y = p.a.y + (p.b.y - p.a.y) * k;
+      ctx.globalAlpha = 0.25 * (1 - k * 0.5);
+      ctx.fillStyle = p.color;
+      ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = "#fff";
+      ctx.beginPath(); ctx.arc(x, y, 1.6, 0, Math.PI * 2); ctx.fill();
+    }
+
+    for (const tag of tags) {
+      const x = tag.flip ? tag.node.x - 12 - tag.el.offsetWidth : tag.node.x + 12;
+      tag.el.style.transform = "translate3d(" + Math.round(x) + "px," + Math.round(tag.node.y - 30) + "px,0)";
+    }
+  };
+
+  const loop = (now) => {
+    if (!running) return;
+    draw(now);
+    raf = requestAnimationFrame(loop);
+  };
+  const play = () => {
+    const should = onScreen && !document.hidden && !still.matches;
+    if (should && !running) { running = true; last = 0; raf = requestAnimationFrame(loop); }
+    if (!should && running) { running = false; cancelAnimationFrame(raf); }
+    if (!running) draw(performance.now());       // reduced motion: one still frame
+  };
+
+  build();
+  draw(performance.now());
+  play();
+  let resizeTimer = 0;
+  new ResizeObserver(() => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => { build(); draw(performance.now()); }, 120);
+  }).observe(canvas);
+  new IntersectionObserver((entries) => { onScreen = entries[0].isIntersecting; play(); }).observe(canvas);
+  document.addEventListener("visibilitychange", play);
+  still.addEventListener("change", play);
 })();
 </script>
 </body>

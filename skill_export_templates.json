@@ -1,0 +1,34 @@
+{
+  "formats": [
+    {
+      "id": "claude_skill_md",
+      "label": "Claude Agent Skill (SKILL.md) - Opus 5 / Fable 5.1 / Sonnet 5, Claude Code or claude.ai",
+      "filename": "{{slug}}/SKILL.md",
+      "template": "---\nname: {{slug}}\ndescription: {{description}}\n---\n\n# {{name}}\n\n{{instructions}}\n\n## When this applies\n{{triggers_bullets}}\n"
+    },
+    {
+      "id": "openai_gpt_instructions",
+      "label": "OpenAI Custom GPT / ChatGPT Project Instructions",
+      "filename": "{{slug}}-gpt-instructions.md",
+      "template": "# {{name}}\n\n{{description}}\n\n## Instructions\n{{instructions}}\n\n## Use this GPT (or project) when the request involves:\n{{triggers_bullets}}\n\nIf a request clearly falls outside this list, say so rather than forcing it to fit.\n"
+    },
+    {
+      "id": "gemini_gem",
+      "label": "Google Gemini Gem (also usable for Astra-style assistants)",
+      "filename": "{{slug}}-gem.txt",
+      "template": "Gem name: {{name}}\n\nInstructions:\n{{instructions}}\n\nTrigger this Gem for requests like:\n{{triggers_bullets}}\n\nReference note (not shown to the end user): {{description}}\n"
+    },
+    {
+      "id": "agents_md_section",
+      "label": "AGENTS.md Section (Codex, Cursor, Antigravity, and other coding agents)",
+      "filename": "AGENTS.md",
+      "template": "## {{name}}\n\n{{description}}\n\n**Apply this when:** {{triggers_bullets}}\n\n{{instructions}}\n"
+    },
+    {
+      "id": "generic_portable_prompt",
+      "label": "Generic Portable Prompt (any chat assistant)",
+      "filename": "{{slug}}-prompt.txt",
+      "template": "You have the following skill available: {{name}}.\n\n{{description}}\n\nUse it when the request involves:\n{{triggers_bullets}}\n\nHow to apply it:\n{{instructions}}\n"
+    }
+  ]
+}

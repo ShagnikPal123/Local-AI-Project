@@ -9,7 +9,7 @@
 Kept here so it survives a context reset or a lost session. Do not edit this block.
 
 ```text
-[Obsidian API key removed] is the API for obsidian and make
+[Obsidian API key removed — it lives in .env.local] is the API for obsidian and make
 sure to link o it for better file usage and make sure it is used in your creation for different
 resources as this project continues. spin up 4 sub agents, 1 manager, 1 site/web dev, 1 coder, and
 one checker to make sure ideas they put in are solid and work. continue to improve the site, though
@@ -78,6 +78,41 @@ Standing file ownership when delegating:
 
 
 ## 2. Now (max 3)
+
+### 2026-09-15 — current Request H resume point
+
+- [x] **H16 tab editing freedom.** Custom tabs now render their already-validated backgrounds/themes and working
+  lists, charts, trackers, timers, user-confirmed AI tasks, AI-vs-human games, and in-tab memory/snake games.
+  `npm run build`, `tests/test_tab_freedom.py`, and a live browser check passed. The engine was restarted to load
+  the backend schema Claude had already added; it is healthy on port 8000.
+- [ ] **Next: H4 Build tab.** Keep the existing visual language; provide reliable circuit/3D-print/build research,
+  material options, and a reviewed path to external tools. Do not claim a third-party connection until it is live.
+- [ ] **Then: H5 Game Studio, H7 Google OAuth, H14 intent.md.** See `AI_HANDOFF/START_HERE.md` for the ordered
+  Request H list and the source-file ownership.
+
+### Historical snapshot — 2026-09-12/13 overhaul — requests verbatim in `OVERHAUL_CONTRACTS.md` §0 (also the owner's
+### follow-up: "FIX the glaring issue which is the engine. Make it a single click to turn on for any user.")
+
+- [x] **[E1] One-click engine — DONE AND VERIFIED (2026-09-13).** Root cause: Windows **Smart App
+      Control** blocked the unsigned `dist/Nyx/Nyx.exe` on every start (CodeIntegrity 3077; logon task
+      result 4551). Fix: `launcher.py` rewritten (tray icon, single-instance mutex per data dir,
+      `nyx://start|open|stop|restart|redeem`, log file, error dialogs, per-install autostart) running on
+      signed `.venv\Scripts\pythonw.exe`; `setup_nyx.py` (shortcuts, link, autostart, launch);
+      `Start Nyx.bat` bootstrap (installs Python via winget if missing); `/api/engine` routes;
+      web `EngineGate` ("Turn on Nyx") + service worker so the page loads while the engine is off;
+      Settings → Engine; site "Launch Nyx" button; `build_release.py` → `dist/NyxIchos-Windows.zip`
+      (4.4 MB, secret-scanned). Verified: nyx://start/stop, restart, second-click, Turn off → gate →
+      reconnect, offline reload in real Edge, fresh install from the zip on port 8050. Old logon task
+      disabled (re-enable: `schtasks /Change /TN NyxIchosEngine /ENABLE`). 881 tests pass.
+- [x] **[SEC] Obsidian token was hardcoded** in `connectors/obsidian_connector.py` (since the baseline
+      commit). Moved to `.env.local` as `OBSIDIAN_API_KEY`; the literal is gone from source but remains in
+      git history — rotate it in Obsidian's Local REST API settings before the repo is ever made public.
+- [ ] **[O1] Rest of the overhaul** — foundation landed (`agent_events.py`, `tool_context.py`,
+      `permissions.py`, tool categories/labels/events in `tools.py`, Gemini streaming + thoughts + images
+      in `providers/gemini_provider.py`). Next: streaming chat + thinking UI, agents/skills visible,
+      machine/computer tools, email, uploads, Chrome tabs, tab-edit streaming, voices, specs, design layer.
+      The 4-agent Claude team (Manager/Coder&Dev/Idea Maker/Designer) was launched 2026-09-12 but all
+      four hit the account session limit before writing anything; relaunch with fewer in parallel.
 
 - [x] **[P0] Handoff docs** -> `AGENTS.md`, this file, `.claude/CLAUDE.md`, `../CLAUDE_TO_ANTIGRAVITY.md`
 - [x] **[P1] Make the AI answer the question** - DONE AND VERIFIED LIVE
@@ -248,6 +283,8 @@ Owner could access and use the app; these are the follow-ups, verbatim intent pr
 | Inno Setup installer (P3.3) | Inno Setup 6 is not installed; fallback is a self-extracting ZIP |
 | Obsidian REST transport | Only works while Obsidian is running — filesystem fallback is mandatory |
 | Session persistence (P6.5) | Explicit sign-off; breaks `test_sessions_do_not_survive_a_restart` by design |
+| **Anyone downloading the app** | **The GitHub repo is private.** Owner must make it public, or publish the release separately |
+| Cloud routine "Nyx Ichos — own model prep" | Same cause: Claude Code cloud gets 403 cloning a private repo. See `NYX_MODEL_ROUTINE.md` |
 
 ---
 
@@ -267,26 +304,31 @@ Owner could access and use the app; these are the follow-ups, verbatim intent pr
 - `.venv` is healthy (Python 3.14.7). `.venv.broken` is dead and inert.
 - PyInstaller 6.22.2 supports Python 3.14.
 - Obsidian plugin: HTTPS **27124** only, in the **Ichnos** vault. 27123 disabled.
+- **The repo is private** (2026-09-07). `api.github.com/repos/ShagnikPal123/Local-AI-Project` → 404
+  unauthenticated, `git ls-remote` → 200 with the owner's credentials. This single setting is why
+  the site's "Download for Windows" 404s for every visitor, why no release can be fetched, and why
+  the cloud routine cannot clone. `dist/NyxIchos-windows-x64.zip` (31.5 MB) is built and waiting.
+- **NVIDIA NIM works but is slow** — free credits, OpenAI-compatible at
+  `integrate.api.nvidia.com/v1`. Measured: `nvidia/nemotron-3.5-lightning-30b-a3b` 21.6s,
+  `deepseek-v4-pro` 21s, `mistral-nemotron` 46s, `gemma-4-31b-it` 504 after 302s. Many catalogue
+  ids answer 404/410. It is a **fallback**, never a primary — Gemini is ~1.3s.
+- `providers/compat.py` sends **no `max_tokens`**. Harmless for normal models; a reasoning model
+  (`openai/gpt-oss-20b`) then runs unbounded — 5s capped vs **80s** uncapped. Do not default any
+  provider to a reasoning model until that adapter caps output.
+- The router puts custom providers **behind** shipped ones of the same cost (`_online_order`),
+  so adding NVIDIA cannot displace Gemini.
 
 ---
 
 ## 7. Handoff
 
-**Last touched:** Phase 1 (AI fix), Phase 2 (site fix), health-probe CORS, Ichnos avatar.
+**Last touched:** H16 tab editing freedom, 2026-09-15.
 
-**State:** the app works end to end. Tests went 816 -> 829. Engine runs on :8000, and the landing
-page detects it from any origin.
+**State:** The frontend build is fresh and the launcher-managed engine was restarted successfully. H16 was tested
+with a temporary tab containing a list, chart, tracker, timer, AI action, Connect Four, and Memory; controls worked,
+and the temporary tab was deleted. `tests/test_tab_freedom.py` passes (4 tests).
 
-**Half-finished:** nothing. Next task is the standalone installer (P3).
+**Next:** H4 Build tab. Read `AI_HANDOFF/START_HERE.md` first; it is the accurate Request H checklist.
 
-**Watch out:**
-- Antigravity added `AgentTeam.ensure_default_subagents()` (the four standing roles) and wired it
-  into **GET** `/api/agents`. That is a read with a side effect, and it broke
-  `test_three_agents_can_be_spawned_in_one_call`, which assumed an empty team. The test now asserts
-  the agents actually created rather than a raw total. Consider moving the seeding out of the GET.
-- A pytest warning shows an unverified HTTPS request to 127.0.0.1 from `/api/connectors` - an
-  Obsidian connector reaching the Local REST API. Confirm the TLS handling is loopback-scoped.
-
-**Check first:** `.venv/Scripts/python.exe -m pytest -q` from the project folder.
-
-**Reference:** full plan at `C:/Users/shagn/.claude/plans/9814bdd2ca304a785291c5d86cc4e97b3e3e560-cryptic-mochi.md`
+**Check first:** `.venv/Scripts/python.exe -m pytest tests/test_tab_freedom.py -q`, then
+`cd frontend/nyx-pulse && npm run build`.

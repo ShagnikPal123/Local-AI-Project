@@ -1,6 +1,13 @@
 # -*- mode: python ; coding: utf-8 -*-
 """PyInstaller spec for the standalone Nyx build.
 
+WARNING (2026-09-13): do not ship or point shortcuts at the resulting Nyx.exe
+unless it is code-signed. Windows Smart App Control blocks unsigned executables
+without reputation, and it silently refused this build on the owner's own PC
+(CodeIntegrity event 3077). Users start Nyx through "Start Nyx.bat" and
+launcher.py on Python's signed pythonw.exe instead; the download is built by
+build_release.py.
+
 Produces a folder (`dist/Nyx/`) containing `Nyx.exe`, a bundled CPython, every
 dependency, and the built web UI. The user unzips it and double-clicks - no
 Python install, no pip, no venv.

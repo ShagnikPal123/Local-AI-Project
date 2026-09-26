@@ -2,8 +2,18 @@
 
 import json
 import re
-from typing import Any, Callable, Dict, List, Optional, Tuple
+import time
+import uuid
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from dataclasses import dataclass
+
+#: A tool result longer than this is cut before it reaches the model. A 2 MB
+#: directory listing does not make an answer better; it pushes the question out
+#: of the context window.
+MAX_RESULT_CHARS = 16_000
+
+#: Preview length for the activity timeline in the UI.
+_PREVIEW_CHARS = 400
 
 
 @dataclass
@@ -35,6 +45,25 @@ class ToolDefinition:
     description: str
     parameters: List[ToolParam]
     handler: Callable[..., str]
+    #: Permission category (see permissions.CATEGORIES), enforced in call_tool so
+    #: no individual tool can forget to check.
+    category: str = "general"
+    #: How the step reads in the activity timeline: a fixed string, or a function
+    #: of the arguments ("Running: Get-Process").
+    label: Union[str, Callable[[Dict[str, Any]], str], None] = None
+
+    def describe_call(self, arguments: Dict[str, Any]) -> str:
+        """A short human label for one call, never raising."""
+        try:
+            if callable(self.label):
+                text = self.label(arguments)
+            elif isinstance(self.label, str) and self.label:
+                text = self.label
+            else:
+                text = _default_label(self.name, arguments)
+            return str(text)[:160]
+        except Exception:
+            return _default_label(self.name, arguments)
 
     def to_schema(self) -> Dict[str, Any]:
         """Convert to JSON schema for LLM function calling."""
@@ -56,6 +85,23 @@ class ToolDefinition:
         }
 
 
+def _default_label(name: str, arguments: Dict[str, Any]) -> str:
+    """Fallback timeline label: the tool name plus its most telling argument."""
+    readable = name.replace("_", " ").capitalize()
+    for key in ("query", "path", "url", "command", "target", "text", "name", "to", "symbols"):
+        value = arguments.get(key) if isinstance(arguments, dict) else None
+        if isinstance(value, str) and value.strip():
+            snippet = value.strip().replace("\n", " ")
+            return f"{readable}: {snippet[:80]}"
+    return readable
+
+
+def _preview(result: Any) -> str:
+    text = str(result or "")
+    text = text.replace("\r", "")
+    return text if len(text) <= _PREVIEW_CHARS else text[:_PREVIEW_CHARS] + "…"
+
+
 class ToolRegistry:
     """Registry of available tools that the assistant can use."""
 
@@ -69,13 +115,21 @@ class ToolRegistry:
         description: str,
         parameters: List[ToolParam],
         handler: Callable[..., str],
+        category: str = "general",
+        label: Union[str, Callable[[Dict[str, Any]], str], None] = None,
     ) -> None:
-        """Register a new tool."""
+        """Register a new tool.
+
+        ``category`` is the permission the owner controls for it; ``label`` is
+        what the user sees in the timeline while it runs.
+        """
         self.tools[name] = ToolDefinition(
             name=name,
             description=description,
             parameters=parameters,
             handler=handler,
+            category=category or "general",
+            label=label,
         )
 
     def get_tool(self, name: str) -> Optional[ToolDefinition]:
@@ -105,17 +159,104 @@ class ToolRegistry:
                     lines.append(f"    - {param.name} ({param.param_type}): {param.description} [{req}]")
         return "\n".join(lines)
 
-    def call_tool(self, name: str, **kwargs) -> str:
-        """Call a tool by name with the given arguments."""
+    def call_tool(self, name: str, /, **kwargs) -> str:
+        """Call a tool by name with the given arguments.
+
+        ``name`` is positional-only: several tools (create_agent, update_agent,
+        notes…) take an argument called ``name`` themselves, and passing it made
+        Python raise "got multiple values for argument 'name'" before the tool ran,
+        ending the whole turn (Request H3).
+
+        This is the one choke point every tool call passes through, so it is
+        where the owner's permission setting is enforced and where the UI learns
+        a step started and finished. Neither can be forgotten by a new tool.
+        """
         tool = self.get_tool(name)
         if not tool:
-            return f"Error: Tool '{name}' not found."
+            known = ", ".join(sorted(self.tools)[:60])
+            return f"Error: Tool '{name}' not found. Available tools include: {known}"
+
+        from tool_context import current
+
+        ctx = current()
+        call_id = uuid.uuid4().hex[:10]
+        label = tool.describe_call(kwargs)
+        previous_call = ""
+        if ctx is not None:
+            previous_call, ctx.call_id = ctx.call_id, call_id
+            ctx.emit(
+                "tool.start",
+                call_id=call_id,
+                name=name,
+                label=label,
+                category=tool.category,
+                args=_safe_args(kwargs),
+            )
+
+        started = time.perf_counter()
+        ok = True
         try:
-            return tool.handler(**kwargs)
+            # The feature catalog counts what actually gets used (Project Null N100).
+            import feature_catalog
+
+            feature_catalog.note("tool", name)
+        except Exception:  # noqa: BLE001 - counting never blocks a tool
+            pass
+        try:
+            try:
+                from permissions import PermissionDenied, require
+
+                require(tool.category, label, detail=json.dumps(_safe_args(kwargs))[:1200])
+                guard = getattr(ctx, "guard", None) if ctx is not None else None
+                if guard is not None:
+                    guard(name, tool.category)  # the turn's own gate: Free Will's deny-by-default list (freewill.py)
+            except PermissionDenied as denied:
+                ok = False
+                result = str(denied)
+            else:
+                result = tool.handler(**kwargs)
+                if not isinstance(result, str):
+                    result = json.dumps(result, default=str) if isinstance(result, (dict, list)) else str(result)
         except TypeError as e:
-            return f"Error calling tool '{name}': Invalid arguments - {str(e)}"
+            ok = False
+            result = f"Error calling tool '{name}': Invalid arguments - {str(e)}"
         except Exception as e:
-            return f"Error calling tool '{name}': {str(e)}"
+            ok = False
+            result = f"Error calling tool '{name}': {str(e)}"
+
+        if len(result) > MAX_RESULT_CHARS:
+            result = (
+                result[:MAX_RESULT_CHARS]
+                + f"\n... [truncated: {len(result):,} chars total; ask for a narrower query or a specific part]"
+            )
+        if ok and result.lstrip().lower().startswith(("error", "blocked:")):
+            ok = False
+
+        if ctx is not None:
+            ctx.emit(
+                "tool.end",
+                call_id=call_id,
+                name=name,
+                ok=ok,
+                preview=_preview(result),
+                ms=round((time.perf_counter() - started) * 1000),
+            )
+            ctx.call_id = previous_call
+        return result
+
+    def tools_by_category(self) -> Dict[str, List[str]]:
+        grouped: Dict[str, List[str]] = {}
+        for tool in self.tools.values():
+            grouped.setdefault(tool.category, []).append(tool.name)
+        return {k: sorted(v) for k, v in sorted(grouped.items())}
+
+    # Accept the shapes models actually produce, not only the documented one.
+    # Gemini in particular drifts between the "name:/arguments:" form, a JSON
+    # object inside the tags, and a fenced block — and a call that fails to parse
+    # is a turn where the model believes it acted and nothing happened.
+    #: Closed blocks, and an unclosed last block (models sometimes stop before the tag).
+    _BLOCK_RE = re.compile(r"<tool_call>(.*?)(?:</tool_call>|(?=<tool_call>)|\Z)", re.DOTALL)
+    _NAME_ARGS_RE = re.compile(r"^\s*name:\s*([A-Za-z_][\w.-]*)\s*(?:arguments:\s*(.*))?$", re.DOTALL)
 
     def parse_tool_calls(self, text: str) -> List[Tuple[str, Dict[str, Any]]]:
         """
@@ -127,22 +268,116 @@ class ToolRegistry:
         arguments: {"param1": "value1", "param2": "value2"}
         </tool_call>
 
+        plus ``<tool_call>{"name": "x", "arguments": {...}}</tool_call>`` and either
+        form wrapped in a ``json`` code fence.
+
         Returns:
             List of (tool_name, arguments_dict) tuples
         """
-        tool_calls = []
-        pattern = r"<tool_call>\s*name:\s*(\w+)\s*arguments:\s*({.*?})\s*</tool_call>"
+        tool_calls: List[Tuple[str, Dict[str, Any]]] = []
 
-        for match in re.finditer(pattern, text, re.DOTALL):
-            tool_name = match.group(1)
-            args_str = match.group(2)
-            try:
-                arguments = json.loads(args_str)
-                tool_calls.append((tool_name, arguments))
-            except json.JSONDecodeError:
-                pass
+        for block in self._BLOCK_RE.finditer(text or ""):
+            body = block.group(1).strip()
+            fence = re.match(r"^```(?:json|tool_call)?\s*(.*?)\s*```$", body, re.DOTALL)
+            if fence:
+                body = fence.group(1).strip()
+
+            if body.startswith("{"):
+                data = _loads_lenient(body)
+                if not isinstance(data, dict):
+                    continue
+                name = data.get("name") or data.get("tool")
+                arguments = data.get("arguments", data.get("args", data.get("parameters", {})))
+                if isinstance(arguments, str):
+                    arguments = _loads_lenient(arguments)
+                    if arguments is None:
+                        continue
+                if isinstance(name, str) and isinstance(arguments, dict):
+                    tool_calls.append((name, arguments))
+                continue
+
+            match = self._NAME_ARGS_RE.match(body)
+            if not match:
+                continue
+            name, args_text = match.group(1), (match.group(2) or "").strip()
+            if not args_text:
+                tool_calls.append((name, {}))
+                continue
+            args_fence = re.match(r"^```(?:json)?\s*(.*?)\s*```$", args_text, re.DOTALL)
+            if args_fence:
+                args_text = args_fence.group(1).strip()
+            arguments = _loads_lenient(args_text)
+            if isinstance(arguments, dict):
+                tool_calls.append((name, arguments))
 
         return tool_calls
+
+
+#: A backslash that does not start a JSON escape (the "\U" in a raw Windows path).
+_BAD_ESCAPE_RE = re.compile(r'\\(?!["\\/bfnrtu])')
+
+
+def _first_object(text: str) -> Optional[str]:
+    """The first balanced ``{...}`` in ``text``, respecting strings — trailing junk dropped."""
+    start = text.find("{")
+    if start == -1:
+        return None
+    depth, in_string, escaped = 0, False, False
+    for index in range(start, len(text)):
+        char = text[index]
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+        elif char == '"':
+            in_string = True
+        elif char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start:index + 1]
+    return None
+
+
+def _loads_lenient(text: str) -> Any:
+    """Read the JSON a model meant to write.
+
+    Models write Windows paths raw (a single backslash before "Users" is not a JSON escape),
+    add a stray brace after the object, or put real newlines inside strings. Each
+    of those made a whole tool call vanish, and the turn ended with an empty
+    answer (Request G11). Returns None when nothing sensible can be read.
+    """
+    text = (text or "").strip()
+    candidates = [text]
+    obj = _first_object(text)
+    if obj and obj != text:
+        candidates.append(obj)
+    for candidate in list(candidates):
+        candidates.append(_BAD_ESCAPE_RE.sub(r"\\\\", candidate))
+    for candidate in candidates:
+        try:
+            return json.loads(candidate, strict=False)
+        except (json.JSONDecodeError, ValueError):
+            continue
+    return None
+
+
+def _safe_args(arguments: Dict[str, Any]) -> Dict[str, Any]:
+    """Arguments as the timeline shows them: long values cut, secrets masked."""
+    safe: Dict[str, Any] = {}
+    for key, value in (arguments or {}).items():
+        lowered = str(key).lower()
+        if any(word in lowered for word in ("password", "secret", "token", "api_key", "apikey")):
+            safe[key] = "••••"
+        elif isinstance(value, str) and len(value) > 300:
+            safe[key] = value[:300] + "…"
+        else:
+            safe[key] = value
+    return safe
 
 
 # Global registry
@@ -282,6 +517,7 @@ TOOL_REGISTRY.register(
         ),
     ],
     handler=builtin_search_web,
+    category="web",
 )
 
 
@@ -290,6 +526,7 @@ TOOL_REGISTRY.register(
     description="Open a discovered public HTTP or HTTPS link and inspect its readable content.",
     parameters=[ToolParam(name="url", param_type="string", description="The discovered public page URL", required=True)],
     handler=builtin_fetch_webpage,
+    category="web",
 )
 
 TOOL_REGISTRY.register(
@@ -299,6 +536,7 @@ TOOL_REGISTRY.register(
         ToolParam(name="url", param_type="string", description="The public page URL", required=True),
     ],
     handler=builtin_fetch_webpage,
+    category="web",
 )
 
 TOOL_REGISTRY.register(
@@ -313,6 +551,7 @@ TOOL_REGISTRY.register(
         ),
     ],
     handler=builtin_get_weather,
+    category="web",
 )
 
 TOOL_REGISTRY.register(
@@ -380,6 +619,7 @@ TOOL_REGISTRY.register(
         ToolParam(name="text", param_type="string", description="Text to copy when action is 'set'", required=False),
     ],
     handler=builtin_system_clipboard,
+    category="clipboard",
 )
 
 TOOL_REGISTRY.register(
@@ -389,6 +629,7 @@ TOOL_REGISTRY.register(
         ToolParam(name="output_path", param_type="string", description="File destination path", required=False),
     ],
     handler=builtin_system_screenshot,
+    category="computer",
 )
 
 TOOL_REGISTRY.register(
@@ -399,6 +640,7 @@ TOOL_REGISTRY.register(
         ToolParam(name="open_browser", param_type="boolean", description="Whether to open the search page in browser", required=False),
     ],
     handler=builtin_google_search,
+    category="web",
 )
 
 TOOL_REGISTRY.register(
@@ -409,6 +651,7 @@ TOOL_REGISTRY.register(
         ToolParam(name="open_browser", param_type="boolean", description="Whether to open results in browser", required=False),
     ],
     handler=builtin_youtube_search,
+    category="web",
 )
 
 TOOL_REGISTRY.register(
@@ -419,6 +662,7 @@ TOOL_REGISTRY.register(
         ToolParam(name="music", param_type="boolean", description="Open on YouTube Music instead of regular YouTube", required=False),
     ],
     handler=builtin_youtube_play,
+    category="apps",
 )
 
 # ============================================================================
@@ -516,6 +760,7 @@ TOOL_REGISTRY.register(
         ToolParam(name="max_chars", param_type="number", description="Maximum characters to read (default 20000)", required=False),
     ],
     handler=builtin_read_file,
+    category="files.read",
 )
 
 TOOL_REGISTRY.register(
@@ -526,6 +771,7 @@ TOOL_REGISTRY.register(
         ToolParam(name="limit", param_type="number", description="Maximum entries (default 100)", required=False),
     ],
     handler=builtin_list_folder,
+    category="files.read",
 )
 
 TOOL_REGISTRY.register(
@@ -544,6 +790,7 @@ TOOL_REGISTRY.register(
         ToolParam(name="path", param_type="string", description="Path to the image or video file", required=True),
     ],
     handler=builtin_analyze_media,
+    category="files.read",
 )
 
 TOOL_REGISTRY.register(
@@ -554,6 +801,7 @@ TOOL_REGISTRY.register(
         ToolParam(name="path", param_type="string", description="Destination file path (default compressed_prompt.txt)", required=False),
     ],
     handler=builtin_compress_prompt,
+    category="files.write",
 )
 
 
@@ -695,6 +943,7 @@ TOOL_REGISTRY.register(
         ToolParam(name="max_rows", param_type="number", description="Maximum rows to analyze (default 1000)", required=False),
     ],
     handler=builtin_summarize_data,
+    category="files.read",
 )
 
 
@@ -739,6 +988,7 @@ TOOL_REGISTRY.register(
         ToolParam(name="symbols", param_type="string", description="Comma-separated ticker symbols", required=True),
     ],
     handler=builtin_stock_quote,
+    category="web",
 )
 
 TOOL_REGISTRY.register(
@@ -749,6 +999,7 @@ TOOL_REGISTRY.register(
         ToolParam(name="range", param_type="string", description="History range", required=False, enum_values=["1mo", "3mo", "6mo", "1y", "2y", "5y"]),
     ],
     handler=builtin_stock_history,
+    category="web",
 )
 
 TOOL_REGISTRY.register(
@@ -756,6 +1007,7 @@ TOOL_REGISTRY.register(
     description="Report whether US stock markets are currently open or closed.",
     parameters=[],
     handler=builtin_market_status,
+    category="web",
 )
 
 TOOL_REGISTRY.register(
@@ -940,6 +1192,7 @@ TOOL_REGISTRY.register(
         ToolParam(name="query", param_type="string", description="Keyword or topic to search for in Obsidian notes", required=True),
     ],
     handler=builtin_obsidian_search,
+    category="files.read",
 )
 
 TOOL_REGISTRY.register(
@@ -949,6 +1202,7 @@ TOOL_REGISTRY.register(
         ToolParam(name="path", param_type="string", description="Relative path or name of the note (e.g. 'Projects/Agent.md')", required=True),
     ],
     handler=builtin_obsidian_read_note,
+    category="files.read",
 )
 
 TOOL_REGISTRY.register(
@@ -959,6 +1213,7 @@ TOOL_REGISTRY.register(
         ToolParam(name="content", param_type="string", description="Markdown text content to write", required=True),
     ],
     handler=builtin_obsidian_write_note,
+    category="files.write",
 )
 
 TOOL_REGISTRY.register(
@@ -969,6 +1224,7 @@ TOOL_REGISTRY.register(
         ToolParam(name="content", param_type="string", description="Markdown text content to append", required=True),
     ],
     handler=builtin_obsidian_append_note,
+    category="files.write",
 )
 
 TOOL_REGISTRY.register(
@@ -978,6 +1234,7 @@ TOOL_REGISTRY.register(
         ToolParam(name="directory", param_type="string", description="Optional subfolder inside the vault to list", required=False),
     ],
     handler=builtin_obsidian_list_notes,
+    category="files.read",
 )
 
 
@@ -993,19 +1250,20 @@ def builtin_switch_model(provider: str = "", model: str = "") -> str:
     the next request with no restart.
     """
     from config import SETTINGS
-    from router import _PAID_PROVIDERS
 
     wanted = (provider or "").strip().lower()
     known = {
         "ollama", "claude", "anthropic", "openai", "gemini",
-        "kimi", "deepseek", "groq", "perplexity",
+        "kimi", "deepseek", "groq", "nvidia", "perplexity", "qwen",
     }
 
     if not wanted and not model:
+        current = SETTINGS.preferred_online_provider
+        online_model = getattr(SETTINGS, f"{current}_model", "") or "its default model"
         return (
-            f"Currently using {SETTINGS.preferred_online_provider} online"
-            f" (local model: {SETTINGS.ollama_model}). "
-            "Name a provider to switch, e.g. switch_model(provider='groq')."
+            f"Answering now: {current}, model {online_model}. "
+            f"(Ollama's local model {SETTINGS.ollama_model} is only used offline — it is not answering.) "
+            "Name a provider to switch, e.g. switch_model(provider='nvidia')."
         )
 
     if wanted:
@@ -1013,15 +1271,24 @@ def builtin_switch_model(provider: str = "", model: str = "") -> str:
             wanted = "claude"
         if wanted not in known:
             return f"Unknown provider {provider!r}. Available: {', '.join(sorted(known))}."
-        # Refuse rather than silently ignore. Switching to a provider that the
-        # router will then filter out looks like the switch worked and the model
-        # stayed the same, which is the most confusing possible outcome.
-        if SETTINGS.free_only and wanted in _PAID_PROVIDERS:
-            return (
-                f"{wanted} is a paid provider and free-only mode is on, so the router "
-                "would ignore it. Set FREE_ONLY=false in .env.local to allow paid models."
-            )
+        # Asking for a provider by name is the owner's consent to use its key
+        # (Request H11). Refuse only when its API said the key needs payment, and
+        # say so rather than switching to something the router would skip.
+        try:
+            import key_pool
+
+            payment = key_pool.payment_problem(wanted)
+        except Exception:  # pragma: no cover
+            payment = None
+        if payment:
+            return f"Not switched: the {wanted} API said this key needs payment ({payment[:160]})."
         SETTINGS.preferred_online_provider = wanted
+        try:
+            import model_choice
+
+            model_choice.remember(wanted, model)
+        except Exception:  # pragma: no cover
+            pass
 
     if model:
         clean = model.strip()
@@ -1031,11 +1298,22 @@ def builtin_switch_model(provider: str = "", model: str = "") -> str:
             SETTINGS.gemini_model = clean
         elif wanted == "groq":
             SETTINGS.groq_model = clean
+        elif wanted == "nvidia":
+            SETTINGS.nvidia_model = clean
         elif wanted == "deepseek":
             SETTINGS.deepseek_model = clean
         elif wanted == "kimi":
             SETTINGS.kimi_model = clean
+        elif wanted == "qwen":
+            SETTINGS.qwen_model = clean
 
+    try:
+        from tool_context import emit as emit_event
+
+        # The chat's model dropdown follows a switch made in words (Request G9).
+        emit_event("model.switched", provider=SETTINGS.preferred_online_provider, model=(model or "").strip())
+    except Exception:  # pragma: no cover - the switch itself already happened
+        pass
     return (
         f"Switched. Online provider is now {SETTINGS.preferred_online_provider}"
         + (f", model {model.strip()}" if model else "")
@@ -1054,9 +1332,9 @@ TOOL_REGISTRY.register(
         ToolParam(
             name="provider",
             param_type="string",
-            description="Provider to use: ollama, gemini, groq, claude, openai, deepseek, kimi, perplexity",
+            description="Provider to use: ollama, gemini, groq, nvidia, claude, openai, deepseek, kimi, perplexity, qwen",
             required=False,
-            enum_values=["ollama", "gemini", "groq", "claude", "openai", "deepseek", "kimi", "perplexity"],
+            enum_values=["ollama", "gemini", "groq", "nvidia", "claude", "openai", "deepseek", "kimi", "perplexity", "qwen"],
         ),
         ToolParam(
             name="model",
@@ -1067,3 +1345,73 @@ TOOL_REGISTRY.register(
     ],
     handler=builtin_switch_model,
 )
+
+
+def builtin_apple_design_lookup(query: str = "") -> str:
+    """Search Apple Human Interface Guidelines for design patterns and rules."""
+    from connectors.apple_design_connector import AppleDesignConnector
+
+    connector = AppleDesignConnector()
+    results = connector.lookup(query)
+    if not results:
+        return f"No Apple HIG topics matched '{query}'. Try searching broader terms like 'buttons', 'materials', 'color', or 'typography'."
+    lines = [f"Found {len(results)} matching Apple HIG topics for '{query}':"]
+    for item in results[:10]:
+        lines.append(f"- **{item['topic']}** (`{item['file']}`): {item['summary']}")
+    lines.append("\nUse `apple_design_read(topic=...)` to read the full guidelines.")
+    return "\n".join(lines)
+
+
+def builtin_apple_design_read(topic: str) -> str:
+    """Read specific Apple HIG guideline file or component specs."""
+    from connectors.apple_design_connector import AppleDesignConnector
+
+    connector = AppleDesignConnector()
+    result = connector.read_guideline(topic)
+    if not result.get("ok"):
+        return result.get("error", f"Could not find guideline '{topic}'.")
+    content = result.get("content", "")
+    if len(content) > 12000:
+        content = content[:12000] + "\n\n... [Guideline continues, truncated for length]"
+    return f"### Apple HIG: {result.get('topic')}\n\n{content}"
+
+
+TOOL_REGISTRY.register(
+    name="apple_design_lookup",
+    description=(
+        "Search Apple's Human Interface Guidelines (122 HIG reference files). "
+        "Use when designing UI, reviewing aesthetics, checking layout/spacing, "
+        "Liquid Glass materials, or finding Apple HIG specifications."
+    ),
+    parameters=[
+        ToolParam(
+            name="query",
+            param_type="string",
+            description="Topic or keyword to look up (e.g. 'buttons', 'liquid-glass', 'typography', 'accessibility', 'colors')",
+            required=False,
+        )
+    ],
+    handler=builtin_apple_design_lookup,
+)
+
+TOOL_REGISTRY.register(
+    name="apple_design_read",
+    description=(
+        "Read the full text of a specific Apple Human Interface Guideline topic. "
+        "Cites official design principles, platform rules, typography, and component styling."
+    ),
+    parameters=[
+        ToolParam(
+            name="topic",
+            param_type="string",
+            description="Specific guideline name or filename, e.g. 'buttons', 'liquid-glass', 'materials', 'typography', 'modality'",
+            required=True,
+        )
+    ],
+    handler=builtin_apple_design_read,
+)
+
+# generate_image, analyze_image, read_document and the model-role tools live in
+# media_tools.py (registered by tool_setup), where they run on the owner's
+# assigned models.
+

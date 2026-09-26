@@ -20,6 +20,7 @@ from connectors.youtube_connector import YouTubeConnector
 from connectors.finance_connector import FinanceConnector
 from connectors.voice_connector import VoiceConnector
 from connectors.obsidian_connector import ObsidianConnector
+from connectors.apple_design_connector import AppleDesignConnector
 
 # Register default core connectors
 CONNECTOR_REGISTRY.register(LocalFilesConnector())
@@ -33,8 +34,10 @@ CONNECTOR_REGISTRY.register(YouTubeConnector())
 CONNECTOR_REGISTRY.register(FinanceConnector())
 CONNECTOR_REGISTRY.register(VoiceConnector())
 CONNECTOR_REGISTRY.register(ObsidianConnector())
+CONNECTOR_REGISTRY.register(AppleDesignConnector())
 
 __all__ = [
+    "AppleDesignConnector",
     "AppLauncherConnector",
     "BaseConnector",
     "CONNECTOR_REGISTRY",

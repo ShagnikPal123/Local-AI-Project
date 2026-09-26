@@ -226,6 +226,21 @@ class ChangeLog:
             self._save()
         return change
 
+    def record_content(self, change_id: str, content: str, previous_content: str) -> Change:
+        """Attach what a change actually did (a diff) and what it replaced.
+
+        Used when an approved proposal is implemented: the record then holds the
+        real edit instead of a description of one, and rollback has the prior text.
+        """
+        with self._lock:
+            change = self._changes.get(change_id)
+            if change is None:
+                raise ChangeError("No such change.")
+            change.content = content
+            change.previous_content = previous_content
+            self._save()
+            return change
+
     def _transition(self, change_id: str, to: ChangeStatus) -> Change:
         """Move a change to a new status, refusing anything not in the table."""
         with self._lock:

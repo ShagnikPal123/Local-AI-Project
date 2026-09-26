@@ -62,6 +62,28 @@ def test_turns_needing_tools_or_freshness_take_the_full_path(policy, message):
     assert decision.fast is False, f"{message!r} wrongly took the fast path"
 
 
+@pytest.mark.parametrize("message", [
+    # Plan Null N2, the owner's own words: short enough for the fast path, which
+    # has no tools, so the model said it could not send email.
+    "can you send me an email?",
+    "Send me an email. Just saying Hi",
+    "send an email from me@example.com to me@example.com Hi as the message and subject",
+    "check my inbox",
+    "add lunch to my calendar",
+    "remind me at 5",
+    "make a new tab for my workouts",
+    "remember that I like tea",
+])
+def test_actions_that_need_a_tool_take_the_full_path(policy, message):
+    decision = policy.decide(message)
+    assert decision.fast is False, f"{message!r} wrongly took the fast path"
+
+
+@pytest.mark.parametrize("message", ["what is a table?", "tell me a joke", "good morning"])
+def test_action_words_match_whole_words_only(policy, message):
+    assert policy.decide(message).fast is True, f"{message!r} lost the fast path"
+
+
 def test_long_input_takes_the_full_path(policy):
     assert policy.decide("a" * 400).fast is False
 
@@ -113,6 +135,28 @@ def test_every_decision_carries_a_reason(policy):
 def test_escalation_sentinel_is_detected():
     assert wants_escalation(ESCALATION_SENTINEL) is True
     assert wants_escalation("a normal answer") is False
+
+
+@pytest.mark.parametrize("reply", [
+    # Real fast-path replies from the owner's chats (2026-09-21).
+    "I cannot send emails or access external systems like email services. I'm an AI text assistant "
+    "without capabilities to communicate with email servers or your personal accounts.",
+    "I cannot send emails directly as this tool isn't available in my current interface.",
+    "I don't have access to your calendar.",
+    "Sorry, I'm unable to open files on your computer.",
+])
+def test_a_fast_reply_that_says_it_cannot_act_escalates(reply):
+    assert wants_escalation(reply) is True
+
+
+@pytest.mark.parametrize("reply", [
+    "Hello! How can I help you today?",
+    "I can't wait to hear how it goes.",
+    "2 + 2 is 4.",
+    "You can open the file from the menu.",
+])
+def test_ordinary_fast_replies_do_not_escalate(reply):
+    assert wants_escalation(reply) is False
 
 
 # --- integration with ChatService ---------------------------------------------

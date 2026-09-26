@@ -32,6 +32,7 @@ def test_openai_chat_success(mock_settings, mock_post):
     mock_settings.openai_api_key = "sk-test-key"
 
     mock_response = MagicMock()
+    mock_response.status_code = 200
     mock_response.json.return_value = {
         "choices": [{"message": {"content": "Hello from OpenAI"}}]
     }
@@ -80,6 +81,7 @@ def test_anthropic_chat_success(mock_settings, mock_post):
     mock_settings.anthropic_api_key = "sk-ant-test-key"
 
     mock_response = MagicMock()
+    mock_response.status_code = 200
     mock_response.json.return_value = {
         "content": [{"text": "Hello from Claude"}]
     }

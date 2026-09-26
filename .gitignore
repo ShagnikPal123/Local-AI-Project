@@ -27,6 +27,9 @@ checkpoints/
 tabs.json
 widgets.json
 skills.json
+# Names a key variable rather than holding its value, but it is still this
+# machine's provider list — user state, not something to ship.
+provider_specs.json
 profiles/
 deploy_payload.json
 local_storage.json
@@ -71,3 +74,87 @@ CLAUDE_TO_ANTIGRAVITY.md
 
 # A stray duplicate of openai_mcp. Kept locally; nothing imports it.
 openai_mcp - Copy/
+
+# Improvement autopilot state (runs, lessons, backups of applied edits)
+autopilot/
+learning/
+brain/
+design_studio/
+tts_cache/
+edge_voices.json
+email_accounts.json
+voice_roles.json
+uploads/
+client_state/
+changes.json
+
+
+# Request S: Big Kahuna (Identity 0) data — chat-derived experiences, corpus, datasets and weights
+kahuna/
+
+# Project Null N8: Office Space — the owner's office files, folders and the work their agents produce
+offices/
+
+# --- Runtime state written by a running Nyx, not part of the project ---------
+# Each of these is produced on the machine as features get used: the owner's
+# own chats, learned weights for the prompt optimiser, live provider quota
+# counters, their tabs and workspaces. Shipping them would publish one
+# person's session, and they are overwritten on the next run anyway.
+internal_chats.json
+chats.backup-*.json
+key_health.json
+usage_limits.json
+predictions.json
+prompt_optimizer.json
+model_choice.json
+content_mode.json
+code_workspaces.json
+command_zone.json
+backgrounds.json
+collab.json
+custom_agents.json
+agent_overrides.json
+notes/
+apply/
+freewill/
+games/
+system/
+diagrams/
+data_process/
+
+# Absorbed-source corpus: exports and run records from documents the owner fed
+# in. Their reading material, and megabytes of it.
+absorb/
+
+# Trading state — live positions, approvals, the audit trail and paper-account
+# balances. The code under trading/ ships; this machine's account does not.
+trading/*.json
+
+# Engine and install logs.
+logs/
+
+# Backups taken before an automatic edit, and a scratch copy of an unpacked
+# build used for inspection.
+code_backups/
+temp_inspect/
+
+# Built release archives (~35MB). Releases are attached to a GitHub release,
+# never committed to the tree.
+site/downloads/
+
+# An unzipped copy of the apple-design skill download; skills/apple-design/
+# is the real one.
+skills/apple-design-skill-main/
+
+# --- More runtime state (2026-09-26, before the Project Null push) ------------
+# Each is written by a running Nyx on the owner's machine: their model-role
+# picks, research results, the malicious-file check log, Curiosity's own
+# questions, taught clap/whistle gestures, and feature usage counts. The code
+# that reads them ships; their contents do not.
+model_roles.json
+research/
+security/
+curiosity/
+feature_catalog.json
+voice_gestures.json
+finance_lab/*.json

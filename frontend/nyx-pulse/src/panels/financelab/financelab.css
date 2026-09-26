@@ -1,0 +1,103 @@
+/* The finance lab (Project Null N104–N110). Money first, then the pipeline that
+   decides what to do with it. Nothing here is colour-only: every state has words. */
+
+.fl { display: grid; gap: 14px; padding: 16px; }
+.fl-card { padding: 16px 18px; border-radius: 16px; background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-divider); }
+.fl-card h2 { margin: 0 0 6px; font-family: var(--font-heading); font-size: 16px; font-weight: 600; }
+.fl-card h3 { margin: 0 0 8px; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--color-neutral-600); }
+.fl-muted { color: var(--color-neutral-500); font-size: 13px; }
+.fl-error { color: #ffb4ae; font-size: 13px; }
+.fl-fine { margin: 10px 0 0; font-size: 11.5px; line-height: 1.55; color: var(--color-neutral-600); }
+.fl-note { margin: 8px 0 0; font-size: 12.5px; color: var(--color-warn); }
+.fl-btn { padding: 7px 13px; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--color-on-accent);
+  background: var(--color-accent); border: none; border-radius: 999px; cursor: pointer; }
+.fl-btn:disabled { opacity: 0.55; cursor: default; }
+.fl-btn--plain { color: var(--color-neutral-300); background: var(--color-surface-2); }
+.fl-btn--danger { color: #2a0a08; background: var(--color-danger); }
+
+.fl-money__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.fl-mode { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; padding: 3px 9px; border-radius: 999px;
+  color: #04110a; background: var(--color-ok); }
+.fl-mode--real { color: #2a0a08; background: var(--color-danger); }
+.fl-bar { display: flex; height: 10px; margin: 10px 0; border-radius: 999px; overflow: hidden;
+  background: var(--color-neutral-800); }
+.fl-bar__invested { background: var(--color-accent); }
+.fl-bar__cash { background: var(--color-ok); opacity: 0.55; }
+.fl-figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }
+.fl-figure { display: grid; gap: 1px; }
+.fl-figure b { font-family: var(--font-heading); font-size: 17px; font-weight: 600; }
+.fl-figure b.is-ok { color: var(--color-ok); }
+.fl-figure b.is-bad { color: var(--color-danger); }
+.fl-figure span { font-size: 11.5px; color: var(--color-neutral-600); }
+.fl-fields { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 12px; }
+.fl-fields label { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--color-neutral-400); }
+.fl-fields input { width: 96px; padding: 6px 9px; font: inherit; font-size: 13px; color: var(--color-text);
+  background: var(--color-surface-2); border: none; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--color-divider); }
+.fl-stop { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; padding: 10px 12px;
+  font-size: 13px; border-radius: 12px; color: #ffd9d6; background: rgba(255, 69, 58, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(255, 69, 58, 0.35); }
+
+/* The pipeline. A used node lights; a node used a while ago stays warm. */
+.fl-graph { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-top: 10px; }
+.fl-graph__col { display: grid; gap: 8px; align-content: start; }
+.fl-node { position: relative; display: grid; gap: 2px; padding: 9px 11px; border-radius: 12px;
+  background: var(--color-surface-2); box-shadow: inset 0 0 0 1px var(--color-divider);
+  transition: box-shadow 200ms ease, background 200ms ease; }
+.fl-node b { font-size: 13px; }
+.fl-node span { font-size: 11.5px; color: var(--color-neutral-600); }
+.fl-node.is-warm { box-shadow: inset 0 0 0 1px var(--color-accent-700); }
+.fl-node.is-hot { background: var(--color-accent-900); box-shadow: inset 0 0 0 1px var(--color-accent),
+  0 0 18px rgba(165, 148, 255, 0.35); }
+.fl-node.is-hot b { color: var(--color-accent-2); }
+.fl-node__count { position: absolute; top: 8px; right: 10px; font-size: 10.5px; font-style: normal;
+  color: var(--color-neutral-600); font-variant-numeric: tabular-nums; }
+
+.fl-ask { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
+.fl-ask input { width: 120px; padding: 7px 10px; font: inherit; font-size: 13px; color: var(--color-text);
+  background: var(--color-surface-2); border: none; border-radius: 10px; box-shadow: inset 0 0 0 1px var(--color-divider); }
+.fl-advice { margin: 8px 0; padding: 10px 12px; border-radius: 12px; background: var(--color-surface-2); }
+.fl-advice p { margin: 4px 0 0; font-size: 12.5px; line-height: 1.55; color: var(--color-neutral-400); }
+.fl-signals { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; font-size: 12.5px;
+  color: var(--color-neutral-400); }
+.fl-act { display: inline-block; min-width: 42px; font-size: 11px; text-transform: uppercase; }
+.fl-act--buy { color: var(--color-ok); }
+.fl-act--sell { color: var(--color-danger); }
+.fl-act--hold { color: var(--color-neutral-600); }
+
+.fl-chart { margin: 10px 0 0; }
+.fl-chart svg { width: 100%; height: auto; }
+.fl-chart__band { fill: rgba(165, 148, 255, 0.18); }
+.fl-chart__mid { stroke: var(--color-accent); stroke-width: 2; }
+.fl-chart__now { stroke: var(--color-neutral-700); stroke-dasharray: 4 4; }
+.fl-chart__label { fill: var(--color-neutral-500); font-size: 10px; }
+.fl-chart figcaption { margin-top: 6px; font-size: 12px; line-height: 1.55; color: var(--color-neutral-500); }
+.fl-heads { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+
+.fl-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 8px; }
+.fl-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--color-neutral-600); padding: 4px 8px 6px; }
+.fl-table td { padding: 5px 8px; border-top: 1px solid var(--color-divider); }
+.fl-table td.is-ok { color: var(--color-ok); }
+.fl-table td.is-bad { color: var(--color-danger); }
+
+.fl-lessons { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.fl-lessons li { display: grid; gap: 2px; padding: 9px 11px; border-radius: 12px; background: var(--color-surface-2); }
+.fl-lessons b { font-size: 13px; }
+.fl-lessons span { font-size: 12.5px; color: var(--color-neutral-400); }
+
+.fl-picked { margin: 4px 0; font-size: 13px; }
+.fl-picked.is-local { color: var(--color-ok); }
+.fl-providers { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 5px; font-size: 12px;
+  color: var(--color-neutral-500); }
+.fl-verdict { font-size: 11px; text-transform: uppercase; padding: 1px 7px; border-radius: 999px;
+  background: var(--color-surface-2); }
+.fl-verdict.is-enough { color: var(--color-ok); }
+.fl-verdict.is-short { color: var(--color-danger); }
+
+.fl-focus.is-on { box-shadow: inset 0 0 0 1px var(--color-warn); }
+.fl-warning { margin-top: 10px; padding: 12px 14px; border-radius: 12px; font-size: 12.5px; line-height: 1.6;
+  background: rgba(255, 214, 10, 0.08); box-shadow: inset 0 0 0 1px rgba(255, 214, 10, 0.35); }
+.fl-warning p { margin: 4px 0; }
+.fl-real { color: var(--color-danger); font-weight: 600; }

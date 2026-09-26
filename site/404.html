@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Page not found — Nyx Ichos</title>
+<meta name="description" content="That page isn't part of Nyx Ichos. Here's the way back.">
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<style>
+  /* The front page's tokens (index.html), so a wrong turn still feels like Nyx. */
+  :root {
+    --bg: #000000; --surface-2: #15151c; --surface-3: #1d1d26; --text: #f5f5f7;
+    --n300: #d1d1d6; --n400: #c7c7cc; --n500: #a1a1aa; --n600: #8e8e96;
+    --accent: #a594ff; --accent-300: #d6ceff;
+    --glass-fill: rgba(18, 18, 24, .62); --glass-edge: rgba(255, 255, 255, .12);
+    --lift: inset 0 1px 0 rgba(255, 255, 255, .09), 0 1px 2px rgba(0, 0, 0, .6), 0 6px 18px rgba(0, 0, 0, .35);
+    --press: inset 0 2px 5px rgba(0, 0, 0, .55);
+    --ease-out: cubic-bezier(.22, 1, .36, 1);
+    --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", Inter, system-ui, sans-serif;
+    --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI Variable Display", "Segoe UI", Inter, system-ui, sans-serif;
+    --font-mono: "SF Mono", ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; min-height: 100svh; display: grid; place-items: center; padding: 24px 16px;
+    background: var(--bg); color: var(--text); font: 17px/1.55 var(--font-body); -webkit-font-smoothing: antialiased; }
+  a { color: var(--accent); text-decoration: none; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+  .field { position: fixed; inset: 0; z-index: 0; width: 100%; height: 100%; }
+  .card { position: relative; z-index: 1; width: min(520px, 100%); padding: 30px 28px 28px; border-radius: 22px;
+    background: var(--glass-fill); -webkit-backdrop-filter: blur(28px) saturate(1.4); backdrop-filter: blur(28px) saturate(1.4);
+    box-shadow: inset 0 0 0 1px var(--glass-edge), inset 0 1px 0 rgba(255, 255, 255, .08), 0 20px 60px rgba(0, 0, 0, .55); }
+  .cap { font-family: var(--font-mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--n500);
+    display: flex; align-items: center; gap: 8px; }
+  .cap i { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+  h1 { margin: 12px 0 10px; font-family: var(--font-display); font-weight: 600; letter-spacing: -.03em; line-height: 1.02;
+    font-size: clamp(30px, 6vw, 40px); }
+  p { margin: 0 0 24px; color: var(--n400); }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 44px; padding: 0 20px;
+    border-radius: 999px; font-size: 15px; font-weight: 600; white-space: nowrap;
+    transition: background 140ms ease, color 140ms ease, transform 90ms var(--ease-out); }
+  .btn:active { transform: translateY(1px) scale(.975); box-shadow: var(--press); }
+  .btn-primary { background: var(--accent); color: #000; box-shadow: var(--lift); }
+  .btn-primary:hover { background: var(--accent-300); color: #000; }
+  .btn-secondary { background: var(--surface-2); color: var(--n300); box-shadow: var(--lift); }
+  .btn-secondary:hover { background: var(--surface-3); color: var(--text); }
+  @media (max-width: 420px) { .row .btn { flex: 1 1 100%; } }
+  @media (prefers-reduced-transparency: reduce) { .card { background: #101016; -webkit-backdrop-filter: none; backdrop-filter: none; } }
+  @media (prefers-reduced-motion: reduce) { .btn { transition: none; } .btn:active { transform: none; } }
+</style>
+</head>
+<body>
+<canvas class="field" id="field" aria-hidden="true"></canvas>
+<main class="card">
+  <div class="cap"><i aria-hidden="true"></i>404 · Nothing at this address</div>
+  <h1>This page isn’t part of Nyx</h1>
+  <p>The link may be old or mistyped. Everything Nyx has is on the front page — the download, how to install it,
+    and what it can do.</p>
+  <div class="row">
+    <a class="btn btn-primary" href="/">Go to Nyx Ichos</a>
+    <a class="btn btn-secondary" href="/#install">How to Install</a>
+  </div>
+</main>
+<script>
+(() => {
+  // A small, still patch of the memory field: stars only, drawn once.
+  const canvas = document.getElementById("field");
+  if (!canvas || !canvas.getContext) return;
+  const draw = () => {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const W = canvas.clientWidth, H = canvas.clientHeight;
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+    const ctx = canvas.getContext("2d");
+    ctx.scale(dpr, dpr);
+    const glow = ctx.createRadialGradient(W * 0.5, H * 0.45, 0, W * 0.5, H * 0.45, Math.max(W, H) * 0.6);
+    glow.addColorStop(0, "rgba(101,89,210,0.22)");
+    glow.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
+    const count = Math.min(900, Math.round((W * H) / 1400));
+    for (let i = 0; i < count; i += 1) {
+      const r = Math.random() < 0.06 ? 1.6 : 0.8;
+      ctx.fillStyle = "hsla(" + (238 + Math.random() * 34) + ",70%,86%," + (0.25 + Math.random() * 0.6).toFixed(2) + ")";
+      ctx.fillRect(Math.random() * W, Math.random() * H, r, r);
+    }
+  };
+  draw();
+  let timer = 0;
+  window.addEventListener("resize", () => { clearTimeout(timer); timer = setTimeout(draw, 150); });
+})();
+</script>
+</body>
+</html>

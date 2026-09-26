@@ -3,9 +3,10 @@
 from chat_sessions import ChatSessionStore
 from sub_agents import SubAgentCoordinator
 
-def test_chat_limit_is_five(tmp_path):
+def test_chat_limit_is_bounded(tmp_path):
+    """Chats are browser-style tabs now (the limit was 5); it is still finite."""
     store = ChatSessionStore(tmp_path / "chats.json")
-    for index in range(5):
+    for index in range(ChatSessionStore.MAX_CHATS):
         store.create(f"Chat {index}")
     try:
         store.create("Too many")

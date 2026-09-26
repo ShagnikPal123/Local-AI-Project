@@ -1,0 +1,41 @@
+{
+  "name": "nyx-ichos",
+  "displayName": "Nyx Ichos",
+  "description": "Edit, explain and chat about your code with Nyx — every change arrives as a diff you accept.",
+  "version": "0.1.0",
+  "publisher": "shagnik",
+  "license": "UNLICENSED",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["AI", "Programming Languages", "Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      { "command": "nyx.editSelection", "title": "Edit with Instruction", "category": "Nyx" },
+      { "command": "nyx.ask", "title": "Ask About This Code", "category": "Nyx" },
+      { "command": "nyx.chat", "title": "Open Chat", "category": "Nyx" },
+      { "command": "nyx.openInNyx", "title": "Open This Folder in Nyx's Code Tab", "category": "Nyx" },
+      { "command": "nyx.signIn", "title": "Sign In", "category": "Nyx" }
+    ],
+    "keybindings": [
+      { "command": "nyx.editSelection", "key": "ctrl+alt+e", "mac": "cmd+alt+e", "when": "editorTextFocus" },
+      { "command": "nyx.chat", "key": "ctrl+alt+n", "mac": "cmd+alt+n" }
+    ],
+    "menus": {
+      "editor/context": [
+        { "command": "nyx.editSelection", "group": "nyx@1" },
+        { "command": "nyx.ask", "group": "nyx@2" }
+      ]
+    },
+    "configuration": {
+      "title": "Nyx Ichos",
+      "properties": {
+        "nyx.serverUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:8000",
+          "description": "Where Nyx's engine runs. The default is the engine on this computer."
+        }
+      }
+    }
+  }
+}

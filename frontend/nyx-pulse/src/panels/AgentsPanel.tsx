@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { agents as agentsApi, api } from "../api";
 import { ErrorState, Loading, PanelShell } from "../components/Panel";
+import { AgentProperties } from "../components/AgentProperties";
 
 interface Agent {
   agent_id: string;
@@ -145,7 +146,7 @@ function CreateAgentForm({ onCreated, onCancel }: {
   );
 }
 
-function AgentRow({ agent, onDismiss }: { agent: Agent; onDismiss: (id: string) => void }) {
+function AgentRow({ agent, onDismiss, onProperties }: { agent: Agent; onDismiss: (id: string) => void; onProperties: (name: string) => void }) {
   const color = STATUS_COLOR[agent.status];
   const isMaster = agent.role === "master";
   return (
@@ -161,14 +162,14 @@ function AgentRow({ agent, onDismiss }: { agent: Agent; onDismiss: (id: string) 
         <span style={{ fontSize: 13, fontWeight: isMaster ? 600 : 400 }}>{agent.name}</span>
         {isMaster && (
           <span style={{
-            fontSize: 10, letterSpacing: ".06em", textTransform: "uppercase",
+            fontSize: 11, letterSpacing: ".06em", textTransform: "uppercase",
             color: "var(--color-accent)",
           }}>
             manages the team
           </span>
         )}
         {agent.personality_id && (
-          <span style={{ fontSize: 10, color: "var(--color-neutral-600)" }}>
+          <span style={{ fontSize: 11, color: "var(--color-neutral-600)" }}>
             {agent.personality_id}
           </span>
         )}
@@ -177,6 +178,14 @@ function AgentRow({ agent, onDismiss }: { agent: Agent; onDismiss: (id: string) 
         }}>
           {agent.status}
         </span>
+        <button
+          className="btn btn-secondary"
+          onClick={() => onProperties(agent.name)}
+          title={`Objective, model and tools for ${agent.name}`}
+          style={{ fontSize: 11, padding: "2px 9px" }}
+        >
+          Properties
+        </button>
         <button
           className="btn btn-secondary"
           onClick={() => onDismiss(agent.agent_id)}
@@ -214,6 +223,7 @@ function AgentRow({ agent, onDismiss }: { agent: Agent; onDismiss: (id: string) 
 }
 
 export function AgentsPanel() {
+  const [properties, setProperties] = useState<string | null>(null);
   const [team, setTeam] = useState<TeamSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -347,7 +357,7 @@ export function AgentsPanel() {
             </div>
           ) : (
             team.agents.map((a) => (
-              <AgentRow key={a.agent_id} agent={a} onDismiss={(id) => void dismiss(id)} />
+              <AgentRow key={a.agent_id} agent={a} onDismiss={(id) => void dismiss(id)} onProperties={setProperties} />
             ))
           )}
           <div style={{ fontSize: 11, color: "var(--color-neutral-600)", marginTop: 8, lineHeight: 1.5 }}>
@@ -356,15 +366,7 @@ export function AgentsPanel() {
           </div>
         </div>
 
-        <div className="card" style={{ borderLeft: "3px solid var(--color-accent-700)" }}>
-          <div className="label" style={{ marginBottom: 6 }}>Still to build</div>
-          <div style={{ fontSize: 12, color: "var(--color-neutral-400)", lineHeight: 1.65 }}>
-            The master actually delegating work to workers (B1), auto scale-up and scale-down
-            (B6), and the inter-agent message bus (B3). Agents can be created and dismissed from
-            this panel, but nothing drives them from the chat loop yet — a new agent sits idle
-            until that lands.
-          </div>
-        </div>
+        {properties && <AgentProperties name={properties} onClose={() => { setProperties(null); void load(); }} onRenamed={setProperties} />}
       </div>
     </PanelShell>
   );

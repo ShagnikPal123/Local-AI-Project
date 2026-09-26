@@ -17,7 +17,7 @@ from connectors.base import BaseConnector, ConnectorManifest
 # Disable insecure HTTPS warnings for local self-signed certificates from Obsidian
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-_DEFAULT_API_KEY = "[Obsidian API key removed]"
+_DEFAULT_API_KEY = ""  # never a literal: set OBSIDIAN_API_KEY in .env.local
 
 
 class ObsidianConnector(BaseConnector):
@@ -62,13 +62,17 @@ class ObsidianConnector(BaseConnector):
 
     def is_available(self) -> bool:
         """Check if Obsidian REST API is responding or if a local vault path exists."""
+        # The filesystem transport works whether or not Obsidian is open, so a
+        # vault on disk answers instantly without probing the REST port.
+        if self._vault_path and Path(self._vault_path).is_dir():
+            return True
         if self._api_key:
             try:
                 res = requests.get(
                     f"{self._base_url(secure=True)}/",
                     headers=self._headers(),
                     verify=False,
-                    timeout=1.0,
+                    timeout=0.5,
                 )
                 if res.status_code in (200, 401, 403):
                     return True

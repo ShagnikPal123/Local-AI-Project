@@ -37,7 +37,7 @@ function riskColor(risk: string): string {
 function Pill({ text, color }: { text: string; color?: string }) {
   return (
     <span style={{
-      fontSize: 10, letterSpacing: ".04em", textTransform: "uppercase",
+      fontSize: 11, letterSpacing: ".04em", textTransform: "uppercase",
       padding: "2px 6px", borderRadius: 4,
       color: color ?? "var(--color-neutral-500)",
       background: "var(--color-nav)",
@@ -69,7 +69,7 @@ function ConnectorRow({ c }: { c: Connector }) {
       <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
         {c.permissions.map((p) => (
           <span key={p} style={{
-            fontSize: 10, fontFamily: "var(--font-mono)",
+            fontSize: 11, fontFamily: "var(--font-mono)",
             color: p === "execute" || p === "system" || p === "write"
               ? "var(--color-warn)" : "var(--color-neutral-600)",
           }}>

@@ -714,7 +714,7 @@ export function StrandsPanel({ state, onActivity }: {
             <div className="card" style={{ borderLeft: `3px solid ${kindColor(selected.kind)}` }}>
               <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 5 }}>
                 <span style={{ fontSize: 13, fontWeight: 600 }}>{selected.label}</span>
-                <span style={{ fontSize: 10, textTransform: "uppercase", color: kindColor(selected.kind) }}>
+                <span style={{ fontSize: 11, textTransform: "uppercase", color: kindColor(selected.kind) }}>
                   {selected.kind}
                 </span>
                 <button className="btn" style={{ marginLeft: "auto", fontSize: 11, color: "var(--color-neutral-500)" }}
@@ -805,7 +805,7 @@ export function StrandsPanel({ state, onActivity }: {
                   >
                     {turn.text}
                     {turn.provider && (
-                      <div style={{ marginTop: 6, fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--color-neutral-600)" }}>
+                      <div style={{ marginTop: 6, fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--color-neutral-600)" }}>
                         {turn.provider}
                       </div>
                     )}

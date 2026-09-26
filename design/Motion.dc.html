@@ -1,0 +1,161 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+  <style>
+    body { margin: 0; font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif; }
+    a { color: #b5abfc; text-decoration: none; }
+    a:hover { color: #d2cefd; }
+    h1, h2, h3, .display { font-family: "Space Grotesk", "Inter", system-ui, sans-serif; }
+    code, .mono { font-family: "JetBrains Mono", Consolas, monospace; }
+
+    .lift {
+      border-radius: 14px;
+      background: linear-gradient(180deg, #262939 0%, #1e2130 100%);
+      box-shadow: inset 0 1px 0 rgba(233,233,237,.10), 0 1px 0 rgba(0,0,0,.5), 0 14px 34px -18px rgba(0,0,0,.9);
+    }
+
+    /* The three states drawn as stills, so the build has something to match
+       frame by frame rather than a description of "it should feel nice". */
+    .state {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 15px 11px; border-radius: 11px 11px 4px 4px;
+      font-size: 13px; font-weight: 500;
+    }
+    .rest { color: #9397ab; }
+    .hover { color: #cfd3e5; transform: translateY(-2px); }
+    .active {
+      color: #f3f5fe;
+      background: linear-gradient(180deg, #2b2f42 0%, #232739 100%);
+      transform: translateY(-5px) rotateX(6deg) scale(1.02);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 10px 26px -12px rgba(0,0,0,.85);
+    }
+    .dot { width: 7px; height: 7px; border-radius: 50%; }
+    .rule { height: 1px; background: rgba(233,233,237,.10); }
+  </style>
+</helmet>
+
+<div style="width: 1440px; height: 760px; background:
+     radial-gradient(900px 460px at 15% -14%, rgba(145,132,217,.16) 0%, transparent 60%), #161826;
+     color: #e9e9ed; overflow: hidden; padding: 30px 34px; display: flex; flex-direction: column; gap: 20px;">
+
+  <div>
+    <div style="font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #75798c;">Handoff</div>
+    <h1 class="display" style="margin: 5px 0 0; font-size: 25px; letter-spacing: -.02em;">Tab motion &amp; depth</h1>
+    <div style="font-size: 13px; color: #9397ab; margin-top: 5px; max-width: 760px;">
+      The numbers the build should use. One easing curve everywhere, so the whole app moves like one thing.
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 18px; flex: 1; min-height: 0;">
+
+    <!-- States ------------------------------------------------------------ -->
+    <div class="lift" style="padding: 20px 22px; display: flex; flex-direction: column; gap: 16px;">
+      <h3 class="display" style="margin: 0; font-size: 15.5px;">Three states</h3>
+
+      <div style="display: flex; flex-direction: column; gap: 14px; perspective: 900px;">
+        <sc-for list="{{states}}" as="s" hint-placeholder-count="3">
+          <div style="display: flex; align-items: center; gap: 18px;">
+            <div style="width: 132px; flex: none;">
+              <div class="{{s.cls}}"><span class="dot" style="background: {{s.hue}}; box-shadow: 0 0 10px {{s.hue}};"></span>{{s.label}}</div>
+            </div>
+            <div style="flex: 1;">
+              <div style="font-size: 12.5px; color: #cfd3e5; margin-bottom: 3px;">{{s.title}}</div>
+              <div class="mono" style="font-size: 11.5px; color: #75798c; line-height: 1.5;">{{s.spec}}</div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div class="rule"></div>
+
+      <div>
+        <div style="font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: #75798c; margin-bottom: 9px;">Panel change</div>
+        <div class="mono" style="font-size: 11.5px; color: #9397ab; line-height: 1.75;">
+          panel enter &nbsp;· 380ms · translateY(14px) → 0, opacity 0 → 1, scale .985 → 1<br>
+          underline &nbsp;&nbsp;· 320ms · scaleX(0) → 1 from centre<br>
+          easing &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;· cubic-bezier(.22, 1, .36, 1) everywhere
+        </div>
+      </div>
+    </div>
+
+    <!-- Depth + colour ----------------------------------------------------- -->
+    <div style="display: flex; flex-direction: column; gap: 18px; min-height: 0;">
+
+      <div class="lift" style="padding: 20px 22px;">
+        <h3 class="display" style="margin: 0 0 12px; font-size: 15.5px;">Depth recipe</h3>
+        <div style="font-size: 12.5px; color: #9397ab; line-height: 1.62; margin-bottom: 13px;">
+          Three cues stacked. A single drop shadow reads as a sticker; a lit edge plus contact shadow plus
+          coloured bloom reads as a surface under a light.
+        </div>
+        <div class="mono" style="font-size: 11px; color: #cfd3e5; line-height: 1.85; background: #14162a;
+                    padding: 12px 14px; border-radius: 10px; box-shadow: inset 0 0 0 1px rgba(233,233,237,.08);">
+          inset 0 1px 0 rgba(233,233,237,.10)&nbsp; <span style="color: #75798c;">/* lit top edge */</span><br>
+          0 1px 0 rgba(0,0,0,.5)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="color: #75798c;">/* contact */</span><br>
+          0 14px 34px -18px rgba(0,0,0,.9)&nbsp; <span style="color: #75798c;">/* ambient */</span><br>
+          0 0 0 1px &lt;hue&gt;2e&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="color: #75798c;">/* active only */</span>
+        </div>
+      </div>
+
+      <div class="lift" style="padding: 20px 22px; flex: 1; min-height: 0;">
+        <h3 class="display" style="margin: 0 0 4px; font-size: 15.5px;">One hue per tab</h3>
+        <div style="font-size: 12.5px; color: #9397ab; line-height: 1.6; margin-bottom: 14px;">
+          Colour carries identity, not decoration: you learn where you are by hue before you read the label.
+          Four are the app's existing tokens.
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 9px;">
+          <sc-for list="{{hues}}" as="h" hint-placeholder-count="6">
+            <div style="display: flex; align-items: center; gap: 11px;">
+              <div style="width: 26px; height: 26px; border-radius: 8px; flex: none;
+                          background: linear-gradient(160deg, {{h.light}}, {{h.hue}});
+                          box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 5px 12px -7px {{h.hue}};"></div>
+              <div style="flex: 1; font-size: 12.5px;">{{h.label}}</div>
+              <div class="mono" style="font-size: 11px; color: #75798c;">{{h.hue}}</div>
+              <div style="font-size: 10.5px; color: {{h.tokenInk}}; width: 74px; text-align: right;">{{h.token}}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview": {"width": 1440, "height": 760}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      states: [
+        {
+          cls: "state rest", label: "Strands", hue: "#9184d9", title: "Rest",
+          spec: "colour #9397ab · no transform · underline scaleX(0)",
+        },
+        {
+          cls: "state hover", label: "Chat", hue: "#5ad6e0", title: "Hover",
+          spec: "colour #cfd3e5 · translateY(-2px) · 260ms",
+        },
+        {
+          cls: "state active", label: "Models", hue: "#e0b45a", title: "Active",
+          spec: "translateY(-5px) rotateX(6deg) scale(1.02) · underline scaleX(1)",
+        },
+      ],
+      hues: [
+        { label: "Strands",   hue: "#9184d9", light: "#9184d9cc", token: "--color-accent", tokenInk: "#5ac08a" },
+        { label: "Chat",      hue: "#5ad6e0", light: "#5ad6e0cc", token: "new",            tokenInk: "#75798c" },
+        { label: "Dashboard", hue: "#5ac08a", light: "#5ac08acc", token: "--color-ok",     tokenInk: "#5ac08a" },
+        { label: "Models",    hue: "#e0b45a", light: "#e0b45acc", token: "--color-warn",   tokenInk: "#5ac08a" },
+        { label: "Agents",    hue: "#e07ac0", light: "#e07ac0cc", token: "new",            tokenInk: "#75798c" },
+        { label: "Settings",  hue: "#b5abfc", light: "#b5abfccc", token: "--color-accent-400", tokenInk: "#5ac08a" },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

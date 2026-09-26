@@ -276,11 +276,13 @@ DATA_ROUTES = [
     "/api/memory",
     "/api/memory/rag",
     "/api/chats",
+    "/api/chat-trash",
     "/api/models",
     "/api/connectors",
     "/api/personalities",
     "/api/knowledge",
     "/api/speed",
+    "/api/command-zone",
 ]
 
 
@@ -655,3 +657,233 @@ def test_health_still_answers_for_the_landing_page_probe(client):
     body = client.get("/api/health").json()
     assert body["status"] == "ok"
     assert "claimed" in body
+
+
+def test_google_sign_in_callback_is_the_only_public_google_route(client, store):
+    """Request H7: Google redirects the browser back without a Nyx session, so the callback is public —
+    guarded by a single-use state — while status/client/start stay owner-only."""
+    _claim(store)
+    assert "/api/google/oauth/callback" in server_auth.PUBLIC_PATHS
+    assert client.get("/api/google/oauth/callback?state=nope&code=x").status_code != 401
+    for method, path in (("get", "/api/google/oauth/status"), ("post", "/api/google/oauth/client"), ("post", "/api/google/oauth/start")):
+        call = getattr(client, method)
+        response = call(path, json={}) if method == "post" else call(path)
+        assert response.status_code == 401, f"{path} was reachable anonymously"
+
+
+# --- Request R: the tabs that see the screen, change Nyx, or let it act freely are the owner's --------------------
+
+OWNER_ONLY_R_ROUTES = [
+    ("get", "/api/screen", None),
+    ("get", "/api/screen/frame", None),
+    ("post", "/api/screen/start", {"source": {"kind": "screen", "index": 0}}),
+    ("post", "/api/screen/ask", {"question": "what is this?"}),
+    ("get", "/api/apply", None),
+    ("post", "/api/apply", {"prompt": "add a tab"}),
+    ("post", "/api/apply/rebuild", {}),
+    ("get", "/api/freewill", None),
+    ("post", "/api/freewill/decide", {"allow": True}),
+    ("post", "/api/local-models/pull", {"name": "qwen3:8b"}),
+    ("post", "/api/local-models/install", {}),
+    ("post", "/api/absorb/start", {"mode": "auto"}),
+]
+
+
+@pytest.mark.parametrize("method,path,body", OWNER_ONLY_R_ROUTES)
+def test_request_r_routes_refuse_anonymous_callers(client, store, method, path, body):
+    _claim(store)
+    call = getattr(client, method)
+    response = call(path, json=body) if body is not None else call(path)
+    assert response.status_code in (401, 403), f"{path} was reachable anonymously"
+
+
+@pytest.mark.parametrize("method,path,body", OWNER_ONLY_R_ROUTES)
+def test_a_beta_tester_cannot_reach_request_r_routes(client, beta_token, method, path, body):
+    call = getattr(client, method)
+    response = (call(path, json=body, headers=_auth(beta_token)) if body is not None
+                else call(path, headers=_auth(beta_token)))
+    assert response.status_code == 403, f"beta tester reached {path}"
+
+
+def test_a_beta_tester_cannot_talk_to_free_will(client, beta_token):
+    """The Free Will conversation goes through the ordinary chat stream, so the owner check lives there too."""
+    response = client.post("/api/chat/stream", json={"message": "hi", "chat_id": "__freewill__", "use_rag": False},
+                           headers=_auth(beta_token))
+    assert response.status_code == 403
+
+
+# --- Request S: Big Kahuna sees every answer and opens things on this PC — the owner's alone ------------------------
+
+OWNER_ONLY_S_ROUTES = [
+    ("get", "/api/identity0", None),
+    ("get", "/api/identity0/settings", None),
+    ("put", "/api/identity0/settings", {"changes": {"enabled": False}}),
+    ("post", "/api/identity0/main", {}),
+    ("get", "/api/identity0/competence", None),
+    ("get", "/api/identity0/experiences", None),
+    ("post", "/api/identity0/predict", {"text": "hi"}),
+    ("get", "/api/identity0/companion", None),
+    ("post", "/api/identity0/companion/ask", {"text": "hi"}),
+    ("delete", "/api/identity0/companion", None),
+    ("post", "/api/identity0/intent", {"text": "open gmail"}),
+    ("post", "/api/identity0/warm", {}),
+    ("post", "/api/identity0/act", {"action": {"kind": "open_url", "url": "https://www.youtube.com"}}),
+    ("get", "/api/identity0/templates", None),
+    ("get", "/api/identity0/templates/python-cli", None),
+    ("post", "/api/identity0/templates/python-cli/use", {"folder": "C:/x"}),
+    ("get", "/api/identity0/tabs", None),
+    ("post", "/api/identity0/tabs/refresh", {}),
+    ("post", "/api/identity0/tabs/abc/accept", {}),
+    ("get", "/api/identity0/model", None),
+    ("get", "/api/identity0/jobs", None),
+    ("post", "/api/identity0/jobs", {"kind": "train_nano"}),
+    ("post", "/api/identity0/jobs/train_nano-0000aaaa/cancel", {}),
+    ("post", "/api/identity0/jobs/train_nano-0000aaaa/resume", {}),
+    ("post", "/api/identity0/model/nano-v1/promote", {}),
+    ("get", "/api/identity0/scoreboard", None),
+    ("post", "/api/identity0/scoreboard/run", {"member": "ollama:qwen3.5:9b"}),
+    ("get", "/api/identity0/constitution", None),
+    ("put", "/api/identity0/constitution", {"changes": {"voice": "x"}}),
+    ("post", "/api/identity0/constitution/abc/approve", {}),
+]
+
+
+@pytest.fixture
+def admin_token(client, store):
+    """An invited admin: allowed to run the engine, never allowed near Big Kahuna."""
+    _claim(store)
+    invite = client.post(
+        "/api/admin/invites", json={"role": "admin"}, headers=_auth(_login(client))
+    ).json()
+    client.post("/api/auth/join", json={
+        "invite": invite["token"], "email": "admin2@example.com", "password": OTHER_PASSWORD})
+    return _login(client, "admin2@example.com", OTHER_PASSWORD)
+
+
+@pytest.mark.parametrize("method,path,body", OWNER_ONLY_S_ROUTES)
+def test_request_s_routes_refuse_anonymous_callers(client, store, method, path, body):
+    _claim(store)
+    call = getattr(client, method)
+    response = call(path, json=body) if body is not None else call(path)
+    assert response.status_code in (401, 403), f"{path} was reachable anonymously"
+
+
+@pytest.mark.parametrize("method,path,body", OWNER_ONLY_S_ROUTES)
+def test_a_beta_tester_cannot_reach_request_s_routes(client, beta_token, method, path, body):
+    call = getattr(client, method)
+    response = (call(path, json=body, headers=_auth(beta_token)) if body is not None
+                else call(path, headers=_auth(beta_token)))
+    assert response.status_code == 403, f"beta tester reached {path}"
+
+
+@pytest.mark.parametrize("method,path,body", OWNER_ONLY_S_ROUTES)
+def test_an_admin_cannot_reach_request_s_routes(client, admin_token, method, path, body):
+    """Big Kahuna reads every answer and acts on this PC: it is the owner's, not any admin's."""
+    call = getattr(client, method)
+    response = (call(path, json=body, headers=_auth(admin_token)) if body is not None
+                else call(path, headers=_auth(admin_token)))
+    assert response.status_code == 403, f"an admin reached {path}"
+
+
+def test_big_kahuna_routes_do_not_exist_on_a_hosted_build():
+    import deploy_mode
+
+    assert "/api/identity0" in deploy_mode.HOSTED_BLOCKED_PREFIXES
+
+
+# --- Project Null N8: an office of agents spends the owner's keys and writes in their folders ----------------
+
+OWNER_ONLY_OFFICE_ROUTES = [
+    ("get", "/api/office", None),
+    ("get", "/api/office/library", None),
+    ("post", "/api/office/folders", {"name": "theirs"}),
+    ("post", "/api/office/offices", {"name": "theirs"}),
+    ("get", "/api/office/offices/ofc-nope", None),
+    ("post", "/api/office/offices/ofc-nope/chat", {"text": "do something"}),
+    ("post", "/api/office/offices/ofc-nope/say", {"text": "managers: hello"}),
+    ("post", "/api/office/offices/ofc-nope/resolve", {"text": "managers"}),
+    ("post", "/api/office/offices/ofc-nope/control", {"action": "halt"}),
+    ("get", "/api/office/offices/ofc-nope/files", None),
+    ("get", "/api/office/offices/ofc-nope/memory", None),
+    ("post", "/api/office/items/fld-nope/reveal", None),
+    ("get", "/api/office/focus", None),
+    ("post", "/api/office/focus", {"action": "enter"}),
+    ("get", "/api/office/settings", None),
+    ("put", "/api/office/settings", {"changes": {"allow_web": False}}),
+]
+
+
+@pytest.mark.parametrize("method,path,body", OWNER_ONLY_OFFICE_ROUTES)
+def test_office_routes_refuse_anonymous_callers(client, store, method, path, body):
+    _claim(store)
+    call = getattr(client, method)
+    response = call(path, json=body) if body is not None else call(path)
+    assert response.status_code in (401, 403), f"{path} was reachable anonymously"
+
+
+@pytest.mark.parametrize("method,path,body", OWNER_ONLY_OFFICE_ROUTES)
+def test_a_beta_tester_cannot_reach_the_office(client, beta_token, method, path, body):
+    call = getattr(client, method)
+    response = (call(path, json=body, headers=_auth(beta_token)) if body is not None
+                else call(path, headers=_auth(beta_token)))
+    assert response.status_code == 403, f"beta tester reached {path}"
+
+
+def test_office_routes_do_not_exist_on_a_hosted_build():
+    import deploy_mode
+
+    assert "/api/office" in deploy_mode.HOSTED_BLOCKED_PREFIXES
+
+
+# Proto Voice (Project Null N92): the microphone that may act on the computer.
+OWNER_ONLY_PROTO_VOICE_ROUTES = [
+    ("get", "/api/proto-voice", None),
+    ("put", "/api/proto-voice", {"allowed": True}),
+    ("post", "/api/proto-voice/act", {"text": "shut down the computer"}),
+    ("post", "/api/proto-voice/confirm", {"token": "nope"}),
+    ("post", "/api/proto-voice/simulate", {"text": "open notepad"}),
+]
+
+
+@pytest.mark.parametrize("method,path,body", OWNER_ONLY_PROTO_VOICE_ROUTES)
+def test_proto_voice_routes_refuse_anonymous_callers(client, store, method, path, body):
+    _claim(store)
+    call = getattr(client, method)
+    response = call(path, json=body) if body is not None else call(path)
+    assert response.status_code in (401, 403), f"{path} was reachable anonymously"
+
+
+@pytest.mark.parametrize("method,path,body", OWNER_ONLY_PROTO_VOICE_ROUTES)
+def test_a_beta_tester_cannot_use_proto_voice(client, beta_token, method, path, body):
+    call = getattr(client, method)
+    response = (call(path, json=body, headers=_auth(beta_token)) if body is not None
+                else call(path, headers=_auth(beta_token)))
+    assert response.status_code == 403, f"beta tester reached {path}"
+
+
+# The curiosity machine (N103) is the owner's own; the feature catalog is readable
+# by any signed-in chat caller but only the owner may force a rescan (N100).
+OWNER_ONLY_CURIOSITY_ROUTES = [
+    ("get", "/api/curiosity", None),
+    ("post", "/api/curiosity/ask", {"text": "what is this"}),
+    ("post", "/api/curiosity/study", {"id": ""}),
+    ("put", "/api/curiosity/settings", {"study_alone": True}),
+    ("delete", "/api/curiosity/questions/nope", None),
+    ("post", "/api/features/rescan", None),
+]
+
+
+@pytest.mark.parametrize("method,path,body", OWNER_ONLY_CURIOSITY_ROUTES)
+def test_curiosity_routes_refuse_anonymous_callers(client, store, method, path, body):
+    _claim(store)
+    call = getattr(client, method)
+    response = call(path, json=body) if body is not None else call(path)
+    assert response.status_code in (401, 403), f"{path} was reachable anonymously"
+
+
+@pytest.mark.parametrize("method,path,body", OWNER_ONLY_CURIOSITY_ROUTES)
+def test_a_beta_tester_cannot_reach_the_third_mind(client, beta_token, method, path, body):
+    call = getattr(client, method)
+    response = (call(path, json=body, headers=_auth(beta_token)) if body is not None
+                else call(path, headers=_auth(beta_token)))
+    assert response.status_code == 403, f"beta tester reached {path}"

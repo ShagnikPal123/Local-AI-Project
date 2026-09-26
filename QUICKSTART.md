@@ -1,10 +1,14 @@
-# Quick Start Guide — Get Nyx Pulse Running in 5 Minutes
+# Quick Start Guide — Get Nyx Running
 
-## Step 1: Install Dependencies (1 minute)
-```bash
-cd "c:\Users\shagn\Desktop\Ai Dev Folder"
-pip install -r requirements.txt
-```
+## Step 1: Double-click `Start Nyx.bat`
+
+That is the whole install. The first time, it installs Python for you if you do
+not have it, installs Nyx's packages, puts a **Nyx Ichos** icon on your desktop,
+registers the `nyx://` start link, turns on start-with-Windows, and opens Nyx.
+Every time after that, click the desktop icon — or do nothing, because Nyx
+starts with Windows and waits in the tray near the clock.
+
+Nothing to type or paste. (Developers: the same file works in a git checkout.)
 
 ## Step 2: Choose Your Provider (2 minutes)
 

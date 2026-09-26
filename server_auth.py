@@ -115,6 +115,9 @@ PUBLIC_PATHS = frozenset({
     "/api/auth/login",
     "/api/auth/logout",
     "/api/auth/join",
+    # Google's redirect back after sign-in (Request H7). Guarded by a single-use state the owner's own
+    # Sign In click created, a 10-minute expiry, and loopback-only callers — see routes_email.google_callback.
+    "/api/google/oauth/callback",
     "/docs",
     "/redoc",
     "/openapi.json",

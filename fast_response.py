@@ -13,6 +13,7 @@ correct answer, which is worse.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
@@ -78,6 +79,21 @@ _NEEDS_FULL_PIPELINE = (
     "why does", "how does", "explain how",
 )
 
+# Actions that only a tool can carry out, matched as whole words ("tab" must not
+# fire on "table"). Plan Null N2: "can you send me an email?" is 26 characters, so
+# it took the fast path, and the tool-less model truthfully said it could not send
+# email while the owner's Gmail account sat configured one step away. Same class
+# of bug as "switch to groq" above: whether it worked depended on sentence length.
+_ACTION_WORDS = re.compile(
+    r"\b(?:e-?mails?|gmail|outlook|inbox|mailbox|send|sending|reply|forward|"
+    r"calendar|remind(?:er|ers)?|schedule|meeting|appointment|event|"
+    r"notes?|notebook|tabs?|remember|forget|agents?|sub-?agents?|skills?|connectors?|"
+    r"spreadsheet|excel|sheets?|docs?|slides?|pdf|"
+    r"buy|sell|trade|portfolio|"
+    r"play|pause|volume|mute|lock|shut\s?down|restart|timer|alarm)\b",
+    re.IGNORECASE,
+)
+
 # A turn longer than this is unlikely to be a quick question.
 _MAX_FAST_CHARS = 320
 
@@ -110,6 +126,9 @@ class FastResponsePolicy:
         for marker in _NEEDS_FULL_PIPELINE:
             if marker in lowered:
                 return SpeedDecision(False, f"needs full pipeline: {marker!r}")
+        action = _ACTION_WORDS.search(text)
+        if action:
+            return SpeedDecision(False, f"asks for an action: {action.group(0).lower()!r}")
 
         # Attachments, code fences, and file paths all imply real work.
         if "```" in text or "\\" in text or "/" in text and "?" not in text:
@@ -138,16 +157,32 @@ class FastResponsePolicy:
 # tool schemas the fast path cannot use anyway.
 FAST_SYSTEM_PROMPT = (
     "You are Nyx Ichos, a local-first AI assistant created by Shagnik. "
-    "This is a quick-answer turn: reply directly and concisely, in at most a few "
-    "sentences. You have no tools available right now. If the question genuinely "
-    "needs current data, a file, or code execution, reply with exactly "
-    "NEEDS_FULL_PIPELINE and nothing else."
+    "This is a quick-answer turn: reply directly and concisely. Keep it to a few "
+    "sentences unless the user asked for a specific length, a list or a count — then "
+    "give all of it, never a shortened version. Tools are not loaded on this turn, but Nyx has them: "
+    "email, calendar, notes, files, apps, the computer, the web, tabs, agents and settings. If the "
+    "request needs any of those, current data, or code execution, reply with exactly "
+    "NEEDS_FULL_PIPELINE and nothing else. Never tell the user you cannot do something."
 )
 
 # Sentinel the model returns when it realises the cheap path cannot serve the turn.
 ESCALATION_SENTINEL = "NEEDS_FULL_PIPELINE"
 
+# A fast-path model that says it cannot act is wrong about Nyx: the full pipeline
+# has the tools. Small models often answer that way instead of using the sentinel
+# ("I cannot send emails… I'm an AI text assistant without capabilities to…").
+_CAPABILITY_REFUSAL = re.compile(
+    r"\b(?:i|nyx)\s*(?:can(?:not|'t|’t)|am\s+(?:not\s+able|unable)|(?:'m|’m)\s+(?:not\s+able|unable)|"
+    r"do(?:n't|n’t|\s+not)\s+have|have\s+no)\b[^.!?\n]{0,90}?"
+    r"\b(?:send|e-?mail|access|open|browse|search|tools?|accounts?|internet|real[- ]time|files?|"
+    r"calendar|computer|device|capabilit\w*|abilit\w*|integrations?|connect\w*|interface)\b"
+    r"|\b(?:without|lack(?:ing)?)\s+(?:the\s+)?(?:capabilit\w*|abilit\w*|access|tools?)\b"
+    r"|\bisn['’]t\s+available\s+in\s+my\b",
+    re.IGNORECASE,
+)
+
 
 def wants_escalation(response: str) -> bool:
-    """True when a fast-path reply signalled that it needs the full pipeline."""
-    return ESCALATION_SENTINEL in (response or "")
+    """True when a fast-path reply signalled, or showed, that it needs the full pipeline."""
+    text = response or ""
+    return ESCALATION_SENTINEL in text or bool(_CAPABILITY_REFUSAL.search(text))

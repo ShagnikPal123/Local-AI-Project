@@ -1,0 +1,345 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Sora:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+  <style>
+    body { margin: 0; font-family: "Sora", system-ui, -apple-system, "Segoe UI", sans-serif; }
+    a { color: #b5abfc; text-decoration: none; }
+    a:hover { color: #d2cefd; }
+    h1, h2, h3, .display { font-family: "Syne", "Space Grotesk", system-ui, sans-serif; }
+    .mono { font-family: "JetBrains Mono", Consolas, monospace; }
+
+    .label {
+      font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: #75798c;
+    }
+
+    /* Three stacked cues: lit top edge, contact, ambient. One drop shadow
+       reads as a sticker; three read as a surface under a light. */
+    .card {
+      border-radius: 22px;
+      background: linear-gradient(180deg, #1e2133 0%, #161826 100%);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.10),
+        0 1px 0 rgba(0,0,0,.55),
+        0 18px 44px -22px rgba(0,0,0,.92);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .grain::after {
+      content: ""; position: absolute; inset: 0; pointer-events: none;
+      opacity: .17; mix-blend-mode: overlay;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    .code {
+      font-family: "JetBrains Mono", Consolas, monospace;
+      font-size: 11px; line-height: 1.85; color: #cfd3e5;
+      background: #0d0b18; border-radius: 12px; padding: 11px 13px;
+      box-shadow: inset 0 0 0 1px rgba(233,233,237,.08);
+    }
+    .cm { color: #75798c; }
+
+    .rule { height: 1px; background: rgba(233,233,237,.10); }
+
+    /* --- shape library ------------------------------------------------- */
+    .shape { width: 84px; height: 84px; position: relative; flex: none; }
+
+    .orb {
+      border-radius: 50%;
+      background: radial-gradient(circle at 32% 28%,
+        oklch(0.90 0.13 292) 0%, oklch(0.74 0.176 292) 34%, oklch(0.38 0.13 292) 100%);
+      box-shadow: inset -8px -12px 28px rgba(0,0,0,.55),
+                  0 0 70px -18px oklch(0.74 0.176 292 / .6);
+      animation: bob 9s cubic-bezier(.45,0,.55,1) infinite;
+    }
+
+    .halo {
+      border-radius: 50%;
+      background: conic-gradient(from 0deg,
+        oklch(.74 .176 0), oklch(.74 .176 60), oklch(.74 .176 120),
+        oklch(.74 .176 180), oklch(.74 .176 240), oklch(.74 .176 300), oklch(.74 .176 360));
+      mask: radial-gradient(circle, transparent 58%, #000 60%);
+      -webkit-mask: radial-gradient(circle, transparent 58%, #000 60%);
+      animation: spin 26s linear infinite;
+    }
+
+    .shard {
+      clip-path: polygon(18% 0%, 100% 12%, 84% 100%, 0% 78%);
+      background: linear-gradient(140deg, oklch(.74 .176 318 / .55), oklch(.74 .176 6 / .16));
+      box-shadow: inset 0 0 0 1px oklch(.87 .13 318 / .35);
+      animation: tilt 14s cubic-bezier(.45,0,.55,1) infinite;
+    }
+
+    .lattice-wrap { overflow: hidden; }
+    .lattice {
+      position: absolute; inset: -30% -40% -10% -40%;
+      transform: perspective(700px) rotateX(66deg);
+      background:
+        repeating-linear-gradient(90deg, oklch(.74 .176 192 / .40) 0 1px, transparent 1px 18px),
+        repeating-linear-gradient(0deg,  oklch(.74 .176 192 / .28) 0 1px, transparent 1px 18px);
+      mask: linear-gradient(#000, transparent 78%);
+      -webkit-mask: linear-gradient(#000, transparent 78%);
+      animation: run 3.4s linear infinite;
+    }
+
+    .ribbon-wrap { display: flex; align-items: center; justify-content: center; perspective: 600px; }
+    .ribbon {
+      width: 108px; height: 17px; border-radius: 999px;
+      background: linear-gradient(90deg, oklch(.74 .176 142), oklch(.74 .176 192), oklch(.74 .176 252));
+      box-shadow: 0 0 34px -8px oklch(.74 .176 192 / .7);
+      transform-style: preserve-3d;
+      animation: swivel 11s cubic-bezier(.45,0,.55,1) infinite;
+    }
+
+    .prism-wrap { perspective: 620px; }
+    .prism { position: absolute; inset: 0; transform-style: preserve-3d; animation: turn 18s linear infinite; }
+    .prism i {
+      position: absolute; inset: 14% 8%; display: block;
+      clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+    }
+
+    @keyframes spin  { to { transform: rotate(360deg); } }
+    @keyframes turn  { to { transform: rotateY(360deg); } }
+    @keyframes bob   { 0%,100% { transform: translateY(-5px); } 50% { transform: translateY(5px); } }
+    @keyframes tilt  { 0%,100% { transform: rotate(-6deg) scale(.96); } 50% { transform: rotate(6deg) scale(1.02); } }
+    @keyframes run   { to { background-position: 0 18px, 0 18px; } }
+    @keyframes swivel{ 0%,100% { transform: rotateY(-38deg) rotateZ(-8deg); } 50% { transform: rotateY(38deg) rotateZ(8deg); } }
+  </style>
+</helmet>
+
+<div class="grain" style="width: 1440px; height: 860px; position: relative; overflow: hidden;
+     color: #f3f5fe; padding: 28px 32px; display: flex; flex-direction: column; gap: 16px;
+     background:
+       radial-gradient(760px 420px at 8% -16%, oklch(0.74 0.176 292 / .20) 0%, transparent 62%),
+       radial-gradient(620px 380px at 96% 8%, oklch(0.74 0.176 192 / .13) 0%, transparent 60%),
+       radial-gradient(700px 460px at 62% 112%, oklch(0.74 0.176 318 / .12) 0%, transparent 62%),
+       #0d0b18;">
+
+  <!-- header ------------------------------------------------------------ -->
+  <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 24px;">
+    <div>
+      <div class="label">Handoff · build from these numbers</div>
+      <h1 class="display" style="margin: 6px 0 0; font-size: 40px; font-weight: 800; letter-spacing: -.03em;">Spectrum</h1>
+    </div>
+    <div style="font-size: 13.5px; color: #9397ab; max-width: 680px; line-height: 1.6; text-align: right;">
+      One hue function, four inherited tokens, six abstract forms, one easing curve.
+      Everything on the other three boards resolves to what is on this one.
+    </div>
+  </div>
+
+  <!-- row 1 -------------------------------------------------------------- -->
+  <div style="display: grid; grid-template-columns: minmax(0, 1.52fr) minmax(0, 1fr); gap: 16px; height: 386px;">
+
+    <!-- the ramp -->
+    <div class="card" style="padding: 20px 22px; display: flex; flex-direction: column; gap: 14px; min-height: 0;">
+      <div style="display: flex; align-items: baseline; gap: 12px;">
+        <h3 class="display" style="margin: 0; font-size: 19px; font-weight: 700;">The ramp</h3>
+        <div style="font-size: 12.5px; color: #75798c;">hue is the only variable</div>
+      </div>
+
+      <div style="font-size: 12.5px; color: #9397ab; line-height: 1.6;">
+        Every colour is one function of one angle. Lightness and chroma stay fixed, so any two
+        colours in the system are already in tune — that is what lets the interface carry a
+        hundred hues without turning to noise.
+      </div>
+
+      <div class="code">
+        tone(h)<span class="cm">&nbsp;&nbsp;&nbsp;</span>oklch(0.74 0.176 h)<span class="cm">&nbsp;&nbsp;&nbsp;/* the colour */</span><br>
+        deep(h)<span class="cm">&nbsp;&nbsp;&nbsp;</span>oklch(0.50 0.150 h)<span class="cm">&nbsp;&nbsp;&nbsp;/* its shadow side */</span><br>
+        glow(h)<span class="cm">&nbsp;&nbsp;&nbsp;</span>oklch(0.87 0.130 h)<span class="cm">&nbsp;&nbsp;&nbsp;/* lit edge, text on dark */</span><br>
+        veil(h,a)<span class="cm">&nbsp;</span>oklch(0.74 0.176 h / a)<span class="cm">&nbsp;/* translucent wash */</span>
+      </div>
+
+      <div>
+        <div style="display: flex; height: 44px; border-radius: 10px; overflow: hidden;
+                    box-shadow: inset 0 0 0 1px rgba(233,233,237,.10), 0 8px 22px -14px rgba(0,0,0,.9);">
+          <sc-for list="{{wheel}}" as="s" hint-placeholder-count="48">
+            <div style="flex: 1; background: {{s.bg}};"></div>
+          </sc-for>
+        </div>
+        <div class="mono" style="font-size: 10.5px; color: #75798c; margin-top: 7px;">
+          48 of 360 · runs of items sweep h = 292 + i·37, they never pick from a list
+        </div>
+      </div>
+
+      <div class="rule"></div>
+
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 20px;">
+        <sc-for list="{{stations}}" as="st" hint-placeholder-count="8">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 22px; height: 22px; border-radius: 7px; flex: none;
+                        background: {{st.bg}};
+                        box-shadow: inset 0 1px 0 rgba(255,255,255,.32), 0 5px 14px -7px {{st.tone}};"></div>
+            <div style="flex: 1; font-size: 12.5px;">{{st.name}}</div>
+            <div class="mono" style="font-size: 11px; color: #75798c;">{{st.h}}</div>
+            <div style="font-size: 10.5px; color: {{st.ink}}; width: 58px; text-align: right;">{{st.origin}}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <!-- shapes -->
+    <div class="card" style="padding: 20px 22px; display: flex; flex-direction: column; gap: 13px; min-height: 0;">
+      <div style="display: flex; align-items: baseline; gap: 12px;">
+        <h3 class="display" style="margin: 0; font-size: 19px; font-weight: 700;">Six forms</h3>
+        <div style="font-size: 12.5px; color: #75798c;">CSS only, no assets</div>
+      </div>
+      <div style="font-size: 12.5px; color: #9397ab; line-height: 1.6;">
+        Drawn in CSS so they scale, recolour and animate for free. Grain sits over every large
+        gradient — without it a big gradient reads as flat; with it, as a printed surface.
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 10px; justify-items: center;">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 7px;">
+          <div class="shape orb"></div>
+          <div class="mono" style="font-size: 10.5px; color: #9397ab;">Orb</div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 7px;">
+          <div class="shape halo"></div>
+          <div class="mono" style="font-size: 10.5px; color: #9397ab;">Halo</div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 7px;">
+          <div class="shape shard"></div>
+          <div class="mono" style="font-size: 10.5px; color: #9397ab;">Shard</div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 7px;">
+          <div class="shape lattice-wrap"><div class="lattice"></div></div>
+          <div class="mono" style="font-size: 10.5px; color: #9397ab;">Lattice</div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 7px;">
+          <div class="shape ribbon-wrap"><div class="ribbon"></div></div>
+          <div class="mono" style="font-size: 10.5px; color: #9397ab;">Ribbon</div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 7px;">
+          <div class="shape prism-wrap">
+            <div class="prism">
+              <i style="background: oklch(.74 .176 292 / .85); transform: translateZ(16px);"></i>
+              <i style="background: oklch(.74 .176 348 / .70); transform: translateZ(0px);"></i>
+              <i style="background: oklch(.74 .176 62 / .55); transform: translateZ(-16px);"></i>
+            </div>
+          </div>
+          <div class="mono" style="font-size: 10.5px; color: #9397ab;">Prism</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- row 2 -------------------------------------------------------------- -->
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; flex: 1; min-height: 0;">
+
+    <!-- depth -->
+    <div class="card" style="padding: 20px 22px; display: flex; flex-direction: column; gap: 12px; min-height: 0;">
+      <h3 class="display" style="margin: 0; font-size: 19px; font-weight: 700;">Depth</h3>
+      <div style="font-size: 12.5px; color: #9397ab; line-height: 1.6;">
+        Three cues on everything raised. The active thing adds two more, in its own hue.
+      </div>
+      <div class="code" style="font-size: 10.5px; line-height: 1.9;">
+        inset 0 1px 0 rgba(255,255,255,.10)<br>
+        0 1px 0 rgba(0,0,0,.55)<br>
+        0 18px 44px -22px rgba(0,0,0,.92)<br>
+        <span style="color: #b5abfc;">0 0 0 1px tone(h) / .28</span><br>
+        <span style="color: #b5abfc;">0 0 64px -14px tone(h) / .40</span>
+      </div>
+      <div class="mono" style="font-size: 10.5px; color: #75798c; line-height: 1.7;">
+        perspective 1200px · rest tilt rotateX(6deg)<br>
+        radii 8 · 14 · 22 · 999
+      </div>
+    </div>
+
+    <!-- motion -->
+    <div class="card" style="padding: 20px 22px; display: flex; flex-direction: column; gap: 12px; min-height: 0;">
+      <h3 class="display" style="margin: 0; font-size: 19px; font-weight: 700;">Motion</h3>
+      <div style="font-size: 12.5px; color: #9397ab; line-height: 1.6;">
+        One curve everywhere, so the whole app moves like one object.
+      </div>
+      <div class="code" style="font-size: 10.5px; line-height: 1.9;">
+        --ease&nbsp; cubic-bezier(.22, 1, .36, 1)<br>
+        --pop&nbsp;&nbsp; cubic-bezier(.34, 1.56, .64, 1)<span class="cm">&nbsp;/* press */</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 5px;">
+        <sc-for list="{{motion}}" as="m" hint-placeholder-count="5">
+          <div style="display: flex; align-items: baseline; gap: 10px; font-size: 11.5px;">
+            <div style="flex: 1; color: #cfd3e5;">{{m.what}}</div>
+            <div class="mono" style="color: #75798c;">{{m.ms}}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div class="mono" style="font-size: 10.5px; color: #75798c; line-height: 1.7;">
+        ambient loops 18–44s linear · transform and opacity only · siblings staggered
+      </div>
+    </div>
+
+    <!-- type -->
+    <div class="card" style="padding: 20px 22px; display: flex; flex-direction: column; gap: 11px; min-height: 0;">
+      <h3 class="display" style="margin: 0; font-size: 19px; font-weight: 700;">Type</h3>
+      <div class="display" style="font-size: 34px; font-weight: 800; letter-spacing: -.03em; line-height: 1;">Nyx Ichos</div>
+      <div class="mono" style="font-size: 10.5px; color: #75798c;">Syne 700/800 — display, wide and a little strange</div>
+      <div style="font-size: 14px; color: #cfd3e5; line-height: 1.55;">
+        Runs on your machine. Your conversations stay there.
+      </div>
+      <div class="mono" style="font-size: 10.5px; color: #75798c;">Sora 300/400/500 — body and UI</div>
+      <div class="rule"></div>
+      <div class="mono" style="font-size: 11px; color: #cfd3e5;">gemini-2.5-flash · 1.3s · local</div>
+      <div class="mono" style="font-size: 10.5px; color: #75798c;">
+        JetBrains Mono — specs, models, latency<br><br>
+        scale 76 · 48 · 30 · 20 · 15 · 13.5 · 12 · 10.5
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview": {"width": 1440, "height": 860}}'>
+class Component extends DCLogic {
+  renderVals() {
+    // 48 samples of the 360 the ramp actually spans.
+    const wheel = [];
+    for (let i = 0; i < 48; i++) {
+      const h = Math.round(i * 7.5);
+      wheel.push({ h: h, bg: "oklch(0.74 0.176 " + h + ")" });
+    }
+
+    // "existing" = already a token in frontend/nyx-pulse/src/theme.css.
+    const raw = [
+      { name: "Amethyst", h: 292, use: "home",      origin: "existing" },
+      { name: "Orchid",   h: 318, use: "agents",    origin: "new" },
+      { name: "Rose",     h: 348, use: "alerts",    origin: "existing" },
+      { name: "Ember",    h: 22,  use: "models",    origin: "new" },
+      { name: "Amber",    h: 62,  use: "warnings",  origin: "existing" },
+      { name: "Fern",     h: 142, use: "ok",        origin: "existing" },
+      { name: "Cyan",     h: 192, use: "chat",      origin: "new" },
+      { name: "Cobalt",   h: 252, use: "settings",  origin: "new" },
+    ];
+
+    const stations = raw.map((s) => ({
+      name: s.name,
+      h: s.h + "°",
+      origin: s.origin,
+      tone: "oklch(0.74 0.176 " + s.h + ")",
+      bg: "linear-gradient(155deg, oklch(0.87 0.13 " + s.h + "), oklch(0.50 0.15 " + s.h + "))",
+      ink: s.origin === "existing" ? "#5ac08a" : "#75798c",
+    }));
+
+    return {
+      wheel: wheel,
+      stations: stations,
+      motion: [
+        { what: "micro — hover, press", ms: "180ms" },
+        { what: "state — tab, selection", ms: "320ms" },
+        { what: "panel — page change", ms: "420ms" },
+        { what: "launch — front door to AI", ms: "1200ms" },
+        { what: "arrival stagger per child", ms: "40ms" },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

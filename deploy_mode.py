@@ -56,6 +56,28 @@ def is_hosted() -> bool:
 # Route prefixes removed from a hosted build.
 HOSTED_BLOCKED_PREFIXES = (
     "/api/machine",
+    # Reading and editing files on the host (Code tab, VS Code extension).
+    "/api/code",
+    # Brokerage keys and orders live only on the owner's own machine.
+    "/api/trading",
+    # Request R: studying fetched pages into this machine's memory, watching and driving its screen, Nyx editing its
+    # own code, the unrestricted Free Will chat, and scanning the disk for model files all belong to the owner's PC.
+    "/api/absorb",
+    "/api/data-process",
+    "/api/screen",
+    "/api/apply",
+    "/api/freewill",
+    "/api/local-models",
+    # Request S: Big Kahuna sees every answer and opens things on this PC by voice.
+    "/api/identity0",
+    # Project Null N8: an office of agents runs on the owner's own keys, writes into their own folders and can
+    # pause the rest of Nyx. None of that belongs to a hosted visitor.
+    "/api/office",
+    # Project Null N92/N103/N104: the always-listening microphone that acts on this PC, Nyx's own
+    # questions and mistakes, and the money it is allowed to work with.
+    "/api/proto-voice",
+    "/api/curiosity",
+    "/api/finance-lab",
     "/api/overlay/restore",
     # First-run ownership claim. On a hosted deployment "whoever asks first
     # becomes the owner" is a land-grab, so the route simply does not exist

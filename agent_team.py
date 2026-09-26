@@ -54,6 +54,15 @@ class ManagedAgent:
     # asked for. Lets a real master replace the placeholder instead of demoting
     # it into a confusing extra worker.
     auto_created: bool = False
+    # Presentation and routing facts from the roster: emoji, colour, expertise,
+    # instructions, tools, voice hint. Kept as data so the roster can grow
+    # without a schema change here.
+    meta: Dict[str, Any] = field(default_factory=dict)
+    # The last few tasks this agent was handed and what it reported back, so the
+    # Agents panel shows real work instead of a row of idle names.
+    recent: List[Dict[str, Any]] = field(default_factory=list)
+    # "roster" for the shipped team, "user"/"assistant" for agents created later.
+    origin: str = "user"
 
     def snapshot(self) -> Dict[str, Any]:
         """Serialise for the live progress panel."""
@@ -73,6 +82,18 @@ class ManagedAgent:
             "steps_completed": self.steps_completed,
             "elapsed_seconds": round(elapsed, 2),
             "last_error": self.last_error,
+            "emoji": self.meta.get("emoji", ""),
+            "color": self.meta.get("color", ""),
+            "expertise": list(self.meta.get("expertise", [])),
+            "voice_hint": self.meta.get("voice_hint", ""),
+            "origin": self.origin,
+            "created_in_chat": self.meta.get("created_in_chat", ""),
+            "created_at": self.meta.get("created_at") or self.created_at,
+            "tasks_completed": len(self.recent),
+            "last_chat_id": (self.recent[-1].get("chat_id", "") if self.recent else ""),
+            "last_active_at": (self.recent[-1].get("at") if self.recent else None),
+            "started_at": self.started_at,
+            "recent": list(self.recent[-5:]),
         }
 
 
@@ -215,6 +236,56 @@ class AgentTeam:
             agent.steps_completed += 1
             agent.status = AgentStatus.IDLE
             agent.current_step = ""
+
+    def set_step(self, agent_id: str, step: str) -> None:
+        """Update what a working agent is doing without restarting its clock."""
+        with self._lock:
+            agent = self._agents.get(agent_id)
+            if agent is not None:
+                agent.current_step = step[:160]
+
+    def record_task(self, agent_id: str, task: str, result: str, seconds: float, ok: bool = True,
+                    chat_id: str = "", turn_id: str = "") -> None:
+        with self._lock:
+            agent = self._agents.get(agent_id)
+            if agent is None:
+                return
+            agent.recent.append({
+                "task": task[:240],
+                "result": result[:400],
+                "seconds": round(seconds, 1),
+                "ok": ok,
+                "at": time.time(),
+                # Which conversation handed it the work, so the Agents tab can
+                # link back to where the agent was used.
+                "chat_id": chat_id,
+                "turn_id": turn_id,
+            })
+            del agent.recent[:-10]
+
+    def find(self, name: str) -> Optional[ManagedAgent]:
+        """An agent by name, forgiving case and small differences ("web designer")."""
+        wanted = (name or "").strip().lower()
+        if not wanted:
+            return None
+        with self._lock:
+            agents = list(self._agents.values())
+        for agent in agents:
+            if agent.name.lower() == wanted:
+                return agent
+        for agent in agents:
+            lowered = agent.name.lower()
+            if wanted in lowered or lowered in wanted:
+                return agent
+        wanted_words = set(wanted.replace("&", " ").split())
+        best = max(agents, key=lambda a: len(wanted_words & set(a.name.lower().replace("&", " ").split())), default=None)
+        if best is not None and wanted_words & set(best.name.lower().replace("&", " ").split()):
+            return best
+        return None
+
+    def members(self) -> List[ManagedAgent]:
+        with self._lock:
+            return list(self._agents.values())
 
     def block(self, agent_id: str, reason: str) -> None:
         with self._lock:

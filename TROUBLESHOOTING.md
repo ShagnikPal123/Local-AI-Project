@@ -6,6 +6,49 @@ it rather than the way the bug is described in the code.
 
 ---
 
+## "Nyx never turns on" / "the engine won't start"
+
+**Symptom.** Double-clicking `Nyx.exe`, or signing in to Windows with the
+"NyxIchosEngine" logon task, does nothing. No window, no error, and
+`localhost:8000` says the site can't be reached. The task's *Last Result* reads
+**4551**.
+
+**Cause.** Windows **Smart App Control** was blocking the packaged `Nyx.exe`
+before a single line of Nyx ran. It refuses unsigned programs it has no
+reputation for, and a PyInstaller build is exactly that. 4551 is
+`ERROR_SYSTEM_INTEGRITY_POLICY_VIOLATION`; the proof is in Event Viewer under
+*Applications and Services Logs → Microsoft → Windows → CodeIntegrity →
+Operational*, event **3077**, naming `dist\Nyx\Nyx.exe`. Check whether it is on
+with:
+
+```powershell
+(Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\CI\Policy').VerifiedAndReputablePolicyState   # 1 = on
+```
+
+**Fix (2026-09-13).** Nothing that starts Nyx points at a home-built exe any more.
+Every entry point runs `launcher.py` on Python's own `pythonw.exe`, which is signed
+by the Python Software Foundation and allowed:
+
+- **`Start Nyx.bat`** — double-click once. It installs Python if needed (winget,
+  per-user), installs the packages, creates the **Nyx Ichos** desktop and Start
+  Menu shortcuts, registers the `nyx://` link, turns on start-with-Windows, and
+  starts Nyx. Every later run just starts Nyx and closes itself.
+- **The desktop icon** starts Nyx in the background (tray icon near the clock) and
+  opens it. Clicking it again while Nyx runs just opens the page.
+- **`nyx://start` / `nyx://open`** — the website's *Launch Nyx* button and the
+  app's *Turn on Nyx* screen use these.
+- **Start with Windows** is a per-user Run entry (tray icon → *Start with Windows*,
+  or Settings → Engine). The old logon task was disabled; it only ever tried the
+  blocked exe.
+
+Signing the exe would also fix it, but needs a paid code-signing certificate.
+
+**If it still does not start:** right-click the tray icon → *View engine log*, or
+open `logs\engine.log` in the Nyx folder. Double-clicking `Start Nyx.bat` again
+repairs anything missing.
+
+---
+
 ## "The AI keeps telling me its name instead of answering"
 
 **Symptom.** Every message gets the same reply, whatever you ask:
@@ -114,14 +157,10 @@ allowlist.
 stub — an interpreter with none of the dependencies — so it died on
 `ModuleNotFoundError` behind a `pause` you never got to read.
 
-**Fix.** Always use the project's own interpreter:
-
-```bash
-.venv\Scripts\python.exe -m uvicorn server:app --port 8000
-```
-
-`nyx.bat` does this correctly and also creates the venv and installs
-dependencies on first run. Prefer it.
+**Fix.** `chat.bat` now uses the project's own interpreter
+(`.venv\Scripts\python.exe cli.py`) and runs the one-time setup if the
+environment is missing. To start the app itself, double-click **Start Nyx.bat**
+(or the **Nyx Ichos** desktop icon it creates) — never a bare `python` command.
 
 ---
 

@@ -1,0 +1,399 @@
+/* Office Space (Project Null N8).
+   Everything is built from the app's own tokens, so the owner's overall look changes this tab too. The only
+   colours declared here are the four states an agent can be in. Contrast on --color-surface (#0e0e13):
+   text #f5f5f7 18.4:1 · muted #a1a1aa 7.6:1 · accent #a594ff 7.0:1 · live #30d158 9.4:1 · warn #ffd60a 13.9:1 ·
+   risk #ff453a 5.4:1. Section and role colours are used for fills and edges, never for small text. */
+
+.ofc {
+  --ofc-live: var(--color-ok, #30d158);
+  --ofc-wait: var(--color-info, #64d2ff);
+  --ofc-warn: var(--color-warn, #ffd60a);
+  --ofc-risk: var(--color-danger, #ff453a);
+  --ofc-rail: 300px;
+  --ofc-talk: 420px;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--color-text);
+  font-family: var(--font-body);
+  background:
+    radial-gradient(1100px 460px at 78% -12%, rgba(165, 148, 255, 0.10), transparent 62%),
+    radial-gradient(900px 420px at -8% 108%, rgba(100, 210, 255, 0.06), transparent 60%),
+    var(--color-bg);
+}
+.ofc--message { display: grid; place-content: center; gap: 12px; text-align: center; padding: 40px; }
+.ofc-muted { color: var(--color-neutral-500); font-size: 12.5px; line-height: 1.5; margin: 0; }
+.ofc-error { color: var(--ofc-risk); font-size: 13px; margin: 0; }
+.ofc-error--bar { padding: 8px 14px; background: rgba(255, 69, 58, 0.1); }
+.ofc-note { padding: 8px 12px; border-radius: var(--radius); background: var(--color-surface); }
+
+.ofc-btn {
+  min-height: 32px; padding: 6px 14px; border: 0; border-radius: 9px; font-size: 13px; font-weight: 500;
+  color: var(--color-text); background: var(--color-surface-2);
+  box-shadow: inset 0 0 0 1px var(--color-divider-strong); cursor: pointer;
+  transition: background 140ms ease, transform 90ms var(--ease-out);
+}
+.ofc-btn:hover:not(:disabled) { background: var(--color-surface-3); }
+.ofc-btn:active:not(:disabled) { transform: translateY(1px) scale(0.98); }
+.ofc-btn:disabled { opacity: 0.45; cursor: default; }
+.ofc-btn--primary { background: var(--color-accent); color: var(--color-on-accent); box-shadow: none; }
+.ofc-btn--primary:hover:not(:disabled) { background: var(--color-accent-2); }
+.ofc-btn--risk { color: var(--ofc-risk); box-shadow: inset 0 0 0 1px rgba(255, 69, 58, 0.4); }
+.ofc-btn--small { min-height: 27px; padding: 3px 10px; font-size: 12px; }
+.ofc-link { border: 0; background: none; color: var(--color-accent-300); font-size: 12.5px; cursor: pointer; padding: 2px 4px; }
+.ofc-link:hover { color: var(--color-accent); text-decoration: underline; }
+.ofc-x { border: 0; background: none; color: var(--color-neutral-500); font-size: 14px; cursor: pointer; padding: 2px 6px; }
+.ofc-x:hover { color: var(--color-text); }
+.ofc-icon {
+  width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; font-size: 14px;
+  color: var(--color-neutral-300); background: var(--color-surface-2);
+  box-shadow: inset 0 0 0 1px var(--color-divider); cursor: pointer; border: 0;
+}
+.ofc-icon:hover { background: var(--color-surface-3); color: var(--color-text); }
+.ofc-btn:focus-visible, .ofc-link:focus-visible, .ofc-icon:focus-visible, .ofc-box:focus-visible,
+.ofc-kind:focus-visible, .ofc-chip:focus-visible, .ofc-crumb:focus-visible, .ofc-cardlet:focus-visible,
+.ofc textarea:focus-visible, .ofc input:focus-visible, .ofc-floor:focus-visible {
+  outline: 2px solid var(--color-accent); outline-offset: 2px;
+}
+.ofc-check { display: inline-flex; gap: 8px; align-items: flex-start; font-size: 12.5px; color: var(--color-neutral-300); line-height: 1.45; }
+.ofc-check--inline { align-items: center; }
+
+/* --- the office view ------------------------------------------------------------------------ */
+
+/* Width is pinned to the window on every row.
+   A grid item's automatic minimum size is its content, so fifteen section boxes in the bar made the whole
+   office 2176px wide inside a 1680px window and quietly pushed the chat column off the right-hand edge. Each
+   row gets min-width: 0 and the rails scroll inside themselves instead. */
+.ofc-office {
+  display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; height: 100%; min-height: 0;
+  width: 100%; min-width: 0; max-width: 100%; overflow: hidden;
+}
+.ofc-office > * { min-width: 0; max-width: 100%; }
+
+.ofc-top {
+  display: flex; align-items: center; gap: 10px; padding: 10px 14px; flex-wrap: wrap;
+  box-shadow: inset 0 -1px 0 var(--color-divider);
+}
+.ofc-top h1 { margin: 0; font: 600 16px/1.2 var(--font-heading); letter-spacing: -0.01em; }
+.ofc-top__counts { font-size: 12px; color: var(--color-neutral-500); }
+.ofc-top__actions { margin-left: auto; display: flex; gap: 8px; }
+.ofc-pill {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 24px; padding: 2px 10px; border-radius: 999px;
+  font-size: 11.5px; color: var(--color-neutral-300); box-shadow: inset 0 0 0 1px var(--color-divider-strong);
+  text-transform: capitalize;
+}
+.ofc-pill i { width: 6px; height: 6px; border-radius: 50%; background: var(--color-neutral-600); }
+.ofc-pill.is-running i { background: var(--ofc-live); animation: ofc-breathe 1.8s ease-in-out infinite; }
+.ofc-pill.is-paused i { background: var(--ofc-warn); }
+.ofc-pill.is-halted i { background: var(--ofc-risk); }
+.ofc-pill.is-focus { box-shadow: inset 0 0 0 1px rgba(165, 148, 255, 0.5); color: var(--color-accent-300); }
+.ofc-pill.is-focus i { background: var(--color-accent); }
+@keyframes ofc-breathe { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
+
+/* Two columns normally, three when the sidebar is open: an "auto" column that no child sits in would push the
+   floor and the chats one column to the left, which is exactly what it did the first time. */
+.ofc-body { display: grid; grid-template-columns: minmax(0, 1fr) var(--ofc-talk); min-height: 0; }
+.ofc-office.has-side .ofc-body { grid-template-columns: var(--ofc-rail) minmax(0, 1fr) var(--ofc-talk); }
+.ofc-stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+
+/* --- the floor ------------------------------------------------------------------------------ */
+
+.ofc-floor { position: absolute; inset: 0; overflow: hidden; cursor: grab; outline: none; }
+.ofc-floor.is-dragging { cursor: grabbing; }
+.ofc-floor__svg { display: block; width: 100%; height: 100%; touch-action: none; }
+.ofc-floor__tools { position: absolute; right: 12px; bottom: 12px; display: flex; gap: 6px; align-items: center; }
+.ofc-floor__zoom { font-size: 11px; color: var(--color-neutral-600); min-width: 38px; text-align: right; }
+
+.ofc-room__floor {
+  fill: color-mix(in srgb, var(--room) 7%, var(--color-surface));
+  stroke: color-mix(in srgb, var(--room) 34%, transparent); stroke-width: 1;
+}
+.ofc-room.is-picked .ofc-room__floor { stroke: var(--room); stroke-width: 2;
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--room) 45%, transparent)); }
+.ofc-room__band { fill: color-mix(in srgb, var(--room) 22%, transparent); cursor: pointer; }
+.ofc-room__head:hover .ofc-room__band { fill: color-mix(in srgb, var(--room) 34%, transparent); }
+.ofc-room__name { fill: var(--color-text); font: 600 12.5px var(--font-heading); pointer-events: none; }
+.ofc-room__count { fill: var(--color-neutral-400); font: 500 11px var(--font-body); pointer-events: none; }
+.ofc-room__paused { fill: var(--ofc-warn); font: 500 10px var(--font-body); }
+
+.ofc-desk { cursor: pointer; }
+.ofc-desk__surface { fill: color-mix(in srgb, var(--color-surface-2) 85%, transparent); stroke-width: 1; opacity: 0.9; }
+.ofc-desk__screen { fill: var(--color-surface-3); stroke: var(--color-divider-strong); stroke-width: 0.7; }
+.ofc-desk__screen.is-on { stroke: none; }
+/* The lit monitor's glow, as a plain shape — an SVG blur filter here turned the floor black while dragging. */
+.ofc-desk__halo { opacity: 0.18; }
+.ofc-desk__head { stroke: rgba(0, 0, 0, 0.5); stroke-width: 0.6; }
+.ofc-desk__glyph { font: 600 9px var(--font-body); fill: #0b0b10; pointer-events: none; }
+.ofc-desk__ring { fill: none; stroke-width: 1.6; opacity: 0.85; }
+.ofc-desk__ring.is-pulsing { animation: ofc-ring 1.6s ease-in-out infinite; }
+@keyframes ofc-ring { 0%, 100% { opacity: 0.3; r: 12.5px; } 50% { opacity: 0.95; r: 14px; } }
+.ofc-desk__picked { fill: none; stroke: var(--color-accent); stroke-width: 1.6; stroke-dasharray: 3 3; }
+.ofc-desk__name { fill: var(--color-neutral-400); font: 500 9px var(--font-body); pointer-events: none; }
+.ofc-desk.is-board .ofc-desk__head { stroke: var(--ofc-risk); stroke-width: 1.4; }
+.ofc-floor--far .ofc-desk__name, .ofc-floor--far .ofc-desk__glyph { display: none; }
+.ofc-desk:hover .ofc-desk__head { filter: brightness(1.25); }
+
+.ofc-talk__line { fill: none; stroke: var(--color-accent); stroke-width: 1.2; stroke-dasharray: 4 4; opacity: 0.6; }
+.ofc-talk__dot { fill: var(--color-accent-300); }
+
+/* --- section bars ---------------------------------------------------------------------------- */
+
+.ofc-bar { display: flex; flex-direction: column; gap: 6px; padding: 8px 12px; min-width: 0; }
+.ofc-bar--top { box-shadow: inset 0 -1px 0 var(--color-divider); }
+.ofc-bar--dock { box-shadow: inset 0 1px 0 var(--color-divider); background: rgba(7, 7, 10, 0.6); }
+.ofc-bar__rail { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin;
+  min-width: 0; max-width: 100%; }
+.ofc-bar__empty { margin: 4px 2px; font-size: 12px; color: var(--color-neutral-600); }
+.ofc-bar__kinds { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; min-width: 0; max-width: 100%;
+  max-height: 76px; overflow-y: auto; }
+.ofc-bar__label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-neutral-600); }
+
+.ofc-box {
+  flex: 0 0 auto; min-width: 136px; max-width: 200px; text-align: left; display: grid; gap: 3px;
+  padding: 7px 11px 8px; border: 0; border-radius: 11px; cursor: pointer; color: var(--color-text);
+  background: color-mix(in srgb, var(--room) 10%, var(--color-surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--room) 30%, transparent);
+  transition: background 140ms ease, box-shadow 140ms ease, transform 90ms var(--ease-out);
+}
+.ofc-box:hover { background: color-mix(in srgb, var(--room) 18%, var(--color-surface)); }
+.ofc-box.is-picked { box-shadow: inset 0 0 0 2px var(--room), 0 0 14px color-mix(in srgb, var(--room) 35%, transparent); }
+.ofc-box.is-open { outline: 1px dashed color-mix(in srgb, var(--room) 60%, transparent); outline-offset: 2px; }
+.ofc-box.is-paused { opacity: 0.6; }
+.ofc-box__name { font: 600 12.5px/1.2 var(--font-heading); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ofc-box__meta { font-size: 11px; color: var(--color-neutral-400); }
+.ofc-box__live { color: var(--ofc-live); font-style: normal; }
+.ofc-box__bar { display: block; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+.ofc-box__bar span { display: block; height: 100%; background: var(--room); transition: width 400ms var(--ease-out); }
+.ofc-box__tasks { font-size: 10.5px; color: var(--color-neutral-600); }
+
+.ofc-kind {
+  display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border: 0; border-radius: 999px;
+  font-size: 11.5px; color: var(--color-neutral-300); background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-divider); cursor: pointer;
+}
+.ofc-kind:hover { background: var(--color-surface-2); color: var(--color-text); }
+.ofc-kind.is-picked { box-shadow: inset 0 0 0 1.5px var(--kind); color: var(--color-text); }
+.ofc-kind__glyph { width: 15px; height: 15px; display: grid; place-items: center; border-radius: 50%;
+  background: var(--kind); color: #0b0b10; font-size: 9px; font-weight: 700; }
+.ofc-kind__count { color: var(--color-neutral-600); }
+
+/* --- the drawer, the card ---------------------------------------------------------------------- */
+
+.ofc-drawer, .ofc-card {
+  position: absolute; top: 10px; right: 10px; width: min(360px, calc(100% - 20px)); max-height: calc(100% - 20px);
+  overflow: auto; display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: var(--radius-lg);
+  background: var(--color-surface); box-shadow: inset 0 0 0 1px var(--color-divider-strong), 0 24px 60px rgba(0, 0, 0, 0.55);
+  animation: ofc-rise 180ms var(--ease-out);
+}
+@keyframes ofc-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.ofc-card { top: auto; bottom: 10px; width: min(320px, calc(100% - 20px)); }
+.ofc-drawer__head, .ofc-card > header { display: flex; gap: 10px; align-items: flex-start; }
+.ofc-drawer__head h3 { margin: 0; font: 600 15px var(--font-heading); }
+.ofc-drawer__head p { margin: 2px 0 0; font-size: 12px; color: var(--color-neutral-500); }
+.ofc-drawer__head .ofc-x, .ofc-card > header .ofc-x { margin-left: auto; }
+.ofc-drawer__controls { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.ofc-drawer__stat { font-size: 11.5px; color: var(--color-neutral-500); margin-left: auto; }
+.ofc-drawer__manager { margin: 0; font-size: 12px; color: var(--color-neutral-400); }
+.ofc-drawer__notes { margin: 0; font-size: 12px; color: var(--color-neutral-500); }
+.ofc-drawer__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.ofc-row { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 9px; }
+.ofc-row:hover { background: var(--color-surface-2); }
+.ofc-row.is-picked { background: color-mix(in srgb, var(--color-accent) 14%, transparent); }
+.ofc-row--empty { color: var(--color-neutral-600); font-size: 12px; }
+.ofc-row__pick { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; cursor: pointer; }
+.ofc-row__head { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; color: #0b0b10;
+  font-size: 10px; font-weight: 700; flex: none; }
+.ofc-row__body { min-width: 0; display: grid; }
+.ofc-row__name { font-size: 12.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ofc-row__meta { font-size: 11px; color: var(--color-neutral-500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ofc-row.is-working .ofc-row__meta { color: var(--ofc-live); }
+.ofc-row__actions { display: flex; gap: 2px; flex: none; }
+
+.ofc-card__head { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; color: #0b0b10;
+  font-size: 12px; font-weight: 700; }
+.ofc-card > header div { display: grid; }
+.ofc-card__facts { margin: 0; display: grid; gap: 5px; }
+.ofc-card__facts div { display: flex; gap: 8px; font-size: 12px; }
+.ofc-card__facts dt { color: var(--color-neutral-600); min-width: 88px; }
+.ofc-card__facts dd { margin: 0; color: var(--color-neutral-300); }
+.ofc-card__task { padding: 8px 10px; border-radius: 10px; background: var(--color-surface-2); font-size: 12px; }
+.ofc-card__task p { margin: 4px 0 0; }
+.ofc-card__actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* --- the chats ------------------------------------------------------------------------------- */
+
+/* The column scrolls; the boxes inside it do not squeeze each other.
+   Before, the two chats were flex-sized shares of the column, so a long hiring list pushed them both into a
+   sliver. Each box now keeps the height it was given (and the one the owner drags it to — the grip in its
+   bottom-right corner, remembered per box) and the column scrolls when the pile is taller than the window. */
+.ofc-talkcol {
+  display: flex; flex-direction: column; gap: 10px; min-height: 0; min-width: 0; padding: 10px; overflow-y: auto;
+  box-shadow: inset 1px 0 0 var(--color-divider);
+}
+.ofc-chat { display: flex; flex-direction: column; border-radius: var(--radius-lg);
+  background: var(--color-surface); box-shadow: inset 0 0 0 1px var(--color-divider);
+  flex: 0 0 auto; overflow: hidden; resize: vertical; }
+.ofc-chat--main { height: 52vh; min-height: 260px; max-height: 88vh; }
+.ofc-chat--target { height: 34vh; min-height: 210px; max-height: 80vh; }
+.ofc-chat__head { display: flex; gap: 8px; align-items: baseline; padding: 10px 12px 6px; }
+.ofc-chat__head h2 { margin: 0; font: 600 13px var(--font-heading); }
+.ofc-chat__sub { font-size: 11.5px; color: var(--color-neutral-600); }
+/* Says "this box can be resized" — the handle itself is the CSS grip in the bottom-right corner. */
+.ofc-chat__grip { margin-left: auto; width: 14px; height: 14px; border-radius: 4px; cursor: ns-resize;
+  background:
+    linear-gradient(transparent 0 4px, var(--color-neutral-700) 4px 5px, transparent 5px 9px,
+                    var(--color-neutral-700) 9px 10px, transparent 10px); }
+.ofc-chat__list { flex: 1; min-height: 80px; overflow-y: auto; padding: 4px 12px; display: grid; gap: 10px; align-content: start; }
+.ofc-chat__empty { display: grid; gap: 6px; padding: 10px 0; }
+.ofc-chat__empty p { margin: 0; }
+
+.ofc-phases { display: flex; gap: 4px; list-style: none; margin: 0; padding: 4px 12px 8px; flex-wrap: wrap; }
+.ofc-phases li { font-size: 10.5px; padding: 2px 8px; border-radius: 999px; color: var(--color-neutral-600);
+  box-shadow: inset 0 0 0 1px var(--color-divider); }
+.ofc-phases li.is-done { color: var(--color-neutral-400); }
+.ofc-phases li.is-now { color: var(--color-on-accent); background: var(--color-accent); box-shadow: none; }
+
+.ofc-msg { display: grid; gap: 4px; font-size: 13px; line-height: 1.5; }
+.ofc-msg header { display: flex; gap: 8px; align-items: baseline; font-size: 11.5px; color: var(--color-neutral-500); }
+.ofc-msg header b { color: var(--color-neutral-300); font-weight: 600; }
+.ofc-msg header time { margin-left: auto; color: var(--color-neutral-700); font-size: 10.5px; }
+.ofc-msg__plain { margin: 0; white-space: pre-wrap; }
+.ofc-msg__to { color: var(--color-accent-300); }
+.ofc-msg.is-owner { padding-left: 8px; box-shadow: inset 2px 0 0 var(--color-accent); }
+.ofc-msg--small { font-size: 12.5px; }
+
+.ofc-aim { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding: 0 12px 6px; }
+.ofc-aim__who { font-size: 11.5px; color: var(--color-accent-300); }
+.ofc-aim__who.is-empty { color: var(--color-neutral-600); }
+.ofc-chip { display: inline-flex; gap: 6px; align-items: center; padding: 2px 8px; border: 0; border-radius: 999px;
+  font-size: 11.5px; color: var(--color-text); cursor: pointer;
+  background: color-mix(in srgb, var(--chip, var(--color-accent)) 20%, var(--color-surface-2));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chip, var(--color-accent)) 45%, transparent); }
+.ofc-chip:hover { background: color-mix(in srgb, var(--chip, var(--color-accent)) 32%, var(--color-surface-2)); }
+
+.ofc-compose { display: grid; gap: 6px; padding: 8px 12px 10px; }
+.ofc-compose textarea {
+  width: 100%; resize: vertical; padding: 9px 11px; border: 0; border-radius: 10px; font: inherit; font-size: 13px;
+  color: var(--color-text); background: var(--color-surface-2); box-shadow: inset 0 0 0 1px var(--color-divider);
+}
+.ofc-compose--big textarea { font-size: 14px; min-height: 92px; }
+.ofc-compose__row { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+
+.ofc-hiring { border-radius: var(--radius-lg); background: var(--color-surface); padding: 10px 12px;
+  box-shadow: inset 0 0 0 1px var(--color-divider);
+  /* Hiring can run long on a busy office; it scrolls inside itself instead of pushing the chats around. */
+  flex: 0 0 auto; max-height: 260px; overflow-y: auto; resize: vertical; }
+.ofc-hiring h3 { margin: 0 0 6px; font: 600 12px var(--font-heading); color: var(--color-neutral-400);
+  text-transform: uppercase; letter-spacing: 0.06em; }
+.ofc-hiring ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.ofc-hiring li { font-size: 12px; display: grid; gap: 2px; }
+.ofc-hiring li b { color: var(--color-text); }
+.ofc-tag { font-style: normal; font-size: 10px; padding: 1px 6px; border-radius: 999px; margin-left: 6px;
+  color: var(--color-accent-300); box-shadow: inset 0 0 0 1px var(--color-divider-strong); }
+.ofc-verdict { float: right; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; }
+.ofc-verdict.is-approved { color: var(--ofc-live); }
+.ofc-verdict.is-denied { color: var(--ofc-risk); }
+.ofc-verdict.is-reuse { color: var(--ofc-warn); }
+.ofc-verdict.is-pending { color: var(--color-neutral-500); }
+
+/* --- the sidebar ----------------------------------------------------------------------------- */
+
+.ofc-side { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow-y: auto; padding: 10px;
+  box-shadow: inset -1px 0 0 var(--color-divider); }
+.ofc-side__head { display: flex; align-items: center; gap: 8px; }
+.ofc-side__head h3 { margin: 0; font: 600 12px var(--font-heading); color: var(--color-neutral-400);
+  text-transform: uppercase; letter-spacing: 0.06em; }
+.ofc-side__head .ofc-x { margin-left: auto; }
+.ofc-side__head--second { margin-top: 6px; }
+.ofc-side__actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.ofc-tree { display: grid; gap: 1px; }
+.ofc-tree__row { display: flex; align-items: center; gap: 2px; border-radius: 8px; }
+.ofc-tree__row:hover { background: var(--color-surface-2); }
+.ofc-tree__row.is-current { background: color-mix(in srgb, var(--color-accent) 16%, transparent); }
+.ofc-tree__twist { border: 0; background: none; color: var(--color-neutral-600); cursor: pointer; font-size: 10px; padding: 2px; }
+.ofc-tree__name { flex: 1; text-align: left; border: 0; background: none; color: var(--color-neutral-300);
+  font-size: 12.5px; padding: 4px 2px; cursor: pointer; display: flex; gap: 6px; align-items: center; min-width: 0; }
+.ofc-tree__name:hover { color: var(--color-text); }
+.ofc-tree__icon { font-size: 12px; }
+.ofc-tree__tag { font-style: normal; font-size: 10px; color: var(--color-accent-300); }
+.ofc-files { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: 12px; }
+.ofc-files li { display: flex; gap: 8px; align-items: baseline; justify-content: space-between; }
+.ofc-filepeek { position: absolute; inset: 12px; z-index: 6; display: flex; flex-direction: column; gap: 8px;
+  padding: 12px; border-radius: var(--radius-lg); background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-divider-strong), 0 30px 80px rgba(0, 0, 0, 0.6); }
+.ofc-filepeek header { display: flex; align-items: center; gap: 8px; }
+.ofc-filepeek header .ofc-x { margin-left: auto; }
+.ofc-filepeek pre { margin: 0; flex: 1; overflow: auto; font: 12px/1.5 var(--font-mono); white-space: pre-wrap;
+  color: var(--color-neutral-300); }
+
+/* --- the lobby ------------------------------------------------------------------------------- */
+
+.ofc-lobby { display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: 12px; padding: 20px 22px; min-height: 0; }
+.ofc-lobby__head { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
+.ofc-lobby__head h1 { margin: 0; font: 600 24px/1.2 var(--font-heading); letter-spacing: -0.01em; }
+.ofc-lobby__head p { max-width: 64ch; margin: 4px 0 0; }
+.ofc-lobby__actions { display: flex; gap: 8px; }
+.ofc-crumbs { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.ofc-crumb { border: 0; background: none; color: var(--color-neutral-400); font-size: 12.5px; cursor: pointer;
+  padding: 4px 6px; border-radius: 8px; }
+.ofc-crumb:hover { background: var(--color-surface-2); color: var(--color-text); }
+.ofc-crumb.is-here { color: var(--color-text); font-weight: 600; }
+.ofc-crumbs__right { margin-left: auto; display: flex; gap: 12px; align-items: center; }
+.ofc-lobby__body { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; min-height: 0; }
+.ofc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; align-content: start;
+  overflow-y: auto; padding-right: 4px; }
+.ofc-cardlet {
+  display: grid; gap: 3px; padding: 12px 13px; border-radius: var(--radius-lg); cursor: pointer;
+  background: var(--color-surface); box-shadow: inset 0 0 0 1px var(--color-divider);
+  transition: background 140ms ease, box-shadow 140ms ease, transform 90ms var(--ease-out);
+}
+.ofc-cardlet:hover { background: var(--color-surface-2); }
+.ofc-cardlet:active { transform: scale(0.99); }
+.ofc-cardlet.is-picked { box-shadow: inset 0 0 0 1.5px var(--color-accent); }
+.ofc-cardlet.is-drop { box-shadow: inset 0 0 0 2px var(--color-accent); background: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface)); }
+.ofc-cardlet.is-running { box-shadow: inset 0 0 0 1.5px var(--ofc-live); }
+.ofc-cardlet__icon { font-size: 18px; }
+.ofc-cardlet__name { font: 600 13.5px var(--font-heading); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ofc-cardlet__meta { font-size: 11.5px; }
+.ofc-cardlet__summary { font-size: 11.5px; color: var(--color-neutral-500); display: -webkit-box;
+  -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ofc-cardlet__live { font-size: 10.5px; color: var(--ofc-live); }
+.ofc-rename { font: 600 13.5px var(--font-heading); color: var(--color-text); background: var(--color-surface-2);
+  border: 0; border-radius: 6px; padding: 2px 6px; box-shadow: inset 0 0 0 1px var(--color-divider-strong); }
+.ofc-empty { grid-column: 1 / -1; display: grid; gap: 10px; justify-items: start; padding: 22px; border-radius: var(--radius-lg);
+  background: var(--color-surface); box-shadow: inset 0 0 0 1px var(--color-divider); }
+.ofc-empty p { margin: 0; color: var(--color-neutral-400); }
+.ofc-details { width: 290px; display: flex; flex-direction: column; gap: 10px; padding: 14px; overflow-y: auto;
+  border-radius: var(--radius-lg); background: var(--color-surface); box-shadow: inset 0 0 0 1px var(--color-divider); }
+.ofc-details h3 { margin: 0; font: 600 15px var(--font-heading); }
+.ofc-details p { margin: 0; font-size: 12.5px; line-height: 1.5; }
+.ofc-details__quote { color: var(--color-neutral-400); font-style: italic; }
+.ofc-details__actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* --- the focus question ---------------------------------------------------------------------- */
+
+.ofc-scrim { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 24px;
+  background: rgba(0, 0, 0, 0.62); backdrop-filter: blur(8px); }
+.ofc-sheet { width: min(540px, 100%); display: grid; gap: 12px; padding: 26px; border-radius: var(--radius-xl);
+  background: var(--color-surface); box-shadow: inset 0 0 0 1px var(--color-divider-strong), 0 30px 80px rgba(0, 0, 0, 0.6);
+  animation: ofc-rise 200ms var(--ease-out); }
+.ofc-sheet h2 { margin: 0; font: 600 19px var(--font-heading); }
+.ofc-sheet p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--color-neutral-300); }
+.ofc-sheet__actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+
+/* --- narrow windows -------------------------------------------------------------------------- */
+
+@media (max-width: 1180px) {
+  .ofc-body, .ofc-office.has-side .ofc-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(220px, 1fr) auto; }
+  .ofc-side { box-shadow: inset 0 -1px 0 var(--color-divider); max-height: 240px; }
+  .ofc-talkcol { box-shadow: inset 0 1px 0 var(--color-divider); max-height: 46vh; }
+  .ofc-lobby__body { grid-template-columns: minmax(0, 1fr); }
+  .ofc-details { width: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ofc-pill.is-running i, .ofc-desk__ring.is-pulsing { animation: none; }
+  .ofc-drawer, .ofc-card, .ofc-sheet { animation: none; }
+}

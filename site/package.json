@@ -1,0 +1,7 @@
+{
+  "name": "nyx-ichos-site",
+  "private": true,
+  "type": "module",
+  "description": "Static site plus the Collab functions in api/ (Vercel). No build step.",
+  "engines": { "node": ">=20" }
+}

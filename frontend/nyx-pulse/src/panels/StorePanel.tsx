@@ -48,12 +48,12 @@ function SkillCard({ skill, onToggle, onRemove, highlighted }: {
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <span style={{ fontSize: 13, fontWeight: 600 }}>{skill.name}</span>
         {skill.source !== "builtin" && (
-          <span style={{ fontSize: 10, textTransform: "uppercase", color: "var(--color-accent-2)" }}>
+          <span style={{ fontSize: 11, textTransform: "uppercase", color: "var(--color-accent-2)" }}>
             {skill.source === "conversation" ? "from conversation" : skill.source}
           </span>
         )}
         {highlighted && (
-          <span style={{ fontSize: 10, textTransform: "uppercase", color: "var(--color-accent)" }}>
+          <span style={{ fontSize: 11, textTransform: "uppercase", color: "var(--color-accent)" }}>
             would attach
           </span>
         )}
@@ -72,14 +72,14 @@ function SkillCard({ skill, onToggle, onRemove, highlighted }: {
       <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 7 }}>
         {skill.triggers.slice(0, 8).map((t) => (
           <span key={t} style={{
-            fontSize: 10, fontFamily: "var(--font-mono)", padding: "1px 5px",
+            fontSize: 11, fontFamily: "var(--font-mono)", padding: "1px 5px",
             borderRadius: 3, background: "var(--color-nav)", color: "var(--color-neutral-500)",
           }}>
             {t}
           </span>
         ))}
         {skill.triggers.length > 8 && (
-          <span style={{ fontSize: 10, color: "var(--color-neutral-700)" }}>
+          <span style={{ fontSize: 11, color: "var(--color-neutral-700)" }}>
             +{skill.triggers.length - 8}
           </span>
         )}
@@ -117,7 +117,14 @@ function SkillCard({ skill, onToggle, onRemove, highlighted }: {
 export function StorePanel() {
   const [data, setData] = useState<SkillsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [description, setDescription] = useState("");
+  // "/skill …" and the command menu's "Create a skill instead" arrive with the words filled in.
+  const [description, setDescription] = useState(() => {
+    try {
+      const draft = sessionStorage.getItem("nyx.skill.draft") ?? "";
+      sessionStorage.removeItem("nyx.skill.draft");
+      return draft;
+    } catch { return ""; }
+  });
   const [creating, setCreating] = useState(false);
   const [preview, setPreview] = useState("");
   const [hits, setHits] = useState<PreviewHit[]>([]);

@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import re
 import threading
+import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -53,6 +54,13 @@ class Skill:
     enabled: bool = True
     author: str = ""
     uses: int = 0
+    # "library" skills ship in skills_library.json; "temp" ones were made by the
+    # assistant for one task and expire unless the user keeps them.
+    category: str = ""
+    agent: str = ""
+    created_at: float = 0.0
+    expires_at: float = 0.0
+    chat_id: str = ""
 
     def as_dict(self) -> Dict[str, Any]:
         return {
@@ -65,6 +73,12 @@ class Skill:
             "enabled": self.enabled,
             "author": self.author,
             "uses": self.uses,
+            "category": self.category,
+            "agent": self.agent,
+            "created_at": self.created_at,
+            "expires_at": self.expires_at,
+            "chat_id": self.chat_id,
+            "temp": self.source == "temp",
         }
 
     def match_score(self, text: str) -> int:
@@ -74,6 +88,29 @@ class Skill:
 
 
 BUILTIN_SKILLS: List[Dict[str, Any]] = [
+    {
+        # Request H14: Anthropic's intent.md — see intent_md.py.
+        "name": "Capture intent",
+        "description": "Write an intent.md before designing or building: problem, outcome, who is affected, constraints, open questions.",
+        "triggers": ["intent.md", "intent file", "write an intent", "capture intent", "before we build", "feature idea",
+                     "product requirement", "what should we build"],
+        "instructions": __import__("intent_md").SKILL_INSTRUCTIONS,
+    },
+    {
+        # Request Q: the context bar and compaction — see context_budget.py.
+        "name": "Compact context",
+        "description": "Keep a long chat fast and within the model's context: summarize earlier messages, keep the recent ones.",
+        "triggers": ["compact", "context is full", "context window", "running out of context", "too long", "summarize this chat",
+                     "start fresh but keep", "clear the context"],
+        "instructions": __import__("context_budget").SKILL_INSTRUCTIONS,
+    },
+    {
+        # Project Null N8: the skill the Office Space Hiring Board thinks with — see office/crit_think.py.
+        "name": __import__("office.crit_think", fromlist=["SKILL_NAME"]).SKILL_NAME,
+        "description": __import__("office.crit_think", fromlist=["SKILL_DESCRIPTION"]).SKILL_DESCRIPTION,
+        "triggers": list(__import__("office.crit_think", fromlist=["SKILL_TRIGGERS"]).SKILL_TRIGGERS),
+        "instructions": __import__("office.crit_think", fromlist=["SKILL_INSTRUCTIONS"]).SKILL_INSTRUCTIONS,
+    },
     {
         "name": "Debugging",
         "description": "Reproduce, isolate, and fix a bug rather than guessing at it.",
@@ -144,15 +181,31 @@ BUILTIN_SKILLS: List[Dict[str, Any]] = [
 ]
 
 
+#: How long a temporary task skill lives unless the user keeps it.
+TEMP_SKILL_TTL_SECONDS = 7 * 24 * 3600
+
+#: Sources whose text ships with the app and wins over a stored copy.
+_SHIPPED_SOURCES = frozenset({"builtin", "library"})
+
+
 class SkillStore:
     """The skill library: built-ins plus whatever the user has added."""
 
-    def __init__(self, path: str | Path | None = None) -> None:
+    def __init__(self, path: str | Path | None = None, library_path: str | Path | None = None) -> None:
         self.path = Path(path) if path is not None else data_path("skills.json")
+        # The shipped library joins the default store only. A store opened on an
+        # explicit path (tests, imports) stays exactly what it was asked to be.
+        if library_path is None and path is None:
+            from paths import project_path
+
+            library_path = project_path("skills_library.json")
+        self.library_path = Path(library_path) if library_path is not None else None
         self._skills: Dict[str, Skill] = {}
         self._lock = threading.Lock()
         self._install_builtins()
+        self._install_library()
         self._load()
+        self._purge_expired()
 
     # --- setup --------------------------------------------------------------
 
@@ -167,6 +220,48 @@ class SkillStore:
                 source="builtin",
             )
             self._skills[skill.skill_id] = skill
+
+    def _install_library(self) -> None:
+        """Skills shipped in skills_library.json (curated content, not code)."""
+        if self.library_path is None:
+            return
+        try:
+            raw = json.loads(self.library_path.read_text(encoding="utf-8"))
+        except Exception:
+            return
+        for spec in raw.get("skills", []) if isinstance(raw, dict) else []:
+            try:
+                name = str(spec["name"]).strip()
+                instructions = str(spec["instructions"]).strip()
+                triggers = [str(t).strip().lower() for t in spec.get("triggers", []) if str(t).strip()]
+            except Exception:
+                continue
+            if not name or not instructions or not triggers:
+                continue
+            slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+            skill_id = f"lib-{slug}"
+            if f"builtin-{slug}" in self._skills:
+                continue  # a built-in of the same name stays authoritative
+            self._skills[skill_id] = Skill(
+                skill_id=skill_id,
+                name=name,
+                description=str(spec.get("description", "")).strip(),
+                instructions=instructions,
+                triggers=triggers,
+                source="library",
+                category=str(spec.get("category", "")),
+                agent=str(spec.get("agent", "")),
+            )
+
+    def _purge_expired(self) -> None:
+        now = time.time()
+        with self._lock:
+            expired = [sid for sid, s in self._skills.items()
+                       if s.source == "temp" and s.expires_at and s.expires_at < now]
+            for sid in expired:
+                del self._skills[sid]
+            if expired:
+                self._save()
 
     def _load(self) -> None:
         """Load user skills, and any enable/disable state for built-ins."""
@@ -186,15 +281,22 @@ class SkillStore:
                     enabled=bool(entry.get("enabled", True)),
                     author=str(entry.get("author", "")),
                     uses=int(entry.get("uses", 0)),
+                    category=str(entry.get("category", "")),
+                    agent=str(entry.get("agent", "")),
+                    created_at=float(entry.get("created_at", 0) or 0),
+                    expires_at=float(entry.get("expires_at", 0) or 0),
+                    chat_id=str(entry.get("chat_id", "")),
                 )
             except Exception:
                 continue
             # A stored built-in only carries its enabled state and use count; the
             # shipped text always wins, so an app update can improve a built-in.
             existing = self._skills.get(skill.skill_id)
-            if existing is not None and existing.source == "builtin":
+            if existing is not None and existing.source in _SHIPPED_SOURCES:
                 existing.enabled = skill.enabled
                 existing.uses = skill.uses
+            elif skill.source == "library":
+                continue  # a library skill that no longer ships
             else:
                 self._skills[skill.skill_id] = skill
 
@@ -209,9 +311,44 @@ class SkillStore:
     # --- reads --------------------------------------------------------------
 
     def list_skills(self) -> List[Dict[str, Any]]:
+        order = {"builtin": 0, "library": 1, "temp": 2}
         with self._lock:
             return [s.as_dict() for s in
-                    sorted(self._skills.values(), key=lambda s: (s.source != "builtin", s.name))]
+                    sorted(self._skills.values(), key=lambda s: (order.get(s.source, 3), s.name))]
+
+    def search(self, query: str, limit: int = 8, include_disabled: bool = False) -> List[Dict[str, Any]]:
+        """Rank skills for a free-text query — how the assistant finds what to use.
+
+        Trigger phrases that appear in the query count most, then words shared
+        with the name, then with the description. Each result says why it matched,
+        so a wrong pick is visible rather than mysterious.
+        """
+        text = (query or "").lower()
+        words = set(_WORD_RE.findall(text))
+        if not text.strip():
+            return []
+        results = []
+        with self._lock:
+            skills = list(self._skills.values())
+        for skill in skills:
+            if not skill.enabled and not include_disabled:
+                continue
+            hits = [t for t in skill.triggers if t.lower() in text]
+            name_words = set(_WORD_RE.findall(skill.name.lower()))
+            desc_words = set(_WORD_RE.findall(skill.description.lower()))
+            trigger_words = set(_WORD_RE.findall(" ".join(skill.triggers).lower()))
+            score = 3 * len(hits) + 2 * len(words & name_words) + len(words & (desc_words | trigger_words))
+            if score <= 0:
+                continue
+            reasons = []
+            if hits:
+                reasons.append("triggers: " + ", ".join(hits[:4]))
+            shared = sorted(words & (name_words | desc_words | trigger_words))
+            if shared:
+                reasons.append("words: " + ", ".join(shared[:5]))
+            results.append({**skill.as_dict(), "score": score, "why": "; ".join(reasons)})
+        results.sort(key=lambda r: (-r["score"], r["name"]))
+        return results[: max(1, limit)]
 
     def get(self, skill_id: str) -> Optional[Skill]:
         with self._lock:
@@ -259,6 +396,8 @@ class SkillStore:
         triggers: Optional[List[str]] = None,
         source: str = "conversation",
         author: str = "",
+        chat_id: str = "",
+        category: str = "",
     ) -> Skill:
         """Add a skill, typically one the agent wrote from a description (U2)."""
         if not name.strip():
@@ -282,11 +421,27 @@ class SkillStore:
             triggers=cleaned,
             source=source,
             author=author,
+            category=category,
+            created_at=time.time(),
+            expires_at=time.time() + TEMP_SKILL_TTL_SECONDS if source == "temp" else 0.0,
+            chat_id=chat_id,
         )
         with self._lock:
             self._skills[skill.skill_id] = skill
             self._save()
         return skill
+
+    def promote(self, skill_id: str) -> Skill:
+        """Keep a temporary task skill permanently."""
+        with self._lock:
+            skill = self._skills.get(skill_id)
+            if skill is None:
+                raise SkillError("No such skill.")
+            if skill.source == "temp":
+                skill.source = "conversation"
+                skill.expires_at = 0.0
+                self._save()
+            return skill
 
     def set_enabled(self, skill_id: str, enabled: bool) -> Skill:
         with self._lock:
@@ -303,7 +458,7 @@ class SkillStore:
             skill = self._skills.get(skill_id)
             if skill is None:
                 return False
-            if skill.source == "builtin":
+            if skill.source in _SHIPPED_SOURCES:
                 raise SkillError(
                     "Built-in skills cannot be deleted — disable it instead, so an "
                     "app update can still improve it."

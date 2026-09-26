@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { endpoints, type StatusResponse } from "../api";
+import { endpoints, type RouterStatus, type StatusResponse } from "../api";
 import { ErrorState, Loading, PanelShell, StatRow } from "../components/Panel";
+import { SystemCards } from "./SystemCards";
 
 /** Live device and routing health.
  *
@@ -36,16 +37,29 @@ export function DashboardPanel() {
   if (error && !status) return <PanelShell title="Dashboard"><ErrorState error={error} /></PanelShell>;
   if (!status) return <PanelShell title="Dashboard"><Loading what="Reading device status" /></PanelShell>;
 
-  const router = status.router_status ?? {};
+  // `/api/status` nests the service fields under `service`; reading them from the
+  // top level showed "0 tools", "Gemini: no key" and "0°C" on a working machine.
+  const service = ((status as { service?: StatusResponse }).service ?? status) as StatusResponse;
+  const router: RouterStatus = service.router_status ?? {};
   const hw = router.hardware_health ?? {};
-  const blind = (hw.status_summary ?? "").includes("no_gpu_telemetry");
+  const blind = (hw.status_summary ?? "").includes("no_gpu_telemetry") || !(hw.vram_total_mb ?? 0);
+  const throttled = Boolean(hw.throttle_recommended ?? hw.throttled);
 
   const temp = hw.gpu_temp_c ?? 0;
   const tempTone = temp >= 82 ? "danger" : temp >= 75 ? "warn" : "ok";
+  const providers: [string, string, boolean][] = [
+    ["Gemini", "gemini_available", Boolean(router.gemini_available)],
+    ["NVIDIA", "nvidia_available", Boolean(router.nvidia_available)],
+    ["Groq", "groq_available", Boolean(router.groq_available)],
+    ["OpenAI", "openai_available", Boolean(router.openai_available)],
+    ["Claude", "claude_available", Boolean(router.claude_available)],
+    ["Qwen", "qwen_available", Boolean(router.qwen_available)],
+  ];
 
   return (
     <PanelShell title="Dashboard" subtitle="Live device, routing, and safety status">
       <div style={{ display: "grid", gap: 14, gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
+        <SystemCards />
         <div className="card">
           <div className="label" style={{ marginBottom: 8 }}>Hardware safety</div>
           {blind ? (
@@ -59,17 +73,16 @@ export function DashboardPanel() {
                 label="VRAM"
                 value={`${Math.round(hw.vram_used_mb ?? 0)} / ${Math.round(hw.vram_total_mb ?? 0)} MB`}
               />
-              <StatRow label="GPU utilisation" value={`${hw.gpu_utilization ?? 0}%`} />
-              <StatRow
-                label="Throttle advised"
-                value={hw.throttle_recommended ? "yes" : "no"}
-                tone={hw.throttle_recommended ? "warn" : "ok"}
-              />
+              {hw.gpu_utilization != null && <StatRow label="GPU utilisation" value={`${hw.gpu_utilization}%`} />}
+              {hw.disk_free_gb != null && <StatRow label="Disk free (workspace)" value={`${Math.round(hw.disk_free_gb)} GB`} />}
+              <StatRow label="Throttle advised" value={throttled ? "yes" : "no"} tone={throttled ? "warn" : "ok"} />
             </>
           )}
-          <div style={{ marginTop: 8, fontSize: 11, color: "var(--color-neutral-600)", fontFamily: "var(--font-mono)" }}>
-            {hw.status_summary ?? "unknown"}
-          </div>
+          {hw.status_summary && (
+            <div style={{ marginTop: 8, fontSize: 11, color: "var(--color-neutral-600)", fontFamily: "var(--font-mono)" }}>
+              {hw.status_summary}
+            </div>
+          )}
         </div>
 
         <div className="card">
@@ -82,13 +95,12 @@ export function DashboardPanel() {
 
         <div className="card">
           <div className="label" style={{ marginBottom: 8 }}>Providers</div>
-          <StatRow label="Ollama (local)" value={router.ollama_available ? "ready" : "offline"}
+          <StatRow label="Ollama (local)" value={router.ollama_available ? "ready" : "not running"}
             tone={router.ollama_available ? "ok" : undefined} />
-          <StatRow label="Gemini" value={router.gemini_available ? "ready" : "no key"}
-            tone={router.gemini_available ? "ok" : undefined} />
-          <StatRow label="OpenAI" value={router.openai_available ? "ready" : "no key"}
-            tone={router.openai_available ? "ok" : undefined} />
-          <StatRow label="Tools" value={`${status.available_tools ?? 0} registered`} />
+          {providers.map(([label, key, ready]) => (
+            <StatRow key={key} label={label} value={ready ? "ready" : "no key"} tone={ready ? "ok" : undefined} />
+          ))}
+          <StatRow label="Tools" value={`${service.available_tools ?? 0} registered`} />
         </div>
       </div>
     </PanelShell>

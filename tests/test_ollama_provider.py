@@ -31,3 +31,46 @@ def test_chat_converts_request_errors_to_provider_error(mock_post):
     with pytest.raises(ProviderError, match="Ollama request failed"):
         OllamaProvider().chat([{"role": "user", "content": "Hello"}])
 
+
+class _StreamResponse(Mock):
+    """A streamed response that decodes like requests does.
+
+    With no charset on the Content-Type, requests leaves ``encoding`` at its
+    default and iter_lines(decode_unicode=True) then reads the raw UTF-8 bytes
+    as ISO-8859-1 — the mojibake bug. A provider must pin ``encoding`` to
+    "utf-8" before iterating; this fake yields text decoded per whatever is
+    set at that moment, so the test asserts behaviour, not implementation.
+    """
+
+    status_code = 200
+
+    def __init__(self, raw: bytes):
+        super().__init__()
+        self._raw = raw
+        self.encoding = None  # requests' default for a charset-less text/* body
+
+    def raise_for_status(self):
+        return None
+
+    def iter_lines(self, decode_unicode=False):
+        codec = self.encoding or "iso-8859-1"
+        for line in self._raw.split(b"\n"):
+            if not line:
+                continue
+            yield line.decode(codec) if decode_unicode else line
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        return False
+
+
+@patch("providers.ollama_provider.requests.post")
+def test_chat_stream_decodes_utf8_not_latin1(mock_post):
+    """U+2019 (') must survive the stream as one character, not three."""
+    body = ("{\"message\": {\"content\": \"That\u2019s live \U0001f3a7\"}}\n").encode("utf-8")
+    mock_post.return_value = _StreamResponse(body)
+    chunks = list(OllamaProvider().chat_stream([{"role": "user", "content": "hi"}]))
+    assert chunks == ["That\u2019s live \U0001f3a7"]
+

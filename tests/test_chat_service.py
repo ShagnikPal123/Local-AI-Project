@@ -243,3 +243,28 @@ def test_directive_preamble_does_not_hijack_the_offline_branch(tmp_path):
     # A genuine request to build something still reaches the build branch.
     response, _ = ChatService._offline_response(service, "help me build an app")
     assert "build this step by step" in response
+
+
+def test_tool_calls_with_raw_windows_paths_or_no_closing_tag_still_parse():
+    """Request G11: these shapes made whole tool calls vanish and the turn answer nothing."""
+    from tools import TOOL_REGISTRY
+
+    backslash = "\\"
+    raw_path = '<tool_call>\nname: list_files\narguments: {"path": "C:' + backslash + 'Users' + backslash + 'shagn"}\n</tool_call>'
+    unclosed = '<tool_call>\nname: list_files\narguments: {"path": "C:/site"}\n}'
+    assert TOOL_REGISTRY.parse_tool_calls(raw_path) == [("list_files", {"path": "C:" + backslash + "Users" + backslash + "shagn"})]
+    assert TOOL_REGISTRY.parse_tool_calls(unclosed) == [("list_files", {"path": "C:/site"})]
+
+    from turn_runner import visible_answer
+
+    assert visible_answer("Working on it <tool_call>\nname: x\narguments: {}") == "Working on it"
+
+
+def test_a_tool_whose_own_argument_is_called_name_can_be_called():
+    """Request H3: create_agent(name=...) raised "got multiple values for argument 'name'" and killed the turn."""
+    from tools import ToolParam, ToolRegistry
+
+    registry = ToolRegistry()
+    registry.register(name="make_agent", description="test", parameters=[ToolParam("name", "string", "Agent name")],
+                      handler=lambda name: f"made {name}")
+    assert registry.call_tool("make_agent", name="Scout") == "made Scout"

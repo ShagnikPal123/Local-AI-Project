@@ -97,7 +97,7 @@ def test_direct_chat_blocks_paid_in_free_only(mock_settings):
     """Explicit paid calls are refused while free-only mode is on."""
     mock_settings.free_only = True
     router = Router(web_access=False)
-    with pytest.raises(ProviderError, match="free-only"):
+    with pytest.raises(ProviderError, match="may bill"):
         router.direct_chat([{"role": "user", "content": "hi"}], "claude")
 
 
@@ -108,7 +108,7 @@ def test_online_order_free_first_with_paid_retained_when_opted_out(mock_settings
     mock_settings.preferred_online_provider = "gemini"
     router = Router(web_access=False)
     order = router._online_order()
-    assert order == ["gemini", "groq", "claude", "openai", "kimi", "deepseek", "perplexity"]
+    assert order == ["gemini", "groq", "nvidia", "claude", "openai", "kimi", "deepseek", "perplexity", "qwen"]
 
 
 @patch("router.is_online")
@@ -241,6 +241,11 @@ def test_all_providers_fail(
     mock_gemini_class.return_value = mock_gemini
 
     router = Router()
+    # Only the two mocks may answer. A real key on the machine running the suite
+    # (NVIDIA's, since 2026-09-14) otherwise sends a live request and it "works".
+    for name, provider in router.providers.items():
+        if name not in ("ollama", "gemini"):
+            provider.is_available = lambda: False
 
     with pytest.raises(ProviderError):
         router.chat(messages)
@@ -287,3 +292,34 @@ def test_get_status(
     assert status["perplexity_available"] is True
     assert status["device_profile"]["cpu_cores"] == 8
 
+
+
+class _StreamingProvider:
+    supports_vision = False
+
+    def __init__(self, name):
+        self.name = name
+
+    def stream_events(self, messages, model=None, thinking=True):
+        yield {"type": "text", "text": f"hi from {self.name}"}
+
+
+def test_stream_puts_the_dropdown_provider_first_or_says_why_it_cannot():
+    """Request G9: the provider picked in the chat dropdown answers first, or the reason is reported."""
+    gemini, nvidia = _StreamingProvider("gemini"), _StreamingProvider("nvidia")
+    router = object.__new__(Router)
+    router.providers = {"gemini": gemini, "nvidia": nvidia}
+    router._candidate_chain = lambda: [gemini, nvidia]
+
+    router.unavailable_reason = lambda name, explicit=False: None
+    text, used = router.stream([{"role": "user", "content": "hi"}], None, prefer="nvidia")
+    assert (text, used) == ("hi from nvidia", "nvidia")
+
+    events = []
+    router.unavailable_reason = lambda name, explicit=False: "no API key is set for nvidia"
+    text, used = router.stream([{"role": "user", "content": "hi"}], events.append, prefer="nvidia")
+    assert used == "gemini"
+    assert {"type": "provider.unavailable", "name": "nvidia", "reason": "no API key is set for nvidia"} in events
+
+    text, used = router.stream([{"role": "user", "content": "hi"}], None, exclude=["gemini"])
+    assert used == "nvidia"

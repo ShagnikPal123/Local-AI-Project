@@ -1,15 +1,33 @@
 /** Tab model for the workspace shell, matching the design handoff. */
 
 export type TabId =
+  | "nyx"
+  | "build"
+  | "games"
+  | "research"
+  | "learn"
+  | "notes"
+  | "code"
+  | "subagents"
+  | "collab"
+  | "trading"
   | "strands"
   | "chat"
   | "dashboard"
   | "work"
   | "models"
+  | "keys"
   | "agents"
   | "connectors"
   | "store"
   | "power"
+  | "improve"
+  | "absorb"
+  | "screen"
+  | "apply"
+  | "freewill"
+  | "kahuna"
+  | "office"
   | "admin"
   | "settings";
 
@@ -40,15 +58,39 @@ export function visibleTabs(role: string | undefined): TabDef[] {
 }
 
 export const CORE_TABS: TabDef[] = [
-  { id: "strands", label: "Strands", icon: "ph-graph", pinned: true, core: true },
-  { id: "chat", label: "Chat", icon: "ph-chat-teardrop-dots", pinned: true, core: true },
-  { id: "dashboard", label: "Dashboard", icon: "ph-radar", pinned: true, core: true },
+  // Brain + chat + voice together (Request F). "strands" and "chat" open this tab.
+  { id: "nyx", label: "Nyx", icon: "ph-brain", pinned: true, core: true },
+  { id: "build", label: "Build", icon: "ph-cube", pinned: true, core: true },
+  { id: "games", label: "Game Studio", icon: "ph-game-controller", pinned: true, core: true },
+  { id: "research", label: "Research", icon: "ph-magnifying-glass", pinned: true, core: true },
+  { id: "learn", label: "Learn", icon: "ph-graduation-cap", pinned: true, core: true },
+  { id: "notes", label: "Notes", icon: "ph-note-pencil", pinned: true, core: true },
+  { id: "code", label: "Code", icon: "ph-code", pinned: true, core: true },
+  { id: "subagents", label: "Sub-agents", icon: "ph-users-three", pinned: true, core: true },
+  { id: "collab", label: "Collab", icon: "ph-git-pull-request", pinned: false, core: true },
+  { id: "trading", label: "Trading", icon: "ph-chart-line-up", pinned: true, core: true },
+  { id: "improve", label: "Improve", icon: "ph-arrows-clockwise", pinned: true, core: true },
+  // Request R: Nyx studies documents and grows from them, with the owner watching and approving what it adds.
+  { id: "absorb", label: "Data Absorption", icon: "ph-waveform", pinned: true, core: true },
+  // Request R10: Nyx looks at a shared screen or window and helps one approved step at a time.
+  { id: "screen", label: "Screen Share", icon: "ph-screencast", pinned: true, core: true },
+  // Request R16: prompt + files/pictures/links → Nyx plans changes to itself; each applies only on the owner's press.
+  { id: "apply", label: "Apply", icon: "ph-magic-wand", pinned: true, core: true },
+  // Request R15: Nyx with opinions of its own, one guarded chat box; asks the owner's permission on first open.
+  { id: "freewill", label: "Free Will", icon: "ph-sparkle", pinned: true, core: true },
+  // Request S: Identity 0 — the main brain that picks, compares and learns; ID0 + All companion lives here too.
+  { id: "kahuna", label: "Big Kahuna", icon: "ph-crown-simple", pinned: true, core: true },
+  // Project Null N8: a whole office of agents — hierarchy, sections, and the owner watching them work.
+  { id: "office", label: "Office Space", icon: "ph-buildings", pinned: true, core: true },
+  { id: "dashboard", label: "Dashboard", icon: "ph-radar", pinned: false, core: true },
   { id: "work", label: "Sessions & Memory", icon: "ph-clock-counter-clockwise", pinned: false, core: true },
   { id: "models", label: "Models", icon: "ph-cpu", pinned: false, core: true },
+  { id: "keys", label: "Keys & Models", icon: "ph-key", pinned: true, core: true },
   { id: "agents", label: "Agents", icon: "ph-tree-structure", pinned: false, core: true },
   { id: "connectors", label: "Connectors", icon: "ph-plugs", pinned: false, core: true },
-  { id: "store", label: "Add capability", icon: "ph-plus-circle", pinned: true, core: true },
+  { id: "store", label: "Add capability", icon: "ph-plus-circle", pinned: false, core: true },
   { id: "power", label: "Power", icon: "ph-lightning", pinned: false, core: true },
+  { id: "strands", label: "Strands (classic)", icon: "ph-graph", pinned: false, core: true },
   { id: "admin", label: "Admin", icon: "ph-shield-check", pinned: false, core: true, adminOnly: true },
   { id: "settings", label: "Settings", icon: "ph-gear-six", pinned: false, core: true },
 ];

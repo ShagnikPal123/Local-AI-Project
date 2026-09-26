@@ -85,7 +85,14 @@ class AnthropicProvider(Provider):
                     time.sleep(1.0 * (2**attempt))
                     continue
 
-                response.raise_for_status()
+                if response.status_code >= 400:
+                    from providers.base import FINAL_STATUSES, api_error_detail
+
+                    detail = api_error_detail(response)
+                    if response.status_code in FINAL_STATUSES or attempt >= self._MAX_RETRIES:
+                        raise ProviderError(f"Claude request failed: {detail}")
+                    last_error = RuntimeError(detail)
+                    continue
                 data = response.json()
                 content = data["content"][0]["text"]
                 if not isinstance(content, str):

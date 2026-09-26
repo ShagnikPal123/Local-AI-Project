@@ -87,6 +87,8 @@ class AppLauncherConnector(BaseConnector):
                     shell=(platform.system() == "Windows"),
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
+                    # shell=True means cmd.exe: without this it flashes a console over the owner's work.
+                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
                 )
                 return {
                     "success": True,

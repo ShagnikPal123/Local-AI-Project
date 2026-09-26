@@ -60,7 +60,7 @@ function Diff({ before, after }: { before: string; after: string }) {
         { label: "after", text: after, tone: "var(--color-ok)" },
       ].map((side) => (
         <div key={side.label}>
-          <div style={{ fontSize: 10, textTransform: "uppercase", color: side.tone, marginBottom: 4 }}>
+          <div style={{ fontSize: 11, textTransform: "uppercase", color: side.tone, marginBottom: 4 }}>
             {side.label}
           </div>
           <pre style={{
@@ -89,12 +89,12 @@ function ChangeCard({ change, busy, onAction }: {
     <div className="card" style={{ borderLeft: `3px solid ${color}` }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <span style={{ fontSize: 13, fontWeight: 600 }}>{change.title}</span>
-        <span style={{ fontSize: 10, textTransform: "uppercase", color }}>
+        <span style={{ fontSize: 11, textTransform: "uppercase", color }}>
           {change.status.replace("_", " ")}
         </span>
         {change.origin === "agent" && (
           <span style={{
-            fontSize: 10, textTransform: "uppercase", color: "var(--color-accent-2)",
+            fontSize: 11, textTransform: "uppercase", color: "var(--color-accent-2)",
             border: "1px solid var(--color-accent-700)", borderRadius: 4, padding: "1px 5px",
           }}>
             agent-authored
@@ -126,7 +126,7 @@ function ChangeCard({ change, busy, onAction }: {
           background: "var(--color-nav)", fontSize: 12, lineHeight: 1.6,
           color: "var(--color-neutral-400)",
         }}>
-          <div style={{ fontSize: 10, textTransform: "uppercase", color: "var(--color-accent)", marginBottom: 4 }}>
+          <div style={{ fontSize: 11, textTransform: "uppercase", color: "var(--color-accent)", marginBottom: 4 }}>
             AI review — notes only, not a decision
           </div>
           {change.ai_review}

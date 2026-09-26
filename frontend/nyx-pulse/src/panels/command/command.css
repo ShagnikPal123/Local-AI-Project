@@ -1,0 +1,149 @@
+/* Command Zone (owner request 2026-09-16).
+   One job: send the team a line, then see who is on it and what waits for your OK.
+   The compose field leads; the usage card mirrors the owner's reference screenshot in Nyx's own
+   tokens (theme.css). Controls stay monochrome; the accent is spent on the send action, the
+   activity grid and the "waiting" count, nowhere else. */
+
+.zone {
+  position: relative; z-index: 1; height: 100%; min-height: 0; overflow-y: auto;
+  padding: 20px 24px 40px; background: #000;
+}
+.has-custom-bg .zone { background: rgba(0, 0, 0, 0.6); }
+.zone__inner { max-width: 1320px; margin: 0 auto; display: grid; gap: 18px; }
+
+.zone__head h1 { margin: 0; font: 600 24px/1.2 var(--font-heading); letter-spacing: -0.02em; }
+.zone__head p { margin: 4px 0 0; font-size: 13px; color: var(--color-neutral-500); }
+
+/* --- Compose: the signature. A wide field that reads as "talk to everyone". ------------- */
+.zone-compose {
+  display: grid; gap: 10px; padding: 14px; border-radius: 18px; background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-divider), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.zone-compose:focus-within { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 60%, transparent), 0 0 0 3px color-mix(in srgb, var(--color-accent) 18%, transparent); }
+.zone-compose textarea {
+  width: 100%; min-height: 52px; max-height: 180px; resize: none; border: 0; outline: 0; background: transparent;
+  color: var(--color-text); font: 400 16px/1.45 var(--font-body);
+}
+.zone-compose textarea::placeholder { color: var(--color-neutral-600); }
+.zone-compose__foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.zone-compose__hint { font-size: 12px; color: var(--color-neutral-600); }
+.zone-compose__foot .btn-primary { margin-left: auto; }
+.zone-compose__sent { font-size: 12.5px; color: var(--color-neutral-400); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.zone-examples { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.zone-examples button.chip { cursor: pointer; }
+.zone-examples button.chip:hover { color: var(--color-text); background: rgba(255, 255, 255, 0.1); }
+
+/* --- Columns ------------------------------------------------------------------------------- */
+.zone__grid { display: grid; gap: 18px; grid-template-columns: minmax(0, 1.15fr) minmax(340px, 1fr); align-items: start; }
+.zone__col { display: grid; gap: 18px; min-width: 0; }
+@media (max-width: 1080px) { .zone__grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 560px) { .zone { padding: 16px; } }
+
+.zone-card {
+  min-width: 0; padding: 16px; border-radius: 18px; background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-divider), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.zone-card__head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.zone-card__head h2 { margin: 0; font: 600 16px/1.3 var(--font-heading); letter-spacing: -0.01em; }
+.zone-card__head .zone-card__aside { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+.zone-count {
+  min-width: 22px; height: 22px; padding: 0 7px; border-radius: 999px; display: inline-grid; place-items: center;
+  font: 600 12px/1 var(--font-body); font-variant-numeric: tabular-nums;
+  background: var(--color-surface-3); color: var(--color-neutral-300);
+}
+.zone-count--attention { background: var(--color-accent); color: var(--color-on-accent); }
+.zone-empty { margin: 0; font-size: 13px; line-height: 1.55; color: var(--color-neutral-500); }
+
+.zone-group { display: grid; gap: 8px; }
+.zone-group + .zone-group { margin-top: 16px; }
+.zone-group__title { margin: 0; font-size: 12px; font-weight: 600; color: var(--color-neutral-500); display: flex; gap: 6px; align-items: center; }
+.zone-group__none { margin: 0; font-size: 12.5px; color: var(--color-neutral-600); }
+
+/* --- Rows: approvals, ideas, tabs, work ------------------------------------------------------ */
+.zone-item {
+  display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; padding: 11px 12px; border-radius: 12px;
+  background: var(--color-surface-2); box-shadow: inset 0 0 0 1px var(--color-divider);
+}
+.zone-item--urgent { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-warn) 45%, transparent); }
+.zone-item__main { flex: 1 1 260px; min-width: 0; display: grid; gap: 3px; }
+.zone-item__title { font-size: 13.5px; font-weight: 600; line-height: 1.35; color: var(--color-text); overflow-wrap: anywhere; }
+.zone-item__meta { font-size: 12px; color: var(--color-neutral-500); display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.zone-item__detail { margin: 2px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--color-neutral-400); white-space: pre-wrap; overflow-wrap: anywhere; }
+.zone-item__detail--clamped { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.zone-item__more { justify-self: start; padding: 0; font-size: 12px; color: var(--color-accent); }
+.zone-item__more:hover { color: var(--color-accent-300); }
+.zone-item__actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.zone-item__outcome { font-size: 12px; color: var(--color-neutral-500); }
+.zone-tag { font-size: 11px; font-weight: 600; letter-spacing: 0.02em; padding: 1px 7px; border-radius: 999px; background: rgba(255, 255, 255, 0.07); color: var(--color-neutral-400); }
+
+.zone-disclosure { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; padding: 2px 0; font-size: 12.5px; color: var(--color-neutral-400); }
+.zone-disclosure:hover { color: var(--color-text); }
+.zone-disclosure svg { transition: transform 160ms var(--ease-out); }
+.zone-disclosure[aria-expanded="true"] svg { transform: rotate(90deg); }
+
+/* Working now: the request, then the team it fanned out to. */
+.zone-work__state { width: 9px; height: 9px; margin-top: 5px; flex: none; border-radius: 50%; background: var(--color-neutral-700); }
+.zone-work__state--running { background: var(--color-ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-ok) 22%, transparent); animation: zone-pulse 1.6s ease-in-out infinite; }
+.zone-work__state--error { background: var(--color-danger); border-radius: 2px; }
+@keyframes zone-pulse { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-ok) 0%, transparent); } }
+.zone-work__route { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; align-items: center; }
+.zone-work__route-arrow { color: var(--color-neutral-600); font-size: 12px; }
+.zone-agent { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 2px 9px 2px 7px; border-radius: 999px; font-size: 12px; background: rgba(255, 255, 255, 0.06); color: var(--color-neutral-300); }
+.zone-agent__dot { width: 6px; height: 6px; flex: none; border-radius: 50%; background: var(--color-neutral-600); }
+.zone-agent--working .zone-agent__dot { background: var(--color-ok); }
+.zone-agent__step { color: var(--color-neutral-500); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+.zone-work__time { font-size: 12px; color: var(--color-neutral-500); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* --- Usage card: the owner's screenshot, in Nyx's tokens ------------------------------------------- */
+.zone-usage__controls { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.zone-tiles { display: grid; gap: 8px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 460px) { .zone-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.zone-tile { min-width: 0; padding: 9px 11px; border-radius: 10px; background: var(--color-surface-2); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04); }
+.zone-tile__label { font-size: 12.5px; color: var(--color-neutral-500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.zone-tile__value { margin-top: 2px; font: 600 19px/1.25 var(--font-heading); font-variant-numeric: tabular-nums; color: var(--color-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.zone-tile__value--text { font-size: 15px; font-weight: 500; line-height: 1.6; }
+
+.zone-heat { margin-top: 12px; }
+.zone-heat__grid { display: grid; grid-template-columns: repeat(26, minmax(0, 1fr)); grid-auto-flow: column; grid-template-rows: repeat(7, auto); gap: 3px; }
+.zone-heat__cell { aspect-ratio: 1; border-radius: 3px; background: #1c1c24; }
+.zone-heat__cell[data-level="1"] { background: color-mix(in srgb, var(--color-accent) 30%, #1c1c24); }
+.zone-heat__cell[data-level="2"] { background: color-mix(in srgb, var(--color-accent) 52%, #1c1c24); }
+.zone-heat__cell[data-level="3"] { background: color-mix(in srgb, var(--color-accent) 76%, #1c1c24); }
+.zone-heat__cell[data-level="4"] { background: var(--color-accent-300); }
+.zone-heat__cell[data-out="true"] { opacity: 0.32; }
+.zone-heat__cell[data-future="true"] { visibility: hidden; }
+.zone-heat__cell[data-today="true"] { box-shadow: 0 0 0 1px var(--color-neutral-400); }
+.zone-heat__foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; font-size: 12px; color: var(--color-neutral-500); }
+.zone-heat__legend { display: inline-flex; align-items: center; gap: 3px; }
+.zone-heat__legend .zone-heat__cell { width: 10px; }
+.zone-usage__line { margin: 12px 0 0; font-size: 13px; color: var(--color-neutral-400); }
+
+.zone-bars { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.zone-bar { position: relative; display: flex; align-items: center; gap: 10px; min-height: 32px; padding: 5px 10px; border-radius: 9px; font-size: 13px; overflow: hidden; }
+button.zone-bar { width: 100%; text-align: left; }
+button.zone-bar:hover { background: rgba(255, 255, 255, 0.05); }
+.zone-bar__fill { position: absolute; inset: 0 auto 0 0; border-radius: 9px; background: color-mix(in srgb, var(--color-accent) 16%, transparent); pointer-events: none; }
+.zone-bar__label { position: relative; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-neutral-200); }
+.zone-bar__value { position: relative; font-variant-numeric: tabular-nums; color: var(--color-neutral-500); font-size: 12.5px; white-space: nowrap; }
+.zone-subhead { margin: 14px 0 6px; font-size: 12px; font-weight: 600; color: var(--color-neutral-500); }
+.zone-next { margin: 10px 0 0; font-size: 12.5px; color: var(--color-neutral-500); }
+
+/* --- The chat bar's way in ----------------------------------------------------------------------- */
+.zone-glance {
+  position: relative; display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 3px 9px;
+  border-radius: var(--radius); background: var(--color-surface-2); color: var(--color-neutral-300); box-shadow: var(--lift);
+  font-size: 12.5px;
+}
+.zone-glance:hover { background: var(--color-surface-3); color: var(--color-text); }
+.zone-glance .zone-count { height: 18px; min-width: 18px; padding: 0 5px; font-size: 11px; }
+
+.zone :focus-visible, .zone-glance:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .zone-work__state--running { animation: none; }
+  .zone-disclosure svg { transition: none; }
+}
+@media (prefers-contrast: more) {
+  .zone-heat__cell { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25); }
+  .zone-item, .zone-card { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35); }
+}

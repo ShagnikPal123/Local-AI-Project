@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nyx Ichos Collab</title>
+<meta name="description" content="Where Nyx Ichos beta testers send their changes to GitHub for review and see everyone's changes live.">
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<meta name="theme-color" content="#0f1020">
+<style>
+  /* Request K (2026-09-16): the beta testers' collaboration site. Same family as /beta/.
+     Contrast on --bg #0f1020: --text 16.4:1, --n400 9.3:1, --n500 6.3:1, --accent-400 8.9:1, --ok 8.8:1, --warn 10.9:1.
+     Every status is a word and a symbol, never colour alone. Untrusted text is only ever set with textContent. */
+  :root{
+    --bg:#0f1020; --nav:#0b0c18; --surface:#171a2c; --surface-2:#1d2036; --text:#ecedf3;
+    --accent:#9184d9; --accent-400:#b9aefc; --accent-900:#2a2545; --n400:#b4b8cc; --n500:#9195ab; --n600:#767a8f;
+    --ok:#6fd49b; --warn:#f0c46a; --err:#ff9e94; --info:#86cdf5;
+    --divider:rgba(236,237,243,.12); --mono:"JetBrains Mono",Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion: reduce){html{scroll-behavior:auto} *{animation:none!important;transition:none!important}}
+  body{margin:0;background:radial-gradient(1200px 600px at 50% -200px,#232046 0%,transparent 70%),var(--bg);color:var(--text);
+    line-height:1.6;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh}
+  a{color:var(--accent-400)}
+  a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--accent-400);outline-offset:2px}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 16px}
+  header.top{display:flex;align-items:center;gap:12px;padding:18px 0}
+  header.top img{width:34px;height:34px;object-fit:contain;filter:drop-shadow(0 4px 14px rgba(124,92,232,.45))}
+  header.top b{font-size:15px;letter-spacing:.02em}
+  header.top nav{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+  header.top nav a{font-size:13px;text-decoration:none;color:var(--n400);padding:5px 12px;border-radius:999px;background:var(--nav);box-shadow:inset 0 0 0 1px var(--divider)}
+  header.top nav a:hover{color:var(--text)}
+  .hero{text-align:center;padding:34px 0 10px}
+  .kicker{display:inline-block;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent-400);padding:3px 12px;border-radius:999px;background:var(--accent-900)}
+  h1{font-size:clamp(30px,6vw,48px);line-height:1.1;margin:12px 0 8px;letter-spacing:-.025em}
+  .lede{max-width:640px;margin:0 auto;color:var(--n400);font-size:16.5px}
+  .stats{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;margin:22px 0 4px}
+  .stat{min-width:120px;padding:10px 16px;border-radius:14px;background:var(--surface);box-shadow:inset 0 0 0 1px var(--divider);text-align:center}
+  .stat b{display:block;font-size:24px;letter-spacing:-.02em}
+  .stat span{font-size:12px;color:var(--n500)}
+  .live{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--n400);margin-top:8px}
+  .live i{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 rgba(111,212,155,.6);animation:pulse 2s infinite}
+  .live.is-off i{background:var(--n600);animation:none}
+  @keyframes pulse{70%{box-shadow:0 0 0 8px rgba(111,212,155,0)}100%{box-shadow:0 0 0 0 rgba(111,212,155,0)}}
+  h2{font-size:22px;margin:40px 0 4px;letter-spacing:-.01em}
+  .sub{margin:0 0 14px;color:var(--n400);font-size:14.5px}
+  .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+  .card{padding:14px 16px;border-radius:14px;background:var(--surface);box-shadow:inset 0 0 0 1px var(--divider)}
+  .steps .card b{display:block;margin-bottom:4px}
+  .steps .card span{font-size:13.5px;color:var(--n400)}
+  .steps .n{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--accent-900);color:var(--accent-400);font-size:12px;font-weight:700;margin-right:8px}
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{border:0;font:inherit;font-size:12.5px;padding:5px 12px;border-radius:999px;background:var(--surface);color:var(--n400);box-shadow:inset 0 0 0 1px var(--divider);cursor:pointer}
+  .chip[aria-pressed="true"]{background:var(--accent-900);color:var(--text);box-shadow:inset 0 0 0 1px #5d5294}
+  .search{margin-left:auto;min-width:220px;flex:1;max-width:320px}
+  input,select,textarea{width:100%;font:inherit;font-size:14px;color:var(--text);background:var(--nav);border:0;border-radius:10px;padding:9px 12px;box-shadow:inset 0 0 0 1px var(--divider)}
+  textarea{resize:vertical;min-height:90px}
+  .feed{display:grid;gap:8px}
+  .item{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:start;padding:12px 14px;border-radius:14px;background:var(--surface);box-shadow:inset 0 0 0 1px var(--divider);animation:in .35s ease}
+  .item.is-new{box-shadow:inset 0 0 0 1px #5d5294,0 0 0 3px rgba(145,132,217,.15)}
+  @keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .kind{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:var(--surface-2);font-size:18px}
+  .item h3{margin:0;font-size:15px;line-height:1.35}
+  .meta{display:flex;flex-wrap:wrap;gap:6px 10px;font-size:12.5px;color:var(--n500);margin-top:2px}
+  .summary{margin:6px 0 0;font-size:13.5px;color:var(--n400);white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  .files{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+  .files code{font-family:var(--mono);font-size:11.5px;color:var(--accent-400);background:var(--nav);padding:1px 7px;border-radius:6px}
+  .status{font-size:12.5px;font-weight:600;white-space:nowrap;padding:3px 10px;border-radius:999px;background:var(--surface-2)}
+  .status.open{color:var(--info)} .status.merged{color:var(--ok)} .status.closed{color:var(--n400)}
+  .empty{padding:26px;text-align:center;color:var(--n500);border-radius:14px;border:1px dashed var(--divider)}
+  .grid-send{display:grid;grid-template-columns:1.2fr 1fr;gap:12px}
+  @media (max-width:820px){.grid-send{grid-template-columns:1fr}.item{grid-template-columns:auto 1fr}.item .status{grid-column:2;justify-self:start}}
+  label.f{display:grid;gap:4px;font-size:13px;color:var(--n400);margin-bottom:10px}
+  .row{display:flex;gap:8px;align-items:center}
+  .btn{border:0;font:inherit;font-size:14px;font-weight:600;padding:9px 16px;border-radius:10px;cursor:pointer;color:#0f1020;background:var(--accent-400)}
+  .btn.quiet{background:var(--surface-2);color:var(--text);box-shadow:inset 0 0 0 1px var(--divider)}
+  .btn:disabled{opacity:.55;cursor:not-allowed}
+  .note{font-size:12.5px;color:var(--n500)}
+  .msg{margin:8px 0 0;font-size:13.5px}
+  .msg.ok{color:var(--ok)} .msg.err{color:var(--err)}
+  .drop{padding:14px;border-radius:12px;border:1px dashed var(--divider);text-align:center;color:var(--n500);font-size:13px}
+  .drop.is-over{border-color:var(--accent-400);color:var(--text);background:rgba(145,132,217,.08)}
+  .filelist{display:grid;gap:6px;margin-top:8px}
+  .filelist .row input{font-family:var(--mono);font-size:12.5px}
+  footer{padding:40px 0 30px;color:var(--n600);font-size:12.5px;text-align:center}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <img src="/ichnos.png" alt="">
+    <b>Nyx Ichos · Collab</b>
+    <nav aria-label="Site">
+      <a href="#changes">Changes</a>
+      <a href="#send">Send a change</a>
+      <a href="/beta/">Beta setup</a>
+      <a href="/">Main site</a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <span class="kicker">Beta testers</span>
+    <h1>Build Nyx together.</h1>
+    <p class="lede">Send what you changed — code, tabs, skills, agents — or tell us what broke. Every change becomes a pull request the owner reviews on GitHub, and everyone's show up here as they arrive.</p>
+    <div class="stats" aria-live="polite">
+      <div class="stat"><b id="c-total">—</b><span>changes & feedback</span></div>
+      <div class="stat"><b id="c-open">—</b><span>○ in review</span></div>
+      <div class="stat"><b id="c-merged">—</b><span>✓ merged</span></div>
+      <div class="stat"><b id="c-feedback">—</b><span>✎ feedback</span></div>
+    </div>
+    <div class="live is-off" id="live"><i aria-hidden="true"></i><span id="live-text">Connecting…</span></div>
+  </section>
+
+  <h2>How it works</h2>
+  <div class="steps">
+    <div class="card"><span class="n">1</span><b>Get your access key</b><span>The owner sends you a key that starts with NYX1-. Redeem it in Nyx (Settings → Access) — it's also how this site knows it's you.</span></div>
+    <div class="card"><span class="n">2</span><b>Send from Nyx, or here</b><span>In Nyx, open the Collab tab, tick what you changed and press Send. Or use the form below with your files.</span></div>
+    <div class="card"><span class="n">3</span><b>Reviewed on GitHub</b><span>Each change lands on its own <code>beta/…</code> branch as a pull request. Nothing is merged until the owner approves it.</span></div>
+  </div>
+
+  <h2 id="changes">Everyone's changes</h2>
+  <p class="sub">Newest activity first. This list refreshes by itself.</p>
+  <div class="toolbar">
+    <div class="chips" role="group" aria-label="Show">
+      <button class="chip" data-filter="all" aria-pressed="true">All</button>
+      <button class="chip" data-filter="open" aria-pressed="false">○ In review</button>
+      <button class="chip" data-filter="merged" aria-pressed="false">✓ Merged</button>
+      <button class="chip" data-filter="feedback" aria-pressed="false">✎ Feedback</button>
+      <button class="chip" data-filter="code" aria-pressed="false">Code</button>
+      <button class="chip" data-filter="tab" aria-pressed="false">Tabs</button>
+      <button class="chip" data-filter="skill" aria-pressed="false">Skills</button>
+      <button class="chip" data-filter="agent" aria-pressed="false">Agents</button>
+    </div>
+    <label class="search"><span class="sr">Search changes</span><input id="q" type="search" placeholder="Search titles, testers, files"></label>
+  </div>
+  <div class="feed" id="feed" aria-live="polite"><div class="empty">Loading changes…</div></div>
+
+  <h2 id="send">Send a change</h2>
+  <p class="sub">Easiest from Nyx's Collab tab. Here you can send files or feedback from any browser.</p>
+  <div class="grid-send">
+    <form class="card" id="send-form" novalidate>
+      <label class="f">What kind
+        <select id="kind">
+          <option value="code">Code change</option>
+          <option value="tab">A tab</option>
+          <option value="skill">A skill</option>
+          <option value="agent">An agent</option>
+          <option value="design">Design</option>
+          <option value="feedback">Feedback or a bug (no files)</option>
+        </select>
+      </label>
+      <label class="f">Title <input id="title" maxlength="120" placeholder="e.g. Voice pauses between paragraphs"></label>
+      <label class="f">What it does and why <textarea id="desc" maxlength="6000" placeholder="What you changed, how you tested it, anything the owner should know."></textarea></label>
+      <div id="files-box">
+        <div class="drop" id="drop" tabindex="0" role="button" aria-label="Add files">Drop text files here, or <u>choose files</u>. Set each file's path in the project.</div>
+        <input type="file" id="picker" multiple hidden>
+        <div class="filelist" id="filelist"></div>
+        <p class="note">Up to 30 files, 300 KB each. Personal data (chats, memory, keys, uploads) and anything that looks like a secret is refused.</p>
+      </div>
+      <div class="row"><button class="btn" id="send-btn" type="submit">Send for review</button><span class="note" id="who"></span></div>
+      <p class="msg" id="send-msg" role="status"></p>
+    </form>
+    <div class="card">
+      <label class="f">Your access key
+        <input id="key" type="password" autocomplete="off" spellcheck="false" placeholder="NYX1-…">
+      </label>
+      <label class="row note"><input type="checkbox" id="remember" style="width:auto"> Remember on this device</label>
+      <div class="row" style="margin-top:8px"><button class="btn quiet" id="check" type="button">Check Key</button></div>
+      <p class="msg" id="key-msg" role="status"></p>
+      <p class="note">The key is sent only to check who you are and to send your change. This site never stores it; "Remember" keeps it in this browser only.</p>
+    </div>
+  </div>
+
+  <footer>Nyx Ichos Collab · changes go to GitHub for review · <a href="/beta/">Beta setup</a></footer>
+</div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const KIND_ICON = { code: "⌘", tab: "▦", skill: "✦", agent: "◉", design: "◈", feedback: "✎" };
+  const STATUS = { open: "○ In review", merged: "✓ Merged", closed: "– Closed" };
+  let items = [], seen = new Set(), filter = "all", lastOk = 0, first = true;
+
+  function ago(iso) {
+    const s = Math.max(1, (Date.now() - new Date(iso).getTime()) / 1000);
+    if (s < 60) return "just now";
+    if (s < 3600) return `${Math.round(s / 60)} min ago`;
+    if (s < 86400) return `${Math.round(s / 3600)} h ago`;
+    return `${Math.round(s / 86400)} d ago`;
+  }
+  function el(tag, cls, text) { const n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
+
+  function render() {
+    const q = $("q").value.trim().toLowerCase();
+    const shown = items.filter((i) => {
+      if (filter === "open" || filter === "merged") { if (i.status !== filter) return false; }
+      else if (filter !== "all" && i.kind !== filter) return false;
+      if (!q) return true;
+      return [i.title, i.tester, i.summary, ...(i.files || [])].join(" ").toLowerCase().includes(q);
+    });
+    const feed = $("feed");
+    feed.replaceChildren();
+    if (!shown.length) { feed.append(el("div", "empty", items.length ? "Nothing matches." : "No changes yet — be the first.")); return; }
+    for (const i of shown) {
+      const card = el("article", "item" + (!first && !seen.has(i.id) ? " is-new" : ""));
+      const icon = el("div", "kind", KIND_ICON[i.kind] || "•"); icon.setAttribute("aria-hidden", "true");
+      const body = el("div");
+      body.append(el("h3", "", i.title));
+      const meta = el("div", "meta");
+      meta.append(el("span", "", i.tester), el("span", "", i.kind), el("span", "", ago(i.updated_at || i.created_at)));
+      if (i.comments) meta.append(el("span", "", `${i.comments} comment${i.comments === 1 ? "" : "s"}`));
+      if (i.url) { const a = el("a", "", "View on GitHub ↗"); a.href = i.url; a.target = "_blank"; a.rel = "noopener noreferrer"; meta.append(a); }
+      body.append(meta);
+      if (i.summary) body.append(el("p", "summary", i.summary));
+      if (i.files && i.files.length) { const f = el("div", "files"); i.files.slice(0, 8).forEach((p) => f.append(el("code", "", p))); if (i.files.length > 8) f.append(el("code", "", `+${i.files.length - 8}`)); body.append(f); }
+      card.append(icon, body, el("span", `status ${i.status}`, i.kind === "feedback" && i.status === "open" ? "✎ Open" : (STATUS[i.status] || i.status)));
+      feed.append(card);
+    }
+  }
+
+  async function load() {
+    try {
+      const r = await fetch("/api/collab/feed", { cache: "no-store" });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || r.status);
+      if (!first) items.forEach((i) => seen.add(i.id)); else data.items.forEach((i) => seen.add(i.id));
+      items = data.items || [];
+      $("c-total").textContent = data.counts.total; $("c-open").textContent = data.counts.open || 0;
+      $("c-merged").textContent = data.counts.merged || 0; $("c-feedback").textContent = data.counts.feedback || 0;
+      lastOk = Date.now(); $("live").classList.remove("is-off"); $("live-text").textContent = "Live · updated just now";
+      render(); first = false;
+    } catch (e) {
+      $("live").classList.add("is-off");
+      $("live-text").textContent = `Can't load changes: ${String(e.message || e).slice(0, 120)}`;
+      if (!items.length) { $("feed").replaceChildren(el("div", "empty", "The change list isn't available right now.")); }
+    }
+  }
+  setInterval(() => { if (lastOk) $("live-text").textContent = `Live · updated ${ago(new Date(lastOk).toISOString())}`; }, 5000);
+  setInterval(() => { if (!document.hidden) load(); }, 30000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
+  document.querySelectorAll("[data-filter]").forEach((b) => b.addEventListener("click", () => {
+    filter = b.dataset.filter; document.querySelectorAll("[data-filter]").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); render();
+  }));
+  $("q").addEventListener("input", render);
+  load();
+
+  // --- sending --------------------------------------------------------------------------------------
+  const files = [];
+  try { const saved = localStorage.getItem("nyx.collab.key"); if (saved) { $("key").value = saved; $("remember").checked = true; } } catch {}
+  function drawFiles() {
+    const list = $("filelist"); list.replaceChildren();
+    files.forEach((f, idx) => {
+      const row = el("div", "row");
+      const path = el("input"); path.value = f.path; path.setAttribute("aria-label", `Path in the project for ${f.name}`);
+      path.addEventListener("input", () => { f.path = path.value; });
+      const size = el("span", "note", `${Math.ceil(f.content.length / 1000)} KB`);
+      const rm = el("button", "btn quiet", "✕"); rm.type = "button"; rm.setAttribute("aria-label", `Remove ${f.name}`);
+      rm.addEventListener("click", () => { files.splice(idx, 1); drawFiles(); });
+      row.append(path, size, rm); list.append(row);
+    });
+  }
+  async function addFiles(list) {
+    for (const file of list) {
+      if (file.size > 300000) { $("send-msg").className = "msg err"; $("send-msg").textContent = `${file.name} is larger than 300 KB.`; continue; }
+      files.push({ name: file.name, path: file.name, content: await file.text() });
+    }
+    drawFiles();
+  }
+  const drop = $("drop");
+  drop.addEventListener("click", () => $("picker").click());
+  drop.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("picker").click(); } });
+  $("picker").addEventListener("change", (e) => addFiles(e.target.files));
+  drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("is-over"); });
+  drop.addEventListener("dragleave", () => drop.classList.remove("is-over"));
+  drop.addEventListener("drop", (e) => { e.preventDefault(); drop.classList.remove("is-over"); addFiles(e.dataTransfer.files); });
+  $("kind").addEventListener("change", () => { $("files-box").hidden = $("kind").value === "feedback"; });
+
+  function keyValue() {
+    const key = $("key").value.trim();
+    try { if ($("remember").checked) localStorage.setItem("nyx.collab.key", key); else localStorage.removeItem("nyx.collab.key"); } catch {}
+    return key;
+  }
+  $("check").addEventListener("click", async () => {
+    const msg = $("key-msg");
+    msg.className = "msg"; msg.textContent = "Checking…";
+    try {
+      const r = await fetch("/api/collab/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: keyValue() }) });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error);
+      msg.className = "msg ok"; msg.textContent = `✓ Signed in as ${data.name} (${data.role})`;
+      $("who").textContent = `as ${data.name}`;
+    } catch (e) { msg.className = "msg err"; msg.textContent = `▲ ${e.message || "That key didn't work."}`; }
+  });
+  $("send-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const msg = $("send-msg"), btn = $("send-btn");
+    const kind = $("kind").value;
+    if (kind !== "feedback" && !files.length) { msg.className = "msg err"; msg.textContent = "▲ Add at least one file, or choose Feedback."; return; }
+    btn.disabled = true; msg.className = "msg"; msg.textContent = "Sending…";
+    try {
+      const r = await fetch("/api/collab/submit", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: keyValue(), kind, title: $("title").value, description: $("desc").value,
+          files: kind === "feedback" ? [] : files.map((f) => ({ path: f.path, content: f.content })) }) });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error);
+      msg.className = "msg ok";
+      msg.textContent = `✓ Sent — ${data.kind === "feedback" ? "issue" : "pull request"} #${data.number} is waiting for review.`;
+      files.splice(0); drawFiles(); $("title").value = ""; $("desc").value = "";
+      load();
+    } catch (err) { msg.className = "msg err"; msg.textContent = `▲ ${err.message || "Could not send it."}`; }
+    finally { btn.disabled = false; }
+  });
+})();
+</script>
+</body>
+</html>

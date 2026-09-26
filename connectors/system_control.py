@@ -13,6 +13,9 @@ from connectors.base import BaseConnector, ConnectorManifest
 
 logger = logging.getLogger(__name__)
 
+#: Windows console programs open a black window in front of the owner's typing without this.
+_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
 
 class SystemControlConnector(BaseConnector):
     """Provides computer controls including clipboard, screenshots, process listing, and system status."""
@@ -64,6 +67,7 @@ class SystemControlConnector(BaseConnector):
                     text=True,
                     timeout=3,
                     check=True,
+                    creationflags=_NO_WINDOW,
                 )
                 return {"success": True, "clipboard": result.stdout.strip()}
             elif system == "Darwin":
@@ -86,6 +90,7 @@ class SystemControlConnector(BaseConnector):
                     text=True,
                     timeout=3,
                     check=True,
+                    creationflags=_NO_WINDOW,
                 )
             elif system == "Darwin":
                 p = subprocess.Popen(["pbcopy"], stdin=subprocess.PIPE)
@@ -125,7 +130,8 @@ $bitmap.Save('{str(target_path).replace(chr(92), chr(92)*2)}')
 $graphics.Dispose()
 $bitmap.Dispose()
 """
-                subprocess.run(["powershell", "-NoProfile", "-Command", ps_script], capture_output=True, timeout=5, check=True)
+                subprocess.run(["powershell", "-NoProfile", "-Command", ps_script], capture_output=True, timeout=5, check=True,
+                               creationflags=_NO_WINDOW)
                 return {"success": True, "path": str(target_path), "method": "powershell"}
 
             return {"success": False, "error": "No screenshot utility available on this OS."}
@@ -142,6 +148,7 @@ $bitmap.Dispose()
                     capture_output=True,
                     text=True,
                     timeout=5,
+                    creationflags=_NO_WINDOW,
                 )
                 import json
                 raw = json.loads(res.stdout or "[]")
@@ -179,7 +186,7 @@ $bitmap.Dispose()
         """Lock the workstation screen."""
         try:
             if platform.system() == "Windows":
-                subprocess.run(["rundll32.exe", "user32.dll,LockWorkStation"], check=True)
+                subprocess.run(["rundll32.exe", "user32.dll,LockWorkStation"], check=True, creationflags=_NO_WINDOW)
                 return {"success": True, "action": "lock_workstation", "status": "locked"}
             elif platform.system() == "Darwin":
                 subprocess.run(["pmset", "displaysleepnow"], check=True)

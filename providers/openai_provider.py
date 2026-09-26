@@ -51,11 +51,21 @@ class OpenAIProvider(Provider):
                     json=payload,
                     timeout=self._TIMEOUT_SECONDS,
                 )
+                from providers.compat import _observe_limits
+
+                _observe_limits("openai", response, self._MODEL)
                 if response.status_code in (429, 500, 502, 503) and attempt < self._MAX_RETRIES:
                     time.sleep(1.0 * (2**attempt))
                     continue
 
-                response.raise_for_status()
+                if response.status_code >= 400:
+                    from providers.base import FINAL_STATUSES, api_error_detail
+
+                    detail = api_error_detail(response)
+                    if response.status_code in FINAL_STATUSES or attempt >= self._MAX_RETRIES:
+                        raise ProviderError(f"OpenAI request failed: {detail}")
+                    last_error = RuntimeError(detail)
+                    continue
                 content = response.json()["choices"][0]["message"]["content"]
                 if not isinstance(content, str):
                     raise ValueError("OpenAI returned a non-text response.")

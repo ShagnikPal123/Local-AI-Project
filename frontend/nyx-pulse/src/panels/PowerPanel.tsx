@@ -137,14 +137,14 @@ export function PowerPanel() {
                   <span style={{ fontSize: 13, fontWeight: active ? 600 : 400 }}>{mode.label}</span>
                   {mode.recommended && (
                     <span style={{
-                      fontSize: 10, letterSpacing: ".06em", textTransform: "uppercase",
+                      fontSize: 11, letterSpacing: ".06em", textTransform: "uppercase",
                       color: "var(--color-accent)",
                     }}>
                       recommended
                     </span>
                   )}
                   {!mode.sustainable && (
-                    <span style={{ fontSize: 10, textTransform: "uppercase", color: "var(--color-warn)" }}>
+                    <span style={{ fontSize: 11, textTransform: "uppercase", color: "var(--color-warn)" }}>
                       not advised here
                     </span>
                   )}

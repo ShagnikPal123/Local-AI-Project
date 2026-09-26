@@ -5,7 +5,9 @@
  * behaviour the easy one.
  */
 
+import { useState } from "react";
 import type { ReactNode } from "react";
+import { requestEngineStart } from "../engine";
 
 export function PanelShell({ title, subtitle, actions, children }: {
   title: string;
@@ -57,25 +59,29 @@ export function EmptyState({ message, hint }: { message: string; hint?: string }
 
 export function ErrorState({ error }: { error: string }) {
   const offline = error.toLowerCase().includes("backend") || error.toLowerCase().includes("timed out");
+  const [asked, setAsked] = useState(false);
+
+  // Nobody should have to copy a command into a terminal to use Nyx — that was
+  // the owner's explicit complaint. The button follows the nyx:// link setup
+  // registers; the full-screen Turn on screen takes over as soon as the page's
+  // health check confirms the engine is off, and gets out of the way when it is on.
+  function turnOn() {
+    requestEngineStart("start");
+    setAsked(true);
+  }
+
   return (
     <div className="card" style={{ borderLeft: "3px solid var(--color-warn)" }}>
-      <div style={{ fontSize: 13, marginBottom: offline ? 8 : 0 }}>{error}</div>
+      <div style={{ fontSize: 13, marginBottom: offline ? 10 : 0 }}>{error}</div>
       {offline && (
-        <div style={{ fontSize: 12, color: "var(--color-neutral-500)", lineHeight: 1.6 }}>
-          Start the backend from the project root:
-          <div
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: 12,
-              background: "var(--color-nav)",
-              padding: "6px 8px",
-              borderRadius: 6,
-              marginTop: 6,
-            }}
-          >
-            .venv\Scripts\python.exe -m uvicorn server:app --port 8000
+        <>
+          <button className="btn btn-primary" onClick={turnOn}>Turn on Nyx</button>
+          <div style={{ fontSize: 12, color: "var(--color-neutral-600)", marginTop: 8, lineHeight: 1.6 }}>
+            {asked
+              ? "Starting… this page reconnects by itself. If your browser asks to open Nyx, choose Open — or double-click Nyx Ichos on your desktop."
+              : "This reconnects by itself once the engine is up — no refresh needed."}
           </div>
-        </div>
+        </>
       )}
     </div>
   );

@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from html import unescape
 import re
-from urllib.parse import quote, urlparse
+from urllib.parse import parse_qs, quote, unquote, urlparse
 from typing import Any, Dict, List, Optional, Tuple
 
 import requests
@@ -134,6 +134,27 @@ def _domain(url: str) -> str:
     return urlparse(url).netloc.lower().removeprefix("www.")
 
 
+def _real_url(href: str) -> str:
+    """The page a result link points at.
+
+    DuckDuckGo's HTML endpoint hands back its own redirector —
+    ``//duckduckgo.com/l/?uddg=<the real url>&rut=…`` — with no scheme. Left as
+    they were, every result had the same domain (so the diversity and duplicate
+    filters saw one site), the link shown to the user was a tracker, and
+    fetching the page failed outright because ``//duckduckgo.com/…`` has no
+    scheme for requests to use.
+    """
+    href = (href or "").strip()
+    if href.startswith("//"):
+        href = "https:" + href
+    parsed = urlparse(href)
+    if parsed.netloc.endswith("duckduckgo.com") and parsed.path.startswith("/l/"):
+        target = parse_qs(parsed.query).get("uddg", [""])[0]
+        if target.startswith("http"):
+            return unquote(target)
+    return href
+
+
 def _deduplicate_results(results: list[dict[str, str]], limit: int = _MAX_COMBINED_RESULTS) -> list[dict[str, str]]:
     seen_urls: set[str] = set()
     selected: list[dict[str, str]] = []
@@ -237,15 +258,20 @@ def search_results(query: str, engine: str = "all", freshness: str = "month") ->
         response.text,
         flags=re.I | re.S,
     )
-    return [
-        {
+    results = []
+    for href, title in matches[: _MAX_RESULTS * 2]:
+        url = _real_url(unescape(href))
+        if not url.startswith("http"):
+            continue
+        results.append({
             "title": re.sub(r"<[^>]+>", "", unescape(title)).strip(),
             "url": url,
             "published_at": "unknown",
             "domain": _domain(url),
-        }
-        for url, title in matches[:_MAX_RESULTS]
-    ]
+        })
+        if len(results) >= _MAX_RESULTS:
+            break
+    return results
 
 
 def search(query: str, engine: str = "all", freshness: str = "any") -> str:

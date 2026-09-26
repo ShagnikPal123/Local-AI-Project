@@ -1,0 +1,374 @@
+{
+  "version": 1,
+  "skills": [
+    {
+      "id": "send-an-email",
+      "name": "Send an Email",
+      "description": "Send a real email through a configured account, or clearly offer the fallback when none is configured.",
+      "triggers": ["send an email", "email this to", "compose an email", "email him", "email her", "send that to my email", "reply to this email", "forward this email"],
+      "category": "email",
+      "agent": "email_comms",
+      "instructions": "Check GET /api/email/accounts before doing anything else. If an account is configured and verified, send with email_send (or email_reply on an existing thread) and confirm back the recipient, subject, and a short summary of the body before it goes out unless the owner already gave exact wording. If no account is configured, do not say the email was sent - it was not. Instead do one of two things and say which: open a pre-filled compose window with email_compose so the owner can hit send themselves, or ask the owner for the address and an app password so an account can be added properly. Never fabricate a send confirmation. Keep subject lines short and body copy plain unless a tone is requested. After sending, report the account used, the recipient, and the subject line so the owner has a record."
+    },
+    {
+      "id": "inbox-triage",
+      "name": "Read & Triage Inbox",
+      "description": "Scan, search, and summarize email without dumping the owner's full inbox into the chat.",
+      "triggers": ["check my email", "any new emails", "check my inbox", "search my email for", "find that email about", "read my latest email", "unread emails", "did I get an email from"],
+      "category": "email",
+      "agent": "email_comms",
+      "instructions": "Use email_list to pull the relevant slice (unread_only, a folder, or a search query) rather than the whole inbox, and email_read for a specific message once identified. Summarize rather than pasting full email bodies - give sender, subject, one-line gist, and age, and only quote a line verbatim if it's short and directly answers the question. If no account is configured, say so and offer to add one rather than pretending to have checked. Group results by relevance (what was asked) not just recency. If the owner asks to act on something found (reply, forward), hand off to the Send an Email skill rather than doing it silently. Treat inbox contents as private - do not volunteer unrelated messages you happened to see while searching."
+    },
+    {
+      "id": "visible-cursor-control",
+      "name": "Visible-Cursor Computer Control",
+      "description": "Operate the mouse and keyboard on real apps with a cursor the owner can watch and interrupt.",
+      "triggers": ["click that for me", "fill out this form", "click the button", "type this into", "navigate to that screen", "control my computer", "do this in the app for me", "install this for me"],
+      "category": "computer-control",
+      "agent": "computer_operator",
+      "instructions": "Follow look, locate, act, verify on every step: screen_view or find_on_screen to see the real current state, one mouse_click/keyboard_type/keyboard_keys action, then screen_view again to confirm it landed before moving on. Never chain multiple blind actions on the assumption the last one worked. Narrate each step briefly so the owner can follow the visible cursor. Stop immediately if the owner moves the real mouse or presses Esc repeatedly - that is an interrupt, not an accident, and the sequence must not continue or retry past it. State what a destructive-looking click (delete, submit, purchase, confirm) will do before doing it. If a target can't be found on screen after a reasonable look, say so rather than clicking a guess."
+    },
+    {
+      "id": "open-and-arrange-apps",
+      "name": "Open & Arrange Apps and Windows",
+      "description": "Launch applications and manage windows without needing pixel-level cursor control.",
+      "triggers": ["open notepad", "launch this app", "switch to my browser", "minimize that window", "focus on", "close that window", "open this file in its app", "bring up my email client"],
+      "category": "computer-control",
+      "agent": "computer_operator",
+      "instructions": "Prefer open_app/open_path/focus_window/window_action over simulated clicking whenever the goal is just 'get this app open and in front' - it's faster and more reliable than locating a taskbar icon on screen. Use list_windows to check what's already open before launching a duplicate instance. Confirm the app actually came to front (a quick screen_view) rather than assuming the call succeeded. If the requested app isn't installed or open_app fails, say so plainly rather than trying to click-hunt for it. For anything beyond opening/arranging - actually interacting with controls inside the app - hand off to Visible-Cursor Computer Control."
+    },
+    {
+      "id": "screen-reading",
+      "name": "What's On My Screen",
+      "description": "Read and explain what's currently visible on screen without taking any action.",
+      "triggers": ["what does this say", "what's this error", "read this dialog", "what's on my screen", "what does this popup mean", "explain this window"],
+      "category": "computer-control",
+      "agent": "computer_operator",
+      "instructions": "Use screen_view to capture the current screen and describe or explain what's on it - an error dialog, a form, a status window - without clicking or typing anything unless separately asked. This is a read-only skill: if the owner's question implies they also want something done about it, say what you'd do and confirm before switching to Visible-Cursor Computer Control. Quote error text exactly rather than paraphrasing it, since exact wording often matters for looking up a fix. If find_on_screen is needed to locate a specific element the owner is asking about, use it, but still take no action."
+    },
+    {
+      "id": "clipboard-handoff",
+      "name": "Clipboard Handoff",
+      "description": "Move text or data between the AI and the system clipboard cleanly.",
+      "triggers": ["copy this", "paste that", "put this on my clipboard", "what's on my clipboard", "copy my clipboard into", "grab what I just copied"],
+      "category": "computer-control",
+      "agent": "computer_operator",
+      "instructions": "Use clipboard_set to place text the owner asked to have copied, and clipboard_get to read what's currently there when asked. Say plainly what was placed on or read from the clipboard so there's no ambiguity about what will paste next. Treat clipboard contents as potentially sensitive (it may hold a password or personal data the owner just copied from somewhere else) - don't echo it back verbatim in chat unless the owner is clearly asking to see it. This skill only moves data; combine with Visible-Cursor Computer Control if the owner also wants it pasted into a specific field."
+    },
+    {
+      "id": "system-cleanup",
+      "name": "System Cleanup & Optimization",
+      "description": "Find and safely clear what's slowing the machine down.",
+      "triggers": ["clean up my pc", "free up space", "why is my computer slow", "close unused programs", "clear temp files", "optimize my laptop", "too many things running"],
+      "category": "tech",
+      "agent": "tech",
+      "instructions": "Start with system_live and list_processes to see what's actually consuming CPU, memory, or disk right now rather than guessing. Identify the heaviest offenders and explain what each one is before touching anything. Prefer reversible actions first: closing an app, ending a runaway process, moving files to the Recycle Bin (delete_path without permanent) rather than permanent deletion. Only suggest permanent deletion for genuine temp/cache paths, never for anything that looks like user data, and never touch a protected path. Report before/after numbers (free space, memory used) so the owner can see the actual effect, not just a claim that it helped."
+    },
+    {
+      "id": "web-file-download",
+      "name": "Web File Download & Verify",
+      "description": "Fetch a file from a URL to the machine and confirm it arrived intact.",
+      "triggers": ["download this file", "grab that from the link", "save this to my computer", "download the image", "get this pdf", "download and open"],
+      "category": "tech",
+      "agent": "tech",
+      "instructions": "Use download_file with an explicit destination path so the owner knows exactly where it landed; default to a sensible folder (Downloads) if none is given. After downloading, confirm with file_info (size, type) that it actually arrived and isn't a truncated or error page saved as a file. Never download from a source that looks like it's trying to trick the owner into running something (an unexpected .exe from a link in a message) - flag it instead of fetching it silently. State the final path clearly so the owner can find it. If the owner wants the file opened or viewed afterward, say so and use view_image or open_path as appropriate."
+    },
+    {
+      "id": "file-organizer",
+      "name": "File Organizer",
+      "description": "Bring order to a messy folder without silently deleting anything.",
+      "triggers": ["organize my downloads", "clean up this folder", "sort these files", "find duplicate files", "these files are a mess", "rename these files"],
+      "category": "tech",
+      "agent": "tech",
+      "instructions": "Use list_folder and search_files to actually see what's there before proposing a scheme - sort by type, date, or project only after you know what's actually in the folder. Propose the organization (new subfolders, a naming pattern) before executing it for anything beyond a handful of files, so the owner can veto it. Use move_path/copy_path/make_folder rather than delete for anything you're not certain is disposable; route genuine junk to the Recycle Bin via delete_path, never permanent delete, unless explicitly told otherwise. Never touch files inside a protected path. Report what moved where in a short summary, not a line-by-line log of every file."
+    },
+    {
+      "id": "landscape-theme-design",
+      "name": "Landscape & Theme Design",
+      "description": "Change the AI's own visual theme - colors, wallpaper, density, motion - on request.",
+      "triggers": ["change the theme", "make it look more", "I want a dark purple theme", "change the background", "make the ui more compact", "turn off animations", "design the landscape"],
+      "category": "design",
+      "agent": "app_design",
+      "instructions": "Read the current theme tokens before changing them so the update is a considered adjustment, not a blind overwrite. Only set fields that exist in the theme schema (accent, accent2, background, surface, nav, text, radius, font, density, glass, motion, wallpaper) - never invent new token names. Pick colors that stay readable against each other (text against background, accent against surface) rather than just matching the requested vibe literally. Apply live so the owner sees the change immediately, and say plainly how to revert if they don't like it. For a vague request ('make it feel more premium'), translate it into 2-3 concrete token changes and name them, rather than a wall of adjustments the owner can't evaluate at a glance."
+    },
+    {
+      "id": "tab-builder",
+      "name": "Tab Builder & Editor",
+      "description": "Create or edit a dynamic tab, narrating each step so the owner can watch it happen.",
+      "triggers": ["make a new tab for", "add a tab that", "edit this tab", "change the tab so it", "build me a tab with", "remove this section from the tab"],
+      "category": "design",
+      "agent": "app_design",
+      "instructions": "Read the tab's current content before editing it - an edit is a change to something that exists, not a fresh rewrite, unless the owner asked to start over. Narrate each step as you build (what block you're adding or changing and why) using the tab-edit stream so the owner watches it happen rather than getting a single final diff. Keep every change undoable through the tab undo path. Confirm scope before a large restructure ('rebuild this tab' vs 'add one section to it') if the request is ambiguous between the two. When done, describe the result in plain language and confirm it matches what was asked, not just that something was produced."
+    },
+    {
+      "id": "app-ui-design",
+      "name": "App UI & Component Design",
+      "description": "Design how a specific in-app screen or component looks and behaves.",
+      "triggers": ["redesign this panel", "this screen looks cluttered", "make this component better", "design a new panel for", "improve the layout of"],
+      "category": "design",
+      "agent": "app_design",
+      "instructions": "Identify the specific panel or component in scope and read its current layout before proposing a redesign. Favor clear visual hierarchy (one obvious primary action, secondary things visually secondary) over decoration. Keep proposed changes consistent with the existing design tokens and component patterns rather than introducing a one-off style. State the reasoning for a layout change in one sentence (why this is clearer than what existed) so the owner can evaluate it, not just accept it on aesthetics alone. When a change is purely a matter of taste with no clear right answer, present it as a choice rather than asserting it as correct."
+    },
+    {
+      "id": "voice-persona-setup",
+      "name": "Voice Persona Setup",
+      "description": "Pick or assign a distinct voice for the AI or for a specific agent.",
+      "triggers": ["give it a different voice", "make the news agent sound like", "list the voices available", "change how you sound", "I want a british voice", "set up a voice for this agent"],
+      "category": "design",
+      "agent": "app_design",
+      "instructions": "Use list_voices/GET /api/voice/neural-voices to show real available options rather than describing voices from memory. When assigning a voice to a specific agent (so each specialist sounds distinct), set it through the role-to-voice mapping rather than only changing the global voice. Let the owner hear a short sample before committing when that's practical. Respect that voice cloning (capturing a real person's voice) requires that person's own consent and presence - never build or suggest capturing a voice from an arbitrary recording. Report which voice got assigned to which role/agent so the mapping is clear and reversible."
+    },
+    {
+      "id": "cited-research-brief",
+      "name": "Cited Research Brief",
+      "description": "A longer research pass that ends in a source list, not just an answer.",
+      "triggers": ["research this for me", "give me a full rundown on", "compare these options in depth", "write me a brief on", "what does the evidence say about", "look into this deeply"],
+      "category": "research",
+      "agent": "researcher",
+      "instructions": "For anything beyond a quick fact check, use search_web/open_link/fetch_webpage across multiple sources rather than stopping at the first result. Structure the output as a brief: the answer up front, then supporting points each tied to a named source, then a short source list at the end. Prefer primary sources and note when you're relying on a secondary summary instead. Flag disagreement between sources explicitly rather than quietly picking a side. This is the deeper sibling of the built-in Research skill - reach for this one when the question needs a structured, multi-source writeup rather than a quick current-facts check."
+    },
+    {
+      "id": "google-workspace-handoff",
+      "name": "Google Workspace Handoff",
+      "description": "Work with Google Docs/Sheets content even without a direct API connector.",
+      "triggers": ["put this in a google doc", "add this to my spreadsheet", "open my google sheet", "make a doc with this", "export this to sheets"],
+      "category": "research",
+      "agent": "researcher",
+      "instructions": "Until a direct Docs/Sheets connector is wired in, do not claim to have edited a document you cannot reach. Prepare the content fully formatted and ready to paste (a clear table for Sheets, clean headings for Docs), then open the relevant Google app with open_url/open_app and say the content is ready to paste in. If the owner has a Docs/Sheets connector enabled in this session, use it directly instead of the paste-ready fallback. Always say plainly which path you took. Note to the Manager if this request recurs often - it's a signal the direct connector is worth prioritizing."
+    },
+    {
+      "id": "daily-news-briefing",
+      "name": "Daily News Briefing",
+      "description": "A dated, sourced rundown of current events, never answered from memory.",
+      "triggers": ["what's the latest news", "give me a news briefing", "what's happening in", "any news today", "catch me up on the news", "top headlines"],
+      "category": "news",
+      "agent": "news",
+      "instructions": "Always search_web before answering - this question changes every day and training data is never current enough. Lead with the date of the search itself, then headline-level items each with their own date and source. Cover general top stories plus anything matching topics the owner has shown interest in. When the same briefing is asked again later the same day, check whether anything actually changed rather than repeating the identical answer. Keep each item to one or two lines; link out rather than reproducing full articles. If sources conflict on a developing story, say so rather than presenting one version as settled fact."
+    },
+    {
+      "id": "study-session-coach",
+      "name": "Study Session Coach",
+      "description": "Structure a study session around what the owner actually needs to learn.",
+      "triggers": ["help me study for", "quiz me on", "let's review", "make me flashcards for", "study plan for my exam", "help me prepare for this test"],
+      "category": "education",
+      "agent": "educator",
+      "instructions": "Find out what's actually being studied for (a specific exam, a course, general review) and over what timeframe, inferring from context before asking. Break the material into sessions with a clear focus each rather than one unstructured review. Use active recall - ask questions and quiz rather than just re-explaining notes back - since that's what actually builds retention. Use solve_math/search_knowledge/create_graph to verify factual or numeric content rather than relying purely on memory. Check understanding before moving on rather than covering everything once and assuming it landed. End with a short list of what to review again and when."
+    },
+    {
+      "id": "homework-walkthrough",
+      "name": "Homework Walkthrough (Teach, Don't Just Answer)",
+      "description": "Walk through a homework problem by teaching the method, not handing over the answer.",
+      "triggers": ["help with my homework", "how do I solve this problem", "check my homework answer", "walk me through this problem", "I don't understand this assignment"],
+      "category": "education",
+      "agent": "educator",
+      "instructions": "Default to teaching the method: work one similar example fully, then guide the owner through their actual problem with questions and hints rather than the finished answer, unless they explicitly ask for the direct answer or are checking a completed attempt. If checking existing work, identify exactly where it goes wrong and why, not just whether the final number matches. Use solve_math or search_knowledge to verify your own explanation before presenting it as fact. Match the explanation to the course level implied by the question rather than the most advanced correct method. Close by naming the general technique used, so it transfers to the next problem."
+    },
+    {
+      "id": "course-study-plan",
+      "name": "Course Study Plan",
+      "description": "Build a study schedule around a real course's topics and timeline.",
+      "triggers": ["make me a study plan for this class", "help me plan out this semester", "I have a final in three weeks", "break down this syllabus", "how should I pace this course"],
+      "category": "education",
+      "agent": "educator",
+      "instructions": "Ask for or infer the course's actual topics, timeline, and any known exam/assignment dates before building a schedule - a generic plan that ignores the real syllabus isn't useful. Sequence topics in the order the course actually builds on them, not alphabetically or by difficulty guess. Leave real buffer before known deadlines rather than a plan that assumes everything goes perfectly. Keep weekly chunks concrete (specific topics/problem sets, not 'study chapter 3'). If the owner's actual course details aren't available, say the plan is a reasonable template and flag what to adjust once the real syllabus is in hand."
+    },
+    {
+      "id": "finance-education-analysis",
+      "name": "Finance Education & Analysis",
+      "description": "Explain financial concepts and analyze data without ever recommending a trade.",
+      "triggers": ["explain this financial concept", "what does this ratio mean", "how does compound interest work", "analyze this stock's numbers", "what's a p/e ratio", "explain this market term"],
+      "category": "finance",
+      "agent": "finance",
+      "instructions": "This is education and analysis only - never tell the owner to buy, sell, or hold anything, and say so directly if the question is really asking for a personal recommendation, redirecting to what a licensed advisor is for. Use stock_quote/stock_history/market_status for anything about current prices or market state rather than stale memory, and state when the data was pulled. Explain the concept first in plain language, then show the numbers or calculation behind it so it's checkable. Use search_finance_knowledge for definitions and general principles. Distinguish clearly between facts (a company's reported numbers) and general commentary about what such numbers often mean."
+    },
+    {
+      "id": "personal-budget-mapper",
+      "name": "Personal Budget Mapper",
+      "description": "Turn income and expenses into a clear, judgment-free budget.",
+      "triggers": ["help me budget", "where is my money going", "make me a budget", "how much should I save", "track my spending", "plan my monthly expenses"],
+      "category": "finance",
+      "agent": "finance",
+      "instructions": "This is practical budgeting math, not investment advice - categorize income and expenses, compute totals and percentages, and show the arithmetic plainly. Ask for real numbers if none were given rather than inventing a plausible-sounding budget from nothing. Use common-sense categories (housing, food, transport, discretionary, savings) and let the owner correct the split rather than assuming one rigid framework fits. Point out anything that looks unsustainable (expenses exceeding income) factually, without moralizing about spending choices. If asked where to invest savings, redirect to the Finance Education & Analysis skill's boundary - that's a personal decision for the owner or a licensed advisor, not this skill."
+    },
+    {
+      "id": "hardware-diagnostics",
+      "name": "Hardware Diagnostics",
+      "description": "Diagnose a hardware complaint using live specs and telemetry, never a guess.",
+      "triggers": ["what gpu do i have", "why is my laptop overheating", "check my battery health", "what are my pc specs", "is my ram enough", "diagnose this hardware issue", "how much storage do i have left"],
+      "category": "hardware",
+      "agent": "hardware",
+      "instructions": "Call system_specs and system_live before answering anything about this machine's hardware - never state a component, capacity, or number from memory. If a field is null or unknown, say unknown rather than guessing a plausible value. For a symptom (overheating, slow, battery drains fast), check live temps/load/battery state first and reason from those numbers rather than general troubleshooting scripts. Translate raw numbers into a plain verdict ('that's within normal range' / 'that's high for idle') so the owner doesn't have to interpret them alone. If something looks like a hardware fault rather than a software issue, say so and explain why, distinguishing it from what the Tech agent would handle."
+    },
+    {
+      "id": "document-pdf-summary",
+      "name": "Document & PDF Summary",
+      "description": "Condense a document or PDF into what actually matters, at the length asked for.",
+      "triggers": ["summarize this pdf", "what does this document say", "give me the key points from this file", "tl;dr this document", "summarize this contract", "pull the main points from this paper"],
+      "category": "writing",
+      "agent": "writer_editor",
+      "instructions": "Read the actual file (read_file, or the PDF pipeline once available) rather than summarizing from the filename or a guess about its contents. Lead with the one or two things that matter most before a fuller breakdown. Match length to what was asked - 'tl;dr' means a few lines, 'key points' means a short list, 'walk me through it' means more. For anything with obligations or numbers (a contract, an invoice, a form), call those out explicitly and precisely rather than folding them into general prose. Note if the document is long enough that something was necessarily left out, so the owner knows the summary isn't exhaustive."
+    },
+    {
+      "id": "image-understanding",
+      "name": "Image Understanding",
+      "description": "Look at an uploaded picture or a local image file and explain what's in it.",
+      "triggers": ["what's in this picture", "look at this image", "what does this photo show", "read the text in this image", "look at this screenshot", "what's this a picture of"],
+      "category": "vision",
+      "agent": null,
+      "instructions": "For an uploaded image, describe what's actually visible before answering the specific question asked - don't skip straight to an assumption about content. For a local file the owner references by path instead of uploading, use view_image to bring it in rather than asking them to upload something already on their machine. Read any visible text precisely (a sign, a screenshot's error message, a receipt) rather than paraphrasing it loosely, since exact wording often matters. If the image is ambiguous or low quality, say what's uncertain rather than confidently asserting a guess. This skill has no single home agent - whichever specialist the image relates to (Tech for a screenshot, Hardware for a device photo, Finance for a receipt) should reach for it."
+    },
+    {
+      "id": "coding-workflow",
+      "name": "Coding Workflow (Plan, Code, Test)",
+      "description": "Build a feature the way a careful engineer would: understand, plan, implement, verify.",
+      "triggers": ["build me a feature that", "add this functionality", "implement this", "write a script that", "create a program that", "help me build"],
+      "category": "coding",
+      "agent": "coder",
+      "instructions": "Read the relevant existing code before writing anything new, so the addition fits the codebase's actual patterns rather than inventing parallel ones. State a one-line plan before writing more than a trivial amount of code. Prefer the smallest change that correctly does the job over a speculative rewrite. Run what you build (run_command/run_python) before calling it done, and say exactly what you ran. Handle the obvious edge cases (empty input, missing file, network failure) rather than only the happy path. When the task is genuinely large, say so and propose splitting it rather than silently doing a partial job and calling it complete."
+    },
+    {
+      "id": "debug-with-tools",
+      "name": "Debug With Tools",
+      "description": "Reproduce and fix a real bug using the actual running system, not guesswork.",
+      "triggers": ["this is broken", "fix this error", "why does this crash", "it's throwing an exception", "this stopped working", "reproduce this bug"],
+      "category": "coding",
+      "agent": "coder",
+      "instructions": "Reproduce the failure yourself with run_command/run_python before proposing a fix - read the actual error/traceback rather than pattern-matching on the symptom description alone. Form a specific hypothesis about the cause and check it against the code (read_file) before changing anything. Make the smallest change that closes the gap between observed and expected behavior. Verify the fix by re-running whatever reproduced the bug, and note what you ran. If you can't reproduce it in this environment, say exactly that rather than guessing at a fix for a bug you never saw happen. This is the hands-on-tools sibling of the built-in Debugging skill for when the bug can actually be run and observed here."
+    },
+    {
+      "id": "web-page-design",
+      "name": "Web Page Design",
+      "description": "Design or revise a public-facing page so it's clear, fast, and on-brand.",
+      "triggers": ["design a landing page", "make our website page for", "redesign this page", "write and design a page about", "build a page for the beta program"],
+      "category": "design",
+      "agent": "web_design",
+      "instructions": "Identify the page's single job (get a sign-up, explain a feature, list docs) and design around that one goal rather than trying to say everything at once. Read the existing site's structure and tone before adding a page so it fits rather than clashing. Lead with what the product does and who it's for in the first screen, before any detail. Use the shared design tokens rather than one-off colors or fonts. Keep copy concrete and short - cut anything that sounds like it's there to sound impressive rather than to inform. State clearly what the page's one primary call-to-action is."
+    },
+    {
+      "id": "game-design-and-build",
+      "name": "Game Design & Build",
+      "description": "Design and build a small, actually-playable game for trackpad and keyboard.",
+      "triggers": ["make me a game", "build a snake game", "create a game with an ai opponent", "design a game where", "let's make a fun game", "build a simple game I can play now"],
+      "category": "creative",
+      "agent": "creative_games",
+      "instructions": "Design for a laptop trackpad and keyboard by default, not an assumed mouse or controller, unless told otherwise. Pick one core mechanic and get it fully working before adding features - a small complete game beats an ambitious broken one. For an AI opponent, explicitly decide and state the approach (simple heuristic, weighted randomness, difficulty levels) rather than leaving its behavior undefined. If the scope is large enough to benefit from it, say so and let the Manager split design, logic, and visuals across agents. Play-test the logic yourself (run_python) before presenting it as finished. Report how to actually play it, not just how it was built."
+    },
+    {
+      "id": "voice-and-style-matching",
+      "name": "Voice & Style Matching",
+      "description": "Adapt writing to match a specific requested tone or an example sample.",
+      "triggers": ["make this sound more formal", "write this in a casual tone", "match this writing style", "make it sound like me", "write this the way I write", "make this more professional"],
+      "category": "writing",
+      "agent": "writer_editor",
+      "instructions": "When a style sample is given, name the concrete features you're matching (sentence length, formality, particular words or phrases, punctuation habits) so the match is deliberate rather than a vague impression. When only a tone word is given ('more casual', 'more formal'), translate it into specific choices (contractions, sentence length, vocabulary) and apply them consistently through the whole piece. Preserve the actual content and intent - style matching changes how it's said, not what it says. Show a short before/after snippet if the change is subtle, so the owner can confirm it's the right direction before a full rewrite."
+    },
+    {
+      "id": "resume-and-cover-letter",
+      "name": "Resume & Cover Letter Builder",
+      "description": "Build or tighten a resume or cover letter aimed at a specific role.",
+      "triggers": ["help me write my resume", "review my resume", "write a cover letter for", "tailor my resume to this job", "make my resume better", "write me a cover letter"],
+      "category": "writing",
+      "agent": "writer_editor",
+      "instructions": "Ask for or infer the target role/posting if it's not given - a resume tailored to nothing is generic and weaker than one aimed at a specific job. Lead bullet points with concrete outcomes and numbers where they exist rather than vague responsibility statements. Cut anything that doesn't support the target role. Keep formatting simple and scannable rather than decorative. For a cover letter, open with something specific to the role/company rather than a generic opener, and keep it to well under a page. Flag any claim that sounds exaggerated relative to what the owner actually told you, rather than inflating it further."
+    },
+    {
+      "id": "meeting-notes",
+      "name": "Meeting Notes & Action Items",
+      "description": "Turn a meeting transcript or recap into decisions, action items, and open questions.",
+      "triggers": ["summarize this meeting", "write up meeting notes", "what were the action items", "turn this transcript into notes", "recap this call", "who owns what from this meeting"],
+      "category": "productivity",
+      "agent": "planner",
+      "instructions": "Separate the output into three clear buckets: decisions made, action items (with owner and deadline if stated, otherwise flagged as unassigned), and open questions still unresolved. Do not produce a flat chronological transcript summary - that's not what makes notes usable afterward. Keep each item to one line where possible. If the source material doesn't state who owns an action item, say so explicitly rather than guessing a name. Save the notes durably (an obsidian note, if the owner has a vault) rather than leaving them to scroll away in chat, and say where they were saved."
+    },
+    {
+      "id": "project-planning",
+      "name": "Project Planning & Roadmap",
+      "description": "Break a goal into a realistic, ordered plan the owner can start today.",
+      "triggers": ["help me plan this project", "make a roadmap for", "break this down into tasks", "what should I do first", "plan out this build", "create a project timeline"],
+      "category": "productivity",
+      "agent": "planner",
+      "instructions": "Break the goal into pieces small enough to start this week, not vague phases. Sequence by actual dependency (what has to happen before what) rather than importance alone. Name what's blocking anything that can't start yet. Keep scope realistic - a shorter plan the owner finishes beats an ambitious one they abandon. Distinguish must-do from nice-to-have explicitly. When timeline is requested but effort is uncertain, give a range and say what it depends on rather than a falsely precise date. End with a clear 'do this first' rather than a flat list with no entry point."
+    },
+    {
+      "id": "data-file-analysis",
+      "name": "Data File Analysis (CSV/JSON)",
+      "description": "Answer a real question from a data file, with the method shown.",
+      "triggers": ["analyze this csv", "what does this data show", "find the average in this file", "how many rows have", "summarize this json file", "what trends are in this data"],
+      "category": "data",
+      "agent": "data_analyst",
+      "instructions": "Use summarize_data first to actually see structure, columns, and value ranges before computing anything - never assume a column's meaning from its name alone. State the exact method (which columns, which filter, which formula) in plain language so it could be redone by hand. Flag data quality issues you notice (nulls, obvious outliers, duplicates) rather than silently computing through them. Give the direct answer first, then the supporting numbers. Use create_graph when a chart would answer the question faster than a paragraph of numbers. If the question can't be answered from the given file (wrong columns, insufficient data), say so rather than approximating past that."
+    },
+    {
+      "id": "trip-planner",
+      "name": "Trip Planner",
+      "description": "Build a realistic itinerary and budget for a real trip.",
+      "triggers": ["plan a trip to", "help me plan my vacation", "build an itinerary for", "what should I do in", "how much would a trip to X cost", "plan my spring break trip"],
+      "category": "travel",
+      "agent": "travel",
+      "instructions": "Get the real constraints first - destination, rough dates, budget tier, who's going, must-see items - inferring from context before asking, and ask only if a constraint that reshapes the whole plan is missing. Search for current information (prices, seasons, advisories, opening hours) rather than memory, and date anything time-sensitive. Build realistic transit time between stops into the itinerary rather than a plan that only works with zero friction. Total the estimated cost against any stated budget and flag it clearly if it doesn't fit. State plainly that booking/purchasing is the owner's own action, not something completed here."
+    },
+    {
+      "id": "security-privacy-check",
+      "name": "Security & Privacy Check",
+      "description": "Check real exposure and explain the trade-off, without locking things down by default.",
+      "triggers": ["is this safe", "check my permissions", "is this file suspicious", "review my security settings", "did I get hacked", "is it safe to grant this access"],
+      "category": "security",
+      "agent": "security",
+      "instructions": "Default to allow, matching this system's own permission philosophy - this skill flags real risk and explains trade-offs, it doesn't recommend locking everything down by default. Check actual state (running processes, file permissions, what a protected path contains) rather than giving generic advice unrelated to this machine. Never ask for or handle a password, key, or secret directly - point to the proper settings panel or secret_store instead. Explain risk in plain consequences ('this would let X read/change Y') rather than jargon or alarm. When the owner is about to grant a meaningful permission (e.g. machine control to an invited account), state clearly what that permission allows before they confirm it."
+    },
+    {
+      "id": "task-delegation-and-routing",
+      "name": "Task Delegation & Routing",
+      "description": "The Manager's core loop: understand, decide who does it, split if needed, merge, verify.",
+      "triggers": ["multi-part request", "this needs a few different things", "route this to the right agent", "handle this whole task", "coordinate the team on this", "this touches more than one area"],
+      "category": "meta",
+      "agent": "manager",
+      "instructions": "Restate the request in one line before doing anything, to check your own understanding. Decide: handle it directly if it's fast and doesn't need a specialist; delegate whole to one agent if it clearly belongs to one; split into named sub-tasks across agents if it genuinely spans domains. Give each delegate the constraints and definition of done up front rather than a bare instruction. When results come back, verify they actually answer the original one-line restatement before merging and returning them - send back anything that misses the mark with a specific gap named. Surface the delegation itself to the owner (who's working on what) rather than hiding it, so they can watch the work happen."
+    },
+    {
+      "id": "on-the-fly-task-skill",
+      "name": "On-the-Fly Task Skill",
+      "description": "Draft a temporary skill for a task shape that doesn't fit anything in the library yet.",
+      "triggers": ["this is a new kind of request", "no existing skill fits", "recurring task with no skill", "create a skill for this", "make a temp skill"],
+      "category": "meta",
+      "agent": "manager",
+      "instructions": "Before drafting anything new, search the existing library - a close-enough match beats a fresh skill every time, since the library only stays useful if it doesn't fragment into near-duplicates. When nothing fits and the task looks like it could recur (not a one-off), draft a short skill (name, description, triggers, instructions) scoped to exactly this shape of task. Mark it temp: true and show it to the owner as a visible step, not a silent background action - this is a moment the owner should get to watch. Keep it short; a temporary skill is a working draft, not a polished library entry. Note candidates worth promoting to the permanent library when the same temp skill would clearly fire again."
+    },
+    {
+      "id": "skill-finder",
+      "name": "Skill Finder & Fit Check",
+      "description": "Search the skill library for the best fit before acting or drafting something new.",
+      "triggers": ["which skill handles this", "search skills for", "what skills exist for", "find a matching skill", "does a skill already cover this"],
+      "category": "meta",
+      "agent": "manager",
+      "instructions": "Use GET /api/skills/search before assuming nothing fits or before drafting a temporary skill - the point of a library is that it gets checked, not just added to. Judge fit by whether the triggers and instructions actually match the task's shape, not just a keyword overlap. When more than one skill could plausibly apply, prefer the more specific one over the generic built-in. If a skill matches only partially, say what it covers and what it doesn't rather than silently stretching it to fit. Report which skill(s) got attached and why, so the owner can see the reasoning, not just the result."
+    },
+    {
+      "id": "connector-troubleshooting",
+      "name": "Connector & Login Troubleshooting",
+      "description": "Explain plainly why a connector or account isn't working and what fixes it.",
+      "triggers": ["why isn't this connector working", "my account won't connect", "this integration is broken", "connectors aren't showing", "why can't you access my", "this needs to be authorized"],
+      "category": "meta",
+      "agent": "manager",
+      "instructions": "When a connector or account integration fails, check its actual reported state rather than guessing at the cause. Distinguish clearly between 'not configured yet' (needs setup), 'needs authorization' (owner has to approve it in settings), and 'actually broken' (was working, now isn't). Give the specific next step the owner needs to take, in plain terms, rather than a generic 'check your settings.' Never ask the owner for a password or token directly to work around a broken connector - that defeats the point of the connector system. If several connectors are visibly unavailable, say so as a batch rather than making the owner ask about each one separately."
+    },
+    {
+      "id": "access-key-concierge",
+      "name": "Beta & Dev Key Concierge",
+      "description": "Help the owner or an invitee redeem, check, or manage a signed access key.",
+      "triggers": ["redeem this key", "how do I become a beta tester", "check my access level", "mint a dev key", "what does this access key unlock", "my key isn't working"],
+      "category": "meta",
+      "agent": "manager",
+      "instructions": "For redeeming a key, use POST /api/access/redeem and report the resulting access level and unlocked features plainly; if it's rejected, give the actual reason returned rather than a generic 'invalid key'. For the owner minting new keys (admin only), confirm role and expiry before calling POST /api/access/mint, and hand back both the raw key and the nyx://redeem?key= link so it can be shared either way. Never mint or reveal a signing key to a non-admin. When someone asks how to become a beta tester or developer, point to the beta program's application path rather than minting a key on request - keys are issued by the owner, not self-served."
+    },
+    {
+      "id": "apple-design",
+      "name": "Apple HIG & UI/UX Design Lead",
+      "description": "Cross-platform UI/UX design reviewer and creator grounded in Apple's Human Interface Guidelines (122 HIG pages) plus a distinctive design-craft lens.",
+      "triggers": ["apple design", "hig", "human interface guidelines", "design review", "ui review", "ui/ux", "apple style", "macos design", "ios design", "liquid glass", "glassmorphism", "clean design", "aesthetic", "design audit", "design skills", "typography", "color palette", "make this look less generic", "design a screen", "ui spec"],
+      "category": "design",
+      "agent": "site_web_dev",
+      "instructions": "Act as both a senior design reviewer who knows Apple's Human Interface Guidelines cold and a design lead with a distinctive aesthetic point of view. Ground your advice and designs in Apple's 8 design principles: purpose, agency, responsibility, familiarity, flexibility, simplicity, craft, and delight. Strictly enforce accessibility (WCAG AAA contrast, tap targets >= 44x44pt on mobile, dynamic type scaling, reduced motion respect). Use platform-correct navigation (tab bars on mobile, sidebars/toolbars on desktop). Emphasize materials and depth: Apple Liquid Glass translucency (backdrop-filter: blur(20px) saturate(180%)), subtle hairline borders (rgba(255,255,255,0.08)), SF Pro font stack hierarchy, and squircle corner radii. When creating declarative UI specs or reviewing layouts, use apple_design_lookup or apple_design_read to cite the specific Apple HIG section and ensure elements feel premium, native, and avoid generic cookie-cutter templates."
+    }
+  ]
+}

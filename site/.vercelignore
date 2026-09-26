@@ -1,0 +1,15 @@
+# What `vercel deploy` from site/ leaves out.
+#
+# The tester pages and their functions (Request K / U) need the owner's GitHub
+# token and tester keys in Vercel's environment first (docs/COLLAB_SETUP.md).
+# Until then they would only show errors, so the public site is the front door
+# and the 404 page. Delete these three lines when the Collab setup is done.
+beta/
+collab/
+api/
+
+# The old PyInstaller build. Windows Smart App Control blocks it; the zip that
+# ships is NyxIchos-Windows.zip, built by build_release.py.
+downloads/NyxIchos-windows-x64.zip
+ichnos-512.png
+package.json

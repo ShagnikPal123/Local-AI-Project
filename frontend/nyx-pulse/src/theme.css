@@ -1,44 +1,86 @@
-/* Design tokens from the Claude Design handoff, in the nocturne _ds stylesheet.
-   Kept as variables so the palette stays in one place and matches the mockup. */
+/* Nyx Ichos — black-first design tokens (Request F, 2026-09-14).
+   ---------------------------------------------------------------------------
+   The owner asked for black as the most emphasized colour, Apple components,
+   "clicky" and 3D. The main screen is an immersive, living memory field, which
+   is the HIG's own case for a permanently dark interface (dark-mode.md › Best
+   practices: "In rare cases, consider using only a dark appearance… for an app
+   that supports immersive media viewing"). So there is one appearance, and it
+   is black. Increased contrast and reduced transparency still get answers below.
+
+   Roles (contrast measured against #000):
+     --color-bg / --ink-0   #000000  the canvas
+     --color-nav            #07070A  bars, sheets resting on the canvas
+     --color-surface        #0E0E13  content cards
+     --color-surface-2      #15151C  raised controls
+     --color-text           #F5F5F7  19.6:1 primary label
+     --color-neutral-400    #C7C7CC  13.2:1
+     --color-neutral-500    #A1A1AA   8.1:1 secondary label
+     --color-neutral-600    #8E8E96   6.4:1 tertiary label (small-text floor)
+     --color-accent         #A594FF   8.6:1 interactive (links, focus, primary fill with black label)
+   Data colours (the brain clusters) live in the content layer only; controls
+   stay monochrome over them (liquid-glass.md › Color on glass).
+   ======================================================================== */
 
 :root {
-  --color-bg: #161826;
-  --color-nav: #12141f;
-  --color-surface: #232532;
-  --color-surface-2: #1b1e2f;
-  --color-text: #e9e9ed;
-  --color-accent: #9184d9;
-  --color-accent-2: #a7a1db;
-  --color-divider: color-mix(in srgb, #e9e9ed 16%, transparent);
+  --color-bg: #000000;
+  --color-nav: #07070a;
+  --color-surface: #0e0e13;
+  --color-surface-2: #15151c;
+  --color-surface-3: #1d1d26;
+  --color-text: #f5f5f7;
+  --color-accent: #a594ff;
+  --color-accent-2: #bdb2ff;
+  /* Links: the blue end of the accent, so a pasted address reads as "this took". */
+  --color-link: #9aa8ff;
+  --color-link-bg: rgba(138, 156, 255, 0.18);
+  --color-divider: rgba(255, 255, 255, 0.1);
+  --color-divider-strong: rgba(255, 255, 255, 0.18);
+  --color-on-accent: #000000;
 
-  --color-neutral-100: #f3f5fe;
-  --color-neutral-300: #cfd3e5;
-  --color-neutral-400: #b2b6ca;
-  --color-neutral-500: #9397ab;
-  --color-neutral-600: #75798c;
-  --color-neutral-700: #595d6c;
-  --color-neutral-800: #3f424d;
-  --color-neutral-900: #292b31;
+  --color-neutral-100: #ffffff;
+  --color-neutral-200: #e5e5ea;
+  --color-neutral-300: #d1d1d6;
+  --color-neutral-400: #c7c7cc;
+  --color-neutral-500: #a1a1aa;
+  --color-neutral-600: #8e8e96;
+  --color-neutral-700: #5a5a63; /* borders/disabled only, never text */
+  --color-neutral-800: #2c2c34;
+  --color-neutral-900: #1a1a21;
 
-  --color-accent-300: #d2cefd;
-  --color-accent-400: #b5abfc;
-  --color-accent-500: #968ae0;
-  --color-accent-700: #5d5294;
-  --color-accent-900: #2b2741;
+  --color-accent-300: #d6ceff;
+  --color-accent-400: #bdb2ff;
+  --color-accent-500: #a594ff;
+  --color-accent-700: #5b4fc0;
+  --color-accent-900: #1d1830;
 
-  --color-ok: #5ac08a;
-  --color-warn: #e0b45a;
-  --color-danger: #e07a7a;
+  /* Apple dark system colours */
+  --color-ok: #30d158;
+  --color-warn: #ffd60a;
+  --color-danger: #ff453a;
+  --color-info: #64d2ff;
 
-  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-heading: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", Inter, system-ui, sans-serif;
+  --font-heading: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI Variable Display", "Segoe UI", Inter, system-ui, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, monospace;
 
-  --radius: 8px;
+  --radius: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
   --den: 1;
+
+  /* Glass (functional layer only) */
+  --glass-fill: rgba(18, 18, 24, 0.62);
+  --glass-edge: rgba(255, 255, 255, 0.12);
+  --glass-blur: blur(28px) saturate(1.4);
+
+  /* The tactile, "clicky" feel: a lit top edge, a soft drop, a press that sinks */
+  --lift: inset 0 1px 0 rgba(255, 255, 255, 0.09), 0 1px 2px rgba(0, 0, 0, 0.6), 0 6px 18px rgba(0, 0, 0, 0.35);
+  --press: inset 0 2px 5px rgba(0, 0, 0, 0.55);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 * { box-sizing: border-box; }
+:root { color-scheme: dark; }
 
 html, body, #root {
   margin: 0;
@@ -47,13 +89,16 @@ html, body, #root {
   color: var(--color-text);
   font-family: var(--font-body);
   font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 a { color: var(--color-accent); text-decoration: none; }
-a:hover { color: var(--color-accent-400); }
+a:hover { color: var(--color-accent-300); }
 
-::-webkit-scrollbar { width: 9px; height: 9px; }
-::-webkit-scrollbar-thumb { background: var(--color-neutral-800); border-radius: 6px; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.14); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.24); background-clip: padding-box; }
 ::-webkit-scrollbar-track { background: transparent; }
 
 button {
@@ -65,35 +110,174 @@ button {
   color: inherit;
 }
 
+/* --- Buttons: tactile, with a press that sinks -------------------------------- */
 .btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 7px 12px;
+  min-height: 30px;
+  padding: 6px 13px;
   border-radius: var(--radius);
   font-size: 13px;
-  transition: background 120ms ease, color 120ms ease;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+  transition: background 140ms ease, color 140ms ease, box-shadow 140ms ease, transform 90ms var(--ease-out);
+  user-select: none;
 }
-.btn-primary { background: var(--color-accent); color: #14121f; font-weight: 500; }
-.btn-primary:hover { background: var(--color-accent-400); }
-.btn-secondary { background: var(--color-neutral-900); color: var(--color-neutral-300); }
-.btn-secondary:hover { background: var(--color-neutral-800); color: var(--color-text); }
+.btn:active:not(:disabled) { transform: translateY(1px) scale(0.975); box-shadow: var(--press); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn-primary { background: var(--color-accent); color: var(--color-on-accent); box-shadow: var(--lift); }
+.btn-primary:hover:not(:disabled) { background: var(--color-accent-300); }
+.btn-secondary { background: var(--color-surface-2); color: var(--color-neutral-300); box-shadow: var(--lift); }
+.btn-secondary:hover:not(:disabled) { background: var(--color-surface-3); color: var(--color-text); }
+.btn-plain { background: #fff; color: #000; box-shadow: var(--lift); }
+.btn-plain:hover:not(:disabled) { background: #e5e5ea; }
 
 .card {
   background: var(--color-surface);
-  border-radius: var(--radius);
-  padding: 14px 16px;
-  box-shadow: inset 0 0 0 1px var(--color-divider);
+  border-radius: var(--radius-lg);
+  padding: 16px 18px;
+  box-shadow: inset 0 0 0 1px var(--color-divider), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .label {
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--color-neutral-600);
+  color: var(--color-neutral-500);
 }
 
 .muted { color: var(--color-neutral-500); }
+
+/* --- Glass: the floating functional layer (tab bar, chat sheet, HUD) ----------- */
+.glass {
+  background: var(--glass-fill);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: inset 0 0 0 1px var(--glass-edge), inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 20px 60px rgba(0, 0, 0, 0.55);
+}
+
+/* --- HUD: small monospace captions over the brain -------------------------------- */
+.hud-caption {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-neutral-500);
+}
+.hud-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--color-text); }
+
+/* --- Switch (Apple toggle) -------------------------------------------------------- */
+.switch {
+  position: relative;
+  width: 42px;
+  height: 26px;
+  flex: none;
+  border-radius: 999px;
+  background: #3a3a42;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+  transition: background 180ms ease;
+}
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.45), 0 0 0 0.5px rgba(0, 0, 0, 0.2);
+  transition: transform 200ms var(--ease-out), width 120ms ease;
+}
+.switch[aria-checked="true"] { background: var(--color-ok); }
+.switch[aria-checked="true"]::after { transform: translateX(16px); }
+.switch:active::after { width: 26px; }
+.switch[aria-checked="true"]:active::after { transform: translateX(12px); }
+.switch:disabled { opacity: 0.45; }
+
+/* --- Slider ------------------------------------------------------------------------- */
+input[type="range"].slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 28px;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"].slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--color-accent) var(--fill, 50%), #3a3a42 var(--fill, 50%));
+}
+input[type="range"].slider::-moz-range-track { height: 4px; border-radius: 2px; background: #3a3a42; }
+input[type="range"].slider::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--color-accent); }
+input[type="range"].slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  margin-top: -9px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  transition: transform 120ms var(--ease-out);
+}
+input[type="range"].slider:active::-webkit-slider-thumb { transform: scale(1.12); }
+input[type="range"].slider::-moz-range-thumb { width: 22px; height: 22px; border: 0; border-radius: 50%; background: #fff; }
+
+/* --- Segmented control ---------------------------------------------------------------- */
+.segmented {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  border-radius: 9px;
+  background: #1c1c22;
+  box-shadow: inset 0 0 0 1px var(--color-divider);
+}
+.segmented button {
+  min-height: 26px;
+  padding: 3px 12px;
+  border-radius: 7px;
+  font-size: 12.5px;
+  color: var(--color-neutral-500);
+  transition: background 150ms ease, color 150ms ease;
+}
+.segmented button[aria-pressed="true"] { background: #3a3a44; color: var(--color-text); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08); }
+.segmented button:hover:not([aria-pressed="true"]) { color: var(--color-text); }
+
+/* --- Chip ---------------------------------------------------------------------------- */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  min-height: 24px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--color-neutral-300);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 0 0 1px var(--color-divider);
+}
+.chip[aria-pressed="true"] { background: var(--color-accent-900); color: var(--color-accent-300); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 45%, transparent); }
+
+/* --- Accessibility answers -------------------------------------------------------------- */
+@media (prefers-reduced-transparency: reduce) {
+  .glass { background: #101016; -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+@media (prefers-contrast: more) {
+  :root {
+    --color-divider: rgba(255, 255, 255, 0.32);
+    --color-neutral-500: #c7c7cc;
+    --color-neutral-600: #b0b0b8;
+    --glass-fill: rgba(10, 10, 14, 0.94);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn, .switch, .switch::after, .segmented button { transition: none; }
+  .btn:active:not(:disabled) { transform: none; }
+}
 
 @keyframes nyxpulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
 @keyframes nyxspin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -101,3 +285,4 @@ button {
   0%, 100% { opacity: 0.4; transform: scale(0.94); }
   50% { opacity: 1; transform: scale(1.04); }
 }
+@keyframes nyxbloom { 0% { opacity: 0; transform: scale(0.96); } 100% { opacity: 1; transform: scale(1); } }

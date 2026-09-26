@@ -1,23 +1,138 @@
-:root { font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #e8edf7; background: #090c12; font-synthesis: none; }
-* { box-sizing: border-box; } body { margin: 0; min-width: 320px; } button, textarea { font: inherit; } button { cursor: pointer; }
-.app-shell { min-height: 100vh; display: grid; grid-template-columns: 250px minmax(480px,1fr) 280px; background: radial-gradient(circle at 47% 0%, #17223c 0, #0b1019 34%, #090c12 74%); }
-.left-rail, .right-rail { background: #0c111bde; border-color: #20293b; border-style: solid; padding: 22px 16px; } .left-rail { border-width: 0 1px 0 0; display: flex; flex-direction: column; } .right-rail { border-width: 0 0 0 1px; }
-.brand { display: flex; gap: 10px; align-items: center; letter-spacing: 3px; margin: 4px 8px 28px; } .brand > span { color: #97aaff; font-size: 27px; } .brand strong { display: block; font-size: 17px; } .brand small { display: block; color: #8190ac; font-size: 9px; margin-top: 2px; }
-.new-chat, .composer button { border: 0; border-radius: 8px; background: linear-gradient(100deg,#7b84f8,#a66fff); color: white; padding: 11px 13px; font-weight: 700; text-align: left; box-shadow: 0 8px 25px #5969ff2b; }.new-chat { margin-bottom: 19px; }
-nav { border-top: 1px solid #20293b; padding-top: 12px; }.nav-item, .session { background: transparent; color: #9ba7be; border: 0; width: 100%; display: flex; gap: 11px; align-items: center; padding: 10px; text-align: left; border-radius: 7px; }.nav-item:hover, .session:hover, .nav-item.active, .session.active { background: #1b2436; color: #f3f6fd; }.nav-item.active { border-left: 2px solid #8d91ff; padding-left: 8px; }.session-label,.context-title { color: #68758e; font-size: 10px; font-weight: 800; letter-spacing: 1.5px; margin: 26px 9px 7px; }.sessions { overflow-y: auto; }.session { font-size: 12px; }.connection { margin-top: auto; color: #8190aa; font-size: 11px; padding: 16px 9px 0; }.status { display: inline-block; width: 7px; height: 7px; border-radius: 100%; background: #df6e80; margin-right: 7px; }.status.online { background: #5fd69b; box-shadow: 0 0 8px #5fd69b; }
-.workspace { min-width: 0; display: flex; flex-direction: column; max-height: 100vh; }.workspace-header { padding: 24px 34px 18px; border-bottom: 1px solid #20293b; display:flex; justify-content:space-between; align-items:center; }.eyebrow { display: block; color: #7181a0; font-size: 10px; letter-spacing: 1.5px; font-weight: 800; }.workspace h1,.panel h1 { font-size: 19px; margin: 5px 0 0; }.outline { color:#c8d3ef; background:#151d2c; border:1px solid #2a3750; padding:8px 11px; border-radius:7px; font-size:12px; }
-.message-list { flex: 1; overflow-y: auto; padding: 30px clamp(24px,6vw,86px); }.message { display: grid; grid-template-columns: 36px 1fr; gap: 14px; margin-bottom: 28px; }.avatar { height: 31px; width: 31px; border-radius: 8px; display:grid; place-items:center; font-size:9px; font-weight:800; background:#1d2940; color:#b8c7ec; }.assistant .avatar { background:linear-gradient(135deg,#806ee9,#5c93f5); color:white; }.message-meta { color:#9eabc2; font-size:12px; font-weight:700; }.message-meta time { color:#62708a; font-weight:400; margin-left:8px; }.message p { white-space: pre-wrap; color:#d8dfed; line-height:1.7; font-size:14px; margin:7px 0; }.message-actions button { border:0; background:transparent; color:#7181a0; font-size:11px; padding:0 12px 0 0; }
-.composer { margin: 0 30px 25px; padding: 12px; border: 1px solid #334260; background:#111826; border-radius:10px; box-shadow:0 10px 35px #02050b5e; }.composer textarea { resize: none; background:transparent; border:0; outline:none; width:100%; color:#ecf2ff; line-height:1.5; }.composer textarea::placeholder { color:#697895; }.composer div { display:flex; justify-content:space-between; align-items:center; color:#70809c; font-size:10px; }.composer button { padding:8px 13px; text-align:center; }.composer button:disabled { opacity:.6; cursor:wait; }
-.right-rail section { border-bottom:1px solid #20293b; padding: 18px 3px 20px; }.right-rail h2 { font-size:14px; margin:7px 0 2px; }.right-rail p,.right-rail small { color:#8492aa; font-size:11px; line-height:1.6; }.meter { height:4px; background:#202c41; border-radius:4px; overflow:hidden; margin:14px 0 9px; }.meter i { display:block; width:72%; height:100%; background:linear-gradient(90deg,#72cba7,#8886fa); }.file { display:flex; align-items:center; gap:7px; color:#adb9ce; font-size:11px; margin:12px 0; }.file input { accent-color:#8c85ff; }.file span { color:#8d86f9; }.add { border:0; background:transparent; color:#9a94ff; font-size:11px; padding:4px 0; }.handoff { display:flex; width:100%; justify-content:space-between; color:#b9c5dd; background:#151e2d; border:1px solid #26344b; border-radius:6px; padding:9px; margin-top:8px; font-size:11px; }.handoff b { color:#9a94ff; }
-.panel { padding: 56px clamp(30px,8vw,120px); overflow-y:auto; }.panel h1 { font-size:32px; }.panel-description { color:#95a3ba; margin-bottom:32px; }.list-card { background:#111827; border:1px solid #27334a; border-radius:10px; overflow:hidden; }.row-button,.memory-row,.setting { border:0; border-bottom:1px solid #27334a; width:100%; min-height:64px; color:#d9e2f2; background:transparent; padding:14px; display:flex; align-items:center; gap:12px; text-align:left; }.row-button:last-child,.memory-row:last-child,.setting:last-child { border-bottom:0; }.row-button span,.memory-row span { color:#918dff; }.row-button div { display:grid; gap:4px; }.row-button small { color:#8290a9; }.row-button b { margin-left:auto; color:#938dff; font-size:11px; }.memory-row p { flex:1; color:#c9d3e6; font-size:13px; }.memory-row button { color:#df8291; background:transparent; border:0; font-size:11px; }.setting { justify-content:space-between; color:#aebbd1; font-size:13px; }.good { color:#62ca98; }.bad { color:#ed8393; } code { color:#988eff; }.model-grid { display:grid; grid-template-columns:repeat(2,minmax(180px,1fr)); gap:14px; }.model-card { text-align:left; min-height:150px; color:#cbd5e9; background:#121a29; border:1px solid #2a374f; padding:17px; border-radius:10px; }.model-card.selected { border-color:#887ffb; box-shadow:0 0 0 1px #887ffb; }.model-card span,.model-card strong,.model-card small { display:block; }.model-card span { color:#9a94ff; margin-bottom:16px; }.model-card strong { font-size:14px; }.model-card small,.model-card p { color:#8190aa; font-size:11px; }.model-card p { line-height:1.5; }
-@media (max-width: 1050px) { .app-shell { grid-template-columns:220px 1fr; }.right-rail { display:none; } } @media (max-width:700px) { .app-shell { grid-template-columns:1fr; }.left-rail { display:none; }.workspace-header { padding:18px; }.message-list { padding:22px; }.composer { margin:0 16px 16px; }.model-grid { grid-template-columns:1fr; } }
+/* ===========================================================================
+   Nyx Ichos — workspace styles
+   ---------------------------------------------------------------------------
+   One palette lives in theme.css as semantic tokens; everything here refers
+   to those tokens, never to hex values, so dark mode stays consistent and
+   "one color means one thing" holds across the app.
+
+   Type scale: body 15px, secondary 13px, minimum 11px — the HIG floor for
+   legible small text. Any label that used to render at 9–10px now reads at
+   11px with the same uppercase/letter-spaced treatment.
+
+   Focus: every interactive element gets a visible :focus-visible ring (the
+   app is keyboard-operable; the ring is the focus indicator, not decoration).
+   Motion: every animation has a prefers-reduced-motion answer.
+   ======================================================================== */
+
+:root { font-synthesis: none; }
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; }
+button, textarea, input, select { font: inherit; }
+button { cursor: pointer; }
+
+/* A visible keyboard-focus ring everywhere; :focus-visible keeps it off for
+   pointer users while remaining unmissable when tabbing. */
+:focus-visible { outline: 2px solid var(--color-accent-400); outline-offset: 2px; }
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: 2px solid var(--color-accent-400);
+  outline-offset: 2px;
+}
+
+/* Small all-caps section label. 11px is the floor, not a target. */
+.eyebrow {
+  display: block;
+  color: var(--color-neutral-500); /* 6.08:1 on --color-bg */
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------------------------
+   Buttons beyond theme.css's .btn set.
+   ------------------------------------------------------------------------ */
+.btn-ghost {
+  background: transparent;
+  color: var(--color-neutral-400);
+  padding: 6px 10px;
+  border-radius: var(--radius);
+}
+.btn-ghost:hover { background: var(--color-neutral-900); color: var(--color-text); }
+.btn-danger { color: var(--color-danger); }
+.btn-danger:hover { background: color-mix(in srgb, var(--color-danger) 14%, transparent); }
+
+.outline {
+  color: var(--color-neutral-200, var(--color-neutral-300));
+  background: var(--color-surface-2);
+  box-shadow: inset 0 0 0 1px var(--color-divider);
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  font-size: 13px;
+}
+
+/* ---------------------------------------------------------------------------
+   List rows (settings-style panels).
+   ------------------------------------------------------------------------ */
+.row-button, .memory-row, .setting {
+  border: 0;
+  border-bottom: 1px solid var(--color-divider);
+  width: 100%;
+  min-height: 60px;
+  color: var(--color-text);
+  background: transparent;
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+}
+.row-button:last-child, .memory-row:last-child, .setting:last-child { border-bottom: 0; }
+.row-button:hover, .memory-row:hover { background: color-mix(in srgb, var(--color-text) 4%, transparent); }
+.row-button span, .memory-row span { color: var(--color-accent-300); }
+.row-button div { display: grid; gap: 4px; }
+.row-button small { color: var(--color-neutral-500); }
+.row-button b { margin-left: auto; color: var(--color-accent-300); font-size: 12px; }
+.memory-row p { flex: 1; color: var(--color-neutral-200, var(--color-neutral-300)); font-size: 13px; }
+.memory-row button { color: var(--color-danger); background: transparent; border: 0; font-size: 12px; }
+.memory-row button:hover { text-decoration: underline; }
+.setting { justify-content: space-between; color: var(--color-neutral-300); font-size: 13px; }
+
+.good { color: var(--color-ok); }
+.bad { color: var(--color-danger); }
+code { color: var(--color-accent-300); font-family: var(--font-mono); font-size: 0.92em; }
+
+/* ---------------------------------------------------------------------------
+   Model cards (Models panel).
+   ------------------------------------------------------------------------ */
+.model-grid { display: grid; grid-template-columns: repeat(2, minmax(180px, 1fr)); gap: 14px; }
+.model-card {
+  text-align: left;
+  min-height: 140px;
+  color: var(--color-neutral-200, var(--color-neutral-300));
+  background: var(--color-surface-2);
+  box-shadow: inset 0 0 0 1px var(--color-divider);
+  padding: 16px;
+  border-radius: var(--radius);
+  transition: box-shadow 120ms ease;
+}
+.model-card:hover { box-shadow: inset 0 0 0 1px var(--color-neutral-700); }
+.model-card.selected { border-color: var(--color-accent); box-shadow: 0 0 0 1px var(--color-accent); }
+.model-card span, .model-card strong, .model-card small { display: block; }
+.model-card span { color: var(--color-accent-300); margin-bottom: 14px; }
+.model-card strong { font-size: 14px; }
+.model-card small, .model-card p { color: var(--color-neutral-500); font-size: 12px; }
+.model-card p { line-height: 1.5; }
+
+@media (max-width: 700px) { .model-grid { grid-template-columns: 1fr; } }
+
+/* ---------------------------------------------------------------------------
+   Meter (determinate measures on the dashboard).
+   ------------------------------------------------------------------------ */
+.meter {
+  height: 4px;
+  background: var(--color-neutral-900);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 14px 0 9px;
+}
+.meter i { display: block; height: 100%; background: var(--color-accent); }
 
 /* ---------------------------------------------------------------------------
    Ichnos avatar
    The character art is a raster asset; all motion here is CSS around it so the
    image itself never repaints. State is shown by the halo and the orbiting
    spark rather than by tinting the art, which fought its own palette.
-   --------------------------------------------------------------------------- */
+   ------------------------------------------------------------------------ */
 .nyx-avatar {
   position: relative;
   display: inline-block;
@@ -106,13 +221,12 @@ nav { border-top: 1px solid #20293b; padding-top: 12px; }.nav-item, .session { b
   .nyx-avatar__sparks i { opacity: .85; }
 }
 
-
 /* ---------------------------------------------------------------------------
    Top tab bar
    The bar scrolls sideways rather than wrapping: a wrapped nav changes height
    whenever a user tab is added, which reflows every panel under it. The "All
    tabs" menu is what guarantees reachability at narrow widths, not the scroll.
-   --------------------------------------------------------------------------- */
+   ------------------------------------------------------------------------ */
 .nyx-tabscroll { scrollbar-width: thin; scrollbar-color: var(--color-neutral-800) transparent; }
 .nyx-tabscroll::-webkit-scrollbar { height: 4px; }
 .nyx-tabscroll::-webkit-scrollbar-thumb { background: var(--color-neutral-800); border-radius: 4px; }
@@ -122,7 +236,7 @@ nav { border-top: 1px solid #20293b; padding-top: 12px; }.nav-item, .session { b
    Strands layout
    A media query rather than an inline style because the field must get the whole
    width on a narrow window, and inline styles cannot express a breakpoint.
-   --------------------------------------------------------------------------- */
+   ------------------------------------------------------------------------ */
 .strands-grid {
   display: grid;
   gap: 14px;
@@ -138,13 +252,13 @@ nav { border-top: 1px solid #20293b; padding-top: 12px; }.nav-item, .session { b
    not report how far through a generation it is, and a bar that filled at a
    made-up rate would be claiming knowledge it does not have. The elapsed
    counter beside it is the honest signal that something is still happening.
-   --------------------------------------------------------------------------- */
+   ------------------------------------------------------------------------ */
 .nyx-progress {
   position: relative;
   height: 3px;
   border-radius: 999px;
   overflow: hidden;
-  background: var(--color-divider, rgba(255, 255, 255, .08));
+  background: var(--color-divider);
 }
 .nyx-progress > span {
   position: absolute;
@@ -153,8 +267,8 @@ nav { border-top: 1px solid #20293b; padding-top: 12px; }.nav-item, .session { b
   border-radius: 999px;
   background: linear-gradient(90deg,
     transparent,
-    var(--color-accent, #9184d9),
-    color-mix(in srgb, var(--color-accent, #9184d9) 40%, transparent));
+    var(--color-accent),
+    color-mix(in srgb, var(--color-accent) 40%, transparent));
   animation: nyx-progress-slide 1.15s ease-in-out infinite;
 }
 @keyframes nyx-progress-slide {
@@ -170,3 +284,238 @@ nav { border-top: 1px solid #20293b; padding-top: 12px; }.nav-item, .session { b
   }
   @keyframes nyx-progress-pulse { 0%,100% { opacity: .35 } 50% { opacity: .9 } }
 }
+
+/* ---------------------------------------------------------------------------
+   Engine gate — "Nyx is turned off" with a single Turn on button.
+   A full-screen layer rather than a badge: when the engine is off nothing else
+   on the page works, so the one thing that fixes it should be the only thing
+   on screen.
+   ------------------------------------------------------------------------ */
+.engine-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: radial-gradient(ellipse at 50% 30%, color-mix(in srgb, var(--color-accent-700) 45%, var(--color-bg)) 0%, var(--color-bg) 58%, color-mix(in srgb, var(--color-nav) 80%, black) 100%);
+  animation: engine-gate-in 320ms cubic-bezier(.2, .8, .2, 1) both;
+}
+.engine-gate__glow {
+  position: absolute;
+  width: min(70vw, 720px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--color-accent) 22%, transparent) 0%, transparent 65%);
+  filter: blur(10px);
+  animation: engine-gate-breathe 6s ease-in-out infinite;
+  pointer-events: none;
+}
+.engine-gate__card {
+  position: relative;
+  width: min(100%, 460px);
+  text-align: center;
+  padding: 34px 30px 26px;
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--color-surface) 78%, transparent);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .45), inset 0 0 0 1px var(--color-divider);
+  backdrop-filter: blur(14px);
+}
+.engine-gate__avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 128px;
+  height: 128px;
+  margin-bottom: 10px;
+  border-radius: 50%;
+  transition: transform 400ms cubic-bezier(.2, .8, .2, 1), filter 400ms ease;
+  filter: saturate(.55) brightness(.85);
+}
+.engine-gate__avatar.is-busy { filter: saturate(1) brightness(1); transform: scale(1.04); }
+.engine-gate__avatar.is-on { filter: saturate(1.15) brightness(1.1); transform: scale(1.1); }
+.engine-gate__title {
+  margin: 0 0 8px;
+  font: 600 24px/1.2 var(--font-heading);
+  letter-spacing: .01em;
+}
+.engine-gate__lead {
+  margin: 0 auto 22px;
+  max-width: 340px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-neutral-400);
+  min-height: 44px;
+}
+.engine-gate__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-width: 220px;
+  padding: 15px 30px;
+  border-radius: 14px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-on-accent);
+  background: linear-gradient(135deg, var(--color-accent-400), var(--color-accent));
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--color-accent) 35%, transparent);
+  transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+}
+.engine-gate__button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 38px color-mix(in srgb, var(--color-accent) 48%, transparent);
+}
+.engine-gate__button:active:not(:disabled) { transform: translateY(1px); }
+.engine-gate__button:disabled { opacity: .8; cursor: progress; }
+.engine-gate__spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--color-on-accent) 35%, transparent);
+  border-top-color: var(--color-on-accent);
+  animation: nyxspin .8s linear infinite;
+}
+.engine-gate__progress { margin: 18px auto 0; max-width: 260px; }
+.engine-gate__help {
+  margin-top: 20px;
+  padding: 14px 16px;
+  text-align: left;
+  font-size: 13px;
+  line-height: 1.6;
+  border-radius: 12px;
+  background: var(--color-nav);
+  box-shadow: inset 0 0 0 1px var(--color-divider);
+  animation: engine-gate-in 260ms ease both;
+}
+.engine-gate__help ul { margin: 6px 0 12px; padding-left: 18px; color: var(--color-neutral-400); }
+.engine-gate__help li + li { margin-top: 5px; }
+.engine-gate__foot { margin-top: 16px; font-size: 12px; color: var(--color-neutral-500); }
+@keyframes engine-gate-in { from { opacity: 0; transform: translateY(8px) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes engine-gate-breathe { 0%, 100% { opacity: .55; transform: scale(.96); } 50% { opacity: 1; transform: scale(1.04); } }
+@media (prefers-reduced-motion: reduce) {
+  .engine-gate, .engine-gate__help { animation: none; }
+  .engine-gate__glow { animation: none; }
+}
+
+/* ---------------------------------------------------------------------------
+   Keys & Models panel.
+   ------------------------------------------------------------------------ */
+.keys-section { display: flex; flex-direction: column; gap: 10px; margin-bottom: 26px; }
+.keys-heading { font: 600 15px/1.3 var(--font-heading); margin: 0; }
+.keys-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+.keys-provider, .keys-role { display: flex; flex-direction: column; gap: 8px; }
+.keys-provider[data-configured="true"] { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-ok) 45%, transparent); }
+.keys-provider__head, .keys-role__head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 14px; }
+.keys-badge { font-size: 11px; padding: 2px 7px; border-radius: 999px; background: var(--color-accent-900); color: var(--color-accent-300); }
+.keys-status { margin-left: auto; font-size: 12px; color: var(--color-neutral-500); }
+.keys-status.is-ok { color: var(--color-ok); }
+.keys-notes { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--color-neutral-400); }
+.keys-form { display: flex; flex-direction: column; gap: 8px; }
+.keys-field { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--color-neutral-300); }
+.keys-field em { color: var(--color-ok); font-style: normal; }
+.keys-field input, .keys-field select, .field-control {
+  font: inherit; font-size: 13px; padding: 8px 10px; border-radius: var(--radius); border: none;
+  background: var(--color-nav); color: var(--color-text); box-shadow: inset 0 0 0 1px var(--color-divider);
+}
+.field-control { padding: 5px 8px; }
+.keys-field input:focus-visible, .keys-field select:focus-visible, .field-control:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+.keys-role__grid { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+.keys-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.keys-message { margin: 0; font-size: 12.5px; line-height: 1.5; }
+.keys-message.is-ok { color: var(--color-ok); }
+.keys-message.is-error { color: var(--color-danger); }
+
+/* Models used in a turn, and pictures Nyx generated (chat bubble). */
+.chat-models { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.chat-model-chip {
+  font-size: 11.5px; padding: 3px 9px; border-radius: 999px; color: var(--color-neutral-300);
+  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 35%, transparent);
+}
+.chat-model-chip strong { color: var(--color-text); font-weight: 600; }
+.chat-model-chip.is-fallback { background: color-mix(in srgb, var(--color-warn) 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-warn) 40%, transparent); }
+.chat-generated { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); margin: 6px 0 10px; }
+.chat-generated__item { display: flex; flex-direction: column; gap: 4px; padding: 0; border: none; background: none; cursor: zoom-in; text-align: left; }
+.chat-generated__item img { width: 100%; border-radius: 12px; display: block; box-shadow: 0 6px 20px rgba(0,0,0,.35); }
+.chat-generated__item span { font-size: 11px; color: var(--color-neutral-500); }
+
+/* Computer control banner (ComputerBanner.tsx). */
+.computer-banner {
+  position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 60;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center;
+  max-width: calc(100vw - 32px); padding: 8px 10px 8px 14px; border-radius: 999px; font-size: 13px;
+  background: color-mix(in srgb, var(--color-surface) 92%, var(--color-accent)); color: var(--color-text);
+  box-shadow: 0 10px 30px rgba(0,0,0,.4), inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 55%, transparent);
+}
+.computer-banner.is-stopped { box-shadow: 0 10px 30px rgba(0,0,0,.4), inset 0 0 0 1px var(--color-warn); }
+.computer-banner__dot { width: 9px; height: 9px; border-radius: 50%; background: var(--color-accent); animation: computer-pulse 1.2s ease-in-out infinite; }
+.computer-banner.is-stopped .computer-banner__dot { background: var(--color-warn); animation: none; }
+.computer-banner__hint { font-size: 11.5px; color: var(--color-neutral-500); }
+@keyframes computer-pulse { 50% { transform: scale(1.5); opacity: .5; } }
+@media (prefers-reduced-motion: reduce) { .computer-banner__dot { animation: none; } }
+
+/* Dashboard: This PC / Right now (SystemCards.tsx). */
+.sys-muted { font-size: 12.5px; color: var(--color-neutral-500); }
+.sys-cores { display: flex; gap: 2px; align-items: flex-end; height: 34px; margin: 2px 0 6px; }
+.sys-bar { flex: 1; height: 100%; display: flex; align-items: flex-end; border-radius: 2px; background: color-mix(in srgb, var(--color-text) 7%, transparent); }
+.sys-bar__fill { width: 100%; border-radius: 2px; background: var(--color-accent); transition: height .4s ease; }
+.btn-sm { padding: 2px 10px; font-size: 11.5px; }
+@media (prefers-reduced-motion: reduce) { .sys-bar__fill { transition: none; } }
+
+
+/* Request H8: failing-key alert (inline, not a modal), key lists, add a model. Text #F5F5F7 on #2A1F0E = 14.9:1. */
+.key-alerts { display: grid; gap: 8px; margin-bottom: 18px; }
+.key-alert { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: #2a1f0e; box-shadow: inset 0 0 0 1px rgba(255, 159, 10, 0.45); }
+.key-alert__icon { color: #ffb340; font-size: 16px; }
+.key-alert__text { flex: 1; min-width: 240px; display: grid; gap: 2px; font-size: 13px; line-height: 1.45; color: #e5e5ea; }
+.key-alert__text b { color: #f5f5f7; font-size: 14px; }
+.key-alert__actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.key-pool { display: grid; gap: 6px; margin-top: 4px; }
+.key-pool__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.key-pool__row { display: flex; align-items: center; gap: 8px; min-height: 28px; padding: 3px 8px; border-radius: 8px; background: var(--color-surface-2); font-size: 12.5px; }
+.key-pool__row code { font-family: var(--font-mono); color: var(--color-neutral-300); }
+.key-pool__state { flex: 1; color: var(--color-neutral-400); }
+.key-pool__row.is-working .key-pool__state { color: var(--color-ok); }
+.key-pool__row.is-failed .key-pool__state { color: #ffb4ae; }
+.key-pool__add { display: flex; gap: 6px; }
+.key-pool__add input { flex: 1; min-width: 0; min-height: 32px; padding: 5px 9px; border: 0; border-radius: 8px; font: inherit; font-size: 13px; color: var(--color-text); background: var(--color-surface-2); box-shadow: inset 0 0 0 1px var(--color-divider); }
+.custom-model-form { gap: 12px; }
+.custom-model-form__url { grid-column: 1 / -1; display: grid; gap: 6px; }
+.custom-model-form__urlrow { display: flex; gap: 8px; }
+.custom-model-form__urlrow input { flex: 1; min-width: 0; }
+.custom-model-form__free { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; color: var(--color-neutral-300); line-height: 1.45; }
+
+/* Request H7: Google sign-in steps. */
+.google-signin__steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 13px; line-height: 1.5; color: var(--color-neutral-300); }
+.google-signin__steps a { color: var(--color-accent-300); }
+
+/* Build tab (H4): the layout-shaped placeholder shown while the studio chunk downloads.
+   Lives here, not in build.css, because it has to paint before that chunk arrives. */
+.bs-shell-skeleton { height: 100%; display: grid; grid-template-rows: 46px 1fr; background: #000; }
+.bs-shell-skeleton__bar { background: #07070a; box-shadow: inset 0 -1px 0 var(--color-divider); }
+.bs-shell-skeleton__body { display: grid; grid-template-columns: 272px 1fr 344px; min-height: 0; }
+.bs-shell-skeleton__rail, .bs-shell-skeleton__side { background: #07070a; box-shadow: inset -1px 0 0 var(--color-divider); }
+.bs-shell-skeleton__stage { display: grid; place-items: center; color: #a1a1aa; font-size: 13px; background: radial-gradient(ellipse at 50% 60%, #0d0d14 0%, #050507 70%); }
+@media (max-width: 900px) { .bs-shell-skeleton__body { grid-template-columns: 1fr; } .bs-shell-skeleton__rail, .bs-shell-skeleton__side { display: none; } }
+
+/* Shown for the moment a tab's chunk is downloading (App.tsx Suspense). */
+.tab-loading { height: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; color: #a1a1aa; font-size: 13px; background: #000; }
+.tab-loading__dot { width: 8px; height: 8px; border-radius: 50%; background: #a594ff; animation: tab-loading-pulse 900ms ease-in-out infinite; }
+@keyframes tab-loading-pulse { 50% { opacity: 0.3; transform: scale(0.7); } }
+@media (prefers-reduced-motion: reduce) { .tab-loading__dot { animation: none; } }
+
+/* ---------------------------------------------------------------------------
+   The blinking line on ordinary words (Project Null N101).
+   The owner: "when I click on any word it has the blinking line similar to when
+   typing in docs but I can't type." That is the browser's caret browsing (F7 in
+   Chrome and Edge): it paints a caret in text you cannot type into. The page
+   cannot switch the mode off, but the caret is a painted thing, so hiding it
+   everywhere except in real inputs makes the app behave again — and App.tsx
+   swallows F7 so it stops being turned on by accident.
+   --------------------------------------------------------------------------- */
+:root { caret-color: transparent; }
+input,
+textarea,
+select,
+[contenteditable="true"],
+[contenteditable=""] { caret-color: var(--color-text); }

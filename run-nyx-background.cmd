@@ -1,14 +1,15 @@
 @echo off
-REM ---------------------------------------------------------------------------
-REM  Starts the Nyx engine in the background and keeps it running.
-REM  Registered as the "NyxIchosEngine" scheduled task, which fires at logon.
-REM
-REM  NYX_DATA_DIR is set explicitly so the engine reads the .env.local, chats and
-REM  memory that already live in this folder. Without it a packaged build stores
-REM  state under %LOCALAPPDATA%, which would be a second, empty world with no API
-REM  key in it - the engine would start fine and then be unable to answer
-REM  anything, which is a confusing way to fail.
-REM ---------------------------------------------------------------------------
+rem ---------------------------------------------------------------------------
+rem  Starts the Nyx engine in the background at logon (the "NyxIchosEngine"
+rem  scheduled task points here).
+rem
+rem  This used to run dist\Nyx\Nyx.exe. Windows Smart App Control blocks that
+rem  unsigned executable (CodeIntegrity event 3077, task result 4551), so the
+rem  engine never actually started. Python's own pythonw.exe is signed and
+rem  allowed, and the launcher refuses to start a second copy, so this is also
+rem  harmless when start-with-Windows is switched on as well.
+rem ---------------------------------------------------------------------------
 cd /d "%~dp0"
-set "NYX_DATA_DIR=%~dp0"
-"%~dp0dist\Nyx\Nyx.exe" --no-browser --strict-port
+if exist ".venv\Scripts\pythonw.exe" (
+    start "" ".venv\Scripts\pythonw.exe" "%~dp0launcher.py" --background
+)

@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import subprocess
 from typing import Optional
 
@@ -110,12 +111,31 @@ def _detect_device_profile() -> DeviceProfile:
     gpu_name, vram_gb = _detect_nvidia_gpu()
     return DeviceProfile(
         operating_system=platform.system() or "Unknown",
-        cpu_name=platform.processor() or "Unknown CPU",
+        cpu_name=_detect_cpu_name(),
         cpu_cores=os.cpu_count() or 1,
         ram_gb=_detect_ram_gb(),
         gpu_name=gpu_name,
         vram_gb=vram_gb,
     )
+
+
+_GENERIC_CPU = re.compile(r"Family \d+ Model \d+", re.IGNORECASE)
+
+
+def _detect_cpu_name() -> str:
+    """The marketing name ("AMD Ryzen AI 9 HX 375"), not platform.processor()'s
+    "AMD64 Family 26 Model 36 Stepping 0" — the owner saw that in the web UI."""
+    if platform.system() == "Windows":
+        try:
+            import winreg
+
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"HARDWARE\DESCRIPTION\System\CentralProcessor\0") as key:
+                name = str(winreg.QueryValueEx(key, "ProcessorNameString")[0]).strip()
+            if name:
+                return name
+        except OSError:
+            pass
+    return platform.processor() or "Unknown CPU"
 
 
 def _detect_ram_gb() -> float:
@@ -147,6 +167,7 @@ def _detect_windows_ram_gb() -> float | None:
             check=True,
             text=True,
             timeout=5,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
         return round(int(result.stdout.strip()) / (1024**3), 2)
     except (
@@ -172,6 +193,7 @@ def _detect_nvidia_gpu() -> tuple[str | None, float]:
             check=True,
             text=True,
             timeout=5,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
         first_line = result.stdout.strip().splitlines()[0]
         gpu_name, vram_mb = (value.strip() for value in first_line.split(",", 1))
@@ -197,7 +219,8 @@ def _load_cached_profile() -> DeviceProfile | None:
             raise ValueError("gpu_name must be a string or null")
         return DeviceProfile(
             operating_system=str(data["operating_system"]),
-            cpu_name=str(data["cpu_name"]),
+            # Profiles cached before the name fix hold the generic family string.
+            cpu_name=_detect_cpu_name() if _GENERIC_CPU.search(str(data["cpu_name"])) else str(data["cpu_name"]),
             cpu_cores=int(data["cpu_cores"]),
             ram_gb=float(data["ram_gb"]),
             gpu_name=gpu_name,

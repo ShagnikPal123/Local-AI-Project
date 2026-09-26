@@ -8,6 +8,8 @@
 export interface ApiError {
   ok: false;
   error: string;
+  /** HTTP status when the server answered; absent for network failures and timeouts. */
+  status?: number;
 }
 
 export interface ApiOk<T> {
@@ -54,9 +56,28 @@ export function setUnauthorizedHandler(handler: (() => void) | null): void {
   onUnauthorized = handler;
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<ApiResult<T>> {
+/** The Authorization header for callers that use fetch directly (streams, uploads, blobs). */
+export function authHeaders(): Record<string, string> {
+  return sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {};
+}
+
+/** A direct-fetch caller got a 401: drop the token and let the app re-prompt. */
+export function reportUnauthorized(): void {
+  setToken(null);
+  onUnauthorized?.();
+}
+
+async function errorDetail(response: Response): Promise<string> {
+  const detail = await response.json().catch(() => null);
+  const text = detail?.detail;
+  if (typeof text === "string") return text;
+  if (Array.isArray(text) && text[0]?.msg) return String(text[0].msg);
+  return `${response.status} ${response.statusText}`.trim();
+}
+
+async function request<T>(path: string, init?: RequestInit, timeoutMs = TIMEOUT_MS): Promise<ApiResult<T>> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(path, {
       ...init,
@@ -70,20 +91,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<ApiResult<T
     if (response.status === 401) {
       // The token is gone or expired — most often the backend restarted, since
       // sessions are deliberately in-memory. Drop it and let the app re-prompt.
-      setToken(null);
-      onUnauthorized?.();
-      return { ok: false, error: "Sign in required" };
+      reportUnauthorized();
+      return { ok: false, error: "Sign in required", status: 401 };
     }
     if (response.status === 403) {
       const detail = await response.json().catch(() => null);
-      return { ok: false, error: detail?.detail ?? "You do not have permission for that." };
+      return { ok: false, error: detail?.detail ?? "You do not have permission for that.", status: 403 };
     }
     if (!response.ok) {
-      const detail = await response.json().catch(() => null);
-      return {
-        ok: false,
-        error: detail?.detail ?? `${response.status} ${response.statusText}`,
-      };
+      return { ok: false, error: await errorDetail(response), status: response.status };
     }
     return { ok: true, data: (await response.json()) as T };
   } catch (error) {
@@ -98,16 +114,76 @@ async function request<T>(path: string, init?: RequestInit): Promise<ApiResult<T
 }
 
 export const api = {
-  get: <T,>(path: string) => request<T>(path),
-  post: <T,>(path: string, body?: unknown) =>
-    request<T>(path, { method: "POST", body: JSON.stringify(body ?? {}) }),
+  get: <T,>(path: string, timeoutMs?: number) => request<T>(path, {}, timeoutMs),
+  post: <T,>(path: string, body?: unknown, timeoutMs?: number) =>
+    request<T>(path, { method: "POST", body: JSON.stringify(body ?? {}) }, timeoutMs),
   // PATCH is how a tab is edited field-by-field (`PATCH /api/tabs/{id}`), which
   // is what lets the tab creator hold the user to the name they typed even
   // though the design step returns a name of the model's own choosing.
   patch: <T,>(path: string, body?: unknown) =>
     request<T>(path, { method: "PATCH", body: JSON.stringify(body ?? {}) }),
+  put: <T,>(path: string, body?: unknown) =>
+    request<T>(path, { method: "PUT", body: JSON.stringify(body ?? {}) }),
   del: <T,>(path: string) => request<T>(path, { method: "DELETE" }),
 };
+
+// --- uploads and authenticated files -------------------------------------------
+
+export interface UploadRecord {
+  id: string;
+  name: string;
+  mime: string;
+  size: number;
+  kind: string;
+  width?: number;
+  height?: number;
+}
+
+/** Send one file as a raw body (`POST /api/uploads`). No timeout: large files take time. */
+export async function uploadFile(file: File, signal?: AbortSignal): Promise<ApiResult<UploadRecord>> {
+  try {
+    const response = await fetch("/api/uploads", {
+      method: "POST",
+      body: file,
+      signal,
+      headers: {
+        "Content-Type": file.type || "application/octet-stream",
+        "X-Filename": encodeURIComponent(file.name || "upload"),
+        ...authHeaders(),
+      },
+    });
+    if (response.status === 401) {
+      reportUnauthorized();
+      return { ok: false, error: "Sign in required", status: 401 };
+    }
+    if (!response.ok) return { ok: false, error: await errorDetail(response), status: response.status };
+    const data = (await response.json()) as { upload?: UploadRecord } & Partial<UploadRecord>;
+    const record = data.upload ?? (data.id ? (data as UploadRecord) : null);
+    return record ? { ok: true, data: record } : { ok: false, error: "The upload returned no id." };
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") return { ok: false, error: "Upload cancelled" };
+    return { ok: false, error: "Cannot reach the local backend" };
+  }
+}
+
+const blobUrls = new Map<string, Promise<string | null>>();
+
+/** A URL an <img> can load for an authenticated path.
+ *
+ * Image tags cannot send a bearer header, so once a token exists the file is
+ * fetched with it and handed over as an object URL (cached per path).
+ */
+export function authedUrl(path: string): Promise<string | null> {
+  if (!sessionToken || path.startsWith("data:") || path.startsWith("blob:")) return Promise.resolve(path);
+  let pending = blobUrls.get(path);
+  if (!pending) {
+    pending = fetch(path, { headers: authHeaders() })
+      .then(async (r) => (r.ok ? URL.createObjectURL(await r.blob()) : null))
+      .catch(() => null);
+    blobUrls.set(path, pending);
+  }
+  return pending;
+}
 
 // --- shapes returned by server.py ---------------------------------------------
 
@@ -147,6 +223,8 @@ export interface HardwareHealth {
   gpu_utilization?: number;
   status_summary?: string;
   throttle_recommended?: boolean;
+  throttled?: boolean;
+  disk_free_gb?: number;
 }
 
 export interface RouterStatus {
@@ -155,6 +233,10 @@ export interface RouterStatus {
   ollama_available?: boolean;
   gemini_available?: boolean;
   openai_available?: boolean;
+  nvidia_available?: boolean;
+  qwen_available?: boolean;
+  groq_available?: boolean;
+  claude_available?: boolean;
   free_only?: boolean;
   preferred_online_provider?: string;
   hardware_health?: HardwareHealth;
@@ -317,6 +399,21 @@ export interface ProviderInfo {
   chat_url?: string;
   preferred?: boolean;
   builtin?: boolean;
+  /** Human label, e.g. "NVIDIA NIM". */
+  label?: string;
+  /** Free-tier providers: key costs nothing. */
+  free?: boolean;
+  /** Where to get a key, e.g. https://build.nvidia.com/models */
+  signup_url?: string;
+}
+
+/** A free provider the app knows how to configure, offered in the Models panel. */
+export interface ProviderPreset {
+  name: string;
+  label: string;
+  model?: string;
+  signup_url?: string;
+  notes?: string;
 }
 
 export interface ModelsResponse {
@@ -339,6 +436,10 @@ export interface ProviderSnapshot {
   mode: ProviderMode;
   providers: ProviderInfo[];
   preferred?: string;
+  /** Free-only mode is on: paid providers stay out of routing. */
+  freeOnly?: boolean;
+  /** Free providers worth adding, with their signup links. */
+  presets?: ProviderPreset[];
   /** Why the UI is in a reduced state, in words fit to show a user. */
   note?: string;
 }
@@ -355,12 +456,16 @@ function providersFromModels(data: ModelsResponse): ProviderInfo[] {
 export const providers = {
   /** Read the provider list, degrading to `/api/models` if the route is absent. */
   async list(): Promise<ProviderSnapshot> {
-    const full = await api.get<{ providers?: ProviderInfo[]; preferred?: string }>("/api/providers");
+    const full = await api.get<{
+      providers?: ProviderInfo[]; preferred?: string; free_only?: boolean; presets?: ProviderPreset[];
+    }>("/api/providers");
     if (full.ok && Array.isArray(full.data?.providers)) {
       return {
         mode: "full",
         providers: full.data.providers,
         preferred: full.data.preferred,
+        freeOnly: full.data.free_only,
+        presets: full.data.presets ?? [],
       };
     }
     const models = await endpoints.models();
@@ -376,6 +481,15 @@ export const providers = {
     }
     return { mode: "offline", providers: [], note: models.error };
   },
+  /** Store a key for a built-in provider (or a previously added custom one). */
+  setKey: (name: string, apiKey: string) =>
+    api.post<{ provider: string; last4: string; applied_live: boolean; masked: string }>(
+      `/api/providers/${encodeURIComponent(name)}/key`,
+      { api_key: apiKey },
+    ),
+  /** Forget the stored key(s) for a provider; the provider stays listed, keyless. */
+  removeKey: (name: string) =>
+    api.del<{ provider: string; removed: boolean }>(`/api/providers/${encodeURIComponent(name)}/key`),
   create: (body: { name: string; api_key: string; chat_url?: string; model?: string }) =>
     api.post<{ provider?: ProviderInfo }>("/api/providers", body),
   test: (name: string) =>

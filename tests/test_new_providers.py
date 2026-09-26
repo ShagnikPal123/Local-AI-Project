@@ -10,11 +10,12 @@ from providers.deepseek_provider import DeepSeekProvider
 from providers.gemini_provider import GeminiProvider
 from providers.groq_provider import GroqProvider
 from providers.kimi_provider import KimiProvider
+from providers.nvidia_provider import NvidiaProvider
 from router import Router
 
 
 # ---------------------------------------------------------------------------
-# OpenAI-compatible providers (DeepSeek / Kimi / Groq)
+# OpenAI-compatible providers (DeepSeek / Kimi / Groq / Nvidia)
 # ---------------------------------------------------------------------------
 
 
@@ -24,6 +25,7 @@ from router import Router
         (DeepSeekProvider, "deepseek_api_key"),
         (KimiProvider, "kimi_api_key"),
         (GroqProvider, "groq_api_key"),
+        (NvidiaProvider, "nvidia_api_key"),
     ],
 )
 def test_compat_provider_available_with_key(provider_cls, key_field):
@@ -39,6 +41,7 @@ def test_compat_provider_available_with_key(provider_cls, key_field):
         (DeepSeekProvider, "deepseek_api_key"),
         (KimiProvider, "kimi_api_key"),
         (GroqProvider, "groq_api_key"),
+        (NvidiaProvider, "nvidia_api_key"),
     ],
 )
 def test_compat_provider_unavailable_without_key(provider_cls, key_field):
@@ -53,6 +56,7 @@ def test_deepseek_chat_success(mock_post):
     with patch("providers.compat.SETTINGS") as mock_settings:
         mock_settings.deepseek_api_key = "sk-test"
         mock_response = MagicMock()
+        mock_response.status_code = 200
         mock_response.json.return_value = {
             "choices": [{"message": {"content": "Hello from DeepSeek"}}]
         }
@@ -63,6 +67,23 @@ def test_deepseek_chat_success(mock_post):
     assert response == "Hello from DeepSeek"
     # The request went to DeepSeek's endpoint.
     assert mock_post.call_args[0][0] == "https://api.deepseek.com/chat/completions"
+
+
+@patch("providers.compat.requests.post")
+def test_nvidia_chat_success(mock_post):
+    with patch("providers.compat.SETTINGS") as mock_settings:
+        mock_settings.nvidia_api_key = "nvapi-test"
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "choices": [{"message": {"content": "Hello from NVIDIA NIM"}}]
+        }
+        mock_post.return_value = mock_response
+
+        provider = NvidiaProvider()
+        response = provider.chat([{"role": "user", "content": "Hello"}])
+    assert response == "Hello from NVIDIA NIM"
+    assert mock_post.call_args[0][0] == "https://integrate.api.nvidia.com/v1/chat/completions"
 
 
 @patch("providers.compat.SETTINGS")
@@ -94,6 +115,7 @@ def test_gemini_chat_success(mock_post):
     with patch("providers.gemini_provider.SETTINGS") as mock_settings:
         mock_settings.gemini_api_key = "test-key"
         mock_response = MagicMock()
+        mock_response.status_code = 200
         mock_response.json.return_value = {
             "candidates": [{"content": {"parts": [{"text": "Hello from Gemini"}]}}]
         }
@@ -109,6 +131,7 @@ def test_gemini_chat_system_instruction(mock_post):
     with patch("providers.gemini_provider.SETTINGS") as mock_settings:
         mock_settings.gemini_api_key = "test-key"
         mock_response = MagicMock()
+        mock_response.status_code = 200
         mock_response.json.return_value = {
             "candidates": [{"content": {"parts": [{"text": "ok"}]}}]
         }
@@ -135,9 +158,9 @@ def test_router_registers_new_providers():
         "providers.ollama_provider.OllamaProvider.is_available", return_value=False
     ):
         router = Router(web_access=False)
-    for name in ("gemini", "kimi", "deepseek", "groq"):
+    for name in ("gemini", "kimi", "deepseek", "groq", "nvidia"):
         assert name in router.providers
     status = router.get_status()
-    for flag in ("gemini_available", "kimi_available", "deepseek_available", "groq_available"):
+    for flag in ("gemini_available", "kimi_available", "deepseek_available", "groq_available", "nvidia_available"):
         assert flag in status
 

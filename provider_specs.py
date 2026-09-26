@@ -82,6 +82,9 @@ BUILTIN_PROVIDERS: Dict[str, Dict[str, Any]] = {
                "settings_field": "gemini_api_key", "free": True},
     "groq": {"label": "Groq", "key_name": "GROQ_API_KEY",
              "settings_field": "groq_api_key", "free": True},
+    "nvidia": {"label": "NVIDIA NIM", "key_name": "NVIDIA_API_KEY",
+               "settings_field": "nvidia_api_key", "free": True,
+               "signup_url": "https://build.nvidia.com/models"},
     "claude": {"label": "Anthropic Claude", "key_name": "ANTHROPIC_API_KEY",
                "settings_field": "anthropic_api_key", "free": False},
     "openai": {"label": "OpenAI", "key_name": "OPENAI_API_KEY",
@@ -92,6 +95,10 @@ BUILTIN_PROVIDERS: Dict[str, Dict[str, Any]] = {
                  "settings_field": "deepseek_api_key", "free": False},
     "perplexity": {"label": "Perplexity", "key_name": "PERPLEXITY_API_KEY",
                    "settings_field": "perplexity_api_key", "free": False},
+    # Free token quota for new Model Studio accounts, billed after it (Request R17).
+    "qwen": {"label": "Qwen (Alibaba Cloud)", "key_name": "QWEN_API_KEY",
+             "settings_field": "qwen_api_key", "free": False,
+             "signup_url": "https://modelstudio.console.alibabacloud.com/model/settings/api-key"},
 }
 
 BUILTIN_NAMES = frozenset(BUILTIN_PROVIDERS)
@@ -417,6 +424,14 @@ FREE_PRESETS: List[ProviderSpec] = [
         "TOGETHER_API_KEY",
         "https://api.together.ai/settings/api-keys",
         "Models with a '-Free' suffix are served at no cost.",
+    ),
+    _preset(
+        "nvidia", "NVIDIA NIM",
+        "https://integrate.api.nvidia.com/v1/chat/completions",
+        "nvidia/nemotron-3-super-120b-a12b",
+        "NVIDIA_API_KEY",
+        "https://build.nvidia.com/models",
+        "Generate free API keys at no cost at https://build.nvidia.com/models. Access powerful models including Nemotron 3 Ultra (nvidia/nemotron-3-ultra-550b-a55b), Nemotron 3 Super and DeepSeek with free trial credits.",
     ),
     _preset(
         "groq", "Groq",

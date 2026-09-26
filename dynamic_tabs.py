@@ -41,6 +41,14 @@ class BlockType(Enum):
     STAT = "stat"            # a single reading
     LINKS = "links"          # a set of links
     EMBED = "embed"          # another tab, rendered inline
+    # Request H16: "add lists, charts, track things, actively do things, have timers for the AI to do,
+    # competitions between AI and human ... a game opens here". Each is a component the client ships.
+    CHART = "chart"          # a chart spec (same JSON as ```chart in chat)
+    TRACKER = "tracker"      # numbers logged over time, drawn as a chart
+    TIMER = "timer"          # countdown / stopwatch / pomodoro, may hand Nyx a job when it ends
+    AI_TASK = "ai_task"      # a prompt Nyx runs on demand or every N minutes while the tab is open
+    COMPETITION = "competition"  # you vs Nyx: tic-tac-toe, connect four
+    GAME = "game"            # built-in games that play inside the tab
 
 
 class TabSpecError(Exception):
@@ -56,6 +64,101 @@ ALLOWED_CONNECTORS = frozenset({
 
 _MAX_BLOCKS = 12
 _ICON_RE = re.compile(r"^ph-[a-z0-9-]{2,40}$")
+_HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
+_UPLOAD_RE = re.compile(r"^/api/uploads/[A-Za-z0-9_-]{4,64}$")
+_MAX_CONFIG_CHARS = 20_000
+
+GAMES = ("snake", "memory", "tictactoe")
+COMPETITIONS = ("tictactoe", "connect4")
+TIMER_MODES = ("countdown", "stopwatch", "pomodoro")
+
+
+def _num(value: Any, low: float, high: float, default: float) -> float:
+    try:
+        return max(low, min(high, float(value)))
+    except (TypeError, ValueError):
+        return default
+
+
+def _clean_block_config(block_type: "BlockType", config: Dict[str, Any]) -> Dict[str, Any]:
+    """Keep only settings the client understands, within limits. Nothing in a config is ever run."""
+    raw = {k: v for k, v in (config or {}).items() if isinstance(k, str)}
+    if len(json.dumps(raw, default=str)) > _MAX_CONFIG_CHARS:
+        raise TabSpecError("That block's settings are too large.")
+    text = lambda key, limit: str(raw.get(key) or "").strip()[:limit]  # noqa: E731
+    if block_type is BlockType.CHART:
+        chart = raw.get("chart")
+        if chart is not None and not isinstance(chart, dict):
+            raise TabSpecError("A chart block needs a chart spec object.")
+        return {"chart": chart or {"type": "bar", "title": "", "x": ["A", "B", "C"], "series": [{"name": "Values", "values": [3, 5, 2]}]}}
+    if block_type is BlockType.TRACKER:
+        return {"unit": text("unit", 20), "goal": _num(raw.get("goal"), -1e9, 1e9, 0) if raw.get("goal") not in (None, "") else None,
+                "kind": "yes_no" if raw.get("kind") == "yes_no" else "number"}
+    if block_type is BlockType.TIMER:
+        mode = raw.get("mode") if raw.get("mode") in TIMER_MODES else "countdown"
+        return {"mode": mode, "minutes": _num(raw.get("minutes"), 1, 600, 25), "ai_prompt": text("ai_prompt", 500)}
+    if block_type is BlockType.AI_TASK:
+        every = int(_num(raw.get("every_minutes"), 0, 1440, 0))
+        return {"prompt": text("prompt", 1000), "every_minutes": 0 if every < 5 else every}
+    if block_type is BlockType.COMPETITION:
+        game = raw.get("game") if raw.get("game") in COMPETITIONS else "tictactoe"
+        return {"game": game, "difficulty": raw.get("difficulty") if raw.get("difficulty") in ("easy", "hard") else "hard"}
+    if block_type is BlockType.GAME:
+        return {"game": raw.get("game") if raw.get("game") in GAMES else "snake"}
+    if block_type is BlockType.LIST:
+        items = raw.get("items") if isinstance(raw.get("items"), list) else []
+        return {**{k: v for k, v in raw.items() if k != "items"}, "items": [str(i)[:200] for i in items[:100]]}
+    return raw
+
+
+def _validate_background(background: Any) -> Dict[str, Any]:
+    """A colour, a gradient, or a picture (an upload or an https link) — never CSS text."""
+    if not background:
+        return {}
+    if not isinstance(background, dict):
+        raise TabSpecError("Background must be an object like {\"kind\": \"color\", \"value\": \"#123456\"}.")
+    kind = str(background.get("kind") or "").strip().lower()
+    dim = _num(background.get("dim"), 0, 0.9, 0.35)
+    blur = _num(background.get("blur"), 0, 20, 0)
+    if kind in ("", "none"):
+        return {}
+    if kind == "color":
+        value = str(background.get("value") or "").strip()
+        if not _HEX_RE.match(value):
+            raise TabSpecError("A colour background needs #rrggbb.")
+        return {"kind": "color", "value": value}
+    if kind == "gradient":
+        colors = [str(c).strip() for c in (background.get("colors") or []) if _HEX_RE.match(str(c).strip())][:3]
+        if len(colors) < 2:
+            raise TabSpecError("A gradient needs two or three #rrggbb colours.")
+        return {"kind": "gradient", "colors": colors, "angle": int(_num(background.get("angle"), 0, 360, 135))}
+    if kind == "image":
+        value = str(background.get("value") or "").strip()
+        if not (_UPLOAD_RE.match(value) or re.match(r"^https://[^\s\"'<>()]{4,500}$", value)):
+            raise TabSpecError("A picture background must be an uploaded picture or an https link.")
+        return {"kind": "image", "value": value, "dim": dim, "blur": blur}
+    raise TabSpecError("Background kind must be none, color, gradient or image.")
+
+
+def _validate_theme(theme: Any) -> Dict[str, Any]:
+    """How the text boxes look: surface, font, text colour, corner radius."""
+    if not theme:
+        return {}
+    if not isinstance(theme, dict):
+        raise TabSpecError("Theme must be an object.")
+    clean: Dict[str, Any] = {}
+    if theme.get("surface") in ("solid", "glass", "clear"):
+        clean["surface"] = theme["surface"]
+    if theme.get("font") in ("system", "rounded", "serif", "mono"):
+        clean["font"] = theme["font"]
+    text = str(theme.get("text") or "").strip()
+    if text:
+        if not _HEX_RE.match(text):
+            raise TabSpecError("Theme text colour must be #rrggbb.")
+        clean["text"] = text
+    if theme.get("radius") not in (None, ""):
+        clean["radius"] = int(_num(theme.get("radius"), 0, 28, 14))
+    return clean
 
 
 @dataclass
@@ -109,6 +212,8 @@ class TabSpec:
     overrides: str = ""
     edits: List["TabEdit"] = field(default_factory=list)
     updated_at: float = 0.0
+    background: Dict[str, Any] = field(default_factory=dict)
+    theme: Dict[str, Any] = field(default_factory=dict)
 
     def as_dict(self) -> Dict[str, Any]:
         return {
@@ -124,6 +229,8 @@ class TabSpec:
             "overrides": self.overrides,
             "edits": [e.as_dict() for e in self.edits],
             "updated_at": self.updated_at,
+            "background": dict(self.background),
+            "theme": dict(self.theme),
         }
 
     def search_terms(self) -> Set[str]:
@@ -165,6 +272,12 @@ def _describe_changes(before: "TabSpec", after: "TabSpec") -> str:
 
     if sorted(before.connectors) != sorted(after.connectors):
         parts.append("connectors updated")
+    if before.background != after.background:
+        parts.append("background changed" if after.background else "background removed")
+    if before.theme != after.theme:
+        parts.append("text boxes restyled")
+    if old_titles == new_titles and [b.config for b in before.blocks] != [b.config for b in after.blocks]:
+        parts.append("block settings updated")
 
     return "; ".join(parts)
 
@@ -217,6 +330,8 @@ def build_spec(
     author: str = "",
     source: str = "user",
     tab_id: Optional[str] = None,
+    background: Any = None,
+    theme: Any = None,
 ) -> TabSpec:
     """Validate raw input into a TabSpec, or raise.
 
@@ -246,8 +361,7 @@ def build_spec(
         parsed.append(Block(
             type=block_type,
             title=str(raw.get("title", "")).strip()[:60],
-            config={k: v for k, v in (raw.get("config") or {}).items()
-                    if isinstance(k, str)},
+            config=_clean_block_config(block_type, raw.get("config") or {}),
         ))
 
     return TabSpec(
@@ -260,6 +374,8 @@ def build_spec(
         accent=_validate_accent(accent),
         author=author,
         source=source,
+        background=_validate_background(background),
+        theme=_validate_theme(theme),
     )
 
 
@@ -291,6 +407,8 @@ class TabStore:
                     author=entry.get("author", ""),
                     source=entry.get("source", "user"),
                     tab_id=entry.get("id"),
+                    background=entry.get("background"),
+                    theme=entry.get("theme"),
                 )
                 spec.overrides = str(entry.get("overrides", ""))
             except Exception:
@@ -399,6 +517,8 @@ class TabStore:
                 author=existing.author,
                 source=existing.source,
                 tab_id=tab_id,
+                background=merged.get("background"),
+                theme=merged.get("theme"),
             )
             spec.overrides = existing.overrides
 

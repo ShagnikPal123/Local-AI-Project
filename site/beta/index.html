@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nyx Ichos Beta</title>
+<meta name="description" content="Step-by-step setup for Nyx Ichos beta testers: download, start, add a free AI key, update and report bugs.">
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<meta name="theme-color" content="#161826">
+<style>
+  /* Request G10: a site solely for beta testers, with detailed download and run steps.
+     Same palette as the main site. Contrast on --bg #161826: --text 14.2:1, --n400 8.6:1,
+     --accent-400 8.0:1, --warn 9.1:1. Every state is said in words, never colour alone. */
+  :root {
+    --bg:#161826; --nav:#12141f; --surface:#1e2030; --surface-2:#232532; --text:#e9e9ed;
+    --accent:#9184d9; --accent-400:#b5abfc; --accent-900:#2b2741;
+    --n400:#b2b6ca; --n500:#9397ab; --n600:#75798c;
+    --ok:#5ac08a; --warn:#e0b45a;
+    --divider: color-mix(in srgb,#e9e9ed 16%,transparent);
+    --mono:"JetBrains Mono",Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}}
+  body{margin:0;background:var(--bg);color:var(--text);line-height:1.6;
+    font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent-400)}
+  a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--accent-400);outline-offset:3px;border-radius:6px}
+  .wrap{max-width:820px;margin:0 auto;padding:0 16px}
+  header{padding:48px 0 18px;text-align:center}
+  .mark{width:92px;height:92px;margin:0 auto 10px;display:block;object-fit:contain;
+    filter:drop-shadow(0 6px 22px rgba(124,92,232,.45))}
+  .kicker{display:inline-block;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent-400);
+    padding:3px 12px;border-radius:999px;background:var(--accent-900);margin-bottom:12px}
+  h1{font-size:clamp(28px,6vw,42px);margin:0 0 6px;letter-spacing:-.02em;line-height:1.15}
+  .lede{font-size:16.5px;color:var(--n400);max-width:600px;margin:0 auto}
+  nav.toc{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:22px 0 6px}
+  nav.toc a{font-size:13px;text-decoration:none;color:var(--n400);padding:5px 12px;border-radius:999px;
+    background:var(--nav);box-shadow:inset 0 0 0 1px var(--divider)}
+  nav.toc a:hover{color:var(--text)}
+  h2{font-size:22px;margin:44px 0 6px;letter-spacing:-.01em;scroll-margin-top:16px}
+  .sectionsub{margin:0 0 16px;color:var(--n400);font-size:14.5px}
+  .card{padding:16px 18px;border-radius:14px;background:var(--surface);box-shadow:inset 0 0 0 1px var(--divider)}
+  .checklist{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+  .checklist li{display:flex;gap:10px;font-size:14.5px}
+  .checklist li::before{content:"✓";color:var(--ok);font-weight:600;flex:none}
+  ol.steps{list-style:none;margin:0;padding:0;counter-reset:step}
+  .step{position:relative;padding:0 0 26px 52px;counter-increment:step}
+  .step::before{content:counter(step);position:absolute;left:0;top:0;width:34px;height:34px;border-radius:50%;
+    background:var(--accent-900);color:var(--accent-400);display:grid;place-items:center;font-size:14px;font-weight:600;
+    box-shadow:inset 0 0 0 1px #5d5294}
+  .step::after{content:"";position:absolute;left:16.5px;top:40px;bottom:6px;width:1px;background:var(--divider)}
+  .step:last-child::after{display:none}
+  .step h3{margin:4px 0 6px;font-size:17px}
+  .step p,.step li{font-size:14.5px;color:var(--n400)}
+  .step p{margin:0 0 10px}
+  .step ul{margin:0 0 10px;padding-left:20px;display:grid;gap:4px}
+  .step b,.step strong{color:var(--text)}
+  code.inline{font-family:var(--mono);font-size:12.5px;color:var(--accent-400);background:var(--nav);padding:1px 6px;border-radius:5px}
+  .cmd{display:flex;align-items:stretch;border-radius:10px;overflow:hidden;margin:6px 0 10px;
+    background:var(--nav);box-shadow:inset 0 0 0 1px var(--divider)}
+  .cmd code{flex:1;min-width:0;font-family:var(--mono);font-size:12.5px;color:var(--accent-400);padding:10px 12px;
+    overflow-x:auto;white-space:pre}
+  .cmd button{flex:none;min-width:64px;padding:0 14px;font-size:12.5px;color:var(--n400);background:transparent;border:0;
+    border-left:1px solid var(--divider);cursor:pointer;font-family:inherit}
+  .cmd button:hover{color:var(--text);background:#1a1d2b}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 20px;border-radius:999px;
+    font-size:15px;font-weight:500;text-decoration:none;border:0;cursor:pointer;font-family:inherit}
+  .btn-primary{background:var(--accent);color:#14121f}
+  .btn-primary:hover{background:var(--accent-400)}
+  .btn-quiet{background:var(--surface-2);color:var(--text);box-shadow:inset 0 0 0 1px var(--divider)}
+  .btn-quiet:hover{background:#2b2e3e}
+  .release{display:grid;gap:10px}
+  .release__meta{font-size:13.5px;color:var(--n400)}
+  .release__notes{margin:0;font-size:13.5px;color:var(--n400);white-space:pre-wrap;max-height:180px;overflow:auto;
+    padding:10px 12px;border-radius:10px;background:var(--nav)}
+  .note{margin:10px 0;padding:10px 14px;border-radius:10px;font-size:14px;color:var(--n400);
+    background:var(--nav);box-shadow:inset 3px 0 0 var(--accent)}
+  .note.warn{box-shadow:inset 3px 0 0 var(--warn)}
+  .note b{color:var(--text)}
+  details{border-radius:12px;background:var(--surface);box-shadow:inset 0 0 0 1px var(--divider);margin-bottom:8px}
+  summary{cursor:pointer;padding:12px 16px;font-size:15px;font-weight:500;list-style:none;display:flex;gap:10px}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:"›";color:var(--accent-400);transition:transform .15s ease;display:inline-block}
+  details[open] summary::before{transform:rotate(90deg)}
+  @media (prefers-reduced-motion: reduce){summary::before{transition:none}}
+  details > div{padding:0 16px 14px 36px;font-size:14.5px;color:var(--n400)}
+  details > div p{margin:0 0 8px}
+  footer{margin:56px 0 40px;padding-top:18px;border-top:1px solid var(--divider);font-size:13px;color:var(--n500);text-align:center}
+  .release__actions{display:flex;gap:10px;flex-wrap:wrap}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img class="mark" src="/ichnos.png" alt="" width="92" height="92">
+    <span class="kicker">Beta testers</span>
+    <h1>Set up Nyx Ichos</h1>
+    <p class="lede">
+      Thanks for testing. This page takes you from download to your first conversation, one step at a time.
+      The first setup takes about ten minutes; after that, Nyx is one click.
+    </p>
+    <nav class="toc" aria-label="On this page">
+      <a href="#before">Before you start</a>
+      <a href="#install">Install</a>
+      <a href="#first-run">First run</a>
+      <a href="#daily">Every day</a>
+      <a href="#updates">Updates</a>
+      <a href="#testing">What to test</a>
+      <a href="#help">If something goes wrong</a>
+      <a href="/collab/">Collab: send changes</a>
+    </nav>
+  </header>
+
+  <main>
+    <section id="before" aria-labelledby="before-title">
+      <h2 id="before-title">Before you start</h2>
+      <p class="sectionsub">No account and no admin password — and nothing to type to get it running.</p>
+      <div class="card">
+        <ul class="checklist">
+          <li>A Windows 10 or Windows 11 PC (64-bit).</li>
+          <li>About 1 GB of free space for Nyx, Python and its packages.</li>
+          <li>An internet connection for the first setup (it downloads Python if you don't have it, and about 80 MB of packages).</li>
+          <li>A Google or NVIDIA account if you want a free AI key — or <a href="https://ollama.com" rel="noopener">Ollama</a> to run fully offline.</li>
+        </ul>
+      </div>
+      <p class="note"><b>Nyx runs on your own PC.</b> Your chats, notes, memory and API keys stay on your computer. Nothing is sent to the person who invited you.</p>
+    </section>
+
+    <section id="install" aria-labelledby="install-title">
+      <h2 id="install-title">Install</h2>
+      <p class="sectionsub">Four steps, done once.</p>
+
+      <ol class="steps">
+        <li class="step">
+          <h3>Download the newest beta</h3>
+          <div class="card release" id="release" aria-live="polite">
+            <p class="release__meta" id="release-status">Looking up the newest beta release…</p>
+            <div id="release-actions" class="release__actions hidden">
+              <a class="btn btn-primary" id="release-zip" href="#" rel="noopener">Download</a>
+              <a class="btn btn-quiet" id="release-page" href="#" rel="noopener">Release page</a>
+            </div>
+            <pre class="release__notes hidden" id="release-notes"></pre>
+          </div>
+          <p style="margin-top:10px">
+            The file is called <code class="inline">NyxIchos-beta-&lt;version&gt;.zip</code>. If someone sent it to you
+            directly, skip to step 3. If the button above doesn't appear, open the <a href="https://github.com/ShagnikPal123/Local-AI-Project/releases" rel="noopener">releases
+            page</a> and download the <code class="inline">.zip</code> from the newest release whose name starts with
+            <b>beta-</b>. Save it somewhere you'll find it, like Downloads.
+          </p>
+        </li>
+
+        <li class="step">
+          <h3>Check it's the real file <span style="font-weight:400;color:var(--n500)">(recommended)</span></h3>
+          <p>
+            Every beta release comes with a <code class="inline">release.json</code> that lists the zip's fingerprint
+            (its <b>sha256</b>). To compare: open the Start menu, type <b>PowerShell</b>, open it, and paste this
+            (change the file name if yours is different):
+          </p>
+          <div class="cmd">
+            <code id="c-hash">Get-FileHash "$HOME\Downloads\NyxIchos-beta-*.zip" -Algorithm SHA256 | Format-List</code>
+            <button type="button" data-copy="c-hash">Copy</button>
+          </div>
+          <p>
+            The <b>Hash</b> it prints must match the <b>sha256</b> in <code class="inline">release.json</code> on the
+            release page (capital letters don't matter). If they don't match, don't open the zip — download it again.
+          </p>
+        </li>
+
+        <li class="step">
+          <h3>Unblock and extract</h3>
+          <ul>
+            <li>Right-click the zip → <b>Properties</b>. If there's an <b>Unblock</b> box at the bottom, tick it and press
+              <b>OK</b>. This stops Windows warning you about every file inside.</li>
+            <li>Right-click the zip again → <b>Extract All…</b> → choose a folder you'll keep, for example
+              <code class="inline">Documents\NyxIchos</code> → <b>Extract</b>.</li>
+          </ul>
+          <p class="note warn"><b>Don't run Nyx from inside the zip.</b> Windows lets you open a zip like a folder, but
+            nothing inside can be installed from there. Always extract first.</p>
+        </li>
+
+        <li class="step">
+          <h3>Double-click <b>Start Nyx</b></h3>
+          <p>Open the folder you extracted and double-click <b>Start Nyx</b> (it may show as <code class="inline">Start Nyx.bat</code>). A black window opens and does the setup for you:</p>
+          <ul>
+            <li><b>[1/3] Python</b> — if you don't have Python 3.11 or newer, it installs Python 3.13 just for your
+              account (no admin needed).</li>
+            <li><b>[2/3] Packages</b> — it downloads about 80 MB of Nyx's packages. This is the slow part: a few minutes.</li>
+            <li><b>[3/3] Shortcuts</b> — it puts a <b>Nyx Ichos</b> icon on your desktop and in the Start menu, turns on
+              start-with-Windows, and opens Nyx in your browser.</li>
+          </ul>
+          <p class="note">If Windows shows <b>“Windows protected your PC”</b>, choose <b>More info</b> → <b>Run anyway</b>.
+            Start Nyx is a plain text script — right-click it → <b>Edit</b> to read exactly what it does. Nyx is run by
+            Python's own signed program, not an unknown .exe.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section id="first-run" aria-labelledby="first-title">
+      <h2 id="first-title">First run</h2>
+      <p class="sectionsub">Nyx opens at <a href="http://localhost:8000/" rel="noopener">localhost:8000</a> in your browser.</p>
+      <ol class="steps">
+        <li class="step">
+          <h3>Give Nyx a brain: add a free AI key</h3>
+          <p>Nyx needs at least one AI model to think with. The easiest free one:</p>
+          <ul>
+            <li>Go to <a href="https://aistudio.google.com/apikey" rel="noopener">Google AI Studio</a>, sign in, and press
+              <b>Create API key</b>. Copy it.</li>
+            <li>In Nyx, open the <b>Keys &amp; Models</b> tab, find <b>Gemini</b>, paste the key and save.</li>
+          </ul>
+          <p>Other free options: an NVIDIA key from <a href="https://build.nvidia.com" rel="noopener">build.nvidia.com</a>
+            (same tab, <b>NVIDIA</b>), or install <a href="https://ollama.com" rel="noopener">Ollama</a> to run models on your
+            own PC with no key at all.</p>
+          <p class="note warn"><b>Your key is a password.</b> Keep it in Nyx only — never paste it into a chat, a bug
+            report or a message to anyone.</p>
+        </li>
+        <li class="step">
+          <h3>Say hello</h3>
+          <p>Open the <b>Nyx</b> tab and type something — “what can you do?” is a good start. You'll see what it's working
+            on while it answers.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section id="daily" aria-labelledby="daily-title">
+      <h2 id="daily-title">Every day after that</h2>
+      <p class="sectionsub">Nyx starts with Windows and waits in the tray near the clock. To open it, any of these works:</p>
+      <div class="card">
+        <ul class="checklist">
+          <li>Double-click <b>Nyx Ichos</b> on your desktop.</li>
+          <li>Right-click the Nyx icon near the clock → <b>Open Nyx</b>. The same menu has <b>Restart engine</b> and <b>Quit Nyx</b>.</li>
+          <li>Press this button (your browser asks the first time — choose <b>Open</b>):</li>
+        </ul>
+        <p style="margin:12px 0 0 22px"><a class="btn btn-primary" id="launch-nyx" href="nyx://open">Launch Nyx</a></p>
+        <p class="note hidden" id="launch-missing" style="margin-left:22px">Nothing happened? Nyx isn't set up on this PC
+          yet — go back to <a href="#install">Install</a> and double-click Start Nyx once.</p>
+      </div>
+    </section>
+
+    <section id="updates" aria-labelledby="updates-title">
+      <h2 id="updates-title">Getting updates</h2>
+      <p class="sectionsub">New beta versions are reviewed before they're published, and Nyx checks the file before it installs anything.</p>
+      <ol class="steps">
+        <li class="step">
+          <h3>Open Settings → Updates</h3>
+          <p>Leave the <b>Release channel</b> on <b>Beta</b> and press <b>Check for a release</b>.</p>
+        </li>
+        <li class="step">
+          <h3>Download it</h3>
+          <p>If there's a new version, press <b>Download</b>. Nyx refuses the file unless its fingerprint matches the
+            published one, and tells you when it does.</p>
+        </li>
+        <li class="step">
+          <h3>Restart to install</h3>
+          <p>Press <b>Restart to Install…</b>. Nyx stops for about 20 seconds, installs the update and comes back. Your chats,
+            keys, memory and notes are never touched. If the new version misbehaves, <b>Roll Back the Last Update…</b> in the
+            same place puts the previous files back.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section id="testing" aria-labelledby="testing-title">
+      <h2 id="testing-title">What to test, and how to report it</h2>
+      <p class="sectionsub">Use Nyx for real things. These are the parts that most need a fresh pair of eyes:</p>
+      <div class="card">
+        <ul class="checklist">
+          <li><b>Chat</b> — ask hard questions, ask it to search the web, ask it to make a chart.</li>
+          <li><b>Game Studio</b> — describe a game and let Nyx design it, then play it in 2D and 3D.</li>
+          <li><b>Notes</b> — paste lecture notes and make a quiz or flashcards.</li>
+          <li><b>Code</b> — open a folder, start a small project from scratch, ask for a change and review it.</li>
+          <li><b>Sub-agents</b> — make a helper with its own chat and give it a task.</li>
+        </ul>
+      </div>
+      <p style="margin-top:14px;color:var(--n400);font-size:14.5px">
+        Found a problem? <a href="https://github.com/ShagnikPal123/Local-AI-Project/issues/new" rel="noopener">Open an issue on
+        GitHub</a> (or message the person who invited you) with:
+      </p>
+      <div class="card">
+        <ul class="checklist">
+          <li>Your Nyx version — it's at the top of <b>Settings → Updates</b>.</li>
+          <li>What you did, what you expected, and what happened instead.</li>
+          <li>A screenshot if it's something you can see. <b>Crop out any API keys.</b></li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="help" aria-labelledby="help-title">
+      <h2 id="help-title">If something goes wrong</h2>
+      <p class="sectionsub">Most problems are one of these.</p>
+
+      <details>
+        <summary>The black Start Nyx window closed straight away, or said something failed</summary>
+        <div>
+          <p>Run it again — a slow connection sometimes breaks the package download half-way, and the second run carries on.</p>
+          <p>If it still fails, install Python yourself from <a href="https://www.python.org/downloads/windows/" rel="noopener">python.org</a>
+            (tick <b>Add python.exe to PATH</b> during setup), then double-click Start Nyx again.</p>
+        </div>
+      </details>
+      <details>
+        <summary>The browser says it can't reach localhost:8000</summary>
+        <div>
+          <p>Nyx takes up to 30 seconds to start. Wait, then refresh the page.</p>
+          <p>Still nothing? Right-click the Nyx icon near the clock → <b>Restart engine</b>. No icon at all? Double-click
+            <b>Nyx Ichos</b> on your desktop.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Nyx answers “no model is available” or something about a key</summary>
+        <div>
+          <p>Open <b>Keys &amp; Models</b> and check your key is saved (it shows the last four characters). A free key has a
+            daily limit — if you hit it, add a second free key or a different provider and Nyx will use whichever works.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Something else is already using port 8000</summary>
+        <div>
+          <p>Another program is using the same address. Quit it, or restart your PC, then open Nyx again.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Setup got stuck or broken and I want to redo it</summary>
+        <div>
+          <p>Open the Nyx folder, then in the address bar type <code class="inline">cmd</code> and press Enter. In the window
+            that opens, paste this and press Enter — it re-runs setup from the start without deleting your chats:</p>
+          <div class="cmd">
+            <code id="c-repair">"Start Nyx.bat" --repair</code>
+            <button type="button" data-copy="c-repair">Copy</button>
+          </div>
+        </div>
+      </details>
+      <details>
+        <summary>How do I uninstall it?</summary>
+        <div>
+          <p>Right-click the Nyx icon near the clock → <b>Quit Nyx</b>. Then open the Nyx folder, type <code class="inline">cmd</code>
+            in the address bar, press Enter, and run this to remove the shortcuts and start-with-Windows:</p>
+          <div class="cmd">
+            <code id="c-uninstall">.venv\Scripts\python.exe setup_nyx.py --uninstall</code>
+            <button type="button" data-copy="c-uninstall">Copy</button>
+          </div>
+          <p>Finally delete the Nyx folder. Your chats and keys live inside it, so deleting it removes them too — copy anything
+            you want to keep first.</p>
+        </div>
+      </details>
+    </section>
+  </main>
+
+  <footer>
+    Nyx Ichos · created by Shagnik · <a href="/">Main site</a> ·
+    <a href="https://github.com/ShagnikPal123/Local-AI-Project" rel="noopener">Source on GitHub</a>
+  </footer>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const REPO = "ShagnikPal123/Local-AI-Project";
+  const RELEASES = `https://github.com/${REPO}/releases`;
+
+  // --- The newest beta release, read from GitHub's public API ---------------
+  // Only a published pre-release tagged beta-… with a zip counts. Everything the
+  // API returns is written with textContent, never as HTML.
+  const status = document.getElementById("release-status");
+  const actions = document.getElementById("release-actions");
+  const zipLink = document.getElementById("release-zip");
+  const pageLink = document.getElementById("release-page");
+  const notes = document.getElementById("release-notes");
+
+  function fallback(message) {
+    status.textContent = message;
+    pageLink.href = RELEASES;
+    pageLink.textContent = "Open the releases page";
+    zipLink.classList.add("hidden");
+    actions.classList.remove("hidden");
+  }
+
+  fetch(`https://api.github.com/repos/${REPO}/releases?per_page=30`, { headers: { Accept: "application/vnd.github+json" } })
+    .then((response) => {
+      // 404 means the repository or its releases are not public yet.
+      if (response.status === 404) throw new Error("private");
+      if (!response.ok) throw new Error(String(response.status));
+      return response.json();
+    })
+    .then((releases) => {
+      const beta = (Array.isArray(releases) ? releases : []).find((release) =>
+        !release.draft && String(release.tag_name || "").startsWith("beta-") &&
+        (release.assets || []).some((asset) => /\.zip$/i.test(asset.name)));
+      if (!beta) {
+        fallback("No beta has been published yet. Check back soon, or ask the person who invited you.");
+        return;
+      }
+      const zip = beta.assets.find((asset) => /\.zip$/i.test(asset.name));
+      const version = String(beta.tag_name).replace(/^beta-/, "");
+      const size = zip.size ? ` · ${(zip.size / 1048576).toFixed(0)} MB` : "";
+      const date = beta.published_at ? ` · published ${new Date(beta.published_at).toLocaleDateString()}` : "";
+      status.textContent = `Version ${version}${size}${date}`;
+      zipLink.href = zip.browser_download_url;
+      zipLink.textContent = `Download ${zip.name}`;
+      pageLink.href = beta.html_url || RELEASES;
+      actions.classList.remove("hidden");
+      if (beta.body) {
+        notes.textContent = `What's new:\n${String(beta.body).slice(0, 2000)}`;
+        notes.classList.remove("hidden");
+      }
+    })
+    .catch((error) => {
+      if (error && error.message === "private") {
+        status.textContent = "The download isn't public yet. Ask the person who invited you to send you the zip "
+          + "(NyxIchos-beta-<version>.zip), then carry on from step 3.";
+        actions.classList.add("hidden");
+        return;
+      }
+      fallback("Couldn't look up the newest beta from here — use the releases page instead.");
+    });
+
+  // --- Launch Nyx: if nothing takes focus, Nyx isn't set up on this PC --------
+  const launch = document.getElementById("launch-nyx");
+  launch?.addEventListener("click", () => {
+    let handedOff = false;
+    const onBlur = () => { handedOff = true; };
+    window.addEventListener("blur", onBlur, { once: true });
+    setTimeout(() => {
+      window.removeEventListener("blur", onBlur);
+      if (!handedOff && document.hasFocus()) document.getElementById("launch-missing")?.classList.remove("hidden");
+    }, 2200);
+  });
+
+  // --- Copy buttons ---------------------------------------------------------
+  document.querySelectorAll("[data-copy]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const text = document.getElementById(button.dataset.copy).textContent;
+      try {
+        await navigator.clipboard.writeText(text);
+        button.textContent = "Copied";
+      } catch {
+        button.textContent = "Press Ctrl+C";
+      }
+      setTimeout(() => { button.textContent = "Copy"; }, 1600);
+    });
+  });
+})();
+</script>
+</body>
+</html>

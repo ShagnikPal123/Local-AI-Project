@@ -132,6 +132,48 @@ more false positives cost.
 
 ## Session log
 
+### Session — 2026-09-22 → 25 (Claude Opus 5, session be872d) — Project Null N19b, N20–N25 (rows N80–N89)
+
+Eight sessions worked this tree at once, so the first act was agreeing file ownership by message; that list is in
+PROJECT_NULL.md. Built, in this order: **quiet_windows.py** (no child process may open a console window — the fix is
+one process-wide default rather than a flag per call site, because one missed call is enough to interrupt typing);
+**trading run modes** (market / 24-7 / until, with a real NYSE calendar in `market.py`, so nobody has to start it at
+the opening bell); **the practice account** (spread, slippage, commission, orders queued to the open, equity curve,
+vs-SPY, and `Broker.money()` so "practice" vs "real" is decided in one place); **question cards**; **the chat mode
+slider** (Normal · Co-work · Plan, with a deny-by-default tool gate that makes "Plan changes nothing" true rather
+than promised); **Notes slide upload** (a deck stays a numbered list of slides with the speaker notes, so "questions
+on slides 12–18" means exactly that); **Clap** (clap/whistle by shape, anything else taught from three takes and
+matched with DTW — offline, nothing recorded); **design sense** (a brief built from the owner's own past UI words,
+what they undid, this app's tokens and the Apple library, ending in what to avoid).
+
+Two bugs found by verifying rather than by testing: a model wrote a perfect question card and dropped the code
+fence, so the owner saw raw JSON — the renderer now finds bare question/plan JSON by balancing braces; and
+`notes_store` refused the new "slides" note kind, which no amount of parser testing caught (there is now a
+route-level test). Full suite 2019 passed. Live-verified against the running engine: the Trading tab, a real
+question card answered by clicking, Plan mode producing a plan and touching nothing, a 6-slide deck → questions on
+slides 3–4 using the lecturer's note, and the Clap panel + greeting. Not exercised: real audio detection (no
+microphone here) and the Co-work checklist rendering.
+
+### Session — 2026-09-16 (Claude Opus 5, Request J)
+
+Diagnosed from the owner's data before coding: auto-approve blocked 94/101 changes because the critic read an empty
+diff; 701 near-duplicate proposals piled up; "Apply all" typed into Improve started new runs; role fallback skipped a
+cooling NVIDIA and died on a Gemini 429; study said "Nothing new to learn" because replies were cut at 1500 tokens; the
+custom-model URL refused local servers and base URLs. Built J1–J9 (see START_HERE.md): model fallback, research →
+sandbox → real-diff critic → apply, review queue + deep mode UI, agent /commands with parallel boxes, auto sub-agent
+matching, the Core view, Add-model URL check, `read_handoff`. Full suite 1394 passed; live-verified in the browser.
+Queued K–O from the owner's messages during the session.
+
+
+### Session — 2026-09-15 (Codex, continuing Claude's Request H handoff)
+
+Completed H16 without changing the established workspace layout: `DynamicTab.tsx` now renders the server-validated
+background/theme data and turns H16's block types into real UI. Lists and charts render their supplied data; trackers
+persist device-local entries; timers only hand work to Nyx after the user clicks; scheduled tasks become ready for
+review rather than silently spending a model budget; and tic-tac-toe, Connect Four, Memory, and Snake run inside
+the custom tab. Built cleanly and verified `tests/test_tab_freedom.py` (4 passed), then live-tested a temporary
+custom tab and removed it. Restarted the launcher-managed engine so its API loaded the background/theme fields.
+
 ### Session 1 — 2026-08-26
 
 **Presenting problem:** VS Code reported no Python after the project was moved by USB stick.
@@ -631,6 +673,30 @@ New routes: `POST /api/auth/login`, `/logout`, `/join` (redeem invite), `GET /ap
    Worth remembering: in this file, a missing model will not fail at import.
 2. `logout` and `admin_invites` declared `authorization: Optional[str] = None`, which FastAPI
    reads as a **query parameter**, not a header. Now `Header(default=None)`.
+
+
+### Session — 2026-09-22 → 24 (Claude, "AAI trader optimization and settings", c36c1d)
+
+Owner asked for a fully optimized, fully automatic AI trader: a realistic $50 start, active buying and selling, no
+dumping everything into one dead stock, learning from mistakes however small, an auto stock adder, and a one-button
+hands-off **Adaptive mode**. Built (tests: `tests/test_trading_allocator.py` 12, `tests/test_trading_adaptive.py` 19;
+all trading tests 49 green):
+- `trading/allocator.py` — spreads money over several best-ranked picks, per-stock cap, stop-loss / take-profit /
+  sell-signal exits, rotation out of the weakest holding when a clearly better pick waits.
+- `trading/signals.py` — `symbol_reliability` (past hit rate shrinks or grows sizing), `rank_watchlist` (parallel scan).
+- `trading/lessons.py` — every AI exit recorded; any loss → 3-day cool-down on that stock, two in 14 days → 7 days.
+- `trading/discovery.py` — auto stock adder: ~97-symbol universe in slices + tickers from today's news, scored, researched,
+  added; only removes symbols it added itself.
+- `trading/adaptive.py` — chooses budget (up to 97% of usable money, less in a falling market or a losing streak), spread,
+  confidence bar, volatility-based stops, 5-minute pace, no daily trade limit; the owner's on/off schedule.
+- `trading/autopilot.py` — scan rewritten: reconcile holdings → discover → adaptive values → sell → rotate → buy (a
+  flagged pick's slot goes to the next pick); one scan at a time (`_SCAN_LOCK`); pending queued buys count against money.
+- FIXED (pre-existing): `research()` read the echoed instruction "VERDICT: OK or VERDICT: AVOID" in a thinking model's
+  reply as a red flag, so the AI trader refused every buy. Now the last verdict line only, thinking off, 6-hour cache.
+- Routes `GET/POST /api/trading/adaptive`, `POST /api/trading/discover`; chat tools `trading_adaptive`, `trading_discover`,
+  `trading_configure`, `trading_opportunities`. UI `panels/trading/AdaptiveCard.tsx`. LIVE-VERIFIED on port 8031 with a
+  scratch `NYX_DATA_DIR`: $50 → 4 buys of ~$12 queued for the open, stock adder added 8 symbols, Stop works.
+- Owner's real practice account: $50, AI on, approval "never" (set 2026-09-22). Adaptive mode left OFF for the owner to press.
 
 ---
 

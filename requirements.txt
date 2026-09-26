@@ -10,6 +10,18 @@ uvicorn
 # --- Numerics / audio buffers (voice.py, graph_engine.py) ---
 numpy
 
+# --- Machine access (2026-09-12 overhaul) ---
+# system_info.py: live CPU/RAM/disk/network readings and accurate specs.
+psutil
+# computer_control.py (screenshots), uploads.py (image thumbnails), launcher tray icon.
+pillow
+# launcher.py: the tray icon that replaces "leave this console window open".
+pystray
+# tts.py: free Microsoft neural voices, so replies are not stuck with SAPI David/Zira.
+edge-tts
+# uploads.py: text extraction from PDFs for providers that cannot read them natively.
+pypdf
+
 # --- Testing ---
 pytest
 # starlette's TestClient requires httpx2 at import time; fastapi.testclient

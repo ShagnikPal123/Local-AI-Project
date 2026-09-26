@@ -40,6 +40,10 @@ def _ensure_tmp() -> Path:
     return _TMP_DIR
 
 
+#: Never let a PowerShell helper flash a console window over what the owner is typing.
+_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
+
 def _powershell(script: str, args: List[str], timeout: float = 60.0) -> subprocess.CompletedProcess:
     script_path = _ensure_tmp() / "voice_script.ps1"
     script_path.write_text(script, encoding="utf-8")
@@ -48,6 +52,7 @@ def _powershell(script: str, args: List[str], timeout: float = 60.0) -> subproce
         capture_output=True,
         text=True,
         timeout=timeout,
+        creationflags=_NO_WINDOW,
     )
 
 
@@ -153,6 +158,7 @@ def speak(text: str, voice: Optional[str] = None, wait: bool = False) -> str:
                 capture_output=True,
                 text=True,
                 timeout=120,
+                creationflags=_NO_WINDOW,
             )
             if result.returncode != 0:
                 return f"Speech failed: {result.stderr.strip() or 'unknown error'}"
@@ -161,6 +167,7 @@ def speak(text: str, voice: Optional[str] = None, wait: bool = False) -> str:
                 ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script_path), *args],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
+                creationflags=_NO_WINDOW,
             )
         return f"Speaking with voice: {selected}"
     except (OSError, subprocess.TimeoutExpired) as error:
@@ -176,6 +183,7 @@ def stop_speaking() -> str:
             capture_output=True,
             text=True,
             timeout=15,
+            creationflags=_NO_WINDOW,
         )
         return "Stopped speaking."
     except (OSError, subprocess.TimeoutExpired):
@@ -226,6 +234,7 @@ def _find_mic() -> Optional[str]:
             capture_output=True,
             text=True,
             timeout=20,
+            creationflags=_NO_WINDOW,
         )
         for line in (result.stderr or "").splitlines():
             match = re.search(r'"([^"]+)"\s+\(audio\)', line)
@@ -250,6 +259,7 @@ def capture_sample(duration: float = 3.0, out_path: Optional[str] = None) -> Opt
             ],
             capture_output=True,
             timeout=int(duration) + 20,
+            creationflags=_NO_WINDOW,
         )
     except (OSError, subprocess.TimeoutExpired):
         return None

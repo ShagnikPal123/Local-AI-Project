@@ -8,6 +8,13 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import { ErrorState, Loading, PanelShell } from "../components/Panel";
+import { engine, type EngineStatus } from "../engine";
+import { VoicesSection } from "./VoicesSection";
+import { ClapPanel } from "../components/clap/ClapPanel";
+import { BackgroundsSection } from "./BackgroundsSection";
+import { StorageSection } from "./StorageSection";
+import { ContentModeSection } from "./ContentModeSection";
+import { IntelligenceSettings } from "./IntelligenceSettings";
 
 interface SpeedMode {
   id: string;
@@ -72,7 +79,7 @@ function Choice({ selected, label, description, badge, onSelect }: {
         <span style={{ fontSize: 13, fontWeight: selected ? 600 : 400 }}>{label}</span>
         {badge && (
           <span style={{
-            fontSize: 10, letterSpacing: ".06em", textTransform: "uppercase",
+            fontSize: 11, letterSpacing: ".06em", textTransform: "uppercase",
             color: "var(--color-accent)",
           }}>
             {badge}
@@ -83,6 +90,103 @@ function Choice({ selected, label, description, badge, onSelect }: {
         {description}
       </div>
     </button>
+  );
+}
+
+/** Engine: start with Windows, restart, turn off.
+ *
+ * The engine used to be something you started by hand in a terminal and kept a
+ * window open for. It now runs in the background with a tray icon; this is the
+ * in-app view of the same controls.
+ */
+function EngineSection() {
+  const [status, setStatus] = useState<EngineStatus | null>(null);
+  const [busy, setBusy] = useState<"" | "autostart" | "restart" | "stop">("");
+  const [note, setNote] = useState("");
+
+  useEffect(() => {
+    let alive = true;
+    void engine.status().then((result) => {
+      if (alive && result.ok) setStatus(result.data);
+    });
+    return () => { alive = false; };
+  }, []);
+
+  async function toggleAutostart() {
+    if (!status || busy) return;
+    setBusy("autostart");
+    const result = await engine.setAutostart(!status.autostart);
+    setBusy("");
+    if (result.ok) setStatus(result.data);
+    else setNote(result.error);
+  }
+
+  async function restart() {
+    if (busy) return;
+    setBusy("restart");
+    const result = await engine.restart();
+    setNote(result.ok ? "Restarting… this page reconnects by itself in a few seconds." : result.error);
+    if (!result.ok) setBusy("");
+  }
+
+  async function turnOff() {
+    if (busy) return;
+    setBusy("stop");
+    const result = await engine.stop();
+    setNote(result.ok ? "Turning Nyx off…" : result.error);
+    if (!result.ok) setBusy("");
+  }
+
+  if (!status) return null;
+  const managed = status.managed;
+
+  return (
+    <Section
+      title="Engine"
+      hint="Nyx runs on this computer in the background — look for its icon near the clock."
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={status.autostart}
+            disabled={busy === "autostart"}
+            onChange={() => void toggleAutostart()}
+            style={{ width: 16, height: 16, accentColor: "var(--color-accent)" }}
+          />
+          <span>
+            Start Nyx when Windows starts
+            <span style={{ display: "block", fontSize: 12, color: "var(--color-neutral-500)" }}>
+              {status.autostart
+                ? "On — Nyx is ready as soon as you sign in. No clicks at all."
+                : "Off — start Nyx from the desktop shortcut when you want it."}
+            </span>
+          </span>
+        </label>
+
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button className="btn btn-secondary" disabled={!managed || busy !== ""} onClick={() => void restart()}>
+            {busy === "restart" ? "Restarting…" : "Restart engine"}
+          </button>
+          <button className="btn btn-secondary" disabled={!managed || busy !== ""} onClick={() => void turnOff()}
+            style={{ color: "var(--color-warn)" }}>
+            {busy === "stop" ? "Turning off…" : "Turn off Nyx"}
+          </button>
+        </div>
+
+        <div style={{ fontSize: 12, color: "var(--color-neutral-500)", lineHeight: 1.6 }}>
+          {managed
+            ? `Running on port ${status.port ?? "?"} · started by the Nyx launcher.`
+            : "This engine was started by hand (a developer server), so restart and turn off are handled there."}
+          {!status.link_registered && (
+            <span style={{ display: "block", color: "var(--color-warn)" }}>
+              One-click start is not set up on this computer yet — double-click “Start Nyx” in the Nyx folder once.
+            </span>
+          )}
+        </div>
+        {note && <div style={{ fontSize: 12, color: "var(--color-accent-400)" }} aria-live="polite">{note}</div>}
+      </div>
+    </Section>
   );
 }
 
@@ -148,6 +252,10 @@ export function SettingsPanel() {
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         {error && <ErrorState error={error} />}
 
+        <EngineSection />
+
+        <IntelligenceSettings />
+
         <Section
           title="Response speed"
           hint="Auto decides per turn. The other two are useful when you know what you want, and each costs something."
@@ -198,6 +306,26 @@ export function SettingsPanel() {
               </div>
             </>
           )}
+        </Section>
+
+        <Section title="Background">
+          <BackgroundsSection />
+        </Section>
+
+        <Section title="Voices">
+          <VoicesSection />
+        </Section>
+
+        <Section title="Clap" hint="Sounds Nyx answers to when you are away, offline, or using the background voice.">
+          <ClapPanel />
+        </Section>
+
+        <Section title="Storage">
+          <StorageSection />
+        </Section>
+
+        <Section title="Content">
+          <ContentModeSection />
         </Section>
 
         <Section title="Not built yet">
