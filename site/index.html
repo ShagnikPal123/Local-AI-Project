@@ -801,8 +801,24 @@ cd frontend\nyx-pulse &amp;&amp; npm install &amp;&amp; npm run build &amp;&amp;
         el.querySelector("b").textContent = cluster.name;
         el.querySelector("span").textContent = cluster.sub;
         tagLayer.appendChild(el);
-        return { el, node: anchors[c], flip: anchors[c].x > W - 200 };
+        return { el, node: anchors[c] };
       });
+      // The anchors never move, so the labels are laid out once: to the right of their
+      // cluster, to the left near the edge, and pushed below any label they would cover.
+      const placed = [];
+      for (const tag of tags) {
+        const w = tag.el.offsetWidth, h = tag.el.offsetHeight;
+        let x = tag.node.x + 12;
+        if (x + w > W - 12) x = tag.node.x - 12 - w;
+        let y = tag.node.y - 30;
+        for (let pass = 0; pass < placed.length; pass += 1) {
+          const hit = placed.find((r) => x < r.x + r.w + 8 && x + w + 8 > r.x && y < r.y + r.h + 6 && y + h + 6 > r.y);
+          if (!hit) break;
+          y = hit.y + hit.h + 6;
+        }
+        placed.push({ x, y, w, h });
+        tag.el.style.transform = "translate3d(" + Math.round(x) + "px," + Math.round(y) + "px,0)";
+      }
       requestAnimationFrame(() => tagLayer.classList.add("is-ready"));
     }
   };
@@ -862,10 +878,6 @@ cd frontend\nyx-pulse &amp;&amp; npm install &amp;&amp; npm run build &amp;&amp;
       ctx.beginPath(); ctx.arc(x, y, 1.6, 0, Math.PI * 2); ctx.fill();
     }
 
-    for (const tag of tags) {
-      const x = tag.flip ? tag.node.x - 12 - tag.el.offsetWidth : tag.node.x + 12;
-      tag.el.style.transform = "translate3d(" + Math.round(x) + "px," + Math.round(tag.node.y - 30) + "px,0)";
-    }
   };
 
   const loop = (now) => {

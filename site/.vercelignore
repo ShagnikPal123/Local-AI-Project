@@ -12,4 +12,11 @@ api/
 # ships is NyxIchos-Windows.zip, built by build_release.py.
 downloads/NyxIchos-windows-x64.zip
 ichnos-512.png
+ichnos.png
 package.json
+
+# Local-only: the CLI's project link and any env file it writes.
+.vercel
+.env*
+.gitignore
+.vercelignore

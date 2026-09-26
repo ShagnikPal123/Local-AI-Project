@@ -40,6 +40,11 @@ add to the github." → the address is **https://nyx-ichos.vercel.app** (not the
   task, including the server's own, so shutdown can hang. NOTE: `NYX_NO_BACKGROUND=1` does not stop the trading
   autopilot — any engine started in this folder resumes the owner's AI trader (ai.enabled, run_mode always).
 - Open for the owner: the GitHub repo is **private**, so visitors' GitHub link 404s until it is made public.
+- How to publish the site again: build the zip from a clean checkout of the pushed commit (`git worktree add`, copy
+  `frontend/nyx-pulse/dist` in, run its `build_release.py`), copy it to `site/downloads/NyxIchos-Windows.zip`, then from
+  `site/`: `npx vercel deploy --prod --yes` (the CLI was signed in as shagnikpal-5976 on 2026-09-26; `site/.vercel`
+  links the nyx-ichos project and is git-ignored). Check that `curl -s https://nyx-ichos.vercel.app/ | sha1sum` matches
+  `site/index.html`.
 
 ## DONE (2026-09-22 → 25, session be872d) — Project Null N19b + N20–N25 = rows N80–N89
 
