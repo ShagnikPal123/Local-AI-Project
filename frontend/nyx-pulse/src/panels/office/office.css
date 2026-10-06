@@ -397,3 +397,37 @@
   .ofc-pill.is-running i, .ofc-desk__ring.is-pulsing { animation: none; }
   .ofc-drawer, .ofc-card, .ofc-sheet { animation: none; }
 }
+
+/* --- the Output box (Update 1, U41): results only --------------------------------------------- */
+.ofc-chat.ofc-output { height: 40vh; min-height: 220px; max-height: 88vh; position: relative; }
+.ofc-output__deliver { margin-left: auto; }
+.ofc-out { display: grid; gap: 6px; padding: 10px 12px; border-radius: 12px; background: var(--color-surface-2);
+  box-shadow: inset 0 0 0 1px var(--color-divider); }
+.ofc-out.is-done { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ofc-live) 45%, var(--color-divider)); }
+.ofc-out header { display: flex; gap: 8px; align-items: baseline; font-size: 12.5px; }
+.ofc-out header b { color: var(--color-text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ofc-out header time { margin-left: auto; flex: 0 0 auto; font-size: 10.5px; color: var(--color-neutral-600); }
+.ofc-out__status { flex: 0 0 auto; font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+  padding: 1px 7px; border-radius: 999px; color: var(--color-neutral-400); box-shadow: inset 0 0 0 1px var(--color-divider-strong); }
+.ofc-out__status.is-done { color: var(--ofc-live); box-shadow: inset 0 0 0 1px var(--ofc-live); }
+.ofc-out__status.is-partial { color: var(--ofc-warn); box-shadow: inset 0 0 0 1px var(--ofc-warn); }
+.ofc-out__status.is-failed, .ofc-out__status.is-stopped { color: var(--ofc-risk); box-shadow: inset 0 0 0 1px var(--ofc-risk); }
+.ofc-out__text { font-size: 13px; line-height: 1.5; max-height: 320px; overflow-y: auto; overflow-wrap: anywhere; }
+.ofc-out__links { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.ofc-out__links a { text-decoration: none; }
+.ofc-out__copy { justify-self: end; font-size: 11.5px; }
+.ofc-file { position: absolute; inset: 8px; z-index: 3; display: grid; grid-template-rows: auto 1fr; border-radius: 12px;
+  background: var(--color-surface); box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55), inset 0 0 0 1px var(--color-divider-strong); }
+.ofc-file header { display: flex; gap: 10px; align-items: center; padding: 8px 10px 8px 12px; font-size: 12.5px;
+  box-shadow: inset 0 -1px 0 var(--color-divider); }
+.ofc-file header b { margin-right: auto; overflow-wrap: anywhere; }
+.ofc-file pre { margin: 0; padding: 10px 12px; overflow: auto; font: 12px/1.5 var(--font-mono); white-space: pre-wrap;
+  overflow-wrap: anywhere; color: var(--color-neutral-300); }
+
+/* Auto decisions (U42) and the staffing list beside hiring. */
+.ofc-auto.is-on { color: var(--color-on-accent); background: var(--color-accent); }
+.ofc-staffing { margin-bottom: 8px !important; padding-bottom: 8px !important; box-shadow: inset 0 -1px 0 var(--color-divider); }
+.ofc-verdict.is-promoted, .ofc-verdict.is-full_time { color: var(--ofc-live); }
+.ofc-verdict.is-demoted, .ofc-verdict.is-let_go { color: var(--ofc-risk); }
+.ofc-verdict.is-part_time { color: var(--ofc-warn); }
+.ofc-desk.is-part-time { opacity: 0.55; }

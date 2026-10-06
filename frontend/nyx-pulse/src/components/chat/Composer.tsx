@@ -106,6 +106,8 @@ export function Composer({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [mentionOpen, setMentionOpen] = useState(false);
+  // What is typed after the "@", so "@au" narrows the list to Auto (Update 1: it used to close on the first letter).
+  const [mentionQuery, setMentionQuery] = useState("");
   const [listening, setListening] = useState(false);
   const recognitionRef = useRef<Recognition | null>(null);
   const baseRef = useRef("");
@@ -198,17 +200,24 @@ export function Composer({
 
   function handleChange(next: string) {
     onChange(next);
-    // `@` at the start of the draft (or after a space) opens agent mentions.
-    const last = next.charAt(next.length - 1);
-    setMentionOpen(last === "@");
+    // `@` at the start of the draft (or after a space) opens agent mentions, and the letters after it narrow them.
+    const typing = /(?:^|\s)@([\w-]*)$/.exec(next);
+    setMentionOpen(Boolean(typing));
+    setMentionQuery(typing ? typing[1].toLowerCase() : "");
   }
 
   function pickAgent(name: string) {
     setMentionOpen(false);
-    const withoutDanglingAt = value.replace(/@$/, "");
-    onChange(`${withoutDanglingAt}${withoutDanglingAt ? " " : ""}@${name} `);
+    setMentionQuery("");
+    const before = value.replace(/@[\w-]*$/, "").replace(/\s+$/, "");
+    onChange(`${before}${before ? " " : ""}@${name} `);
     textareaRef.current?.focus();
   }
+
+  const squash = (text: string) => text.toLowerCase().replace(/[\s&]+/g, "");
+  const mentionAgents = agents.filter((agent) => !mentionQuery || squash(agent.name).startsWith(mentionQuery)
+    || agent.name.toLowerCase().split(/\s+/).some((word) => word.startsWith(mentionQuery)));
+  const mentionAuto = !mentionQuery || "auto".startsWith(mentionQuery);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: "none", position: "relative" }}>
@@ -229,7 +238,7 @@ export function Composer({
           Nyx reads {inlineCommands.map((name) => `/${name}`).join(", ")} first
         </div>
       )}
-      {mentionOpen && agents.length > 0 && (
+      {mentionOpen && (mentionAuto || mentionAgents.length > 0) && (
         <div
           role="listbox"
           aria-label="Ask an agent"
@@ -239,7 +248,18 @@ export function Composer({
             background: "var(--color-nav)",
           }}
         >
-          {agents.map((agent) => (
+          {/* @auto (Update 1, U21): Nyx picks the best skills and agents itself, or makes the agent it needs. */}
+          {mentionAuto && <button
+            key="auto"
+            role="option"
+            aria-selected={false}
+            className="btn btn-secondary chat-mention"
+            onClick={() => pickAgent("auto")}
+            title="Auto: Nyx picks the best skills and agents for this, or makes the agent it needs"
+          >
+            ✨ Auto
+          </button>}
+          {mentionAgents.map((agent) => (
             <button
               key={agent.agentId}
               role="option"

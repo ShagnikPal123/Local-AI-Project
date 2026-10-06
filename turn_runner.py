@@ -147,6 +147,16 @@ def _agent_command_names() -> set:
         return set()
 
 
+def chat_modes_swarm_nudge() -> str:
+    """The one reminder a Swarm turn gets when it answered without its swarm (chat_modes.SWARM_NUDGE)."""
+    try:
+        import chat_modes
+
+        return chat_modes.SWARM_NUDGE
+    except Exception:  # pragma: no cover
+        return "Swarm mode: hand the parts to agents with dispatch_agents, then merge their reports."
+
+
 def mentioned_agents(text: str) -> List[str]:
     """Roster agents the user @mentioned, in the order written.
 
@@ -439,6 +449,26 @@ class TurnRunner:
             })
             mode = "full"
 
+        # Auto skill / Auto agent (Update 1, U21): "/auto" or "@auto" — Nyx picks the skills, agents and
+        # connectors for the job and runs the team itself; each agent's request and reply are shown (U46).
+        auto_called = False
+        try:
+            import auto_team
+
+            service.conversation_history = [
+                m for m in service.conversation_history
+                if not (m.get("role") == "system" and str(m.get("content", "")).startswith(auto_team.PREFIX))
+            ]
+            if auto_team.called(user_text):
+                auto_called = True
+                team = auto_team.assemble(user_text)
+                self.emit("status", phase="agents", text=auto_team.status_line(team))
+                self.emit("auto.team", **auto_team.view(team))
+                service.conversation_history.append({"role": "system", "content": auto_team.brief(team)})
+                mode = "full"
+        except Exception:  # pragma: no cover - Auto never blocks a turn
+            pass
+
         # Sub-agents Nyx should bring in by itself (owner, 2026-09-16: "AI should auto use the sub agent it needs").
         try:
             import agent_match
@@ -448,7 +478,7 @@ class TurnRunner:
                 if not (m.get("role") == "system" and str(m.get("content", "")).startswith(agent_match.PREFIX))
             ]
             called_agents = any(name for name in command_brief.get("found", []) if name in _agent_command_names())
-            if (getattr(SETTINGS, "auto_agents", True) and not mentioned and not called_agents
+            if (getattr(SETTINGS, "auto_agents", True) and not mentioned and not called_agents and not auto_called
                     and not self._chat_agent()):
                 auto_matches = agent_match.match(user_text)
                 if auto_matches:
@@ -553,14 +583,21 @@ class TurnRunner:
             import chat_modes
         except Exception:  # pragma: no cover - the chat works without modes
             return {}
-        switches = chat_modes.prepare(self.service, self.chat_mode)
+        switches = chat_modes.prepare(self.service, self.chat_mode, self.user_text)
         self.context.guard = getattr(self.service, "tool_guard", None)
-        if switches["mode"] != "normal":
-            words = {"cowork": "Co-work — working in the background",
-                     "plan": "Plan — writing the plan first, changing nothing",
-                     "plan_go": "Working through the plan you approved"}[switches["mode"]]
+        # Swarm: dispatch_agents reads this to allow the owner's swarm size instead of the usual few boxes.
+        self.context.swarm = int(switches.get("swarm") or 0)
+        words = {"normal": "Normal — a quick answer",
+                 "cowork": "Co-work — working in the background",
+                 "plan": "Plan — writing the plan first, changing nothing",
+                 "plan_go": "Working through the plan you approved",
+                 "swarm": f"Swarm — up to {switches.get('swarm') or 0} agents at once"}[switches["mode"]]
+        if switches.get("auto"):
+            self.emit("status", phase="route", text=f"Auto picked {words} ({switches.get('auto_reason')})")
+        elif switches["mode"] != "normal":
             self.emit("status", phase="route", text=words)
-        self.emit("chat.mode", mode=switches["mode"])
+        self.emit("chat.mode", mode=switches["mode"], auto=bool(switches.get("auto")),
+                  reason=str(switches.get("auto_reason") or ""), swarm=int(switches.get("swarm") or 0))
         return switches
 
     def _consult_settings(self) -> Dict[str, Any]:
@@ -828,6 +865,7 @@ class TurnRunner:
         #: that hides the lead-in wiped that answer, and the final step said little or nothing
         #: (Request H9: "the text and the speech bubble disappear after a long time of thinking").
         written_before_tools = ""
+        swarm_nudged = False
 
         for step in range(1, max_steps + 1):
             if self.cancelled():
@@ -873,6 +911,16 @@ class TurnRunner:
                     results = TOOL_REGISTRY.call_tool("search_web", query=self._last_user_text(), engine="all", freshness="any")
                     history.append({"role": "assistant", "content": text})
                     history.append({"role": "user", "content": f"Tool results (auto-triggered because you announced research):\n{results}\n\nContinue this same turn and give the final answer now."})
+                    continue
+                if (self.mode_switches.get("mode") == "swarm" and not swarm_nudged
+                        and "dispatch_agents" not in self.tools_used):
+                    # Swarm mode answered alone. Models skip the swarm for anything they can answer from memory,
+                    # which made the mode look like Normal; ask once for the parts to go to agents (Update 1, U5).
+                    swarm_nudged = True
+                    self.emit("answer.reset")
+                    self.emit("status", phase="agents", text="Swarm — handing the parts to agents")
+                    history.append({"role": "assistant", "content": text})
+                    history.append({"role": "user", "_tool_results": True, "content": chat_modes_swarm_nudge()})
                     continue
                 reply = visible_answer(text)
                 if len(written_before_tools) >= 400 and len(reply) < 160 and written_before_tools not in reply:

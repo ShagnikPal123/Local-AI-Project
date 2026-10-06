@@ -7,6 +7,7 @@ import { SectionBar } from "./SectionBar";
 import { SectionDrawer } from "./SectionDrawer";
 import { Sidebar } from "./Sidebar";
 import { AgentCard, HiringList } from "./Pieces";
+import { OutputBox } from "./OutputBox";
 import { officeApi, EMPTY_SELECTION, type Selection } from "./officeApi";
 import type { LibraryTree, OfficeSnapshot } from "./types";
 import type { OfficeLive } from "./useOffice";
@@ -37,6 +38,13 @@ export function OfficeView({ live, snapshot, tree, onLobby, onOpenOffice, onNewO
 
   const running = office.status === "running" || office.status === "paused";
   const busy = office.counts.working;
+
+  const autoDecisions = Boolean(office.settings?.auto_decisions);
+  const toggleAuto = useCallback(async () => {
+    const result = await officeApi.options(office.id, { auto_decisions: !autoDecisions });
+    if (result.ok) live.apply(result.data);
+    else onError(result.error);
+  }, [office.id, autoDecisions, live, onError]);
 
   const control = useCallback(async (action: "pause" | "resume" | "halt",
                                      scope: "office" | "section" | "agent" = "office", id = "") => {
@@ -88,6 +96,13 @@ export function OfficeView({ live, snapshot, tree, onLobby, onOpenOffice, onNewO
           </span>
         )}
         <div className="ofc-top__actions">
+          {/* U42: "a button allows for auto decisions so the ai knows it needs to really give an output". */}
+          <button className={`ofc-btn ofc-btn--small ofc-auto${autoDecisions ? " is-on" : ""}`} aria-pressed={autoDecisions}
+                  onClick={() => void toggleAuto()}
+                  title={autoDecisions ? "Auto decisions is on: the office decides everything and delivers the real result"
+                    : "Turn on Auto decisions: the office decides open questions itself and delivers the real result, not a plan"}>
+            Auto decisions{autoDecisions ? " · on" : ""}
+          </button>
           {running && office.status !== "paused" && (
             <button className="ofc-btn ofc-btn--small" onClick={() => void control("pause")}>Pause</button>
           )}
@@ -148,12 +163,14 @@ export function OfficeView({ live, snapshot, tree, onLobby, onOpenOffice, onNewO
         <div className="ofc-talkcol">
           <MainChat messages={snapshot.chat} job={snapshot.job} phase={office.phase} running={running}
                     onSend={sendMain} sending={sending} />
+          <OutputBox officeId={office.id} outputs={snapshot.outputs ?? []} onError={onError} />
           <TargetChat officeId={office.id} messages={snapshot.thread} selection={selection}
                       sections={live.sectionsById} agents={live.agentsById} roles={live.rolesById}
                       focusSection={openSection} onSend={sendTarget} sending={aiming}
                       onDropChip={(kind, id) => setSelection((s) => ({ ...s, [kind]: s[kind].filter((x) => x !== id) }))}
                       onClear={() => setSelection(EMPTY_SELECTION)} />
-          <HiringList hires={snapshot.hires} boardName={live.agentsById[office.gatekeeper_id]?.name ?? ""} />
+          <HiringList hires={snapshot.hires} staffing={snapshot.staffing ?? []}
+                      boardName={live.agentsById[office.gatekeeper_id]?.name ?? ""} />
           {office.gatekeeper_reason && !office.gatekeeper_id && (
             <p className="ofc-muted ofc-note">{office.gatekeeper_reason}</p>
           )}

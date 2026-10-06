@@ -186,3 +186,21 @@ def test_an_answer_written_before_a_tool_call_is_not_lost_when_the_last_step_say
     reply = runner._tool_loop(max_steps=4)
     assert reply.startswith("Here is the full plan.") and reply.endswith("Saved.")
     assert service.saved == reply
+
+
+def test_a_swarm_turn_that_answers_alone_is_asked_once_to_use_its_swarm(monkeypatch):
+    """Update 1, U5: in Swarm mode a model answered three planets from memory, and the mode looked like Normal."""
+    import swarm
+
+    monkeypatch.setattr(swarm, "limit", lambda: 6)
+    router = _ScriptedRouter([("Mars is red. Venus is hot. Jupiter is big.", "ollama"),
+                              ("Mars is red. Venus is hot. Jupiter is big.", "ollama")])
+    result, events, service = _run(router, message="one fact about each of Mars, Venus and Jupiter", mode="swarm")
+
+    nudges = [m for m in service.conversation_history if str(m.get("content", "")).startswith("You are in Swarm mode")]
+    assert len(nudges) == 1, "asked once, never in a loop"
+    assert result["reply"].startswith("Mars is red"), "a model that still answers alone is accepted the second time"
+    assert any(e["type"] == "answer.reset" for e in events), "the first, swarm-less answer was taken off the screen"
+
+    plain = _run(_ScriptedRouter([("Hi!", "ollama")]), message="hi there", mode="normal")[2]
+    assert not any(str(m.get("content", "")).startswith("You are in Swarm mode") for m in plain.conversation_history)

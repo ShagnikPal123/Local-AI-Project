@@ -114,7 +114,13 @@ export interface AgentActivity {
   /** The agent's one-line restatement of its task ("Understood: …"). */
   understanding?: string;
   task?: string;
+  /** What else the agent was handed with its task, exactly as sent (U46). */
+  context?: string;
   resultPreview?: string;
+  /** The agent's whole reply (U46). */
+  report?: string;
+  /** One hand-off: the same agent asked twice in a turn is two entries. */
+  callId?: string;
   seconds?: number;
   /** True when this turn created the agent (it did not exist before). */
   created?: boolean;
@@ -207,8 +213,18 @@ export interface AssistantTurn {
   sources?: SourceLink[];
   /** The working checklist a Co-work turn keeps current (chat_modes.update_checklist). */
   checklist?: { text: string; status: "todo" | "doing" | "done" | "blocked" | "skipped" }[];
-  /** Which mode the slider under the composer was on for this turn. */
+  /** Which mode the slider under the composer was on for this turn (what Auto picked, when it was on Auto). */
   chatMode?: string;
+  /** The slider was on Auto, and this is why it picked chatMode. */
+  chatModeAuto?: boolean;
+  chatModeReason?: string;
+  /** /auto or @auto (Update 1, U21): the team Auto picked for this job. */
+  autoTeam?: {
+    skills: { name: string; why: string[] }[];
+    agents: { name: string; emoji: string; why: string[] }[];
+    createAgent: boolean;
+    connectors: { name: string; connected: boolean }[];
+  };
 }
 
 export interface ChatMessageView {
@@ -255,7 +271,11 @@ export interface TeamAgentView {
 export interface ChatSummaryView {
   id: string;
   title: string;
-  updatedAt?: number;
+  /** Seconds, milliseconds or an ISO date — the server has sent all three over time. */
+  updatedAt?: number | string;
+  /** Update 1, U48: a branch, semi-branch (fork) or duplicate says what it came from. */
+  parentId?: string;
+  kind?: string;
   messageCount?: number;
   /** A turn is running in this chat right now (possibly started in another window). */
   running?: boolean;

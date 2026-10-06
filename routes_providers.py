@@ -115,6 +115,23 @@ def _resolve_key(name: str) -> str:
     return str(getattr(SETTINGS, attr, "") or "")
 
 
+_OLLAMA_PROBE: Optional[Any] = None
+
+
+def _ollama_running() -> bool:
+    """Whether the local Ollama answers. One shared provider keeps its 30 s probe cache, so a PC
+    without Ollama pays the 0.5 s loopback timeout once per half-minute, not on every list."""
+    global _OLLAMA_PROBE
+    try:
+        if _OLLAMA_PROBE is None:
+            from providers.ollama_provider import OllamaProvider
+
+            _OLLAMA_PROBE = OllamaProvider()
+        return bool(_OLLAMA_PROBE.is_available())
+    except Exception:  # noqa: BLE001 - an unanswerable probe means "not running"
+        return False
+
+
 def _signup_url(name: str) -> str:
     """Where this provider's key comes from, when the app knows one."""
     spec = PROVIDER_SPECS.get(name)
@@ -136,10 +153,15 @@ def _provider_entry(name: str) -> Optional[Dict[str, Any]]:
             label = spec.label
             is_free = spec.is_free
     model = getattr(provider, "_model_name", lambda: "")()
+    configured = bool(key.strip())
+    if name == "ollama":
+        # Ollama takes no key, so "configured" by key was always false: the chat picker called a
+        # running Ollama "(no key)" and Sub-agents greyed it out as "(not running)". Usable = answering.
+        configured = _ollama_running()
     return {
         "name": name,
         "label": label,
-        "configured": bool(key.strip()),
+        "configured": configured,
         "last4": _key_last4(key),
         "model": model,
         "free": is_free,

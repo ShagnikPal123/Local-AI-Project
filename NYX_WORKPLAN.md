@@ -79,6 +79,15 @@ Standing file ownership when delegating:
 
 ## 2. Now (max 3)
 
+### 2026-10-05 — Update 1 shipped
+
+- [x] **Update 1** (session 0757e7): Swarm + Auto modes, /auto and @auto, every sub-agent's request and reply shown,
+  Research tab, complete process list, 88 connectors, auto-assign models, Office Output box + staffing, Nyx tab with
+  chats on the left and the Second Brain one switch away, voice bar, Nyx's own computer (Cua), site download button.
+  Write-up: `AI_HANDOFF/START_HERE.md` § Update 1 (the handoff is local only now, not in git).
+- [ ] **Owner to do:** Docker Desktop or a Cua Cloud key for Nyx's own computer; redeploy `site/` for the new
+  download button; decide whether old commits that still contain `AI_HANDOFF/` should be rewritten.
+
 ### 2026-09-15 — current Request H resume point
 
 - [x] **H16 tab editing freedom.** Custom tabs now render their already-validated backgrounds/themes and working
@@ -322,13 +331,12 @@ Owner could access and use the app; these are the follow-ups, verbatim intent pr
 
 ## 7. Handoff
 
-**Last touched:** H16 tab editing freedom, 2026-09-15.
+**Last touched:** Update 1, 2026-10-05.
 
-**State:** The frontend build is fresh and the launcher-managed engine was restarted successfully. H16 was tested
-with a temporary tab containing a list, chart, tracker, timer, AI action, Connect Four, and Memory; controls worked,
-and the temporary tab was deleted. `tests/test_tab_freedom.py` passes (4 tests).
+**State:** Update 1 is committed and on GitHub (branch `update-1`, merged to `main`, tag `update-1`). Full pytest suite
+green; `npm run build` green; live-checked in the browser on a scratch engine.
 
-**Next:** H4 Build tab. Read `AI_HANDOFF/START_HERE.md` first; it is the accurate Request H checklist.
+**Next:** whatever the owner picks from `AI_HANDOFF/UPDATE_IDEAS.md` (still queued: U2–U4, U7, U8, U10–U12, U14, U16,
+U18–U20, U22, U23, U25, U27 rest, U28, U32–U40, U42 CEO/CFO split, U43–U45).
 
-**Check first:** `.venv/Scripts/python.exe -m pytest tests/test_tab_freedom.py -q`, then
-`cd frontend/nyx-pulse && npm run build`.
+**Check first:** `.venv/Scripts/python.exe -m pytest -q -p no:warnings`, then `cd frontend/nyx-pulse && npm run build`.

@@ -171,3 +171,61 @@ def test_the_model_is_told_how_to_ask_a_question_with_readable_json():
     assert "`question`" in question_cards.FORMAT_RULE
     # The rule is inserted as a value, so doubled braces would reach the model as "{{".
     assert "{{" not in question_cards.FORMAT_RULE and "}}" not in question_cards.FORMAT_RULE
+
+
+# --- Swarm and Auto (Update 1, U5/U6) -----------------------------------------------------
+
+
+@pytest.mark.parametrize("text, mode", [
+    ("hi there", "normal"),
+    ("what is the capital of France?", "normal"),
+    ("can you explain how rust lifetimes work?", "normal"),
+    ("build me a todo app with React", "cowork"),
+    ("can you fix the bug in server.py?", "cowork"),
+    ("make a plan for my website redesign", "plan"),
+    ("how should we approach building a game engine?", "plan"),
+    ("fix every failing test in the repo", "swarm"),
+    ("upload these files to the project and fix the small errors in each file", "swarm"),
+    ("- fix the login bug\n- add a dark mode\n- write tests for the cart\n- update the README", "swarm"),
+])
+def test_auto_picks_a_mode_from_the_words(text, mode):
+    picked, reason = chat_modes.choose(text)
+    assert picked == mode, (text, picked, reason)
+    assert reason, "Auto always says why it picked what it picked"
+
+
+def test_auto_never_acts_on_a_request_to_plan_even_with_many_parts():
+    picked, _ = chat_modes.choose("make a plan to fix every failing test in parallel before you start")
+    assert picked == "plan"
+    service = _Service()
+    switches = chat_modes.prepare(service, "auto", "write a spec for the new login page, don't change anything yet")
+    assert switches["mode"] == "plan" and switches["read_only"] and switches["auto"] is True
+    with pytest.raises(PermissionDenied):
+        service.tool_guard("write_file", "files")
+
+
+def test_auto_and_swarm_are_modes_and_other_modes_are_untouched_by_resolve():
+    assert chat_modes.normalize("Swarm") == "swarm" and chat_modes.normalize("automatic") == "auto"
+    assert chat_modes.resolve("cowork", "make a plan") == ("cowork", ""), "only Auto reads the message"
+    assert chat_modes.resolve("auto", "hi")[0] == "normal"
+
+
+def test_swarm_gets_room_to_work_and_is_told_its_size(monkeypatch):
+    import swarm
+
+    monkeypatch.setattr(swarm, "limit", lambda: 12)
+    monkeypatch.setattr(swarm, "parallel", lambda size=0: 4)
+    switches = chat_modes.settings_for("swarm")
+    assert switches["swarm"] == 12 and switches["max_steps"] >= 48 and switches["checklist"]
+    assert not switches["read_only"], "a swarm does the work; the agents' own permission checks still apply"
+
+    service = _Service()
+    chat_modes.prepare(service, "swarm")
+    note = service.conversation_history[-1]["content"]
+    assert note.startswith(chat_modes.PREFIX) and "up to 12" in note and "4 at a time" in note
+    assert "dispatch_agents" in note and '{"agent"' in note, "the braces in the template must reach the model single"
+
+    # Switching back to Normal replaces the swarm's note instead of stacking a second one.
+    chat_modes.prepare(service, "normal")
+    notes = [m for m in service.conversation_history if str(m.get("content", "")).startswith(chat_modes.PREFIX)]
+    assert len(notes) == 1 and "Normal" in notes[0]["content"]

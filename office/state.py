@@ -17,7 +17,7 @@ import uuid
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
 
-from office import KEEP_CHAT, KEEP_FEED, KEEP_TASK_PREVIEW
+from office import KEEP_CHAT, KEEP_FEED, KEEP_OUTPUTS, KEEP_STAFFING, KEEP_TASK_PREVIEW
 
 # Statuses, in one place so the UI and the engine cannot drift apart.
 OFFICE_IDLE, OFFICE_RUNNING, OFFICE_PAUSED, OFFICE_HALTED = "idle", "running", "paused", "halted"
@@ -73,6 +73,14 @@ class Agent:
     seconds: float = 0.0
     errors: int = 0
     note: str = ""                  # what this agent keeps to itself between sessions
+    #: Update 1, U42 — the office as a company. "full" or "part_time" (called in only every few jobs).
+    employment: str = "full"
+    #: -1 junior, 0 normal, 1 senior, 2 lead: moved by promotions and demotions after each job.
+    rank: int = 0
+    #: Jobs in a row this agent was given nothing to do — what part-time and letting go are decided on.
+    jobs_idle: int = 0
+    #: Jobs in a row it did have work — a part-time agent busy twice in a row goes back to full time.
+    jobs_busy: int = 0
     inbox: List[Dict[str, Any]] = field(default_factory=list)
 
     def as_dict(self) -> Dict[str, Any]:
@@ -123,6 +131,46 @@ class Message:
     ts: float = field(default_factory=time.time)
     job_id: str = ""
     section_id: str = ""
+
+    def as_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class Output:
+    """Something the office delivered — the one place it says "done" (Update 1, U41).
+
+    The owner: "I want a only output box, in here they deliver the output needed. Links and whatnot work ... so the
+    user has a clear place where the ai says yes it is done". The main chat is the conversation; this is the result.
+    """
+
+    id: str
+    title: str
+    text: str = ""
+    status: str = "done"            # done | partial (delivered mid-job) | failed | stopped
+    #: {"label", "kind": "file" | "url", "path" (file, inside the office work folder) or "href" (url)}
+    links: List[Dict[str, str]] = field(default_factory=list)
+    job_id: str = ""
+    by: str = ""
+    by_name: str = ""
+    ts: float = field(default_factory=time.time)
+
+    def as_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class StaffChange:
+    """A change to who works here and how — shown beside hiring (Update 1, U42)."""
+
+    id: str
+    agent_id: str
+    agent_name: str
+    change: str                     # part_time | full_time | let_go | promoted | demoted
+    why: str = ""
+    role: str = ""
+    job_id: str = ""
+    ts: float = field(default_factory=time.time)
 
     def as_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -194,6 +242,8 @@ class Office:
     feed: List[Message] = field(default_factory=list)
     jobs: List[Job] = field(default_factory=list)
     hires: List[HireRequest] = field(default_factory=list)
+    outputs: List[Output] = field(default_factory=list)
+    staffing: List[StaffChange] = field(default_factory=list)
     invented_roles: List[Dict[str, Any]] = field(default_factory=list)
     gatekeeper_id: str = ""
     capacity: int = 0
@@ -277,6 +327,17 @@ class Office:
         self.updated_at = time.time()
         return message
 
+    def add_output(self, output: Output) -> Output:
+        self.outputs.append(output)
+        self.outputs = _keep_last(self.outputs, KEEP_OUTPUTS)
+        self.updated_at = time.time()
+        return output
+
+    def add_staff_change(self, change: StaffChange) -> StaffChange:
+        self.staffing.append(change)
+        self.staffing = _keep_last(self.staffing, KEEP_STAFFING)
+        return change
+
     # --- JSON -------------------------------------------------------------------
 
     def to_dict(self) -> Dict[str, Any]:
@@ -292,6 +353,8 @@ class Office:
             "feed": [m.as_dict() for m in self.feed],
             "jobs": [j.as_dict() for j in self.jobs[-40:]],
             "hires": [h.as_dict() for h in self.hires[-120:]],
+            "outputs": [o.as_dict() for o in self.outputs],
+            "staffing": [c.as_dict() for c in self.staffing],
             "invented_roles": list(self.invented_roles),
             "stats": dict(self.stats), "settings": dict(self.settings),
         }
@@ -330,6 +393,8 @@ class Office:
         office.feed = build(Message, raw.get("feed"))
         office.jobs = build(Job, raw.get("jobs"))
         office.hires = build(HireRequest, raw.get("hires"))
+        office.outputs = build(Output, raw.get("outputs"))
+        office.staffing = build(StaffChange, raw.get("staffing"))
 
         # An office is never re-opened mid-flight: a run cannot survive the engine stopping, so anything that
         # was in the air becomes something the owner can restart, not a ghost that looks alive.
@@ -361,6 +426,8 @@ class Office:
             "thread": [m.as_dict() for m in self.thread[-120:]],
             "feed": [m.as_dict() for m in self.feed[-80:]],
             "hires": [h.as_dict() for h in self.hires[-40:]],
+            "outputs": [o.as_dict() for o in self.outputs[-40:]],
+            "staffing": [c.as_dict() for c in self.staffing[-60:]],
             "job": job.as_dict() if job else None,
             "roles": [],  # filled by the engine, which knows the live catalogue
         }

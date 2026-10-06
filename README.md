@@ -19,6 +19,24 @@ link and opens Nyx in your browser. After that Nyx starts with Windows and waits
 **No API key is required.** With [Ollama](https://ollama.com) it runs offline. Add a key for Gemini, Groq, NVIDIA,
 OpenAI, Anthropic, Qwen and others in the **Keys & Models** tab when you want online models.
 
+## What's new — Update 1 (October 2026)
+
+- **Chats on the left, like Claude.** New chat, search, and every chat grouped by day, with Branch, Semi-branch,
+  Duplicate and Rename. One switch at the top brings back the **Second Brain**: the memory field, voice and a chat.
+- **Swarm and Auto modes.** Swarm splits a job across many agents at once (as many as your PC can carry; you set the
+  limit). Auto picks Normal, Co-work, Plan or Swarm for each message and tells you why.
+- **See what every agent was asked and what it answered**, in full, for each hand-off.
+- **`/auto` and `@auto`:** Nyx picks the best skills, agents and connectors for a job, or makes the agent it needs.
+- **Nyx's own computer.** A sandboxed desktop ([Cua](https://cua.ai), via Docker or Cua Cloud) that Nyx works on instead
+  of your screen. It asks before it touches your screen, unless you say otherwise.
+- **Connectors.** 88 apps, including Gmail, Google Docs and Sheets, Excel, Word, Outlook, Vercel, AI apps and finance
+  apps. You can also add any website, API or MCP server.
+- **Research tab** works end to end: cited reports, paper search, citation styles and exports.
+- **Office Space:** an Output box with each finished result and its files, **Deliver now**, **Auto decisions**, and
+  part-time, promoted and demoted agents.
+- **Auto-assign models** in Keys & Models (preview, apply, undo), a voice bar that shows what you're saying, and a
+  cleaner memory field.
+
 ## What's inside
 
 Every part is a tab in the app, and they share one memory.
@@ -29,6 +47,7 @@ Every part is a tab in the app, and they share one memory.
 | **Big Kahuna** | The main brain: routes each request to the model that does it best, and trains a small model of its own |
 | **Agents & Office Space** | Named agents with their own jobs; an office of them for big tasks |
 | **Voice** | Hands-free talk that listens while it speaks and never hears itself |
+| **Nyx's Computer** | A sandboxed desktop of its own, so it doesn't have to use your screen |
 | **Screen Share** | Looks at a window and points to what to click; acts only when you approve |
 | **Research & Notes** | Cited research reports; slides turned into notes and quizzes |
 | **Code & Build** | Edit a folder together; design 3D-printable parts and circuits |

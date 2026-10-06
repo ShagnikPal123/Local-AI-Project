@@ -16,6 +16,8 @@ import { AgentDisc, Spinner } from "./AgentDisc";
 import { Icon } from "./Icon";
 import { onSpeakingChange, speakText, stopSpeaking } from "../../voice/voicePlayer";
 import { Linkified } from "./linkify";
+import { Handoff } from "../agents/Handoff";
+import { MODE_LABELS, type ChatMode } from "./ModeSlider";
 
 const cardStyle: React.CSSProperties = {
   background: "var(--color-surface)",
@@ -205,7 +207,11 @@ function AgentRow({ agent }: { agent: NonNullable<ChatMessageView["turn"]>["agen
         {agent.understanding && (
           <div style={{ color: "var(--color-neutral-500)", marginTop: 2 }}>{agent.understanding}</div>
         )}
-        {agent.resultPreview && (
+        {/* What it was asked and what it answered, in full (U46). An older engine sent only a preview. */}
+        {agent.task || agent.report ? (
+          <Handoff task={agent.task} context={agent.context} report={agent.report || agent.resultPreview}
+            working={agent.status === "working"} />
+        ) : agent.resultPreview && (
           <div style={{ color: "var(--color-neutral-600)", marginTop: 2, whiteSpace: "pre-wrap" }}>
             {agent.resultPreview}
           </div>
@@ -275,6 +281,29 @@ export function MessageBubble({ message, onAction, isLatest = false }: MessageBu
           </div>
         )}
 
+        {/* The slider was on Auto: which mode it picked for this message, and why (Update 1, U6). */}
+        {turn?.chatModeAuto && turn.chatMode && (
+          <p className="turn-mode">
+            Auto picked <b>{MODE_LABELS[turn.chatMode as ChatMode]?.name ?? turn.chatMode}</b>
+            {turn.chatModeReason ? <span>· {turn.chatModeReason}</span> : null}
+          </p>
+        )}
+
+        {/* /auto or @auto: the team Auto put together for this job (Update 1, U21). */}
+        {turn?.autoTeam && (
+          <p className="turn-mode">
+            <b>Auto team</b>
+            <span>
+              {[
+                turn.autoTeam.skills.length ? `skills ${turn.autoTeam.skills.map((s) => s.name).join(", ")}` : "",
+                turn.autoTeam.agents.length ? `agents ${turn.autoTeam.agents.map((a) => `${a.emoji ? `${a.emoji} ` : ""}${a.name}`).join(", ")}`
+                  : turn.autoTeam.createAgent ? "a new agent made for this job" : "",
+                turn.autoTeam.connectors.length ? `connectors ${turn.autoTeam.connectors.map((c) => c.name).join(", ")}` : "",
+              ].filter(Boolean).join(" · ") || "no team needed — a quick job"}
+            </span>
+          </p>
+        )}
+
         {/* Prompt optimizer disclosure (generative-ai.md: say where AI is used, keep people in control). */}
         {turn?.optimized && <OptimizedNote optimized={turn.optimized} />}
 
@@ -308,7 +337,7 @@ export function MessageBubble({ message, onAction, isLatest = false }: MessageBu
         {agents.length > 0 && (
           <Collapsible title="Agents" count={agents.length} defaultOpen={Boolean(streaming && isLatest)}>
             {agents.map((agent) => (
-              <AgentRow key={agent.agentId} agent={agent} />
+              <AgentRow key={agent.callId ?? agent.agentId} agent={agent} />
             ))}
           </Collapsible>
         )}

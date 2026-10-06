@@ -283,6 +283,18 @@ DATA_ROUTES = [
     "/api/knowledge",
     "/api/speed",
     "/api/command-zone",
+    "/api/swarm",
+    "/api/own-computer",
+    # Research (Request L, U1) and the Core view's processes (U31).
+    "/api/research",
+    "/api/research/no-such-job",
+    "/api/research/no-such-job/citations",
+    "/api/core/overview",
+    # Connectors catalogue (U9/U24) and the auto-assign preview (U29).
+    "/api/connectors/catalog",
+    "/api/connectors/catalog/github",
+    "/api/connectors/mine",
+    "/api/model-roles/auto-assign",
 ]
 
 
@@ -946,3 +958,44 @@ def test_account_routes_do_not_exist_on_a_hosted_build():
     import deploy_mode
 
     assert any("/api/accounts".startswith(prefix) for prefix in deploy_mode.HOSTED_BLOCKED_PREFIXES)
+
+
+# --- Update 1 (U9/U24/U29): connecting apps stores and uses the owner's credentials; auto-assign changes his models ---
+
+OWNER_ONLY_CONNECTOR_ROUTES = [
+    ("post", "/api/connectors/github/connect", {"fields": {"token": "x" * 20}}),
+    ("post", "/api/connectors/github/test", {}),
+    ("delete", "/api/connectors/github", None),
+    ("post", "/api/connectors/find", {"text": "add vercel"}),
+    ("post", "/api/connectors/add", {"draft_id": "nope"}),
+    ("put", "/api/connectors/settings", {"auto": False}),
+    ("get", "/api/connectors/microsoft/status", None),
+    ("post", "/api/connectors/microsoft/client", {"client_id": "1b2c3d4e-0000-1111-2222-333344445555"}),
+    ("post", "/api/connectors/microsoft/start", {"products": ["excel"]}),
+    ("post", "/api/model-roles/auto-assign", {}),
+    ("post", "/api/model-roles/auto-assign/undo", {}),
+]
+
+
+@pytest.mark.parametrize("method,path,body", OWNER_ONLY_CONNECTOR_ROUTES)
+def test_connector_routes_refuse_anonymous_callers(client, store, method, path, body):
+    _claim(store)
+    call = getattr(client, method)
+    response = call(path, json=body) if body is not None else call(path)
+    assert response.status_code in (401, 403), f"{path} was reachable anonymously"
+
+
+@pytest.mark.parametrize("method,path,body", OWNER_ONLY_CONNECTOR_ROUTES)
+def test_a_beta_tester_cannot_connect_or_reassign(client, beta_token, method, path, body):
+    call = getattr(client, method)
+    response = (call(path, json=body, headers=_auth(beta_token)) if body is not None
+                else call(path, headers=_auth(beta_token)))
+    assert response.status_code == 403, f"beta tester reached {path}"
+
+
+def test_a_beta_tester_sees_no_owner_addresses_in_connectors(client, beta_token, monkeypatch):
+    from connectors import catalog
+
+    monkeypatch.setattr(catalog, "_mail_accounts", lambda provider="": ["owner@gmail.com"])
+    body = client.get("/api/connectors/catalog", headers=_auth(beta_token)).json()
+    assert "owner@gmail.com" not in str(body)

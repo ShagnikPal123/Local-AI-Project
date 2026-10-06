@@ -60,11 +60,18 @@ export function OfficePanel() {
     })();
   }, [load]);
 
-  // The focus question, asked once per open office when the setting says "ask".
+  // The focus question, asked once per open office when the setting says "ask". "Once" is the office it was asked
+  // for: answering "Keep everything running" reloads the overview, and without this the question came straight back,
+  // so it could never be dismissed (Update 1, found while testing the Output box).
+  const askedFor = useRef("");
   useEffect(() => {
-    if (!officeId || !overview) return;
-    if (overview.settings.focus_mode === "ask" && !overview.focus.held) setAsking(true);
+    if (!officeId || !overview || askedFor.current === officeId) return;
+    if (overview.settings.focus_mode === "ask" && !overview.focus.held) {
+      askedFor.current = officeId;
+      setAsking(true);
+    }
     if (overview.settings.focus_mode === "always" && !overview.focus.held) {
+      askedFor.current = officeId;
       void officeApi.focus("enter", officeId).then(() => load());
     }
   }, [officeId, overview, load]);

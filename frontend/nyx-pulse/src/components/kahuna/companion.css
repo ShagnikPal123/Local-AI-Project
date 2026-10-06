@@ -1,0 +1,50 @@
+/* ID0 + All companion (Request S21): a small glass window bottom-right, above every tab. Warm accent #ffb340 on
+   #15151c is 10.1:1; body text #f5f5f7 17:1; thoughts #a1a1aa 7.1:1. */
+
+/* Bottom-left by default (Update 1, U15): bottom-right sat on the chat's Send button. Dragged, it is placed by
+   left/top from the component. */
+.kc {
+  position: fixed; left: 18px; bottom: 18px; z-index: 60;
+  width: min(360px, calc(100vw - 36px)); max-height: min(520px, calc(100vh - 120px));
+  display: grid; grid-template-rows: auto 1fr auto auto auto;
+  background: rgba(21, 21, 28, 0.92); color: var(--color-text);
+  backdrop-filter: blur(18px) saturate(1.4); -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  border-radius: 16px; box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.kc-head { display: flex; align-items: center; gap: 8px; padding: 10px 10px 10px 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: grab; touch-action: none; user-select: none; }
+.kc-head:active { cursor: grabbing; }
+.kc-dot { width: 9px; height: 9px; border-radius: 50%; background: #ffb340; box-shadow: 0 0 0 4px rgba(255, 179, 64, 0.18); }
+.kc-title { flex: 1; display: flex; flex-direction: column; line-height: 1.2; }
+.kc-title b { font-size: 13.5px; }
+.kc-title span { font-size: 11px; color: #a1a1aa; letter-spacing: 0.06em; text-transform: uppercase; }
+.kc-icon { width: 30px; height: 30px; border: 0; border-radius: 8px; background: transparent; color: #a1a1aa; cursor: pointer;
+  display: grid; place-items: center; }
+.kc-icon:hover { background: rgba(255, 255, 255, 0.06); color: #f5f5f7; }
+.kc-icon.is-on { color: #ffb340; }
+.kc-list { list-style: none; margin: 0; padding: 10px 12px; overflow: auto; display: grid; gap: 8px; align-content: start; }
+.kc-empty { color: #a1a1aa; font-size: 12.5px; line-height: 1.5; }
+.kc-item { display: flex; gap: 6px; align-items: baseline; font-size: 13px; line-height: 1.45; }
+.kc-item--owner { justify-content: flex-end; }
+.kc-item--owner span { background: rgba(255, 179, 64, 0.14); padding: 6px 10px; border-radius: 12px 12px 4px 12px; }
+.kc-item--kahuna.kc-item--message span { background: rgba(255, 255, 255, 0.05); padding: 6px 10px; border-radius: 12px 12px 12px 4px; }
+.kc-item--thought { color: #a1a1aa; font-size: 12.5px; }
+.kc-item--action { color: #ffb340; font-size: 12.5px; }
+.kc-error { margin: 0 12px 6px; color: var(--color-danger, #ff453a); font-size: 12px; }
+.kc-compose { display: flex; gap: 6px; padding: 8px 10px; border-top: 1px solid rgba(255, 255, 255, 0.06); }
+.kc-compose input { flex: 1; min-width: 0; border: 0; border-radius: 10px; padding: 8px 10px; font-size: 13px; color: var(--color-text);
+  background: rgba(255, 255, 255, 0.06); }
+.kc-send { width: 34px; border: 0; border-radius: 10px; background: #ffb340; color: #1a1206; cursor: pointer; display: grid; place-items: center; }
+.kc-send:disabled { opacity: 0.4; cursor: default; }
+.kc-off { border: 0; background: none; color: #a1a1aa; font-size: 11.5px; padding: 0 0 10px; cursor: pointer; }
+.kc-off:hover { color: #f5f5f7; }
+.kc button:focus-visible, .kc input:focus-visible, .kc-bar:focus-visible { outline: 2px solid #ffb340; outline-offset: 2px; }
+
+/* The top-bar button that opens the window (only while ID0 + All is on). */
+.kc-bar { position: relative; display: inline-flex; align-items: center; gap: 8px; min-height: 30px; padding: 4px 12px;
+  border: 0; border-radius: 999px; font: inherit; font-size: 12.5px; font-weight: 500; color: var(--color-text); cursor: pointer;
+  background: rgba(255, 179, 64, 0.1); box-shadow: inset 0 0 0 1px rgba(255, 179, 64, 0.35); }
+.kc-bar:hover, .kc-bar.is-open { background: rgba(255, 179, 64, 0.18); }
+.kc-bar .kc-dot { width: 7px; height: 7px; box-shadow: 0 0 0 3px rgba(255, 179, 64, 0.18); }
+.kc-bar__new { position: absolute; top: 2px; right: 4px; width: 7px; height: 7px; border-radius: 50%; background: #ff453a; }

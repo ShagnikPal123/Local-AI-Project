@@ -1,0 +1,61 @@
+/* Nyx's Computer (Update 1, U49). Built on theme.css tokens, like the other panels. */
+
+.ocp { height: 100%; overflow-y: auto; padding: 20px clamp(16px, 3vw, 32px) 40px; display: grid; gap: 14px;
+  align-content: start; max-width: 1100px; margin: 0 auto; }
+.ocp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.ocp-head h1 { margin: 0 0 4px; font: 600 24px/1.2 var(--font-heading); letter-spacing: -0.02em; }
+.ocp-muted { margin: 0; font-size: 13px; color: var(--color-neutral-500); }
+.ocp-error { margin: 0; padding: 8px 12px; border-radius: 10px; font-size: 13px; color: #ffb4ae;
+  background: rgba(255, 69, 58, 0.1); box-shadow: inset 0 0 0 1px rgba(255, 69, 58, 0.35); }
+
+.ocp-pill { display: inline-flex; align-items: center; gap: 7px; padding: 4px 12px; border-radius: 999px; font-size: 12.5px;
+  color: var(--color-neutral-400); box-shadow: inset 0 0 0 1px var(--color-divider); white-space: nowrap; }
+.ocp-pill i { width: 8px; height: 8px; border-radius: 50%; background: var(--color-neutral-600); }
+.ocp-pill.is-on { color: var(--color-text); }
+.ocp-pill.is-on i { background: #30d158; box-shadow: 0 0 8px #30d158; }
+.ocp-pill.is-starting i, .ocp-pill.is-stopping i { background: #ff9f0a; }
+.ocp-pill.is-error i { background: #ff453a; }
+
+.ocp-card { display: grid; gap: 12px; padding: 16px; border-radius: var(--radius-lg); background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-divider); }
+.ocp-card h2 { margin: 0; font: 600 14px var(--font-heading); }
+
+.ocp-modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
+.ocp-mode { display: grid; gap: 4px; padding: 12px 14px; border: 0; border-radius: 12px; text-align: left; font: inherit;
+  color: var(--color-text); background: var(--color-surface-2, #15151c); box-shadow: inset 0 0 0 1px var(--color-divider);
+  cursor: pointer; }
+.ocp-mode b { font-size: 13.5px; }
+.ocp-mode span { font-size: 12.5px; line-height: 1.45; color: var(--color-neutral-400); }
+.ocp-mode:hover { box-shadow: inset 0 0 0 1px var(--color-neutral-600); }
+.ocp-mode.is-on { box-shadow: inset 0 0 0 2px var(--color-accent); }
+.ocp-mode:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.ocp-grant { margin: 0; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; font-size: 13px; color: #ff9f0a; }
+.ocp-link { border: 0; padding: 0; background: none; font: inherit; color: var(--color-accent-300, var(--color-accent));
+  text-decoration: underline; cursor: pointer; }
+
+.ocp-provider { justify-self: start; }
+.ocp-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; counter-reset: step; }
+.ocp-steps li { counter-increment: step; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px;
+  padding: 10px 12px; border-radius: 10px; background: var(--color-surface-2, #15151c); font-size: 13px; }
+.ocp-steps li::before { content: counter(step); display: grid; place-items: center; width: 22px; height: 22px;
+  border-radius: 50%; font-size: 12px; color: var(--color-neutral-400); box-shadow: inset 0 0 0 1px var(--color-divider-strong, #3a3a44); }
+.ocp-steps li.is-done::before { content: "✓"; color: #000; background: #30d158; box-shadow: none; }
+.ocp-steps li > b { min-width: 150px; }
+.ocp-steps li > span { color: var(--color-neutral-400); }
+.ocp-steps a { color: var(--color-accent-300, var(--color-accent)); }
+.ocp-next { margin: 0; font-size: 13px; color: var(--color-neutral-300, #d1d1d6); }
+.ocp-row, .ocp-inline { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ocp-inline input { flex: 1 1 220px; min-width: 0; min-height: 34px; padding: 6px 10px; border: 0; border-radius: 9px; font: inherit;
+  font-size: 13px; color: var(--color-text); background: var(--color-surface); box-shadow: inset 0 0 0 1px var(--color-divider); }
+
+.ocp-screen { display: block; width: 100%; height: auto; border-radius: 10px; cursor: crosshair; background: #000;
+  box-shadow: inset 0 0 0 1px var(--color-divider); }
+
+.ocp-actions { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 260px; overflow-y: auto; }
+.ocp-actions li { display: flex; gap: 12px; font-size: 12.5px; color: var(--color-neutral-300, #d1d1d6); }
+.ocp-actions time { flex: 0 0 auto; font-family: var(--font-mono); font-size: 11.5px; color: var(--color-neutral-600); }
+
+@media (max-width: 640px) {
+  .ocp-head { flex-direction: column; }
+  .ocp-steps li > b { min-width: 0; }
+}

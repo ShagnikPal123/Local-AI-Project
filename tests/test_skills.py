@@ -26,9 +26,13 @@ def test_builtin_skills_ship_with_the_app(store):
 
 
 def test_every_builtin_has_instructions_and_triggers(store):
+    import auto_team
+
     for skill in store.list_skills():
         assert skill["instructions"].strip()
-        assert skill["triggers"]
+        # Auto (Update 1, U21) is the one skill that runs only when called by name — /auto or @auto — because a
+        # trigger word like "/auto" would also fire inside "/automation".
+        assert skill["triggers"] or skill["name"] == auto_team.SKILL_NAME
 
 
 def test_builtins_sort_before_user_skills(store):

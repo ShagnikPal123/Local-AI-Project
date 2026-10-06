@@ -23,10 +23,10 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from office import (MAX_AGENTS_PER_SECTION, MAX_SECTIONS, casting, focus, gatekeeper, library, memory,
-                    officetools, prompts, settings as settings_module, talk, targeting)
+                    officetools, prompts, settings as settings_module, staffing, talk, targeting)
 from office import roles as role_module
 from office.roles import HIRING_BOARD, LIAISON, SECTION_MANAGER, TOP_MANAGER
-from office.state import (AGENT_ERROR, AGENT_IDLE, AGENT_PAUSED, AGENT_WORKING, Agent, HireRequest, Job, Message,
+from office.state import (AGENT_ERROR, AGENT_IDLE, AGENT_PAUSED, AGENT_WORKING, Agent, HireRequest, Job, Message, Output,
                           OFFICE_HALTED, OFFICE_IDLE, OFFICE_PAUSED, OFFICE_RUNNING, Office, Section,
                           TASK_CANCELLED, TASK_DONE, TASK_FAILED, TASK_QUEUED, TASK_REVIEW, TASK_WORKING, Task,
                           new_id)
@@ -334,12 +334,25 @@ class Engine:
             job.status, job.error, job.ended_at = "failed", f"{type(error).__name__}: {error}"[:400], time.time()
             self._post(office, Message(id=new_id("msg"), by="office", by_name="Office", kind="chat",
                                        text=f"The office could not finish this one: {job.error}"))
+            self._deliver_output(office, job, status="failed", title=job.title or job.request[:80],
+                                 text=f"Not finished — {job.error}")
         finally:
             self._finish_job(office, job, run)
 
     def _finish_job(self, office: Office, job: Job, run: Run) -> None:
         if job.status == "running":
             job.status, job.ended_at = ("stopped" if run.cancel.is_set() else "done"), time.time()
+        if job.status == "stopped" and not any(o.job_id == job.id for o in office.outputs):
+            # The Output box says plainly that this one is not done, rather than staying silent.
+            mine = [t for t in office.tasks.values() if t.job_id == job.id]
+            finished = sum(1 for t in mine if t.status == TASK_DONE)
+            self._deliver_output(office, job, status="stopped", title=job.title or job.request[:80],
+                                 text=f"Stopped before it finished — {finished} of {len(mine)} tasks were done. "
+                                      "Press Deliver now for what exists so far.")
+        if job.status == "done":
+            # The office as a company (U42): part-time, letting go, promotions and demotions after each job.
+            for change in staffing.review(office, job):
+                self._publish(office, "staffing", change=change.as_dict())
         for agent in office.agents.values():
             if agent.status in (AGENT_WORKING,):
                 agent.status, agent.step, agent.task_id = AGENT_IDLE, "", ""
@@ -917,7 +930,8 @@ class Engine:
             job.reply = "\n\n".join(r["text"] for r in reports)
             return
         self._set_agent(office, top, AGENT_WORKING, "Writing the answer")
-        answer = talk.ask_lead([{"role": "user", "content": prompts.wrap(office, job, reports=reports, files=files)}],
+        answer = talk.ask_lead([{"role": "user", "content": prompts.wrap(office, job, reports=reports, files=files,
+                                                                          file_texts=self._small_files(office, files))}],
                                system=prompts.top_manager_system(office), max_tokens=PLAN_TOKENS,
                                timeout=PLAN_TIMEOUT, cancelled=run.cancel.is_set, router=self._router())
         data = talk.parse_json(answer.text) if answer.ok else None
@@ -944,7 +958,107 @@ class Engine:
         job.reply = reply[:8000]
         self._post(office, Message(id=new_id("msg"), by=top.id, by_name=top.name, kind="chat", job_id=job.id,
                                    text=job.reply))
+        output = str(data.get("output") or "").strip() if isinstance(data, dict) else ""
+        self._deliver_output(office, job, status="done" if reports else "failed", title=job.title or job.request[:80],
+                             text=output or job.reply, files=files, by=top)
         self._set_agent(office, top, AGENT_IDLE, "")
+
+    # ------------------------------------------------------------------ the Output box (Update 1, U41)
+
+    _URL = re.compile(r"https?://[^\s<>()\[\]\"']+[^\s<>()\[\]\"'.,;:!?]")
+
+    def _deliver_output(self, office: Office, job: Job, *, status: str, title: str, text: str,
+                        files: Sequence[str] = (), by: Optional[Agent] = None) -> Output:
+        """Put a result in the Output box: the deliverable, its files (opened in the app) and the links in it."""
+        links: List[Dict[str, str]] = []
+        for path in list(files)[:30]:
+            links.append({"kind": "file", "label": path.split("/")[-1] or path, "path": path})
+        for url in list(dict.fromkeys(self._URL.findall(text or "")))[:20]:
+            links.append({"kind": "url", "label": url.split("//", 1)[-1][:80], "href": url})
+        output = office.add_output(Output(id=new_id("out"), title=(title or "Result").strip()[:160], text=(text or "")[:20000],
+                                          status=status, links=links, job_id=job.id,
+                                          by=by.id if by else "office", by_name=by.name if by else "Office"))
+        self._publish(office, "output", output=output.as_dict())
+        self._save(office, force=True)
+        return output
+
+    @staticmethod
+    def _small_files(office: Office, files: Sequence[str], *, each: int = 3000, total: int = 9000) -> Dict[str, str]:
+        """The text of the small files a job produced, so the Output box quotes them instead of a model's retelling.
+
+        Found live: asked for a haiku saved as haiku.txt, the office saved one poem and the Output box showed a
+        different one, because the top manager only knew the file's name.
+        """
+        out: Dict[str, str] = {}
+        try:
+            work = library.work_dir(office.id)
+        except Exception:  # noqa: BLE001 - no folder, nothing to quote
+            return out
+        used = 0
+        for name in list(files)[:8]:
+            path = work / officetools.safe_relative(name)
+            try:
+                if not path.is_file() or path.stat().st_size > each * 4:
+                    continue
+                text = path.read_text(encoding="utf-8", errors="replace")[:each]
+            except OSError:
+                continue
+            if used + len(text) > total:
+                break
+            out[name] = text
+            used += len(text)
+        return out
+
+    def deliver_now(self, office_id: str) -> Dict[str, Any]:
+        """The Deliver now button: the office hands over what it has, even mid-job, without stopping the work."""
+        office = self.open(office_id)
+        job = office.current_job() or (office.jobs[-1] if office.jobs else None)
+        if job is None:
+            raise OfficeError("Nothing to deliver yet — give the office a job first.")
+        running = job.status == "running"
+        threading.Thread(target=self._deliver_now, args=(office, job, running), daemon=True,
+                         name=f"office-deliver-{office.id[:6]}").start()
+        self._post(office, Message(id=new_id("msg"), by="office", by_name="Office", kind="system", job_id=job.id,
+                                   text="You asked for the output now — it will land in the Output box."))
+        return self.snapshot(office_id)
+
+    def _deliver_now(self, office: Office, job: Job, running: bool) -> None:
+        done = [t for t in office.tasks.values() if t.job_id == job.id and t.status == TASK_DONE]
+        reports = [{"section": (office.section(t.section_id).name if office.section(t.section_id) else "Office"),
+                    "text": f"{t.title}: {t.result}"} for t in done]
+        files = sorted({f for t in office.tasks.values() if t.job_id == job.id for f in t.files})
+        top = office.top_manager()
+        try:
+            answer = talk.ask_lead([{"role": "user", "content": prompts.deliver(office, job, reports=reports, files=files,
+                                                                                   running=running,
+                                                                                   file_texts=self._small_files(office, files))}],
+                                   system=prompts.top_manager_system(office), max_tokens=PLAN_TOKENS,
+                                   timeout=PLAN_TIMEOUT, router=self._router())
+            data = talk.parse_json(answer.text) if answer.ok else None
+        except Exception as error:  # noqa: BLE001 - the button must always answer
+            answer, data = None, None
+            reports = reports or [{"section": "Office", "text": f"Could not write the output: {error}"}]
+        if isinstance(data, dict) and str(data.get("output") or "").strip():
+            text = str(data["output"]).strip()
+            title = str(data.get("title") or job.title or job.request[:80])
+            status = "done" if (data.get("complete") and not running) else "partial"
+        elif job.reply and not running:
+            text, title, status = job.reply, job.title or job.request[:80], "done"
+        else:
+            text = "\n\n".join(f"**{r['section']}** — {r['text'][:1500]}" for r in reports) or \
+                "Nothing is finished yet. The office is still on its first tasks."
+            title, status = job.title or job.request[:80], "partial"
+        self._deliver_output(office, job, status=status, title=title, text=text, files=files, by=top)
+
+    def set_options(self, office_id: str, *, auto_decisions: Optional[bool] = None) -> Dict[str, Any]:
+        """This office's own switches. Auto decisions: decide everything and produce the real result (U42)."""
+        office = self.open(office_id)
+        if auto_decisions is not None:
+            office.settings["auto_decisions"] = bool(auto_decisions)
+        self._save(office, force=True)
+        snapshot = self.snapshot(office_id)
+        self._publish(office, "office", office=snapshot["office"])
+        return snapshot
 
     # ------------------------------------------------------------------ amendments and replies
 

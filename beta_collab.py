@@ -345,10 +345,17 @@ def feed(force: bool = False) -> Dict[str, Any]:
     url = config()["site_url"] + "/api/collab/feed"
     try:
         response = requests.get(url, timeout=20)
-        data = response.json()
-    except (requests.RequestException, ValueError) as error:
+    except requests.RequestException as error:
         raise CollabError(f"Could not reach the Collab site ({type(error).__name__}).") from error
-    if response.status_code != 200:
+    # Parsed apart from the request, as _post does: a site without the feed answers a plain-text 404, and
+    # that read as "Could not reach the Collab site (JSONDecodeError)" when the site was reached fine.
+    try:
+        data = response.json()
+    except ValueError:
+        data = {}
+    if not isinstance(data, dict):
+        data = {}
+    if response.status_code != 200 or not data:
         raise CollabError(str(data.get("error") or f"The Collab site answered {response.status_code}."))
     _FEED_CACHE.update(at=time.time(), data=data)
     return data

@@ -27,7 +27,7 @@ import re
 import threading
 import time
 from typing import Any, Dict, List, Optional, Sequence, Tuple
-from urllib.parse import urlparse
+from urllib.parse import quote, unquote, urlparse
 
 from paths import data_path
 
@@ -98,10 +98,10 @@ def save_settings(**changes: Any) -> Dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# The catalogue (connectors/catalog.py) with a small stand-in until it lands
+# The catalogue (connectors/catalog.py), with a small stand-in if it cannot be imported
 # ---------------------------------------------------------------------------
 
-#: Only used when connectors/catalog.py is not importable, so this module (and its tests) work on their own.
+#: Only used when connectors/catalog.py cannot be imported (a broken install), so a turn never loses connectors entirely.
 _FALLBACK: List[Dict[str, Any]] = [
     {"id": "github", "name": "GitHub", "category": "developer", "kind": "rest", "popular": 95,
      "description": "Repositories, issues and pull requests.", "keywords": ["repo", "issue", "pull request", "commit", "code"],
@@ -273,6 +273,9 @@ def actions_for(connector_id: str) -> List[Dict[str, Any]]:
         return []
     if str(item.get("kind")) == "mcp":
         return _mcp_tool_list(item)
+    if str(item.get("kind")) == "website":
+        return [{"id": "read", "method": "GET", "path": "", "description": f"Read a page of {item.get('base_url', 'the site')}",
+                 "params": {"path": "page path on the site, e.g. /pricing (empty for the home page)"}}]
     declared = item.get("actions")
     if isinstance(declared, list) and declared:
         return [a for a in declared if isinstance(a, dict) and a.get("id")]
@@ -318,7 +321,17 @@ def resolve(name: str) -> str:
             return str(item["id"])
     starts = [item for item in listed
               if re.sub(r"[^a-z0-9]", "", str(item.get("name", "")).lower()).startswith(wanted)]
-    return str(starts[0]["id"]) if len(starts) == 1 else ""
+    if len(starts) == 1:
+        return str(starts[0]["id"])
+    # "&sheets", "&excel", "&calendar": the app's own word, without its company's name in front.
+    keyed = [item for item in listed
+             if wanted in {re.sub(r"[^a-z0-9]", "", str(k).lower()) for k in item.get("keywords") or []}
+             or re.sub(r"[^a-z0-9]", "", str(item.get("name", "")).lower().split()[-1]) == wanted]
+    if len(keyed) > 1:  # several apps share the word: the most-used one, only when it clearly leads
+        keyed.sort(key=lambda item: -int(item.get("popular", 0)))
+        if int(keyed[0].get("popular", 0)) - int(keyed[1].get("popular", 0)) < 5:
+            return ""
+    return str(keyed[0]["id"]) if keyed else ""
 
 
 _WORD = re.compile(r"[a-z0-9]+")
@@ -415,7 +428,8 @@ def _note(usable: List[Dict[str, Any]], missing: List[Dict[str, str]], how: str,
                      "them — ask connector_actions for an action list before inventing one, and say which app an answer "
                      "came from:")
         for item in usable:
-            lines.append(f"- {item['id']} ({item.get('name', item['id'])}): {summary(item)}")
+            via = f" — use the {', '.join(item['tools'])} tools for it" if item.get("tools") else ""
+            lines.append(f"- {item['id']} ({item.get('name', item['id'])}): {summary(item)}{via}")
         if prefs["confirm_writes"]:
             lines.append("Anything that writes, sends, posts or deletes in one of these accounts needs the owner to say "
                          "yes in this chat first; ask, then call it again with confirm=true.")
@@ -466,36 +480,127 @@ def _fill(template: str, values: Dict[str, Any], params: Dict[str, Any]) -> Tupl
         if value in (None, ""):
             raise ConnectorCallError(f"This action needs {key!r}.")
         used.append(key)
-        return re.sub(r"[^\w.@:-]", "", str(value))[:120]
+        # One placeholder is one path segment: encode it (a "/" or a space must not reshape the path), keep it short.
+        return quote(str(value)[:200], safe="@:._-~")
 
     path = re.sub(r"\{(\w+)}", take, template or "")
     return path, {k: v for k, v in params.items() if k not in used}
 
 
-def _auth(item: Dict[str, Any], values: Dict[str, Any], headers: Dict[str, str], query: Dict[str, Any]) -> None:
-    auth = item.get("auth") if isinstance(item.get("auth"), dict) else {}
-    kind = str(auth.get("type") or "bearer").lower()
-    token = ""
+def _token(auth: Dict[str, Any], values: Dict[str, Any]) -> str:
     for key in (auth.get("token_field"), "token", "api_key", "key", "access_token", "secret"):
         if key and str(values.get(key, "")).strip():
-            token = str(values[key]).strip()
-            break
+            return str(values[key]).strip()
+    return ""
+
+
+#: Access tokens from a client-credentials exchange (Spotify, Reddit), per connector, until they expire.
+_cc_tokens: Dict[str, Tuple[float, str]] = {}
+
+
+def _client_credentials(item: Dict[str, Any], auth: Dict[str, Any], values: Dict[str, Any]) -> str:
+    """App-only OAuth: trade the saved client id and secret for a short-lived token, and reuse it."""
+    key = str(item.get("id"))
+    with _lock:
+        cached = _cc_tokens.get(key)
+    if cached and cached[0] > time.time():
+        return cached[1]
+    client_id = str(values.get(auth.get("client_field") or "client_id", ""))
+    secret = str(values.get(auth.get("secret_field") or "client_secret", ""))
+    if not (client_id and secret):
+        raise ConnectorCallError(f"{item.get('name')} needs its client ID and secret.")
+    try:
+        response = _requests().post(_https(str(auth.get("token_url") or "")), data={"grant_type": "client_credentials"},
+                                    auth=(client_id, secret), headers={"User-Agent": "NyxIchos/1.0"}, timeout=TIMEOUT)
+        body = response.json()
+    except Exception as error:  # noqa: BLE001
+        raise ConnectorCallError(f"{item.get('name')} sign-in could not be reached: {type(error).__name__}") from None
+    token = str(body.get("access_token") or "") if isinstance(body, dict) else ""
+    if response.status_code >= 400 or not token:
+        raise ConnectorCallError(f"{item.get('name')} refused the client ID and secret ({response.status_code}).")
+    with _lock:
+        _cc_tokens[key] = (time.time() + int(body.get("expires_in", 3600)) - 60, token)
+    return token
+
+
+def _auth(item: Dict[str, Any], values: Dict[str, Any], headers: Dict[str, str], query: Dict[str, Any]) -> None:
+    """Put the saved credential where this API expects it. Every shape here is data from the catalogue."""
+    auth = item.get("auth") if isinstance(item.get("auth"), dict) else {}
+    kind = str(auth.get("type") or "bearer").lower()
+    token = _token(auth, values)
     for key, value in (auth.get("extra_headers") or {}).items():
         headers[str(key)] = str(value)
-    if kind == "none":
+    if kind in ("none", "aws_sigv4"):
         return
     if kind in ("bearer", "oauth"):
-        headers["Authorization"] = f"{auth.get('prefix') or 'Bearer '}{token}".strip()
+        if token:  # an optional token left empty (Hugging Face's public search) means no header, not "Bearer "
+            headers["Authorization"] = f"{auth.get('prefix') or 'Bearer '}{token}"
     elif kind == "header":
-        headers[str(auth.get("header") or "Authorization")] = f"{auth.get('prefix') or ''}{token}"
+        if token:
+            headers[str(auth.get("header") or "Authorization")] = f"{auth.get('prefix') or ''}{token}"
+    elif kind == "headers":
+        prefixes = auth.get("prefixes") or {}
+        for header, field_name in (auth.get("headers") or {}).items():
+            headers[str(header)] = f"{prefixes.get(header, '')}{values.get(field_name, '')}"
     elif kind == "query":
-        query[str(auth.get("param") or "key")] = token
+        if auth.get("params"):
+            for param, field_name in auth["params"].items():
+                query[str(param)] = str(values.get(field_name, ""))
+        elif token:
+            query[str(auth.get("param") or "key")] = token
     elif kind == "basic":
         import base64
 
-        user = str(values.get(auth.get("username_field") or "username", ""))
+        user = str(auth.get("username") or values.get(auth.get("username_field") or "username", ""))
         secret = str(values.get(auth.get("password_field") or "password", token))
         headers["Authorization"] = "Basic " + base64.b64encode(f"{user}:{secret}".encode()).decode()
+    elif kind == "client_credentials":
+        headers["Authorization"] = "Bearer " + _client_credentials(item, auth, values)
+
+
+def _sigv4(item: Dict[str, Any], values: Dict[str, Any], verb: str, url: str, query: Dict[str, Any],
+           body: bytes) -> Tuple[str, Dict[str, str]]:
+    """AWS Signature Version 4 for S3: every x-amz header signed, path and query encoded exactly as sent.
+
+    ``model_hub.sigv4_headers`` leaves x-amz-content-sha256 unsigned, which Bedrock accepts and S3 refuses.
+    """
+    import datetime as _dt
+    import hashlib
+    import hmac
+
+    from model_hub import sigv4_signing_key
+
+    access, secret = str(values.get("access_key_id", "")), str(values.get("secret_access_key", ""))
+    region = str(values.get("region") or "us-east-1")
+    if not (access and secret):
+        raise ConnectorCallError(f"{item.get('name')} needs the access key ID and secret access key.")
+    service = str((item.get("auth") or {}).get("service") or "s3")
+    parsed = urlparse(url)
+    path = "/".join(quote(unquote(seg), safe="-_.~") for seg in parsed.path.split("/")) or "/"
+    pairs = sorted((str(k), str(v)) for k, v in query.items())
+    canonical_query = "&".join(f"{quote(k, safe='-_.~')}={quote(v, safe='-_.~')}" for k, v in pairs)
+    moment = _dt.datetime.now(_dt.timezone.utc)
+    amz_date, day = moment.strftime("%Y%m%dT%H%M%SZ"), moment.strftime("%Y%m%d")
+    payload = hashlib.sha256(body).hexdigest()
+    signed = {"host": parsed.netloc, "x-amz-content-sha256": payload, "x-amz-date": amz_date}
+    names = sorted(signed)
+    canonical = "\n".join([verb, path, canonical_query, "".join(f"{n}:{signed[n]}\n" for n in names),
+                           ";".join(names), payload])
+    scope = f"{day}/{region}/{service}/aws4_request"
+    to_sign = "\n".join(["AWS4-HMAC-SHA256", amz_date, scope, hashlib.sha256(canonical.encode()).hexdigest()])
+    signature = hmac.new(sigv4_signing_key(secret, day, region, service), to_sign.encode(), hashlib.sha256).hexdigest()
+    headers = {"x-amz-content-sha256": payload, "x-amz-date": amz_date,
+               "Authorization": f"AWS4-HMAC-SHA256 Credential={access}/{scope}, SignedHeaders={';'.join(names)}, "
+                                f"Signature={signature}"}
+    final = f"{parsed.scheme}://{parsed.netloc}{path}" + (f"?{canonical_query}" if canonical_query else "")
+    return final, headers
+
+
+def _use_tools_instead(item: Dict[str, Any]) -> str:
+    tools = ", ".join(item.get("tools") or [])
+    if tools:
+        return f"{item.get('name')} works through Nyx's own tools here ({tools})."
+    return f"{item.get('name')} is built into Nyx; use its own tools rather than use_connector."
 
 
 def call(connector_id: str, action: str = "", *, params: Optional[Dict[str, Any]] = None, method: str = "",
@@ -507,14 +612,27 @@ def call(connector_id: str, action: str = "", *, params: Optional[Dict[str, Any]
     if not is_connected(str(item["id"])):
         raise ConnectorCallError(f"{item.get('name', connector_id)} is not connected yet.")
     params = {k: v for k, v in (params or {}).items() if v not in (None, "")}
-    if str(item.get("kind")) == "mcp":
+    kind = str(item.get("kind"))
+    if kind == "mcp":
         return _mcp_call(item, action, params, timeout=timeout)
+    if kind == "builtin":
+        raise ConnectorCallError(_use_tools_instead(item))
+    if kind == "website":
+        return _read_site(item, path or str(params.get("path") or ""))
 
     spec = next((a for a in actions_for(str(item["id"])) if str(a.get("id")) == str(action)), None)
-    if spec is None and not path:
+    if spec is None and not path and kind != "webhook":
         listed = ", ".join(str(a.get("id")) for a in actions_for(str(item["id"]))) or "none are declared"
         raise ConnectorCallError(f"{item.get('name')} has no action {action!r}. Known actions: {listed}.")
     values = _values(str(item["id"]))
+    if not values and kind in ("oauth_google", "oauth_microsoft"):
+        if item.get("tools"):
+            raise ConnectorCallError(f"{item.get('name')} is connected with an app password, so its API is not "
+                                     f"available — {_use_tools_instead(item)}")
+        raise ConnectorCallError(f"The {item.get('name')} sign-in has expired. Ask the owner to sign in again in "
+                                 "Connectors.")
+    if kind == "webhook":
+        return _send_webhook(item, values, params, timeout=timeout)
     base = str(item.get("base_url") or "").rstrip("/")
     if not base:
         raise ConnectorCallError(f"{item.get('name')} has no address to call.")
@@ -525,20 +643,77 @@ def call(connector_id: str, action: str = "", *, params: Optional[Dict[str, Any]
         raise ConnectorCallError("Only GET, POST, PATCH, PUT and DELETE are allowed.")
     filled, left = _fill(template if template.startswith("/") else "/" + template, values, params)
     url = _https(base + filled)
+    if _host(url) != _host(_https(base)):
+        raise ConnectorCallError("A connector may only call its own address.")
     headers: Dict[str, str] = {"Accept": "application/json", "User-Agent": "NyxIchos/1.0"}
-    query: Dict[str, Any] = {}
+    query: Dict[str, Any] = dict((spec or {}).get("query") or {})
     _auth(item, values, headers, query)
     payload = dict(body or (spec.get("body") if spec else None) or {})
-    if verb == "GET":
+    if verb in ("GET", "DELETE"):
         query.update(left)
     else:
-        payload.update({k: v for k, v in left.items() if k not in payload})
+        payload.update({k: _maybe_json(v) for k, v in left.items() if k not in payload})
+    data = json.dumps(payload).encode() if verb not in ("GET", "DELETE") and payload else b""
+    if str((item.get("auth") or {}).get("type")) == "aws_sigv4":
+        url, signed = _sigv4(item, values, verb, url, query, data)
+        headers.update(signed)
+        query = {}
+    if data:
+        headers["Content-Type"] = "application/json"
     try:
-        response = _requests().request(verb, url, headers=headers, params=query or None,
-                                       json=payload if verb != "GET" and payload else None, timeout=timeout)
+        response = _requests().request(verb, url, headers=headers, params=query or None, data=data or None,
+                                       timeout=timeout)
     except Exception as error:  # noqa: BLE001 - network problems are answers, not crashes
         raise ConnectorCallError(f"{item.get('name')} could not be reached: {type(error).__name__}") from None
     return _result(item, spec, response)
+
+
+def _host(url: str) -> str:
+    return (urlparse(url).hostname or "").lower()
+
+
+def _maybe_json(value: Any) -> Any:
+    """Models pass structured arguments as JSON text ('[["a", 1]]'); APIs want the structure itself."""
+    if isinstance(value, str) and value.strip()[:1] in ("[", "{"):
+        try:
+            return json.loads(value)
+        except ValueError:
+            return value
+    return value
+
+
+def _send_webhook(item: Dict[str, Any], values: Dict[str, Any], params: Dict[str, Any], timeout: int) -> Dict[str, Any]:
+    """POST the fields to the owner's own hook address — only on the service's own domain when it has one."""
+    url = _https(str(values.get("webhook_url") or ""))
+    allowed = [d for d in item.get("domains") or [] if d]
+    if allowed and not any(_host(url) == d or _host(url).endswith("." + d) for d in allowed):
+        raise ConnectorCallError(f"The saved address is not a {item.get('name')} address.")
+    payload = {k: _maybe_json(v) for k, v in params.items()}
+    try:
+        response = _requests().post(url, json=payload, headers={"User-Agent": "NyxIchos/1.0"}, timeout=timeout)
+    except Exception as error:  # noqa: BLE001
+        raise ConnectorCallError(f"{item.get('name')} could not be reached: {type(error).__name__}") from None
+    return _result(item, {"id": "send", "write": True}, response)
+
+
+def _read_site(item: Dict[str, Any], path: str) -> Dict[str, Any]:
+    """A plain website connector: read one of its pages as text (public addresses only, like Absorb)."""
+    import absorb_sources
+
+    base = str(item.get("base_url") or "").rstrip("/")
+    if path.startswith("http"):
+        if _host(path) != _host(base):
+            raise ConnectorCallError(f"{item.get('name')} only reads pages on {_host(base)}.")
+        url = path
+    else:
+        url = base + ("/" + path.lstrip("/") if path else "")
+    try:
+        raw, content_type, final = absorb_sources.fetch(_https(url))
+        title, text = absorb_sources.text_from(raw, content_type, final)
+    except Exception as error:  # noqa: BLE001 - SourceError carries a sentence
+        raise ConnectorCallError(f"Could not read {url}: {error}") from None
+    return {"ok": True, "status": 200, "connector": str(item["id"]), "action": "read", "writes": False,
+            "data": (f"{title}\n\n" if title else "") + str(text)[:MAX_CHARS]}
 
 
 def _result(item: Dict[str, Any], spec: Optional[Dict[str, Any]], response: Any) -> Dict[str, Any]:
@@ -688,6 +863,11 @@ def tool_use_connector(connector: str = "", action: str = "", params: Any = None
             params = {}
     params = params if isinstance(params, dict) else {}
     if not is_connected(connector_id):
+        sign_in = {"oauth_google": "Sign in with Google", "oauth_microsoft": "Sign in with Microsoft"}.get(
+            str(item.get("kind")))
+        if sign_in:
+            return (f"{item.get('name')} is not connected yet, so I can't use it. The owner connects it with "
+                    f"{sign_in} on its card in the Connectors tab — ask whether they want to.")
         fields = ", ".join(str(f.get("label") or f.get("key")) for f in (item.get("fields") or []) if f.get("required"))
         return (f"{item.get('name')} is not connected yet, so I can't use it. It needs: {fields or 'its account details'}. "
                 "Ask the owner whether to add it — they can press + in Connectors, or paste what it needs here.")
@@ -719,6 +899,9 @@ def tool_connector_actions(connector: str = "") -> str:
     if item is None:
         return f"There is no connector called {connector!r}."
     listed = actions_for(connector_id)
+    if item.get("tools") or str(item.get("kind")) == "builtin":
+        if not listed or not _values(str(item["id"])):
+            return _use_tools_instead(item)
     if not listed:
         return (f"{item.get('name')} has no declared actions. You can still call it with a path, for example "
                 "use_connector(connector=\"" + connector_id + "\", path=\"/some/endpoint\").")

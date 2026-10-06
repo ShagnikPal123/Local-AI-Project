@@ -112,6 +112,14 @@ BUILTIN_SKILLS: List[Dict[str, Any]] = [
         "instructions": __import__("office.crit_think", fromlist=["SKILL_INSTRUCTIONS"]).SKILL_INSTRUCTIONS,
     },
     {
+        # Update 1, U21: the Auto skill. No triggers — it runs only when called with /auto or @auto, and then
+        # turn_runner hands the Manager auto_team's picks along with these instructions.
+        "name": __import__("auto_team").SKILL_NAME,
+        "description": __import__("auto_team").SKILL_DESCRIPTION,
+        "triggers": [],
+        "instructions": __import__("auto_team").SKILL_INSTRUCTIONS,
+    },
+    {
         "name": "Debugging",
         "description": "Reproduce, isolate, and fix a bug rather than guessing at it.",
         "triggers": ["bug", "error", "traceback", "exception", "crash", "broken",

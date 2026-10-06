@@ -115,18 +115,21 @@
   .btn-small { min-height: 36px; padding: 0 14px; font-size: 14px; gap: 8px; }
 
   /* --- The download button ----------------------------------------------------------
-     The owner's spec: hovering fills it to half; clicking changes "Download" to
-     "Downloading" and the rest fills with the real download percentage. One custom
+     The owner's spec (Update 1, U17, replacing the half-fill-on-hover one): an outline
+     that stays empty even on hover; clicking changes "Download" to "Downloading" and it
+     fills from 0 % with the real download percentage. One custom
      property drives both the fill and a black copy of the label clipped to the same
      width, so the words turn dark exactly where the violet reaches them and stay
      readable at every point of the fill. */
   .dl { --fill: 0%; position: relative; display: inline-grid; min-height: 48px; min-width: 244px; padding: 0;
     border-radius: 999px; overflow: hidden; isolation: isolate; cursor: pointer;
     font-size: 16px; font-weight: 600; letter-spacing: -.005em; white-space: nowrap; user-select: none;
-    color: var(--accent-300); background: var(--accent-900);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent), var(--lift);
-    transition: --fill 340ms var(--ease-out), transform 90ms var(--ease-out), box-shadow 140ms ease; }
-  .dl:hover, .dl:focus-visible { --fill: 50%; }
+    color: var(--accent-300); background: transparent;
+    box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 80%, transparent);
+    transition: --fill 340ms var(--ease-out), transform 90ms var(--ease-out), box-shadow 140ms ease, color 140ms ease; }
+  /* Hover and focus brighten the outline; the inside stays empty until the download starts. */
+  .dl:hover, .dl:focus-visible { color: var(--text); box-shadow: inset 0 0 0 2px var(--accent), 0 0 24px color-mix(in srgb, var(--accent) 25%, transparent); }
+  .dl:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
   .dl:active { transform: translateY(1px) scale(.975); }
   .dl[data-state="downloading"] { transition: --fill 160ms linear, transform 90ms var(--ease-out); cursor: progress; }
   .dl[data-state="done"] { --fill: 100%; }
@@ -592,7 +595,7 @@ cd frontend\nyx-pulse &amp;&amp; npm install &amp;&amp; npm run build &amp;&amp;
     const controller = new AbortController();
     job = { controller };
     setState("downloading");
-    setFill(50);                                   // it starts where the hover fill left off
+    setFill(0);                                    // an empty outline: it fills only as the file arrives
     setText("Downloading 0%", "0%");
     say("Downloading Nyx.");
     if (note) {
@@ -614,7 +617,7 @@ cd frontend\nyx-pulse &amp;&amp; npm install &amp;&amp; npm run build &amp;&amp;
         got += value.length;
         if (total) {
           const share = Math.min(1, got / total);
-          setFill(50 + share * 50);                // the rest of the button fills as it arrives
+          setFill(share * 100);                    // the button fills with the real percentage
           setText("Downloading " + Math.floor(share * 100) + "%", Math.floor(share * 100) + "%");
           if (share * 4 >= spoken + 1) { spoken = Math.floor(share * 4); if (spoken < 4) say(spoken * 25 + " percent."); }
         } else {

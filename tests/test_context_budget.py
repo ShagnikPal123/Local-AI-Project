@@ -6,6 +6,7 @@ import pytest
 
 import context_budget as cb
 from chat_sessions import ChatSessionStore
+from providers import ollama_provider
 
 
 @pytest.fixture(autouse=True)
@@ -26,7 +27,7 @@ class Service:
 
 def test_windows_and_measurement():
     assert cb.window_for("gemini", "gemini-flash-lite-latest") == 1_048_576
-    assert cb.window_for("kimi", "moonshot-v1-8k") == 8_000 and cb.window_for("ollama", "llama3.1") == 8_192
+    assert cb.window_for("kimi", "moonshot-v1-8k") == 8_000 and cb.window_for("ollama", "llama3.1") == ollama_provider.NUM_CTX
     assert cb.window_for("someone-new") == cb.DEFAULT_WINDOW
     service = Service()
     m = cb.measure(service.conversation_history, "kimi", "moonshot-v1-8k")
@@ -35,6 +36,16 @@ def test_windows_and_measurement():
     assert m["level"] == "ok" and cb.measure(Service(turns=12, size=1500).conversation_history, "kimi", "moonshot-v1-8k")["level"] == "full"
     service.conversation_history[-1]["images"] = [{"name": "a.png"}]
     assert cb.measure(service.conversation_history, "gemini")["parts"]["images"] == cb.IMAGE_TOKENS
+
+
+
+def test_a_fresh_local_chat_is_not_reported_full(monkeypatch):
+    """The meter used 8,192 for Ollama while every call asks for NUM_CTX; ~15k of instructions read as 186 %."""
+    monkeypatch.setattr(ollama_provider, "NUM_CTX", 32_768)  # the default; OLLAMA_NUM_CTX can change it
+    instructions = [{"role": "system", "content": "x" * int(15_000 * cb.CHARS_PER_TOKEN)},
+                    {"role": "user", "content": "hi"}]
+    m = cb.measure(instructions, "ollama", "qwen3.5:9b")
+    assert m["window"] == ollama_provider.NUM_CTX and m["percent"] < 85
 
 
 def test_compact_keeps_recent_messages_and_system_prompt(tmp_path):

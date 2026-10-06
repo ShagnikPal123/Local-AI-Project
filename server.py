@@ -12,11 +12,12 @@ Requires: pip install fastapi uvicorn
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import threading
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Coroutine, Dict, List, Optional
 
 import quiet_windows
 
@@ -578,6 +579,19 @@ _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
 # Shutdown timeout for background tasks (seconds), configurable via env
 SHUTDOWN_TIMEOUT = float(os.getenv("NYX_SHUTDOWN_TIMEOUT", "5"))
 
+#: Async work Nyx itself started — the only tasks shutdown waits on. Never ``asyncio.all_tasks()``:
+#: that also holds the server's own task (uvicorn's serve, TestClient's portal), which is waiting
+#: for shutdown to finish, so shutdown waited on itself.
+_BACKGROUND_TASKS: set[asyncio.Task[Any]] = set()
+
+
+def spawn_background(coro: Coroutine[Any, Any, Any], *, name: Optional[str] = None) -> asyncio.Task[Any]:
+    """Start async work that shutdown lets finish for up to ``SHUTDOWN_TIMEOUT``, then cancels."""
+    task = asyncio.get_running_loop().create_task(coro, name=name)
+    _BACKGROUND_TASKS.add(task)
+    task.add_done_callback(_BACKGROUND_TASKS.discard)
+    return task
+
 
 def require_local_owner(
     http_request: Request,
@@ -999,6 +1013,14 @@ def switch_model(payload: Dict[str, Any]) -> Dict[str, Any]:
         return {"kind": "online", "model": name, "preferred": SETTINGS.preferred_online_provider}
 
     local = _shared_ollama().list_models()
+    if name == "ollama":
+        # The dropdown's "ollama" means "answer on this PC": keep the local model in use, or the first installed one.
+        # It used to fall through to the name match below, where no model name contains "ollama", so it was a 404.
+        if not local:
+            raise HTTPException(status_code=409, detail="Ollama has no models installed yet — add one in Keys & Models.")
+        chosen = SETTINGS.ollama_model if SETTINGS.ollama_model in local else local[0]
+        SETTINGS.ollama_model = chosen
+        return {"kind": "local", "model": chosen, "active": SETTINGS.ollama_model}
     match = next((m for m in local if m == target or target in m), None)
     if match:
         SETTINGS.ollama_model = match
@@ -2623,7 +2645,7 @@ def _include_routers() -> Dict[str, str]:
                         "routes_build", "routes_game", "routes_command_zone", "routes_core", "routes_collab", "routes_research", "routes_context",
                         "routes_absorb", "routes_local_models", "routes_diagram", "routes_screen", "routes_apply",
                         "routes_security", "routes_proto_voice", "routes_features", "routes_curiosity", "routes_finance_lab", "routes_voice_gestures",
-                        "routes_design", "routes_accounts",
+                        "routes_design", "routes_accounts", "routes_swarm", "routes_own_computer", "routes_connectors",
                         "routes_freewill", "routes_identity0", "routes_office"):
         try:
             module = importlib.import_module(module_name)
@@ -2693,9 +2715,8 @@ def presence_state(_user=RequireChat) -> Dict[str, Any]:
 @app.on_event("shutdown")
 async def _shutdown_background_work() -> None:
     """Guarantee lingering background tasks or loops terminate within a timeout during shutdown."""
-    import asyncio
     logger = logging.getLogger("nyx.server")
-    
+
     # Stop known background services first
     try:
         from predictor import SCHEDULER
@@ -2709,24 +2730,23 @@ async def _shutdown_background_work() -> None:
     except Exception:
         logger.warning("scheduler shutdown failed", exc_info=True)
     
-    # Wait for any remaining background tasks to complete
-    pending = [t for t in asyncio.all_tasks() if not t.done() and t is not asyncio.current_task()]
-    if pending:
-        logger.info("Waiting for %d background tasks to complete (timeout=%.1fs)", len(pending), SHUTDOWN_TIMEOUT)
-        for task in pending:
-            try:
-                await asyncio.wait_for(task, timeout=SHUTDOWN_TIMEOUT)
-            except asyncio.TimeoutError:
-                logger.warning("Background task %r exceeded shutdown timeout, cancelling", task)
-                task.cancel()
-                try:
-                    await task
-                except asyncio.CancelledError:
-                    pass
-                except Exception:
-                    logger.exception("Error after cancelling task %r", task)
-            except Exception:
-                logger.exception("Background task %r raised during shutdown", task)
+    # Only what Nyx started (see _BACKGROUND_TASKS). A task left from an earlier loop — a previous
+    # TestClient session — cannot be awaited or cancelled from this one.
+    loop = asyncio.get_running_loop()
+    pending = {t for t in _BACKGROUND_TASKS if not t.done() and t.get_loop() is loop}
+    if not pending:
+        return
+    logger.info("Waiting for %d background tasks to complete (timeout=%.1fs)", len(pending), SHUTDOWN_TIMEOUT)
+    _, overdue = await asyncio.wait(pending, timeout=SHUTDOWN_TIMEOUT)
+    for task in overdue:
+        logger.warning("Background task %r exceeded shutdown timeout, cancelling", task)
+        task.cancel()
+    if overdue:
+        # Bounded as well: a task that swallows its cancel must not hold the engine open.
+        await asyncio.wait(overdue, timeout=SHUTDOWN_TIMEOUT)
+    for task in pending:
+        if task.done() and not task.cancelled() and task.exception() is not None:
+            logger.error("Background task %r raised during shutdown", task, exc_info=task.exception())
 
 
 @app.on_event("startup")

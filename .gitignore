@@ -39,7 +39,7 @@ custom_db.json
 local_pytest_tmp/
 _preview/
 dist/
-build/
+/build/
 *.spec.bak
 node_modules/
 
@@ -78,7 +78,7 @@ openai_mcp - Copy/
 # Improvement autopilot state (runs, lessons, backups of applied edits)
 autopilot/
 learning/
-brain/
+/brain/
 design_studio/
 tts_cache/
 edge_voices.json
@@ -90,10 +90,10 @@ changes.json
 
 
 # Request S: Big Kahuna (Identity 0) data — chat-derived experiences, corpus, datasets and weights
-kahuna/
+/kahuna/
 
 # Project Null N8: Office Space — the owner's office files, folders and the work their agents produce
-offices/
+/offices/
 
 # --- Runtime state written by a running Nyx, not part of the project ---------
 # Each of these is produced on the machine as features get used: the owner's
@@ -114,9 +114,9 @@ backgrounds.json
 collab.json
 custom_agents.json
 agent_overrides.json
-notes/
-apply/
-freewill/
+/notes/
+/apply/
+/freewill/
 games/
 system/
 diagrams/
@@ -124,7 +124,7 @@ data_process/
 
 # Absorbed-source corpus: exports and run records from documents the owner fed
 # in. Their reading material, and megabytes of it.
-absorb/
+/absorb/
 
 # Trading state — live positions, approvals, the audit trail and paper-account
 # balances. The code under trading/ ships; this machine's account does not.
@@ -152,7 +152,7 @@ skills/apple-design-skill-main/
 # questions, taught clap/whistle gestures, and feature usage counts. The code
 # that reads them ships; their contents do not.
 model_roles.json
-research/
+/research/
 security/
 curiosity/
 feature_catalog.json
@@ -162,3 +162,25 @@ finance_lab/*.json
 # Accounts (local_accounts.py): each account's own chats, memory, notes and files, plus the list of
 # accounts with their password hashes. The owner's data, never the project's.
 /accounts/
+
+# Data folders above are anchored to the project root (/name/). Unanchored, "brain/", "notes/", "research/" and the
+# rest also matched frontend/nyx-pulse/src/panels/<name>/ and components/<name>/, so 47 source files never reached
+# GitHub and a fresh clone could not build the app (found 2026-10-04, Update 1).
+
+# Runtime state written by the engine (Update 1): which port the launcher started, and the Swarm slider.
+engine.json
+swarm.json
+
+# The AI handoff is for the owner and the AIs working on Nyx, not for the public repo (owner, 2026-10-05:
+# "Make sure the AI handoff is not in github").
+/AI_HANDOFF/
+
+# Runtime state from Update 1 features. Some live inside code folders because DATA_DIR is the project folder in a
+# dev checkout; all of it is the owner's (addresses, connections, settings), none of it ships.
+google_granted.json
+own_computer.json
+model_roles_auto_undo.json
+connectors/connections.json
+connectors/microsoft.json
+connectors/custom.json
+connectors/custom_connections.json

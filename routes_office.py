@@ -219,6 +219,28 @@ def office_control(office_id: str, body: ControlBody, _owner=Owner) -> Dict[str,
         raise _fail(error) from error
 
 
+@router.post("/api/office/offices/{office_id}/deliver")
+def office_deliver(office_id: str, _owner=Owner) -> Dict[str, Any]:
+    """Deliver now (Update 1, U41): the office puts what it has in the Output box, even mid-job."""
+    try:
+        return _engine().deliver_now(office_id)
+    except Exception as error:  # noqa: BLE001
+        raise _fail(error) from error
+
+
+class OptionsBody(BaseModel):
+    #: Decide everything and produce the real result instead of plans and questions (U42).
+    auto_decisions: Optional[bool] = None
+
+
+@router.post("/api/office/offices/{office_id}/options")
+def office_options(office_id: str, body: OptionsBody, _owner=Owner) -> Dict[str, Any]:
+    try:
+        return _engine().set_options(office_id, auto_decisions=body.auto_decisions)
+    except Exception as error:  # noqa: BLE001
+        raise _fail(error) from error
+
+
 @router.get("/api/office/offices/{office_id}/files")
 def office_files(office_id: str, _owner=Owner) -> Dict[str, Any]:
     from office import library

@@ -28,6 +28,7 @@ import { onVoiceMode, setVoiceMode, voiceMode, type VoiceMode } from "../voice/v
 import { UsageBar } from "../components/UsageBar";
 import { ContextBar } from "../components/chat/ContextBar";
 import { ModeSlider, readMode, type ChatMode } from "../components/chat/ModeSlider";
+import { ChatRail, type RailMakeKind } from "../components/chat/ChatRail";
 import type { AvatarState } from "../components/NyxAvatar";
 import {
   AgentDock,
@@ -73,14 +74,20 @@ export function ChatPanel({
   onProvider,
   variant = "full",
   onSent,
+  brain,
+  onOpenBrain,
 }: {
   onActivity?: (s: AvatarState) => void;
   provider: string;
   onProvider: (provider: string) => void;
-  /** "sheet": the compact layout that floats over the brain on the Nyx tab. */
-  variant?: "full" | "sheet";
+  /** "sheet": the compact layout that floats over the brain on the Nyx tab.
+   *  "home": chats down the left and the conversation in the middle, like Claude (Update 1, U48). */
+  variant?: "full" | "sheet" | "home";
   /** Called with the text of every message sent (the brain pulses the predicted cluster). */
   onSent?: (text: string) => void;
+  /** "home" only: the Second Brain at a glance in the rail, and how to open it. */
+  brain?: { memories: number; today: number } | null;
+  onOpenBrain?: () => void;
 }) {
   // Reopen the chat you were in. "default" is only a first-visit placeholder;
   // the server answers it with its active chat and the panel adopts the real id.
@@ -313,7 +320,7 @@ export function ChatPanel({
   // --- chat list ----------------------------------------------------------------
 
   const loadChats = useCallback(async () => {
-    const result = await api.get<{ active?: string | null; chats: { id: string; title: string; message_count?: number; updated_at?: number; agent?: string }[] }>(
+    const result = await api.get<{ active?: string | null; chats: { id: string; title: string; message_count?: number; updated_at?: number | string; agent?: string; parent_id?: string | null; kind?: string }[] }>(
       "/api/chats/summaries",
     );
     if (!result.ok) return;
@@ -337,6 +344,8 @@ export function ChatPanel({
         title: c.title,
         messageCount: c.message_count,
         updatedAt: c.updated_at,
+        parentId: c.parent_id || undefined,
+        kind: c.kind && c.kind !== "chat" ? c.kind : undefined,
         running: Boolean(runningByChat[c.id]),
       })),
     );
@@ -609,8 +618,9 @@ export function ChatPanel({
     if (!busy || !draft.trim() || draft.startsWith("/")) { setBusyAdvice(null); return; }
     // Co-work means "carry on alongside" — that is the whole point of the mode,
     // so it does not need to be worked out per message.
-    if (chatMode === "cowork") {
-      setBusyAdvice({ mode: "parallel", reason: "Co-work: this runs alongside what Nyx is already doing.", source: "mode" });
+    if (chatMode === "cowork" || chatMode === "swarm") {
+      const name = chatMode === "swarm" ? "Swarm" : "Co-work";
+      setBusyAdvice({ mode: "parallel", reason: `${name}: this runs alongside what Nyx is already doing.`, source: "mode" });
       return;
     }
     let alive = true;
@@ -833,6 +843,17 @@ export function ChatPanel({
   const makeChatRef = useRef(makeChat);
   makeChatRef.current = makeChat;
 
+  /** The rail's ⋯ menu: branch, semi-branch (fork) or duplicate any chat in the list, then open the new one. */
+  const makeChatFrom = useCallback(async (sourceId: string, kind: RailMakeKind) => {
+    const result = await api.post<{ chat: { id: string; title: string } }>(`/api/chats/${encodeURIComponent(sourceId)}/${kind}`, {});
+    if (!result.ok) { pushToast(result.error, "warn"); return; }
+    const verb = kind === "duplicate" ? "Duplicated" : kind === "branch" ? "Branched" : "Semi-branched";
+    const previous = activeChatId;
+    await loadChats();
+    setActiveChatId(result.data.chat.id);
+    pushToast(`${verb} into “${result.data.chat.title}”.`, "ok", { label: "Go back", onClick: () => setActiveChatId(previous) });
+  }, [activeChatId, loadChats]);
+
   const runCommand = useCallback(
     (command: SlashCommand, args: string) => {
       const needs = (what: string) => {
@@ -1002,6 +1023,108 @@ export function ChatPanel({
       void doSend(text, []);
     },
   };
+
+  if (variant === "home") {
+    const title = chats.find((c) => c.id === activeChatId)?.title || "New chat";
+    return (
+      <div className="chat-home">
+        <ChatRail
+          chats={chats}
+          activeId={activeChatId}
+          runningByChat={runningByChat}
+          onSelect={setActiveChatId}
+          onNew={() => void onNewChat()}
+          onRename={(id, name) => void onRenameChat(id, name)}
+          onDelete={(id) => void onDeleteChat(id)}
+          onMake={(id, kind) => void makeChatFrom(id, kind)}
+          onRestored={() => void loadChats()}
+          brain={brain}
+          onOpenBrain={onOpenBrain}
+        />
+        <section className="chat-home__main" aria-label={`Chat: ${title}`}>
+          <header className="chat-home__head">
+            <h2 className="chat-home__title" title={title}>{title}</h2>
+            <ChatActions onMake={(kind) => void makeChat(kind)} />
+            <span className="chat-home__spacer" />
+            {activeTalkSupported() && <VoiceSwitch mode={voice} onMode={setVoice} />}
+            <ProviderPicker value={provider} onChange={(next) => void pickProvider(next)} compact />
+          </header>
+          <div className="chat-home__meta">
+            <span className="nyx-chat__status" aria-live="polite">{subtitle}</span>
+            <UsageBar provider={usageProvider} refreshKey={usageKey} />
+            <ContextBar chatId={activeChatId} provider={usageProvider} refreshKey={`${usageKey ?? ""}:${messages.length}`} />
+          </div>
+          <div className="chat-home__team">
+            <AgentDock
+              agents={agents}
+              collapsed={dockCollapsed}
+              onToggle={() => setDockCollapsed((v) => !v)}
+              onAskAgent={(name) => onAction({ type: "askAgent", name })}
+              onOpenAgent={(name) => onAction({ type: "openAgent", name })}
+              onOpenDetails={() => setTeamDetails(true)}
+            />
+          </div>
+          {chatAgents[activeChatId] && (
+            <div className="chat-owner" role="note">
+              <span>This chat belongs to <b>{chatAgents[activeChatId]}</b> — they answer here, not the Manager.</span>
+              <button className="chat-inline" onClick={() => void handBack()}>Hand back to the Manager</button>
+            </div>
+          )}
+          <div className="chat-home__column">
+            <MessageList messages={visibleMessages} onAction={onAction} emptyState={emptyState} />
+          </div>
+          <div className="chat-home__dock">
+            <ActiveTalkBar state={talk} onOff={() => setVoiceMode("off")} />
+            {queued.length > 0 && (
+              <div className="queued-list" aria-live="polite">
+                <span className="queued-list__label">Queued</span>
+                {queued.map((q) => (
+                  <span key={q.id} className="chip queued-list__item" title={q.text}>
+                    {q.text.slice(0, 60)}{q.text.length > 60 ? "…" : ""}
+                    <button aria-label="Remove from queue" onClick={() => setQueued((c) => c.filter((x) => x.id !== q.id))}>✕</button>
+                  </span>
+                ))}
+              </div>
+            )}
+            {dispatches.length > 0 && (
+              <div className="dispatch-tray" aria-label="Agents working in this chat">
+                {dispatches.map((d) => (
+                  <DispatchCard key={d.dispatch_id} initial={d} roster={roster} compact
+                    onClose={() => setDispatches((current) => current.filter((x) => x.dispatch_id !== d.dispatch_id))} />
+                ))}
+              </div>
+            )}
+            {dispatchText !== null && (
+              <DispatchSheet text={dispatchText} chatId={activeChatId === "default" ? "" : activeChatId} onClose={() => setDispatchText(null)}
+                onStarted={(d) => setDispatches((current) => [d, ...current.filter((x) => x.dispatch_id !== d.dispatch_id)])} />
+            )}
+            <Composer
+              value={draft}
+              onChange={setDraft}
+              onSend={onSend}
+              onStop={() => runningTurn?.turnId && void stop(runningTurn.turnId)}
+              busy={busy}
+              attachments={pending}
+              onAttachFiles={onAttachFiles}
+              onRemoveAttachment={removeAttachment}
+              agents={agents}
+              placeholder="Ask Nyx anything…  (type / for commands)"
+              slash={slash}
+              onBusySend={(mode) => void onBusySend(mode)}
+              busyAdvice={busyAdvice}
+            />
+            <div className="chat-bottom-row">
+              <ModeSlider chatId={activeChatId} mode={chatMode} onChange={setChatMode} busy={busy} />
+            </div>
+          </div>
+        </section>
+        {teamDetails && !agentSheet && <AgentDetails onClose={() => setTeamDetails(false)} onEdit={(name) => setAgentSheet(name)} />}
+        {agentSheet && <AgentProperties name={agentSheet} onClose={() => setAgentSheet(null)} onRenamed={setAgentSheet} />}
+        {diagramOverlay}
+        <Toasts items={toasts} onDismiss={dismissToast} />
+      </div>
+    );
+  }
 
   if (variant === "sheet") {
     return (

@@ -28,6 +28,7 @@ export type TabId =
   | "freewill"
   | "kahuna"
   | "office"
+  | "computer"
   | "admin"
   | "settings";
 
@@ -82,6 +83,8 @@ export const CORE_TABS: TabDef[] = [
   { id: "kahuna", label: "Big Kahuna", icon: "ph-crown-simple", pinned: true, core: true },
   // Project Null N8: a whole office of agents — hierarchy, sections, and the owner watching them work.
   { id: "office", label: "Office Space", icon: "ph-buildings", pinned: true, core: true },
+  // Update 1, U49: a sandboxed desktop of Nyx's own (Cua), and where it may work — never borrowing yours unasked.
+  { id: "computer", label: "Nyx's Computer", icon: "ph-desktop-tower", pinned: true, core: true },
   { id: "dashboard", label: "Dashboard", icon: "ph-radar", pinned: false, core: true },
   { id: "work", label: "Sessions & Memory", icon: "ph-clock-counter-clockwise", pinned: false, core: true },
   { id: "models", label: "Models", icon: "ph-cpu", pinned: false, core: true },

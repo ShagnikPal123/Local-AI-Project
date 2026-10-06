@@ -184,7 +184,7 @@ export function AgentProperties({ name, onClose, onRenamed }: {
                 <select value={draft.provider} onChange={(e) => setDraft({ ...draft, provider: e.target.value, model: "" })}>
                   <option value="">Auto — same as chat</option>
                   {(snapshot?.providers ?? []).map((p) => (
-                    <option key={p.name} value={p.name}>{p.name}{p.configured ? "" : " (no key)"}</option>
+                    <option key={p.name} value={p.name}>{p.name}{p.configured ? "" : p.name === "ollama" ? " (not running)" : " (no key)"}</option>
                   ))}
                 </select>
               </label>

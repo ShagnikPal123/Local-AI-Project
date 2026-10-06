@@ -7,7 +7,7 @@ removing and testing accounts need the owner, like ``/api/keys``.
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
@@ -103,6 +103,8 @@ class GoogleClientIn(BaseModel):
 
 class GoogleStartIn(BaseModel):
     login_hint: str = ""
+    #: Which Google apps to ask permission for (Connectors, U24); empty keeps the original Gmail-only sign-in.
+    products: List[str] = []
 
 
 def _redirect_uri(request: Request) -> str:
@@ -114,8 +116,11 @@ def _redirect_uri(request: Request) -> str:
 def google_status(request: Request, _owner_user=Depends(_owner)) -> Dict[str, Any]:
     import google_oauth
 
+    accounts = dict.fromkeys([*google_oauth.connected(), *google_oauth._read_granted()])
     return {"client_configured": google_oauth.client_configured(), "connected": google_oauth.connected(),
-            "redirect_uri": _redirect_uri(request), "scopes": list(google_oauth.SCOPES)}
+            "redirect_uri": _redirect_uri(request), "scopes": list(google_oauth.SCOPES),
+            "products": {address: google_oauth.products_of(address) for address in accounts
+                         if google_oauth.products_of(address)}}
 
 
 @router.post("/api/google/oauth/client")
@@ -133,8 +138,11 @@ def google_client(body: GoogleClientIn, _owner_user=Depends(_owner)) -> Dict[str
 def google_start(body: GoogleStartIn, request: Request, _owner_user=Depends(_owner)) -> Dict[str, Any]:
     import google_oauth
 
+    unknown = [p for p in body.products if p not in google_oauth.PRODUCT_SCOPES]
+    if unknown:
+        raise HTTPException(status_code=400, detail=f"Unknown Google app: {', '.join(unknown)}.")
     try:
-        return {"auth_url": google_oauth.start(_redirect_uri(request), body.login_hint.strip())}
+        return {"auth_url": google_oauth.start(_redirect_uri(request), body.login_hint.strip(), body.products)}
     except google_oauth.OAuthError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
 
@@ -168,4 +176,17 @@ def google_callback(request: Request, state: str = "", code: str = "", error: st
     except google_oauth.OAuthError as failure:
         return page("Not connected", str(failure), False)
     _changed()
-    return page(f"Connected {address}", "Nyx can now read and send this Gmail without an app password. You can close this tab.", True)
+    try:
+        from agent_events import publish_ui
+
+        publish_ui("connectors.changed", id="google")
+    except Exception:
+        pass
+    apps = google_oauth.products_of(address)
+    if apps == ["gmail"]:
+        text = "Nyx can now read and send this Gmail without an app password. You can close this tab."
+    else:
+        names = {"gmail": "Gmail", "calendar": "Calendar", "drive": "Drive", "docs": "Docs", "sheets": "Sheets",
+                 "slides": "Slides", "tasks": "Tasks"}
+        text = f"Nyx can now use {', '.join(names.get(a, a) for a in apps)} for this account. You can close this tab."
+    return page(f"Connected {address}", text, True)

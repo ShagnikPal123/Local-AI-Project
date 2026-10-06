@@ -34,7 +34,8 @@ BUILTIN_COMMANDS: List[Dict[str, Any]] = [
     {"name": "fork", "title": "Fork chat", "description": "A linked chat that starts from a summary", "kind": "client", "action": "chat.fork"},
     {"name": "rename", "title": "Rename chat", "description": "Give this chat your own name", "args": "new name", "kind": "client", "action": "chat.rename"},
     {"name": "model", "title": "Switch model", "description": "Choose who answers from now on", "args": "gemini, nvidia, groq…", "kind": "client", "action": "model.switch"},
-    {"name": "auto", "title": "Auto model", "description": "Let Nyx pick the model for each message", "kind": "client", "action": "model.auto"},
+    # "/auto" is the Auto team (Update 1, U21); picking the model automatically is /automodel.
+    {"name": "automodel", "title": "Auto model", "description": "Let Nyx pick the model for each message", "kind": "client", "action": "model.auto"},
     {"name": "stop", "title": "Stop answering", "description": "Stop the answer being written", "kind": "client", "action": "turn.stop"},
     {"name": "agent", "title": "Agent properties", "description": "Objective, model and tools of an agent", "args": "agent name", "kind": "client", "action": "agent.open"},
     {"name": "tab", "title": "Open a tab", "description": "Jump to Learn, Improve, Agents, Settings…", "args": "tab name", "kind": "client", "action": "tab.open"},
@@ -60,6 +61,9 @@ BUILTIN_COMMANDS: List[Dict[str, Any]] = [
      "template": "Summarize clearly with the key points first: {args}"},
     {"name": "fresh", "title": "Answer fresh", "description": "Skip remembered answers and think again", "args": "message",
      "template": "[fresh] {args}"},
+    {"name": "auto", "title": "Auto — the best team for the job",
+     "description": "Nyx picks the skills, agents and connectors that fit (or makes the agent it needs) and runs them",
+     "args": "the job", "kind": "auto"},
     {"name": "newagent", "title": "Make an agent", "description": "Add a specialist to the team", "args": "name — what it is for",
      "template": "Create an agent: {args}"},
     {"name": "intent", "title": "Write an intent.md", "description": "Capture the problem, outcome and limits before building",
@@ -368,6 +372,10 @@ def brief_for(text: str, commands: Optional[List[Dict[str, Any]]] = None) -> Dic
                 continue
         if command.get("kind") == "client":
             lines.append(f"\n/{name} — {command.get('title', name)}: an app action, not part of the request. Ignore the word.")
+            continue
+        if command.get("kind") == "auto":
+            # The picks and how to run them arrive as their own "[Auto team]" brief (auto_team.py).
+            lines.append(f"\n/{name} — Auto: run the team described under [Auto team] for the rest of the message.")
             continue
         template = str(command.get("template") or "")
         meaning = template.replace("{args}", "the part of the message it applies to").strip()

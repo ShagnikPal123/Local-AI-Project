@@ -109,6 +109,19 @@ def test_control_pause_and_resume_on_an_idle_office(client):
     assert client.post(f"/api/office/offices/{office['id']}/control", json={"action": "sit down"}).status_code == 409
 
 
+def test_deliver_now_and_auto_decisions(client):
+    """Update 1: the Output box's Deliver now (U41) and the Auto decisions switch (U42)."""
+    office = client.post("/api/office/offices", json={"name": "Outputs"}).json()["office"]
+    early = client.post(f"/api/office/offices/{office['id']}/deliver")
+    assert early.status_code == 409 and "give the office a job" in early.json()["detail"]
+
+    on = client.post(f"/api/office/offices/{office['id']}/options", json={"auto_decisions": True}).json()
+    assert on["office"]["settings"]["auto_decisions"] is True
+    assert on["outputs"] == [] and on["staffing"] == []
+    off = client.post(f"/api/office/offices/{office['id']}/options", json={"auto_decisions": False}).json()
+    assert off["office"]["settings"]["auto_decisions"] is False
+
+
 def test_files_and_memory_are_readable_and_forgettable(client):
     from office import memory
 

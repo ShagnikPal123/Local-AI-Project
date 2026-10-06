@@ -18,6 +18,7 @@ import { onWorkspaceEvent } from "../state/workspaceEvents";
 import { CustomModelsSection, KeyAlerts, KeyPool } from "./KeyPoolSections";
 import { LocalModels, ModelFinder } from "./LocalModelsSections";
 import { GoogleSignIn } from "./GoogleSignIn";
+import { AutoAssignModels } from "./AutoAssignModels";
 
 interface KeyField {
   name: string;
@@ -208,6 +209,7 @@ function RoleRow({ role, providers, onChanged }: { role: Role; providers: Provid
         <span className="keys-badge">{role.job}</span>
         {!role.configured && <span className="keys-status">needs a {role.provider} key</span>}
         {role.assigned_by === "assistant" && <span className="keys-notes">set by Nyx</span>}
+        {role.assigned_by === "auto" && <span className="keys-notes">auto-assigned</span>}
       </div>
       {role.description && <p className="keys-notes">{role.description}</p>}
       <div className="keys-role__grid">
@@ -346,6 +348,8 @@ function EmailSection() {
       <p className="keys-notes">
         Add your address and an <em>app password</em> (not your normal password) so Nyx can read, send and reply.
         Without one, Nyx {outlook ? "sends through Outlook on this PC" : "opens a ready-to-send draft for you"}.{" "}
+        Gmail, Outlook, Docs, Sheets, Excel and the rest also connect in{" "}
+        <a href="#connectors" onClick={(e) => { e.preventDefault(); window.dispatchEvent(new CustomEvent("nyx:open-tab", { detail: { tab: "connectors" } })); }}>Connectors</a>.{" "}
         App passwords: <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer">Gmail</a>,{" "}
         <a href="https://account.live.com/proofs/AppPassword" target="_blank" rel="noopener noreferrer">Outlook.com</a>,{" "}
         <a href="https://account.apple.com/account/manage" target="_blank" rel="noopener noreferrer">iCloud</a>.
@@ -436,6 +440,7 @@ export function KeysPanel() {
           Nyx uses exactly these models for these jobs and tells you which one did the work. You can also just ask
           in chat: “use NVIDIA’s Llama Vision for image checks”.
         </p>
+        <AutoAssignModels onChanged={() => void load()} />
         <div className="keys-grid">
           {roles.map((role) => <RoleRow key={role.id} role={role} providers={providers} onChanged={() => void load()} />)}
           <NewRole providers={providers} onCreated={() => void load()} />

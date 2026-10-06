@@ -16,6 +16,7 @@ import pytest
 
 import chat_sessions
 import memory
+import paths
 import provider_specs
 
 
@@ -86,6 +87,22 @@ def isolate_persistent_stores(tmp_path, monkeypatch):
     monkeypatch.setattr(key_pool, "_path", lambda: tmp_path / "key_health.json")
     monkeypatch.setattr(model_choice, "_path", lambda: tmp_path / "model_choice.json")
 
+    # The owner's swarm size (Update 1): a test that saves 2 must not shrink their real swarm.
+    import swarm
+
+    monkeypatch.setattr(swarm, "_path", lambda: tmp_path / "swarm.json")
+
+    # Where Nyx may work (Update 1, U49): a test that sets "never" must not lock the owner's real screen setting.
+    import own_computer
+
+    monkeypatch.setattr(own_computer, "_path", lambda: tmp_path / "own_computer.json")
+
+    # Which Google apps each address allowed (Update 1, connectors): the sign-in tests use a made-up owner@gmail.com,
+    # which landed in the real data folder before this.
+    import google_oauth
+
+    monkeypatch.setattr(google_oauth, "_granted_path", lambda: tmp_path / "google_granted.json")
+
     # Turns run in tests must not teach the owner's real learner or fill the real
     # response cache (both are wired into every streamed turn).
     try:
@@ -136,6 +153,21 @@ def isolate_persistent_stores(tmp_path, monkeypatch):
         monkeypatch.setattr(command_zone, "INBOX", command_zone.Inbox(tmp_path / "command_zone.json"))
     except Exception:
         pass
+
+    # The owner's accounts (local_accounts) reach every prompt as "## This account", the fast
+    # path included, so a named Main with a purpose on this PC made test_fast_response count a
+    # third message that only exists on his machine. Tests start in a bare Main with no index;
+    # a test that points DATA_DIR at its own folder (test_local_accounts) keeps the index there.
+    real_data_dir = paths.DATA_DIR
+    real_index_path = paths.accounts_index_path
+
+    def accounts_index_path():
+        if paths.DATA_DIR == real_data_dir:
+            return tmp_path / "accounts" / "index.json"
+        return real_index_path()
+
+    monkeypatch.setattr(paths, "accounts_index_path", accounts_index_path)
+    monkeypatch.setattr(paths, "ACTIVE_ACCOUNT", paths.MAIN_ACCOUNT)
 
     # Tab-visit predictions and presence are per-owner state; tests get their own.
     try:

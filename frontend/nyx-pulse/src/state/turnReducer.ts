@@ -136,7 +136,12 @@ export function reduceTurn(turn: AssistantTurn | undefined, event: TurnEvent): A
     case "agent.update": {
       const agentId = str(event.agent_id) || str(event.name);
       if (!agentId) return t;
-      const index = t.agents.findIndex((a) => a.agentId === agentId || (!!event.name && a.name === event.name));
+      // Each hand-off has its own call id (U46), so asking the same agent twice shows two requests and two
+      // replies. An entry without one (from "agent.created", or an older engine) is adopted by the first call.
+      const callId = str(event.call_id);
+      const sameAgent = (a: AgentActivity) => a.agentId === agentId || (!!event.name && a.name === event.name);
+      let index = callId ? t.agents.findIndex((a) => a.callId === callId) : t.agents.findIndex(sameAgent);
+      if (index === -1 && callId) index = t.agents.findIndex((a) => !a.callId && sameAgent(a));
       const prev = index === -1 ? undefined : t.agents[index];
       const status = event.status === "done" || event.status === "error" ? event.status : "working";
       const next: AgentActivity = {
@@ -149,7 +154,10 @@ export function reduceTurn(turn: AssistantTurn | undefined, event: TurnEvent): A
         step: str(event.step) || prev?.step,
         understanding: str(event.understanding) || prev?.understanding,
         task: str(event.task) || prev?.task,
+        context: str(event.context) || prev?.context,
         resultPreview: str(event.result_preview) || prev?.resultPreview,
+        report: str(event.report) || prev?.report,
+        callId: callId || prev?.callId,
         seconds: num(event.seconds) ?? prev?.seconds,
         updatedAt: at,
       };
@@ -376,9 +384,23 @@ export function reduceTurn(turn: AssistantTurn | undefined, event: TurnEvent): A
       return items.length ? { ...t, checklist: items } : t;
     }
 
+    case "auto.team": {
+      const list = (value: unknown) => (Array.isArray(value) ? (value as Record<string, unknown>[]) : []);
+      const why = (value: unknown) => (Array.isArray(value) ? value.map((w) => str(w)).filter(Boolean) : []);
+      return {
+        ...t,
+        autoTeam: {
+          skills: list(event.skills).map((s) => ({ name: str(s.name), why: why(s.why) })).filter((s) => s.name),
+          agents: list(event.agents).map((a) => ({ name: str(a.name), emoji: str(a.emoji), why: why(a.why) })).filter((a) => a.name),
+          createAgent: Boolean(event.create_agent),
+          connectors: list(event.connectors).map((c) => ({ name: str(c.name), connected: Boolean(c.connected) })).filter((c) => c.name),
+        },
+      };
+    }
+
     case "chat.mode": {
       const mode = str(event.mode);
-      return mode ? { ...t, chatMode: mode } : t;
+      return mode ? { ...t, chatMode: mode, chatModeAuto: Boolean(event.auto), chatModeReason: str(event.reason) || undefined } : t;
     }
 
     case "done": {

@@ -146,6 +146,85 @@ def test_routes(tmp_path, monkeypatch):
     assert client.get("/api/research").json()["jobs"][0]["job_id"] == job["job_id"]
     exported = client.get(f"/api/research/{job['job_id']}/export?format=citations&style=mla")
     assert exported.status_code == 200 and "attachment" in exported.headers["content-disposition"] and 'Dao, Tri' in exported.text
-    assert client.get("/api/research/papers?q=flash").json()["papers"][0]["title"].startswith("FlashAttention")
+    found = client.get("/api/research/papers?q=flash").json()["papers"][0]
+    assert found["title"].startswith("FlashAttention")
+    assert found["cite"]["mla"].startswith('Dao, Tri, et al.') and set(found["cite"]) == set(re_eng.STYLES), "every style, no second search"
+    assert client.get("/api/research/papers?q=What is flash attention?").json()["query"] == "flash attention"
+    cited = client.get(f"/api/research/{job['job_id']}/citations?style=apa").json()
+    assert cited["style"] == "apa" and cited["citations"][0]["text"].startswith("Dao, T., Fu, D. Y., & Ermon, S. (2022)")
+    assert client.get("/api/research/nope/citations").status_code == 409
     assert client.get("/api/research/cite?title=flash&style=ieee").json()["citation"].startswith("[")
     assert client.delete(f"/api/research/{job['job_id']}").json()["deleted"] == job["job_id"]
+
+
+def test_switching_citation_style_needs_no_model(tmp_path):
+    jobs, prompts = make_jobs(tmp_path, {"Write a concise research report": "## Summary\nWorks [1]."})
+    job = jobs.start("How can huge language models run on small GPUs?")
+    asked = len(prompts)
+    mla = jobs.citations(job["job_id"], "mla")
+    assert mla["style"] == "mla" and [c["n"] for c in mla["citations"]] == [s["n"] for s in job["sources"]]
+    assert mla["citations"][0]["text"].startswith('Dao, Tri, et al. "FlashAttention')
+    assert jobs.citations(job["job_id"], "ieee")["citations"][0]["text"].startswith("[1] T. Dao")
+    assert jobs.citations(job["job_id"], "made-up")["style"] == "apa"
+    assert len(prompts) == asked
+
+
+def test_a_running_job_is_reported_to_the_processes_view(tmp_path, monkeypatch):
+    """U31: research shows in Core → Processes while it works, once, with the tab that shows it."""
+    import threading
+
+    import feature_catalog
+
+    release = threading.Event()
+
+    def slow(prompt, system="", max_tokens=0):
+        release.wait(10)
+        return "## Summary\nok [1]"
+
+    jobs = re_eng.ResearchJobs(model_fn=slow, web_search=lambda q: [], paper_search=lambda q, n: [PAPER],
+                               store_dir=tmp_path / "research")
+    monkeypatch.setattr(re_eng, "RESEARCH", jobs)
+    job = jobs.start("How can huge language models run on small GPUs?", mode="standard")
+    try:
+        status = re_eng.background_status()
+        rows = [row for row in feature_catalog.live_processes() if job["job_id"] in row["id"]]
+    finally:
+        release.set()
+        for thread in threading.enumerate():
+            if thread.name == f"nyx-research-{job['job_id']}":
+                thread.join(10)
+    assert [row["id"] for row in status] == [job["job_id"]] and status[0]["tab"] == "research"
+    assert len(rows) == 1 and rows[0]["source"] == "module", "the job, not also its thread"
+    assert jobs.get(job["job_id"]).status == "done" and re_eng.background_status() == []
+
+
+def test_papers_are_searched_by_the_topic_words_of_the_question(tmp_path):
+    """OpenAlex matches every word: the whole sentence found nothing relevant, so a job came back web-only (U1)."""
+    assert re_eng.scholarly_query("What does the evidence say about spaced repetition for long-term retention?") == \
+        "spaced repetition long-term retention"
+    assert re_eng.looks_like_question("How do huge models run on small GPUs?")
+    assert not re_eng.looks_like_question("FlashAttention: Fast and Memory-Efficient Exact Attention")
+
+    asked = []
+
+    def papers(query, n):
+        asked.append(query)
+        return [] if len(query.split()) > 3 else [PAPER]
+
+    jobs = re_eng.ResearchJobs(model_fn=lambda prompt, **k: "## Summary\nok [1]", web_search=lambda q: [], paper_search=papers,
+                               store_dir=tmp_path / "research", threaded=False)
+    job = jobs.start("How well does layer-by-layer offloading let a 70B model run on a 16 GB GPU?")
+    assert asked == ["layer-by-layer offloading 70b model run 16", "layer-by-layer offloading 70b"], "fewer words when none match"
+    assert job["status"] == "done" and job["sources"][0]["kind"] == "paper"
+    assert any(entry["text"].startswith("Papers for “layer-by-layer offloading 70b”: 1 found") for entry in job["log"])
+
+
+def test_the_summary_drops_the_brackets_a_removed_citation_leaves():
+    text = re_eng.ResearchJobs._summary("## Summary\nThe monograph by Sorokina (source [1]) shows it works [2].\n## Findings\nx")
+    assert text == "The monograph by Sorokina shows it works."
+
+
+def test_full_width_citation_marks_are_checked_like_the_rest(tmp_path):
+    jobs, _ = make_jobs(tmp_path, {"Write a concise research report": "## Summary\nWorks 【1】 and ［7］."})
+    job = jobs.start("How can huge language models run on small GPUs?")
+    assert "Works [1]" in job["report"] and job["removed_citations"] == ["[7]"]

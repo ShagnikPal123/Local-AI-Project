@@ -30,6 +30,10 @@ export interface OfficeAgent {
   errors: number;
   note: string;
   inbox: number;
+  /** Update 1, U42: part-time agents are called in only when their kind of work comes up. */
+  employment?: "full" | "part_time";
+  /** -1 junior, 0 normal, 1 senior, 2 lead. */
+  rank?: number;
 }
 
 export interface OfficeTask {
@@ -85,6 +89,31 @@ export interface OfficeHire {
   new_type: boolean;
   ts: number;
   decided_at: number;
+}
+
+/** Something the office delivered — the Output box (Update 1, U41). */
+export interface OfficeOutput {
+  id: string;
+  title: string;
+  text: string;
+  status: "done" | "partial" | "failed" | "stopped";
+  links: { kind: "file" | "url"; label: string; path?: string; href?: string }[];
+  job_id: string;
+  by: string;
+  by_name: string;
+  ts: number;
+}
+
+/** Part-time, let go, promoted, demoted — shown beside hiring (Update 1, U42). */
+export interface OfficeStaffChange {
+  id: string;
+  agent_id: string;
+  agent_name: string;
+  change: "part_time" | "full_time" | "let_go" | "promoted" | "demoted";
+  why: string;
+  role: string;
+  job_id: string;
+  ts: number;
 }
 
 export interface OfficeJob {
@@ -162,6 +191,8 @@ export interface OfficeSnapshot {
   thread: OfficeMessage[];
   feed: OfficeMessage[];
   hires: OfficeHire[];
+  outputs: OfficeOutput[];
+  staffing: OfficeStaffChange[];
   job: OfficeJob | null;
   roles: OfficeRole[];
   focus: FocusState;

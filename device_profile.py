@@ -22,6 +22,14 @@ MODEL_TIERS = {
 }
 
 
+def _marketed(gb: float) -> float:
+    """Memory as sold: a reading within 5% under a power of two is that size (15.79 GB → 16)."""
+    for size in (4, 8, 12, 16, 24, 32, 48, 64, 96, 128):
+        if size * 0.95 <= gb < size:
+            return float(size)
+    return gb
+
+
 @dataclass(frozen=True)
 class DeviceProfile:
     """Hardware facts needed to choose an appropriate local model size and strain limits."""
@@ -35,12 +43,19 @@ class DeviceProfile:
 
     @property
     def max_workers(self) -> int:
-        """Calculate safe maximum concurrent agent workers based on system resources."""
-        if self.ram_gb >= 32 and self.vram_gb >= 12:
+        """Calculate safe maximum concurrent agent workers based on system resources.
+
+        Compared against the memory's marketed size: Windows reports a "16 GB" machine as 15.8 GB once the
+        integrated graphics take their share, and a strict ``>= 16`` put the owner's laptop with the 8 GB class
+        (two workers, so Swarm offered eight agents two at a time). Only the worker count reads it this way —
+        the local-model tier keeps its strict thresholds, because the next tier up is a 35B model.
+        """
+        ram, vram = _marketed(self.ram_gb), _marketed(self.vram_gb)
+        if ram >= 32 and vram >= 12:
             return 8
-        elif self.ram_gb >= 16 and self.vram_gb >= 6:
+        elif ram >= 16 and vram >= 6:
             return 4
-        elif self.ram_gb >= 8:
+        elif ram >= 8:
             return 2
         return 1
 

@@ -98,3 +98,51 @@ def test_the_callback_is_public_but_refuses_an_unknown_state(tmp_path, monkeypat
     assert response.status_code == 400 and "expired" in response.text
     assert client.get("/api/google/oauth/status").status_code == 401
     assert client.post("/api/google/oauth/start", json={}).status_code == 401
+
+
+# --- Update 1 (U24): every Google app in Connectors, each with only its own permission ---------------------------
+
+
+@pytest.fixture()
+def granted_file(secrets_and_mail, tmp_path, monkeypatch):
+    monkeypatch.setattr(google_oauth, "_granted_path", lambda: tmp_path / "google_granted.json")
+    return secrets_and_mail
+
+
+def test_a_sheets_sign_in_asks_for_sheets_and_does_not_add_a_mailbox(granted_file):
+    import email_client
+
+    google_oauth.save_client("123-abc.apps.googleusercontent.com", "GOCSPX-secret-value")
+    url = google_oauth.start("http://127.0.0.1:8000/api/google/oauth/callback", products=["sheets"])
+    scope = parse_qs(urlsplit(url).query)["scope"][0].split()
+    assert "https://www.googleapis.com/auth/spreadsheets" in scope and "https://mail.google.com/" not in scope
+    state = parse_qs(urlsplit(url).query)["state"][0]
+
+    class _Granting(_Google):
+        def post(self, url, data=None, timeout=0):
+            answer = super().post(url, data, timeout)
+            if data.get("grant_type") == "authorization_code":
+                answer._body["scope"] = " ".join(scope)
+            return answer
+
+    assert google_oauth.complete(state, "code", http=_Granting()) == "owner@gmail.com"
+    assert google_oauth.accounts_for("sheets") == ["owner@gmail.com"]
+    assert google_oauth.accounts_for("gmail") == [] and email_client.list_accounts() == []
+
+
+def test_a_gmail_sign_in_from_before_update_1_still_counts_as_gmail(granted_file):
+    google_oauth.save_client("123-abc.apps.googleusercontent.com", "GOCSPX-secret-value")
+    state = parse_qs(urlsplit(google_oauth.start("http://127.0.0.1:8000/cb")).query)["state"][0]
+    google_oauth.complete(state, "code", http=_Google())  # Google's answer carries no "scope"
+    assert google_oauth.products_of("owner@gmail.com") == ["gmail"]
+    google_oauth.disconnect("owner@gmail.com", http=_Google())
+    assert google_oauth.accounts_for("gmail") == []
+
+
+def test_the_start_route_refuses_an_unknown_app(tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    import server
+
+    client = TestClient(server.app, client=("127.0.0.1", 50001))
+    assert client.post("/api/google/oauth/start", json={"products": ["minesweeper"]}).status_code == 400

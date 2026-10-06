@@ -45,6 +45,8 @@ MODES: Dict[str, Dict[str, int]] = {
     "standard": {"subquestions": 0, "web": 5, "papers": 4, "read": 5, "max_sources": 12, "report_tokens": 2200},
     "deep": {"subquestions": 5, "web": 5, "papers": 5, "read": 16, "max_sources": 36, "report_tokens": 5000},
 }
+#: Statuses of a job that is still working (the Research tab and the processes view both ask).
+RUNNING = frozenset({"queued", "planning", "searching", "reading", "analyzing", "writing"})
 STYLES = ("apa", "mla", "chicago", "ieee", "harvard", "bibtex")
 PAPER_SECTIONS = ["Abstract", "Introduction", "Related Work", "Methods", "Results", "Discussion", "Conclusion"]
 _UA = {"User-Agent": "NyxIchos-Research/1.0 (local assistant; mailto:research@nyx.local)"}
@@ -155,6 +157,38 @@ def search_papers(query: str, limit: int = 8) -> List[Dict[str, Any]]:
         except Exception as error:  # noqa: BLE001 - one index down is not a failed search
             errors.append(str(error)[:80])
     return found[:limit]
+
+
+#: Words that carry no topic. Scholarly indexes match every word they are given, so these sink a search.
+_NOT_TOPIC = frozenset("""
+a an and are as at be been being but by can could did do does doing for from had has have how i if in into is it its
+may might more most of on or should so than that the their them there these they this those to was were what when
+where which while who whom why will with would about across after again against all also any because before between
+both during each few further here just like many much no nor not now only other over own same some such then through
+too under until up very via within without you your we our us me my say says said tell explain describe compare
+evidence current currently best good well let lets get use using used know known make work works way ways new really
+""".split())
+
+_QUESTION_START = frozenset("what how why which who whom when where does do did is are can could should would will "
+                            "compare explain describe".split())
+
+
+def looks_like_question(text: str) -> bool:
+    words = text.strip().split()
+    return bool(words) and (text.strip().endswith("?") or words[0].lower() in _QUESTION_START)
+
+
+def scholarly_query(question: str, words: int = 6) -> str:
+    """A question as keywords for OpenAlex and arXiv.
+
+    Both match every word they get, so a whole sentence ("What does the evidence say about spaced repetition…")
+    found nothing relevant and a research job came back with web pages only. The topic words find the papers."""
+    keep: List[str] = []
+    for token in re.findall(r"[A-Za-z0-9][A-Za-z0-9'+.\-]*", question or ""):
+        clean = token.strip(".'-").lower()
+        if len(clean) > 1 and clean not in _NOT_TOPIC and clean not in keep:
+            keep.append(clean)
+    return " ".join(keep[:words]) or (question or "").strip()
 
 
 def _norm_title(title: str) -> str:
@@ -401,6 +435,20 @@ class ResearchJobs:
             raise ResearchError("No such research.")
         return job
 
+    def running(self) -> List[Job]:
+        """Jobs working in this process. Never reads the disk: a saved job that was running is not running now."""
+        with self._lock:
+            return [job for job in self._jobs.values() if job.status in RUNNING]
+
+    def citations(self, job_id: str, style: str = "apa") -> Dict[str, Any]:
+        """Every source of a job in one citation style, by its number.
+
+        The report's own reference list stays numbered (IEEE) because its marks are ``[n]``; this is what the
+        tab shows when the owner switches style, so a switch is instant and never asks a model again."""
+        job = self.get(job_id)
+        style = style if style in STYLES else "apa"
+        return {"style": style, "citations": [{"n": s["n"], "text": format_citation(s, style, s["n"])} for s in job.sources]}
+
     def delete(self, job_id: str) -> None:
         with self._lock:
             self._load()
@@ -496,7 +544,14 @@ class ResearchJobs:
                 self._note(job, "searching", f"Searching: {query[:120]}", 0.1 + 0.25 * index / max(1, len(queries)))
                 if job.include_papers:
                     try:
-                        for paper in self._paper_search(query, limits["papers"]):
+                        keywords = scholarly_query(query)
+                        found = self._paper_search(keywords, limits["papers"])
+                        if not found and len(keywords.split()) > 3:
+                            # Every word must match, so fewer words is the honest second try.
+                            keywords = scholarly_query(query, 3)
+                            found = self._paper_search(keywords, limits["papers"])
+                        job.log.append({"ts": time.time(), "text": f"Papers for “{keywords}”: {len(found)} found"})
+                        for paper in found:
                             if not _duplicate(paper, collected):
                                 collected.append(paper)
                     except Exception as error:  # noqa: BLE001
@@ -617,6 +672,8 @@ class ResearchJobs:
         )
         reply = _strip_thinking(self._model(job, prompt, system="You are a careful research analyst who cites every claim.",
                                             max_tokens=limits["report_tokens"]))
+        # Some models write 【2】 or ［2］; made plain, those are checked and linked like every other citation.
+        reply = re.sub(r"[【［]\s*(\d{1,3})\s*[】］]", r"[\1]", reply)
         valid = {s["n"] for s in job.sources}
         removed: List[str] = []
 
@@ -638,7 +695,11 @@ class ResearchJobs:
     def _summary(report: str) -> str:
         match = re.search(r"##\s*Summary\s*\n+(.+?)(?:\n##|\Z)", report, re.S)
         text = match.group(1) if match else report
-        return re.sub(r"\s+", " ", re.sub(r"\[\d+\]", "", text)).strip()[:700]
+        text = re.sub(r"\[\d+\]", "", text)
+        # "(source [1])" loses its number above; the empty brackets it leaves read as a typo.
+        text = re.sub(r"\s*\(\s*(?:sources?|see)?[\s,;]*\)", "", text, flags=re.I)
+        text = re.sub(r"\s+([.,;:])", r"\1", re.sub(r"\s+", " ", text))
+        return text.strip()[:700]
 
     def _finish(self, job: Job, status: str) -> None:
         job.ended_at = time.time()
@@ -864,6 +925,13 @@ def _auto_teach() -> bool:
 
 
 RESEARCH = ResearchJobs()
+
+
+def background_status() -> List[Dict[str, Any]]:
+    """Research working right now, for the processes view (``feature_catalog`` reads this; U31)."""
+    return [{"kind": "research", "id": job.job_id, "label": f"Research · {'deep' if job.mode == 'deep' else 'standard'}",
+             "detail": f"{job.step} — {job.question}", "status": job.status, "running": True, "tab": "research",
+             "progress": job.progress, "seconds": time.time() - job.created_at} for job in RESEARCH.running()]
 
 
 # ---------------------------------------------------------------------------

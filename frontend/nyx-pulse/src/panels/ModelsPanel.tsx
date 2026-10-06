@@ -104,7 +104,10 @@ export function ModelsPanel() {
   if (error) return <PanelShell title="Models"><ErrorState error={error} /></PanelShell>;
   if (!models) return <PanelShell title="Models"><Loading what="Reading models" /></PanelShell>;
 
-  const router = status?.router_status ?? {};
+  // `/api/status` nests the router under `service` (as DashboardPanel already reads it); from the top
+  // level this tab said "tier: unknown — could not be detected" on a machine the Dashboard read fine.
+  const service = ((status as { service?: StatusResponse } | null)?.service ?? status) as StatusResponse | null;
+  const router = service?.router_status ?? {};
   const profile = (router.device_profile ?? {}) as Record<string, number>;
   const tier = (router.device_tier ?? "unknown") as Tier;
   const advice = adviceFor(tier, Number(profile.ram_gb ?? 0), Number(profile.vram_gb ?? 0));

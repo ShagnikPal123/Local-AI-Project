@@ -17,7 +17,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
 import { BrainField, type BrainCluster, type BrainFieldHandle, type BrainNodeInfo, type BrainStats } from "../components/brain/BrainField";
-import { AgentCity } from "../components/brain/AgentCity";
 import { CoreView } from "../components/brain/CoreView";
 import { AgentProperties } from "../components/AgentProperties";
 import type { AvatarState } from "../components/NyxAvatar";
@@ -82,6 +81,12 @@ export function NyxPanel({ onActivity, provider, onProvider, onOpenTab }: {
   onOpenTab?: (tab: string) => void;
 }) {
   const reduced = useReducedMotion();
+  // Update 1, U48 — what the tab shows, chosen at its top: "chat" (chats down the left, like Claude) or "brain"
+  // (the Second Brain with voice and the chat sheet, the main screen until now). Remembered.
+  const [layout, setLayout] = useState<"chat" | "brain">(() => {
+    try { return localStorage.getItem("nyx.layout") === "brain" ? "brain" : "chat"; } catch { return "chat"; }
+  });
+  useEffect(() => { try { localStorage.setItem("nyx.layout", layout); } catch { /* not kept */ } }, [layout]);
   const field = useRef<BrainFieldHandle>(null);
   const [summary, setSummary] = useState<BrainSummary | null>(null);
   const [core, setCore] = useState<CoreSummary | null>(null);
@@ -104,7 +109,7 @@ export function NyxPanel({ onActivity, provider, onProvider, onOpenTab }: {
     const observer = new ResizeObserver(() => setStageWidth(stage.clientWidth || 1200));
     observer.observe(stage);
     return () => observer.disconnect();
-  }, []);
+  }, [layout]);
   const maxSheet = Math.max(340, stageWidth - 24);
   // "when activating voice make the side panel a bit smaller" (Project Null N90):
   // hands-free means looking at the brain, not reading the sheet, so it steps back
@@ -252,28 +257,56 @@ export function NyxPanel({ onActivity, provider, onProvider, onOpenTab }: {
 
   const total = summary?.memories ?? 0;
   const seeding = summary?.seeding?.running;
-  // Three ways to see what Nyx is (owner requests): the memory field, the team as a city, and the core at work.
-  const [view, setView] = useState<"field" | "city" | "core">(() => {
-    try {
-      const saved = localStorage.getItem("nyx.stage.view");
-      return saved === "city" || saved === "core" ? saved : "field";
-    } catch { return "field"; }
+  // Two ways to see what Nyx is: the memory field and the core at work. Agent City went in Update 1 (U13, owner:
+  // "remove Agent city since it was basically what office would look like") — Office Space shows the team as a
+  // place, and an agent still opens from the Core view and the Agents tab. A saved "city" falls back to the field.
+  const [view, setView] = useState<"field" | "core">(() => {
+    try { return localStorage.getItem("nyx.stage.view") === "core" ? "core" : "field"; } catch { return "field"; }
   });
-  const [cityAgent, setCityAgent] = useState<string | null>(null);
+  const [openAgent, setOpenAgent] = useState<string | null>(null);
   useEffect(() => { try { localStorage.setItem("nyx.stage.view", view); } catch { /* not kept in private windows */ } }, [view]);
+  // U15, "some tabs on memory field ... are obstructive": the cards fold to one line, and remember how the owner left them.
+  const [legendOpen, setLegendOpen] = useState(() => {
+    try { return localStorage.getItem("nyx.field.legend") === "1"; } catch { return false; }
+  });
+  const [statusOpen, setStatusOpen] = useState(() => {
+    try { return localStorage.getItem("nyx.field.status") === "1"; } catch { return false; }
+  });
+  useEffect(() => { try { localStorage.setItem("nyx.field.legend", legendOpen ? "1" : "0"); } catch { /* not kept */ } }, [legendOpen]);
+  useEffect(() => { try { localStorage.setItem("nyx.field.status", statusOpen ? "1" : "0"); } catch { /* not kept */ } }, [statusOpen]);
+
+  const layoutBar = (
+    <div className="nyx-tab__bar">
+      <div className="segmented" role="group" aria-label="What the Nyx tab shows">
+        <button type="button" aria-pressed={layout === "chat"} onClick={() => setLayout("chat")}>Chat</button>
+        <button type="button" aria-pressed={layout === "brain"} onClick={() => setLayout("brain")}>Second Brain</button>
+      </div>
+      <span className="nyx-tab__hint">
+        {layout === "chat" ? "Your chats are on the left — the memory field and voice are one click away."
+          : "The memory field, voice and a chat beside them."}
+      </span>
+    </div>
+  );
+
+  if (layout === "chat") {
+    return (
+      <div className="nyx-tab">
+        {layoutBar}
+        <ChatPanel variant="home" onActivity={onActivity} provider={provider} onProvider={onProvider} onSent={onSent}
+          brain={summary ? { memories: summary.memories, today: summary.memories_24h } : null}
+          onOpenBrain={() => setLayout("brain")} />
+      </div>
+    );
+  }
 
   return (
-    <div ref={stageRef} className={`nyx-stage${chatOpen ? " has-chat" : ""}${view === "city" ? " is-city" : ""}${view === "core" ? " is-core" : ""}`} style={{ ["--sheet-w" as string]: `${effectiveSheet}px` }}>
-      <div className="nyx-stage__views segmented" role="group" aria-label="What this stage shows">
-        <button type="button" aria-pressed={view === "field"} onClick={() => setView("field")}>Memory field</button>
-        <button type="button" aria-pressed={view === "city"} onClick={() => setView("city")}>Agent city</button>
-        <button type="button" aria-pressed={view === "core"} onClick={() => setView("core")}>Core</button>
-      </div>
-      {view === "city" && <AgentCity onOpenAgent={setCityAgent} />}
+    <div className="nyx-tab">
+    {layoutBar}
+    <div ref={stageRef} className={`nyx-stage${chatOpen ? " has-chat" : ""}${view === "core" ? " is-core" : ""}`} style={{ ["--sheet-w" as string]: `${effectiveSheet}px` }}>
       {view === "core" && (
-        <CoreView shiftX={chatOpen && stageWidth > 900 ? Math.round(effectiveSheet / 2) : 0} onOpenAgent={setCityAgent} onOpenTab={onOpenTab} />
+        <CoreView shiftX={chatOpen && stageWidth > 900 ? Math.round(effectiveSheet / 2) : 0} onOpenAgent={setOpenAgent} onOpenTab={onOpenTab} />
       )}
-      {cityAgent && <AgentProperties name={cityAgent} onClose={() => setCityAgent(null)} onRenamed={setCityAgent} />}
+      {openAgent && <AgentProperties name={openAgent} onClose={() => setOpenAgent(null)} onRenamed={setOpenAgent} />}
       {view === "field" && <BrainField
         ref={field}
         clusters={clusters}
@@ -318,18 +351,25 @@ export function NyxPanel({ onActivity, provider, onProvider, onOpenTab }: {
         ))}
       </div>
 
-      {/* Identity + sources legend */}
+      {/* Identity, the view switch, and the sources legend — one column, so nothing sits on top of anything else. */}
       <div className="nyx-hud nyx-hud--left">
         <div className="nyx-brand">
           <span className="nyx-brand__mark" aria-hidden="true">◐</span>
           <div>
             <div className="nyx-brand__name">NYX ICHOS</div>
-            <div className="hud-caption">memory field</div>
+            <div className="hud-caption">{view === "core" ? "core" : "memory field"}</div>
           </div>
         </div>
-        <div className="nyx-legend glass">
-          <div className="hud-caption">Memory sources</div>
-          <ul>
+        <div className="nyx-stage__views segmented" role="group" aria-label="What this stage shows">
+          <button type="button" aria-pressed={view === "field"} onClick={() => setView("field")}>Memory field</button>
+          <button type="button" aria-pressed={view === "core"} onClick={() => setView("core")}>Core</button>
+        </div>
+        <div className={`nyx-legend glass${legendOpen ? " is-open" : ""}`}>
+          <button type="button" className="nyx-fold" aria-expanded={legendOpen} onClick={() => setLegendOpen(!legendOpen)}>
+            <span className="hud-caption">Memory sources</span>
+            <span className="hud-value">{fmt(clusters.reduce((sum, c) => sum + (c.count || 0), 0))}</span>
+          </button>
+          {legendOpen && <ul>
             {clusters.map((c) => (
               <li key={c.id}>
                 <button onClick={() => toggleFocus(c.id)} aria-pressed={focus === c.id} disabled={!c.count}>
@@ -339,7 +379,7 @@ export function NyxPanel({ onActivity, provider, onProvider, onOpenTab }: {
                 </button>
               </li>
             ))}
-          </ul>
+          </ul>}
           <form className="nyx-search" onSubmit={(e) => { e.preventDefault(); void runSearch(query); }}>
             <input value={query} onChange={(e) => { setQuery(e.target.value); if (!e.target.value) setResults(null); }}
               placeholder="Search memories" aria-label="Search Nyx's memories" />
@@ -355,16 +395,19 @@ export function NyxPanel({ onActivity, provider, onProvider, onOpenTab }: {
         </div>
       </div>
 
-      {/* Network status */}
-      <div className="nyx-hud nyx-hud--status glass" aria-live="off">
-        <div className="nyx-online"><span className="nyx-online__dot" />Memory network online</div>
-        <dl>
+      {/* Network status: one line until asked for the numbers. */}
+      <div className={`nyx-hud nyx-hud--status glass${statusOpen ? " is-open" : ""}`} aria-live="off">
+        <button type="button" className="nyx-fold nyx-online" aria-expanded={statusOpen} onClick={() => setStatusOpen(!statusOpen)}
+          title={statusOpen ? "Hide the numbers" : "Show the memory network's numbers"}>
+          <span className="nyx-online__dot" />Online<span className="hud-value nyx-online__fps">{stats.fps} fps</span>
+        </button>
+        {statusOpen && <dl>
           <div><dt>Live system</dt><dd className="hud-value">{stats.fps} fps</dd></div>
           <div><dt>Nodes drawn</dt><dd className="hud-value">{fmt(stats.points)}</dd></div>
           <div><dt>Links</dt><dd className="hud-value">{fmt(summary?.edges ?? 0)}</dd></div>
           <div><dt>Impulses</dt><dd className="hud-value">{fmt(summary?.impulses_per_min ?? 0)}/min</dd></div>
           {core && <div><dt>Nyx Core</dt><dd className="hud-value">L{core.level} {core.name}</dd></div>}
-        </dl>
+        </dl>}
         {seeding && <div className="hud-caption nyx-seeding">Growing from {summary?.seeding.current}…</div>}
       </div>
 
@@ -376,7 +419,6 @@ export function NyxPanel({ onActivity, provider, onProvider, onOpenTab }: {
           <span className="hud-value">{fmt(total)}</span> memories in the field
           <span className="chip">+{fmt(summary?.memories_24h ?? 0)} / 24h</span>
         </div>
-        <p>Everything Nyx reads, says and learns lands here as a living field of connected memories.</p>
         {core && (
           <button className="nyx-core-pill" onClick={() => onOpenTab?.("learn")} title="Open the Learn tab">
             <span className="nyx-core-pill__ring" style={{ ["--p" as string]: `${Math.round(core.progress * 100)}%` }} />
@@ -446,6 +488,7 @@ export function NyxPanel({ onActivity, provider, onProvider, onOpenTab }: {
       {!chatOpen && (
         <button className="nyx-sheet-open btn btn-plain" onClick={() => setChatOpen(true)}>Chat with Nyx</button>
       )}
+    </div>
     </div>
   );
 }

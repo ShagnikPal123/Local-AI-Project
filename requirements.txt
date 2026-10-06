@@ -22,6 +22,11 @@ edge-tts
 # uploads.py: text extraction from PDFs for providers that cannot read them natively.
 pypdf
 
+# --- Nyx's own computer (Update 1, U49) ---
+# Cua's Computer SDK (MIT): a sandboxed desktop Nyx works on instead of the owner's screen. Needs Docker Desktop
+# (local, free) or a Cua Cloud key to actually start one; telemetry is switched off in own_computer.py.
+cua-computer
+
 # --- Testing ---
 pytest
 # starlette's TestClient requires httpx2 at import time; fastapi.testclient

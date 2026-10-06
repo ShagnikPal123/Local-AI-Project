@@ -12,8 +12,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { onWorkspaceEvent } from "../../state/workspaceEvents";
 import { officeApi } from "./officeApi";
 import type {
-  FocusState, OfficeAgent, OfficeHire, OfficeJob, OfficeMessage, OfficeRole, OfficeSection, OfficeSnapshot,
-  OfficeTask, Talk,
+  FocusState, OfficeAgent, OfficeHire, OfficeJob, OfficeMessage, OfficeOutput, OfficeRole, OfficeSection, OfficeSnapshot,
+  OfficeStaffChange, OfficeTask, Talk,
 } from "./types";
 
 const HEAL_MS = 20_000;
@@ -108,6 +108,15 @@ export function useOffice(officeId: string): OfficeLive {
             return { ...current, tasks: upsert(current.tasks, event.task as OfficeTask) };
           case "hire":
             return { ...current, hires: upsert(current.hires, event.hire as OfficeHire) };
+          case "output":
+            return { ...current, outputs: upsert(current.outputs ?? [], event.output as OfficeOutput) };
+          case "staffing": {
+            const change = event.change as OfficeStaffChange;
+            const staffing = upsert(current.staffing ?? [], change);
+            // Someone let go leaves the floor at once; the record stays in the staffing list.
+            const agents = change.change === "let_go" ? current.agents.filter((a) => a.id !== change.agent_id) : current.agents;
+            return { ...current, staffing, agents };
+          }
           case "role.created":
             return { ...current, roles: upsert(current.roles, event.role as OfficeRole) };
           case "job":

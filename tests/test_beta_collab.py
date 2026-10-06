@@ -136,3 +136,19 @@ def test_a_key_signed_by_nyx_verifies_on_the_site(tmp_path):
     result = subprocess.run(["node", str(script)], capture_output=True, text=True, timeout=60)
     assert result.returncode == 0, result.stderr
     assert json.loads(result.stdout) == {"id": "k-1", "name": "Ada", "role": "beta"}
+
+
+class TextReply(Reply):
+    """A page that is not JSON at all, like Vercel's plain-text 404."""
+
+    def json(self):
+        raise ValueError("Expecting value: line 1 column 1 (char 0)")
+
+
+def test_a_site_without_the_feed_says_what_it_answered_not_that_it_was_unreachable(sandbox, monkeypatch):
+    monkeypatch.setattr("requests.get", lambda *a, **k: TextReply(404, None))
+    with pytest.raises(beta_collab.CollabError, match="answered 404"):
+        beta_collab.feed()
+    monkeypatch.setattr("requests.get", lambda *a, **k: Reply(200, ["not", "a", "feed"]))
+    with pytest.raises(beta_collab.CollabError, match="answered 200"):
+        beta_collab.feed(force=True)

@@ -8,6 +8,12 @@ So: words in, a **draft** out. The draft says which connector this is, which fie
 already contained, and what is still missing — in a sentence the owner can answer. When the missing pieces arrive the
 same draft is added for real.
 
+Update 1 (U9): "the user can input a site or connector, it either finds it or creates the connection and takes mcp or
+api or whatever or even website url". So before anything is invented, Nyx *finds*: a pasted address is matched to the
+catalogue by its domain (vercel.com → Vercel), then to the remote MCP servers it knows, and only then built — as an MCP
+connector when the address is an MCP endpoint, a REST connector when it is an API, or a plain website Nyx can read.
+None of that needs a model; a model is asked only for a name nothing matched.
+
 Two rules this module exists to keep:
 
 * **A secret never travels further than it has to.** Keys, tokens and passwords are pulled out of the text *here*, on
@@ -35,7 +41,7 @@ from paths import data_path
 
 _LOG = logging.getLogger("nyx.connector_builder")
 
-KINDS = ("rest", "mcp", "model")
+KINDS = ("rest", "mcp", "model", "website", "webhook")
 AUTH_TYPES = ("bearer", "header", "query", "basic", "none", "app_password", "oauth")
 _DRAFT_TTL = 3600.0
 _MAX_DRAFTS = 30
@@ -139,22 +145,151 @@ def _catalog_entries() -> List[Dict[str, Any]]:
     return connector_use.entries(include_custom=False)
 
 
+_FILLER = re.compile(r"^(?:please\s+)?(?:can you\s+)?(?:add|connect|link|set up|setup|hook up|use|install)?\s*"
+                     r"(?:my|the|a|an)?\s*", re.I)
+
+
 def match_catalog(text: str) -> Optional[Dict[str, Any]]:
-    """The catalogue entry the words are about, if one clearly is."""
+    """The catalogue entry the words are about, if one clearly is.
+
+    A full name or id wins ("add Google Sheets"); failing that, a short request that is exactly one of an entry's
+    keywords ("connect my calendar") picks the most-used app with that keyword.
+    """
     lowered = f" {re.sub(r'[^a-z0-9 ]+', ' ', (text or '').lower())} "
+    listed = [item for item in _catalog_entries() if not item.get("template")]
     best, best_score = None, 0
-    for item in _catalog_entries():
+    for item in listed:
         name = re.sub(r"[^a-z0-9 ]+", " ", str(item.get("name", "")).lower()).strip()
+        name = re.sub(r"\s+", " ", name)
         if not name:
             continue
         score = 0
+        ident = str(item.get("id", "")).lower()
         if f" {name} " in lowered:
             score = 10 + len(name)
-        elif f" {str(item.get('id', '')).lower()} " in lowered:
+        elif f" {ident} " in lowered or f" {ident.replace('_', ' ')} " in lowered:
             score = 8
         if score > best_score:
             best, best_score = item, score
-    return best
+    if best is not None:
+        return best
+    rest = _FILLER.sub("", (text or "").strip().lower()).strip(" .!?")
+    if rest and len(rest.split()) <= 3:
+        keyed = [item for item in listed if rest in [str(k).lower() for k in item.get("keywords") or []]]
+        if keyed:
+            return max(keyed, key=lambda item: int(item.get("popular", 0)))
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Finding a site, an API or an MCP server from an address
+# ---------------------------------------------------------------------------
+
+_BARE_DOMAIN = re.compile(r"(?<![@\w.-])((?:[a-z0-9-]+\.)+(?:com|org|net|io|ai|app|dev|co|me|so|xyz|tech|gov|edu|us|"
+                          r"uk|ca|de|fr|info|site|page|cloud|sh|tv|gg|fm|ly|to|one|run|tools|so))(/[^\s]*)?(?![\w-])", re.I)
+
+
+def _address(words: str, read: Dict[str, Any]) -> str:
+    """The https address in the owner's words: a pasted URL, or a bare domain like stripe.com."""
+    if read["urls"]:
+        url = read["urls"][0]
+        return "https://" + url.split("://", 1)[1] if url.lower().startswith("http://") else url
+    match = _BARE_DOMAIN.search(words or "")
+    return f"https://{match.group(1)}{match.group(2) or ''}" if match else ""
+
+
+def _host(url: str) -> str:
+    match = re.match(r"https?://([^/:?#]+)", url or "", re.I)
+    return match.group(1).lower() if match else ""
+
+
+def _looks_mcp(url: str) -> bool:
+    path = re.sub(r"^https?://[^/]+", "", url or "").split("?")[0].rstrip("/").lower()
+    return _host(url).startswith("mcp.") or path.endswith(("/mcp", "/sse")) or "/mcp/" in path + "/"
+
+
+def _looks_api(url: str) -> bool:
+    path = re.sub(r"^https?://[^/]+", "", url or "").lower()
+    return _host(url).startswith("api.") or bool(re.search(r"/(api|v\d+|graphql|rest)(/|$)", path))
+
+
+def _site_name(url: str) -> str:
+    parts = [p for p in _host(url).split(".") if p not in ("www", "api", "mcp", "app")]
+    core = parts[-2] if len(parts) >= 2 else (parts[0] if parts else "site")
+    return core.replace("-", " ").title()
+
+
+def _custom_spec(kind: str, url: str, *, name: str = "", token: str = "optional", help_url: str = "") -> Dict[str, Any]:
+    """A connector the owner is inventing from an address — validated data, never code."""
+    label = name or _site_name(url)
+    fields: List[Dict[str, Any]] = []
+    if token != "none":
+        fields.append({"key": "token", "label": "API key or token" + (" (if it needs one)" if token == "optional" else ""),
+                       "secret": True, "required": token == "required", "kind": "password", "help_url": help_url})
+    clean = url.split("#")[0].rstrip("/")
+    if kind == "mcp":
+        named = label if "mcp" in label.lower() else f"{label} MCP"
+        return {"catalog_id": "", "id": _slug(named), "name": named,
+                "kind": "mcp", "mcp_url": clean, "base_url": "", "auth": {"type": "bearer"}, "fields": fields,
+                "description": f"The MCP server at {_host(url)}.", "help_url": help_url,
+                "can": ["use the server's tools"], "keywords": [label.lower(), "mcp"]}
+    if kind == "website":
+        # A site is best named by its address: "news.ycombinator.com" says more than "Ycombinator".
+        label = name or re.sub(r"^www\.", "", _host(url))
+        return {"catalog_id": "", "id": _slug(label), "name": label, "kind": "website", "base_url": clean,
+                "auth": {"type": "none"}, "fields": [], "description": f"Nyx reads {_host(url)} when you ask about it.",
+                "can": [f"read pages on {_host(url)}"], "keywords": [label.lower(), _host(url)]}
+    return {"catalog_id": "", "id": _slug(label + " api"), "name": f"{label} API", "kind": "rest", "base_url": clean,
+            "auth": {"type": "bearer"}, "fields": fields, "description": f"The API at {_host(url)}.",
+            "help_url": help_url, "can": ["call its endpoints"], "keywords": [label.lower(), _host(url)]}
+
+
+def find(words: str, read: Optional[Dict[str, Any]] = None) -> Optional[Tuple[Dict[str, Any], str]]:
+    """Find what the owner means without a model: catalogue, known MCP server, or a connector built from an address.
+
+    Returns ``(spec, source)`` or None when the words name nothing Nyx can place.
+    """
+    read = read or read_words(words)
+    try:
+        from connectors import catalog
+    except Exception:  # pragma: no cover - the catalogue always ships; tests may stub it
+        catalog = None
+    url = _address(words, read)
+    wants_mcp = bool(re.search(r"\bmcp\b", words or "", re.I)) or (bool(url) and _looks_mcp(url))
+    if catalog is not None and wants_mcp:
+        server = catalog.known_mcp(words)
+        if server is not None:
+            return _from_known_mcp(server, catalog), "known_mcp"
+    if url:
+        found = catalog.find_by_url(url) if catalog is not None else None
+        if found is not None and not wants_mcp:
+            return _from_catalog(found), "catalog"
+        if _looks_mcp(url):
+            return _custom_spec("mcp", url), "mcp"
+        if _looks_api(url):
+            return _custom_spec("rest", url), "api"
+        return _custom_spec("website", url), "website"
+    entry = match_catalog(words)
+    if entry is not None:
+        return _from_catalog(entry), "catalog"
+    return None
+
+
+def _from_known_mcp(server: Dict[str, str], catalog: Any) -> Dict[str, Any]:
+    if server.get("catalog"):
+        entry = catalog.get(server["catalog"])
+        if entry is not None:
+            return _from_catalog(entry)
+    spec = _custom_spec("mcp", server["url"], name=server["name"],
+                        token="required" if server.get("auth") == "bearer" else "none",
+                        help_url=server.get("help_url", ""))
+    if server.get("auth") == "oauth":
+        rest = catalog.get(server.get("rest") or "") if server.get("rest") else None
+        spec["blocked"] = (f"{server['name']} only accepts a browser sign-in (OAuth), which Nyx can't do for MCP servers "
+                           "yet." + (f" The {rest['name']} connector does the same job with a token — open it instead."
+                                     if rest else ""))
+        spec["suggest"] = str(rest["id"]) if rest else ""
+    return spec
 
 
 def _model_companies() -> Dict[str, Dict[str, str]]:
@@ -196,9 +331,9 @@ def draft(text: str, *, propose: Optional[Any] = None) -> Dict[str, Any]:
     if len(words) < 3:
         raise BuilderError("Say what to add, for example \"add Notion\" or \"add Groq with llama-3.3-70b\".")
     read = read_words(words)
-    entry = match_catalog(words)
-    if entry is not None:
-        spec, source = _from_catalog(entry), "catalog"
+    found = find(words, read)
+    if found is not None:
+        spec, source = found
     else:
         company = match_model_company(words)
         if company is not None:
@@ -218,7 +353,12 @@ def draft(text: str, *, propose: Optional[Any] = None) -> Dict[str, Any]:
         "source": source,
         "fields": fields,
         "missing": [f["label"] for f in missing],
-        "ready": not missing,
+        "ready": not missing and not spec.get("blocked") and not _signs_in(spec),
+        # Sign-in apps (Google, Microsoft) and built-in ones are not added here: the UI opens their own card.
+        "open": str(spec.get("catalog_id") or "") if _signs_in(spec) else "",
+        "blocked": str(spec.get("blocked") or ""),
+        "suggest": str(spec.get("suggest") or ""),
+        "base_url": str(spec.get("base_url") or spec.get("mcp_url") or ""),
         "spec": spec,
     }
     record["message"] = _message(record)
@@ -227,12 +367,21 @@ def draft(text: str, *, propose: Optional[Any] = None) -> Dict[str, Any]:
 
 
 def _from_catalog(entry: Dict[str, Any]) -> Dict[str, Any]:
-    return {"catalog_id": str(entry.get("id", "")), "id": str(entry.get("id", "")), "name": str(entry.get("name", "")),
+    spec = {"catalog_id": str(entry.get("id", "")), "id": str(entry.get("id", "")), "name": str(entry.get("name", "")),
             "kind": str(entry.get("kind") or "rest"), "description": str(entry.get("description", ""))[:300],
-            "help_url": str(entry.get("help_url") or entry.get("docs_url") or ""),
+            "help_url": str(entry.get("help_url") or next((f.get("help_url") for f in entry.get("fields") or []
+                                                           if f.get("help_url")), "") or entry.get("docs_url") or ""),
             "fields": list(entry.get("fields") or []), "base_url": entry.get("base_url"),
             "mcp_url": entry.get("mcp_url"), "auth": entry.get("auth") or {"type": "bearer"},
             "keywords": list(entry.get("keywords") or []), "can": list(entry.get("can") or [])}
+    for key in ("company", "chat_url", "provider", "note"):
+        if entry.get(key):
+            spec[key] = entry[key]
+    return spec
+
+
+def _signs_in(spec: Dict[str, Any]) -> bool:
+    return bool(spec.get("catalog_id")) and spec.get("kind") in ("oauth_google", "oauth_microsoft", "builtin")
 
 
 def _from_model_company(company_id: str, row: Dict[str, str], read: Dict[str, Any]) -> Dict[str, Any]:
@@ -364,6 +513,19 @@ def _fill(spec: Dict[str, Any], read: Dict[str, Any]) -> List[Dict[str, Any]]:
 
 def _message(record: Dict[str, Any]) -> str:
     name = record["name"]
+    if record.get("blocked"):
+        return record["blocked"]
+    if record.get("open"):
+        how = {"oauth_google": "with Sign in with Google", "oauth_microsoft": "with Sign in with Microsoft"}.get(
+            record["kind"], "")
+        if how:
+            return f"Found it: {name} connects {how}. Open it to sign in — Nyx never sees your password."
+        note = str(record["spec"].get("note") or "")
+        return f"{name} is built into Nyx — nothing to add." + (f" {note}" if note else "")
+    if record["ready"] and record["kind"] == "website":
+        return f"I'll add {name} as a website Nyx can read when you ask about it. Press Add."
+    if record["ready"] and not record["fields"]:
+        return f"Found {name} — it needs no key. Press Add and Nyx can use it."
     have = [f["label"].lower() for f in record["fields"] if f["filled"] and not f["secret"]]
     have += ["the key" for f in record["fields"] if f["filled"] and f["secret"]]
     missing = record["missing"]
@@ -372,7 +534,8 @@ def _message(record: Dict[str, Any]) -> str:
     if missing and help_url:
         where = f" You can get it at {help_url}."
     if record["ready"]:
-        return f"I can add {name} now — everything it needs is here. Press Add and I'll connect it."
+        found = "Found it in the catalogue. " if record.get("source") in ("catalog", "known_mcp") else ""
+        return f"{found}I can add {name} now — everything it needs is here. Press Add and I'll connect it."
     got = f" I already have {', '.join(have)}." if have else ""
     need = missing[0] if len(missing) == 1 else ", ".join(missing[:-1]) + " and " + missing[-1]
     return (f"I can add {name}.{got} I still need the {need.lower()} — paste it in the box below and I'll add it."
@@ -530,6 +693,8 @@ def add(draft_id: str = "", *, fields: Optional[Dict[str, Any]] = None, catalog_
     record = get_draft(draft_id) if draft_id else None
     if record is None and not (catalog_id or spec):
         raise BuilderError("That draft has expired — say again what to add.")
+    if record is not None and record.get("blocked"):
+        raise BuilderError(str(record["blocked"]))
     working = dict(record["spec"]) if record else (dict(spec) if spec else {})
     if catalog_id:
         import connector_use
@@ -564,6 +729,11 @@ def add(draft_id: str = "", *, fields: Optional[Dict[str, Any]] = None, catalog_
             raise BuilderError(str(error)) from None
     connector_id = target or working.get("id") or _slug(str(working.get("name", "")))
     working["id"] = connector_id
+    for key in ("base_url", "mcp_url"):
+        if values.get(key):  # an address the owner typed into the draft replaces the guessed one
+            if not _https(str(values[key])):
+                raise BuilderError("The address must start with https://.")
+            working[key] = str(values.pop(key)).rstrip("/")
     connect(connector_id, values, working)
     return {"ok": True, "id": connector_id, "name": working.get("name", connector_id), "connected": True,
             "kind": working.get("kind", "rest"), "message": f"{working.get('name', connector_id)} is connected."}
@@ -624,9 +794,12 @@ def test(connector_id: str) -> Dict[str, Any]:
     try:
         if str(entry.get("kind")) == "mcp":
             tools = connector_use.actions_for(str(entry["id"]))
-            return {"ok": bool(tools), "message": f"{len(tools)} tools available." if tools else "The server did not answer."}
+            return {"ok": bool(tools), "message": f"The server answered with {len(tools)} tools." if tools
+                    else "The MCP server did not answer, or offered no tools."}
         result = connector_use.call(str(entry["id"]), str(read_only["id"]))
     except connector_use.ConnectorCallError as error:
         return {"ok": False, "message": str(error)}
-    return {"ok": bool(result.get("ok")), "message": ("It answered." if result.get("ok")
-                                                      else str(result.get("error", "It did not answer."))[:200])}
+    if result.get("ok"):
+        return {"ok": True, "message": f"{entry.get('name')} answered “{read_only.get('description') or read_only['id']}” "
+                                        "— the connection works."}
+    return {"ok": False, "message": str(result.get("error", "It did not answer."))[:200]}

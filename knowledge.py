@@ -16,6 +16,8 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import paths
+
 _DEFAULT_KNOWLEDGE_FILE = "general_knowledge.md"
 
 _TOKEN_PATTERN = re.compile(r"[a-z0-9']+")
@@ -117,7 +119,9 @@ class GeneralKnowledge:
     """Searchable store over the permanent general knowledge markdown file."""
 
     def __init__(self, path: Optional[str | Path] = None):
-        self.path = Path(path) if path is not None else Path(_DEFAULT_KNOWLEDGE_FILE)
+        # Anchored to the project, not the working directory: started from the outer folder (or by the
+        # launcher) a bare relative name found nothing, and Nyx silently lost its whole knowledge base.
+        self.path = Path(path) if path is not None else paths.project_path(_DEFAULT_KNOWLEDGE_FILE)
         self.chunks: List[Dict[str, Any]] = []
         self.sections: List[str] = []
         self._load()

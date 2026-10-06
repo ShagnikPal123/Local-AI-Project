@@ -39,6 +39,12 @@ export const officeApi = {
             target = "") =>
     api.post<OfficeSnapshot>(`/api/office/offices/${id}/control`, { action, scope, id: target }),
 
+  /** Deliver now: the office puts what it has in the Output box, even mid-job (U41). */
+  deliver: (id: string) => api.post<OfficeSnapshot>(`/api/office/offices/${id}/deliver`),
+  /** This office's own switches — Auto decisions (U42). */
+  options: (id: string, options: { auto_decisions?: boolean }) =>
+    api.post<OfficeSnapshot>(`/api/office/offices/${id}/options`, options),
+
   files: (id: string) =>
     api.get<{ files: { path: string; size: number; at: number }[]; folder: string }>(
       `/api/office/offices/${id}/files`),

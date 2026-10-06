@@ -31,13 +31,15 @@ import { DynamicTab, type TabSpec } from "./panels/DynamicTab";
 import { TabFinder } from "./components/TabFinder";
 import { EngineGate } from "./components/EngineGate";
 import { ComputerBanner } from "./components/ComputerBanner";
-import { Companion } from "./components/kahuna/Companion";
+import { Companion, KahunaBarButton } from "./components/kahuna/Companion";
 import { TopTabs } from "./components/TopTabs";
+import { TabBoundary } from "./components/TabBoundary";
 import { onWorkspaceEvent } from "./state/workspaceEvents";
 import { startVoicePlayer } from "./voice/voicePlayer";
 import { FileDropOverlay } from "./files/FileDropOverlay";
 import { VoiceListener } from "./voice/VoiceListener";
 import { ProtoVoiceDock } from "./components/voice/ProtoVoiceDock";
+import { VoiceTopBar } from "./components/voice/VoiceTopBar";
 
 // Every tab is its own chunk (2026-09-16). The shell used to import all of them up front,
 // three.js and the chart and code views included, so the first paint downloaded ~1.2 MB
@@ -50,6 +52,7 @@ const SubAgentsPanel = lazy(() => import("./panels/SubAgentsPanel").then((m) => 
 const CollabPanel = lazy(() => import("./panels/CollabPanel").then((m) => ({ default: m.CollabPanel })));
 const TradingPanel = lazy(() => import("./panels/trading/TradingPanel").then((m) => ({ default: m.TradingPanel })));
 const GameStudioPanel = lazy(() => import("./panels/game/GameStudioPanel").then((m) => ({ default: m.GameStudioPanel })));
+const ResearchPanel = lazy(() => import("./panels/research/ResearchPanel").then((m) => ({ default: m.ResearchPanel })));
 const DashboardPanel = lazy(() => import("./panels/DashboardPanel").then((m) => ({ default: m.DashboardPanel })));
 const ModelsPanel = lazy(() => import("./panels/ModelsPanel").then((m) => ({ default: m.ModelsPanel })));
 const KeysPanel = lazy(() => import("./panels/KeysPanel").then((m) => ({ default: m.KeysPanel })));
@@ -65,6 +68,7 @@ const ScreenSharePanel = lazy(() => import("./panels/screen/ScreenSharePanel").t
 const ApplyPanel = lazy(() => import("./panels/apply/ApplyPanel").then((m) => ({ default: m.ApplyPanel })));
 const FreeWillPanel = lazy(() => import("./panels/freewill/FreeWillPanel").then((m) => ({ default: m.FreeWillPanel })));
 const KahunaPanel = lazy(() => import("./panels/kahuna/KahunaPanel").then((m) => ({ default: m.KahunaPanel })));
+const OwnComputerPanel = lazy(() => import("./panels/computer/OwnComputerPanel").then((m) => ({ default: m.OwnComputerPanel })));
 const OfficePanel = lazy(() => import("./panels/office/OfficePanel").then((m) => ({ default: m.OfficePanel })));
 const AdminPanel = lazy(() => import("./panels/AdminPanel").then((m) => ({ default: m.AdminPanel })));
 const StorePanel = lazy(() => import("./panels/StorePanel").then((m) => ({ default: m.StorePanel })));
@@ -314,6 +318,8 @@ export default function App() {
       <BackgroundLayer />
       {/* Listens for the sounds you taught it when you are away or offline (N86). */}
       <ClapListener />
+      {/* Voice is on (its name, a clap, or Talk): what you are saying and that it is listening (Update 1, U26). */}
+      <VoiceTopBar />
       <header className="shell-bar">
         <div className="shell-brand">
           <NyxAvatar state={avatar} size={28} />
@@ -359,6 +365,8 @@ export default function App() {
               {user.role === "owner" ? "Owner" : user.role} · Sign out
             </button>
           )}
+          {/* Big Kahuna's chat opens from here, not from a button floating over the chat (Update 1, U15). */}
+          <KahunaBarButton />
           {/* Accounts sit next to Log Out: separate spaces on this PC, each with its own files (owner, 2026-09-26). */}
           {(!user || user.role === "owner") && <AccountsButton />}
           {(!user || user.role === "owner" || user.role === "admin") && <QuitButton signedIn={Boolean(user)} />}
@@ -375,6 +383,7 @@ export default function App() {
       />
 
       <main style={{ flex: 1, minWidth: 0, minHeight: 0, background: "var(--color-bg)" }}>
+        <TabBoundary key={active} name={tabs.find((t) => t.id === active)?.label ?? "This"}>
         <Suspense fallback={<div className="tab-loading" role="status"><span className="tab-loading__dot" />Opening…</div>}>
         {active === "nyx" && (
           <NyxPanel onActivity={onActivity} provider={provider} onProvider={setProvider} onOpenTab={(tab) => setActive(tab as TabId)} />
@@ -387,6 +396,7 @@ export default function App() {
         {active === "trading" && <TradingPanel />}
         {active === "build" && <BuildPanel />}
         {active === "games" && <GameStudioPanel />}
+        {active === "research" && <ResearchPanel />}
         {active === "strands" && <StrandsPanel state={avatar} onActivity={onActivity} />}
         {active === "dashboard" && <DashboardPanel />}
         {active === "work" && <WorkPanel />}
@@ -403,9 +413,11 @@ export default function App() {
         {active === "freewill" && <FreeWillPanel />}
         {active === "kahuna" && <KahunaPanel />}
         {active === "office" && <OfficePanel />}
+        {active === "computer" && <OwnComputerPanel />}
         {active === "admin" && <AdminPanel />}
         {active === "settings" && <SettingsPanel />}
         </Suspense>
+        </TabBoundary>
         {activeUserTab && (
           <DynamicTab
             spec={activeUserTab}

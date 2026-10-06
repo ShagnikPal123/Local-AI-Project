@@ -17,6 +17,7 @@ import { api } from "../../api";
 import { pushToast } from "../../state/toastStore";
 import { onWorkspaceEvent } from "../../state/workspaceEvents";
 import "./agents.css";
+import { Handoff } from "./Handoff";
 
 export interface RosterAgent {
   name: string;
@@ -34,6 +35,8 @@ export interface BoxItem { key: string; agent: string; task: string }
 export interface InstanceView {
   index: number; agent: string; label: string; task: string; emoji: string;
   status: "queued" | "working" | "done" | "error" | "stopped"; step: string; understanding: string; report: string; seconds: number;
+  /** What the copy was handed besides its task, exactly as sent (U46). */
+  context?: string;
 }
 
 export interface DispatchView {
@@ -230,7 +233,13 @@ export function DispatchCard({ initial, roster, onClose, compact }: {
             {inst.status === "working" && (inst.understanding || inst.step) && (
               <div className="dispatch__step">{inst.understanding ? `Understood: ${inst.understanding}` : inst.step}</div>
             )}
-            {open === inst.index && inst.report && <div className="dispatch__report">{inst.report}</div>}
+            {/* Click a box: what it was asked (task + context, as sent) and what it answered (U46). */}
+            {open === inst.index && (
+              <div className="dispatch__report">
+                <Handoff task={inst.task} context={inst.context} report={inst.report}
+                  working={inst.status === "working" || inst.status === "queued"} replyOpen />
+              </div>
+            )}
           </li>
         ))}
       </ol>

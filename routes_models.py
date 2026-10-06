@@ -216,15 +216,37 @@ def save_key(provider: str, body: KeyUpdate, _owner_user=Depends(_owner)) -> Dic
         if base:
             set_keys("QWEN_BASE_URL", [base])
     else:
-        key = (body.api_key or "").strip()
-        if len(key) < 8:
-            raise HTTPException(status_code=400, detail="That key looks too short to be real.")
-        secret_name = _single_key_name(name)
-        if not secret_name:
-            raise HTTPException(status_code=400, detail=f"{name} has no key setting.")
-        set_keys(secret_name, [key])
+        try:
+            store_provider_key(name, body.api_key)
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+        return {"key": _entry(name)}
     _apply_live()
     return {"key": _entry(name)}
+
+
+def store_provider_key(provider: str, api_key: str) -> None:
+    """Save a single-key provider's key where Keys & Models keeps it. Connectors (U24) reuses this, so an AI app
+    connected there and one added here are the same key — never two copies."""
+    from secret_store import set_keys
+
+    key = (api_key or "").strip()
+    if len(key) < 8:
+        raise ValueError("That key looks too short to be real.")
+    secret_name = _single_key_name(provider)
+    if not secret_name:
+        raise ValueError(f"{provider} has no key setting.")
+    set_keys(secret_name, [key])
+    _apply_live()
+
+
+def delete_provider_key(provider: str) -> None:
+    from secret_store import set_keys
+
+    names = [f["secret_name"] for f in _FIELDS.get(provider, [])] or [_single_key_name(provider)]
+    for secret_name in filter(None, names):
+        set_keys(secret_name, [])
+    _apply_live()
 
 
 @router.delete("/api/keys/{provider}")
@@ -235,10 +257,7 @@ def delete_key(provider: str, _owner_user=Depends(_owner)) -> Dict[str, Any]:
     name = (provider or "").strip().lower()
     if name not in model_hub.known_providers():
         raise HTTPException(status_code=404, detail=f"Unknown provider '{name}'.")
-    names = [f["secret_name"] for f in _FIELDS.get(name, [])] or [_single_key_name(name)]
-    for secret_name in filter(None, names):
-        set_keys(secret_name, [])
-    _apply_live()
+    delete_provider_key(name)
     return {"key": _entry(name), "note": "Keys in .env.local are not changed; remove them there if present."}
 
 
@@ -315,6 +334,37 @@ class RoleUpdate(BaseModel):
 
 class RoleTest(BaseModel):
     generate: bool = False
+
+
+class AutoAssignApply(BaseModel):
+    #: The rows the owner ticked in the preview: [{"role", "provider", "model"}]. Empty = the fresh plan's ticked rows.
+    assignments: Optional[List[Dict[str, Any]]] = None
+    include_owner: bool = False
+
+
+@router.get("/api/model-roles/auto-assign")
+def auto_assign_preview(include_owner: bool = False, _user=RequireChat) -> Dict[str, Any]:
+    """U29: which model Nyx would give each job, and why. Changes nothing and calls no model."""
+    import model_autoassign
+
+    return model_autoassign.plan(include_owner=include_owner)
+
+
+@router.post("/api/model-roles/auto-assign")
+def auto_assign_apply(body: AutoAssignApply, _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    from model_autoassign import apply
+    from model_roles import MODEL_ROLES
+
+    done = apply(body.assignments, include_owner=body.include_owner)
+    return {**done, "roles": MODEL_ROLES.snapshot()["roles"]}
+
+
+@router.post("/api/model-roles/auto-assign/undo")
+def auto_assign_undo(_owner_user=Depends(_owner)) -> Dict[str, Any]:
+    from model_autoassign import undo
+    from model_roles import MODEL_ROLES
+
+    return {**undo(), "roles": MODEL_ROLES.snapshot()["roles"]}
 
 
 @router.get("/api/model-roles")
@@ -407,3 +457,4 @@ def model_catalog(provider: str, job: str = "", refresh: bool = False, _user=Req
         models = [m for m in models if job in m["jobs"]]
     return {"provider": name, "models": models, "default": model_hub.default_model(name, job or "text"),
             "signup_url": model_hub.SIGNUP_URLS.get(name, "")}
+

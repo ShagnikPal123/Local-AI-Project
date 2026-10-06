@@ -52,6 +52,8 @@ CATEGORIES: Dict[str, str] = {
     "apps": "Open apps, files and links, and show notifications.",
     "windows": "List, focus, resize and close windows.",
     "computer": "See the screen and use the mouse and keyboard, with a visible cursor.",
+    # Update 1, U49: a sandboxed desktop of Nyx's own (own_computer.py) — never this PC's screen.
+    "own_computer": "Use Nyx's own computer: a sandboxed desktop, not this PC's screen.",
     "system": "Volume, media keys, locking, sleep or restart, ending processes.",
     "clipboard": "Read and set the clipboard.",
     "email.read": "Read your email.",
@@ -277,7 +279,19 @@ def require(category: str, summary: str, detail: str = "") -> None:
             "Tell the user it is blocked in Permissions rather than trying another way."
         )
 
-    # mode == "ask": somebody has to be watching to answer.
+    ask(category, summary, detail)
+
+
+def ask(category: str, summary: str, detail: str = "") -> None:
+    """Show an approval card in the chat and wait for the owner; raise PermissionDenied unless they approve.
+
+    ``require`` uses this for categories set to ask. Nyx's own computer (own_computer.py) uses it directly: Nyx
+    asks before it touches the owner's screen, whatever the category's setting, when the owner chose "Ask first".
+    """
+    from tool_context import current
+
+    ctx = current()
+    # Somebody has to be watching to answer.
     if ctx is None or ctx.sink is None:
         raise PermissionDenied(
             f"'{category}' is set to ask first, and nobody is watching this session to "

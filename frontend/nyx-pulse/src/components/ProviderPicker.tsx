@@ -215,7 +215,8 @@ export function ProviderPicker({ value, onChange, compact }: {
           {list.map((p) => (
             <option key={p.name} value={p.name}>
               {p.name}
-              {p.configured ? "" : " (no key)"}
+              {/* Ollama takes no key: unconfigured there means the local server is not answering. */}
+              {p.configured ? "" : p.name === "ollama" ? " (not running)" : " (no key)"}
               {p.preferred ? " · preferred" : ""}
             </option>
           ))}

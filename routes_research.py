@@ -76,7 +76,14 @@ def research_papers(q: str, limit: int = 10, _user=RequireChat) -> Dict[str, Any
 
     if len(q.strip()) < 2:
         raise HTTPException(status_code=400, detail="Type what to search for.")
-    return {"papers": research_engine.search_papers(q.strip()[:300], max(1, min(limit, 25)))}
+    text = q.strip()[:300]
+    # A question typed here is searched by its topic words — the indexes match every word, so a sentence finds nothing.
+    query = research_engine.scholarly_query(text) if research_engine.looks_like_question(text) else text
+    papers = research_engine.search_papers(query, max(1, min(limit, 25)))
+    # Every style comes with the result, so switching style or pressing Copy never searches again.
+    for paper in papers:
+        paper["cite"] = {style: research_engine.format_citation(paper, style) for style in research_engine.STYLES}
+    return {"papers": papers, "query": query}
 
 
 @router.get("/api/research/cite")
@@ -99,6 +106,13 @@ def research_get(job_id: str, _user=RequireChat) -> Dict[str, Any]:
     import research_engine
 
     return {"job": _call(research_engine.RESEARCH.get, job_id).view()}
+
+
+@router.get("/api/research/{job_id}/citations")
+def research_citations(job_id: str, style: str = "apa", _user=RequireChat) -> Dict[str, Any]:
+    import research_engine
+
+    return _call(research_engine.RESEARCH.citations, job_id, style)
 
 
 @router.post("/api/research/{job_id}/stop")

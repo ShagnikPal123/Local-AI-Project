@@ -37,7 +37,13 @@
   background: #0c0c10; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 .nyx-brand__name { font-family: var(--font-mono); font-weight: 700; letter-spacing: 0.18em; font-size: 13px; }
-.nyx-legend { border-radius: var(--radius-lg); padding: 12px; }
+.nyx-legend { border-radius: var(--radius-lg); padding: 8px 10px; }
+/* A card folded to its heading (U15): the whole heading is the button. */
+.nyx-fold { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 28px;
+  padding: 2px 2px; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; text-align: left; }
+.nyx-fold::after { content: "▾"; font-size: 11px; color: var(--color-neutral-500); transition: transform 0.15s ease; }
+.nyx-fold[aria-expanded="false"]::after { transform: rotate(-90deg); }
+.nyx-fold:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; border-radius: 6px; }
 .nyx-legend ul { list-style: none; margin: 8px 0 10px; padding: 0; display: grid; gap: 1px; max-height: 38vh; overflow-y: auto; }
 .nyx-legend li button {
   width: 100%; display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; min-height: 28px;
@@ -55,8 +61,11 @@
 .nyx-results { margin-top: 8px; display: grid; gap: 6px; max-height: 26vh; overflow-y: auto; font-size: 12px; line-height: 1.45; color: var(--color-neutral-300); }
 .nyx-result .hud-caption { display: block; font-size: 10px; margin-bottom: 1px; }
 
-.nyx-hud--status { top: 18px; right: 20px; width: 230px; border-radius: var(--radius-lg); padding: 12px 14px; }
-.nyx-stage.has-chat .nyx-hud--status { right: calc(min(440px, 36vw) + 32px); }
+.nyx-hud--status { top: 18px; right: 20px; width: auto; min-width: 150px; border-radius: 999px; padding: 4px 12px; }
+.nyx-hud--status.is-open { width: 230px; border-radius: var(--radius-lg); padding: 8px 14px 12px; }
+/* Beside the chat sheet whatever width the owner dragged it to, never under it. */
+.nyx-stage.has-chat .nyx-hud--status { right: calc(var(--sheet-w, 440px) + 32px); }
+.nyx-online__fps { margin-left: auto; padding-left: 10px; letter-spacing: 0; text-transform: none; color: var(--color-neutral-500); }
 .nyx-online { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-text); }
 .nyx-online__dot { width: 7px; height: 7px; border-radius: 50%; background: var(--color-ok); box-shadow: 0 0 10px var(--color-ok); animation: nyxpulse 2.4s ease-in-out infinite; }
 .nyx-hud--status dl { margin: 10px 0 0; display: grid; gap: 5px; }
@@ -65,10 +74,11 @@
 .nyx-hud--status dd { margin: 0; font-size: 12px; }
 .nyx-seeding { margin-top: 8px; color: var(--color-accent-300); }
 
-.nyx-title { position: absolute; left: 24px; bottom: 26px; z-index: 3; max-width: min(460px, 44vw); pointer-events: none; }
+.nyx-title { position: absolute; left: 24px; bottom: 26px; z-index: 3; max-width: min(420px, 40vw); pointer-events: none; }
+/* Smaller since Update 1 (U15): at 76 px it filled the lower-left of the field the owner wants to look at. */
 .nyx-title h1 {
-  margin: 6px 0 8px; font-family: var(--font-heading); font-weight: 600; letter-spacing: -0.035em; line-height: 0.95;
-  font-size: clamp(38px, 5.2vw, 76px); color: #fff; text-shadow: 0 2px 30px rgba(0, 0, 0, 0.8);
+  margin: 4px 0 6px; font-family: var(--font-heading); font-weight: 600; letter-spacing: -0.03em; line-height: 1;
+  font-size: clamp(26px, 2.8vw, 40px); color: #fff; text-shadow: 0 2px 30px rgba(0, 0, 0, 0.8);
 }
 .nyx-title__count { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; color: var(--color-neutral-400); }
 .nyx-title__count .hud-value { font-size: 15px; font-weight: 600; }
@@ -88,7 +98,8 @@
 }
 
 .nyx-hints { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); z-index: 2; font-size: 10.5px; color: var(--color-neutral-600); white-space: nowrap; }
-.nyx-stage.has-chat .nyx-hints { left: calc((100% - var(--sheet-w, 440px)) / 2); }
+/* The hints are for exploring the field full screen; with the chat open they only crowd the title. */
+.nyx-stage.has-chat .nyx-hints { display: none; }
 
 .nyx-node { position: absolute; z-index: 4; left: 50%; bottom: 60px; transform: translateX(-50%); width: min(460px, 60vw); border-radius: var(--radius-lg); padding: 12px 14px; animation: nyxbloom 200ms var(--ease-out); }
 .nyx-stage.has-chat .nyx-node { left: calc((100% - var(--sheet-w, 440px)) / 2); }
@@ -471,36 +482,9 @@ textarea.text-input { resize: vertical; line-height: 1.5; }
 @media (max-width: 700px) { .storage__row { grid-template-columns: 1fr auto; } .storage__bar { display: none; } }
 
 
-/* Agent city (owner request, 2026-09-15): the team as a place. Names #F5F5F7 on #06060A = 17.8:1. */
-.nyx-stage__views { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 6; }
-.nyx-stage.is-city .nyx-threads, .nyx-stage.is-city .nyx-hud, .nyx-stage.is-city .nyx-title,
-.nyx-stage.is-city .nyx-legend, .nyx-stage.is-city .nyx-tags, .nyx-stage.is-city .nyx-hints { display: none; }
-.city { position: absolute; inset: 0; z-index: 2; }
-.city__stage { position: absolute; inset: 0; }
-.city__stage canvas { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; }
-.city__stage canvas:active { cursor: grabbing; }
-.city__hud { position: absolute; left: 18px; bottom: 18px; display: grid; gap: 2px; padding: 10px 14px; border-radius: 12px;
-  background: rgba(6, 6, 10, 0.72); box-shadow: inset 0 0 0 1px var(--color-divider); pointer-events: none; }
-.city__hud b { font-size: 14px; color: #f5f5f7; }
-.city__hud span { font-size: 12px; color: #a1a1aa; }
-.city__hint { color: #8e8e96 !important; }
-.city__inside { position: absolute; top: 60px; right: 18px; bottom: 18px; width: min(320px, 42vw); overflow-y: auto; display: grid; gap: 10px;
-  align-content: start; padding: 14px; border-radius: 16px; background: rgba(10, 10, 15, 0.92); box-shadow: inset 0 0 0 1px var(--color-divider), 0 24px 60px rgba(0, 0, 0, 0.6); }
-.city__inside header { display: flex; align-items: center; gap: 10px; }
-.city__inside header div { flex: 1; min-width: 0; display: grid; }
-.city__inside header b { font-size: 15px; color: #f5f5f7; }
-.city__inside header span { font-size: 11.5px; color: #a1a1aa; }
-.city__emoji { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; font-size: 18px; background: #1b1b23; }
-.city__goal { margin: 0; font-size: 13px; line-height: 1.5; color: #d1d1d6; }
-.city__facts { margin: 0; display: grid; grid-template-columns: 84px 1fr; gap: 3px 10px; font-size: 12.5px; }
-.city__facts dt { color: #8e8e96; }
-.city__facts dd { margin: 0; color: #e5e5ea; overflow-wrap: anywhere; }
-.city__floors { display: grid; gap: 4px; }
-.city__floor { display: flex; gap: 8px; align-items: baseline; padding: 6px 8px; border-radius: 8px; background: #121218; }
-.city__floor-no { font-family: var(--font-mono); font-size: 11px; color: #8b7cff; }
-.city__floor-task { font-size: 12.5px; color: #e5e5ea; line-height: 1.45; }
-.city__empty { margin: 0; font-size: 12px; color: #8e8e96; }
-@media (max-width: 720px) { .city__inside { width: auto; left: 18px; } }
+/* The view switch (Memory field · Core) sits in the left column under the brand (Update 1, U15): centred over the
+   stage it used to cover the network card whenever the chat was open. */
+.nyx-stage__views { justify-self: start; }
 
 
 /* Settings → Content (owner request, 2026-09-15). */
@@ -516,3 +500,11 @@ textarea.text-input { resize: vertical; line-height: 1.5; }
 .subagents__start { display: grid; gap: 8px; }
 .subagents__start .segmented { justify-self: start; flex-wrap: wrap; }
 .subagents__chatlink { display: block; text-align: left; }
+
+/* The Nyx tab (Update 1, U48): a slim bar to choose Chat or the Second Brain, then the one that is chosen. */
+.nyx-tab { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.nyx-tab > .nyx-stage, .nyx-tab > .chat-home { flex: 1 1 auto; height: auto; min-height: 0; }
+.nyx-tab__bar { flex: 0 0 auto; display: flex; align-items: center; gap: 12px; padding: 8px 14px; min-height: 44px;
+  box-shadow: inset 0 -1px 0 var(--color-divider); background: var(--color-bg, #000); }
+.nyx-tab__hint { font-size: 12px; color: var(--color-neutral-500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 600px) { .nyx-tab__hint { display: none; } }

@@ -191,6 +191,23 @@ def test_fast_path_sends_a_lean_prompt(mock_router_class):
 
 
 @patch("chat_service.Router")
+def test_fast_path_still_says_which_account_it_works_in(mock_router_class, monkeypatch):
+    """The account's purpose rides along like the personality does: short turns are most of them."""
+    import local_accounts
+
+    monkeypatch.setattr(local_accounts, "purpose_note", lambda: "ACCOUNT-NOTE-MARKER")
+    mock_router = MagicMock()
+    mock_router.chat.return_value = ("Hello!", "test_provider")
+    mock_router_class.return_value = mock_router
+
+    ChatService(enable_tools=True).chat("hi")
+
+    sent = mock_router.chat.call_args[0][0]
+    assert [m["role"] for m in sent] == ["system", "system", "user"]
+    assert sent[1]["content"] == "[This account]\nACCOUNT-NOTE-MARKER"
+
+
+@patch("chat_service.Router")
 def test_fast_path_escalates_when_the_model_asks(mock_router_class):
     """A model that says it needs tools must get the full pipeline, same turn."""
     mock_router = MagicMock()

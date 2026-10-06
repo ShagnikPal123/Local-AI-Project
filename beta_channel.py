@@ -68,7 +68,8 @@ def set_channel(channel: str) -> Dict[str, Any]:
     return current
 
 
-def local_version(project: Path = PROJECT) -> str:
+def local_version(project: Optional[Path] = None) -> str:
+    project = project or PROJECT
     try:
         return (project / "VERSION").read_text(encoding="utf-8").strip() or "0"
     except OSError:
@@ -79,7 +80,8 @@ def _version_key(version: str) -> List[int]:
     return [int(part) if part.isdigit() else 0 for part in version.replace("-", ".").split(".")]
 
 
-def is_git_checkout(project: Path = PROJECT) -> bool:
+def is_git_checkout(project: Optional[Path] = None) -> bool:
+    project = project or PROJECT
     return (project / ".git").exists()
 
 
@@ -193,8 +195,9 @@ def _protected(relative: str) -> bool:
     return posix.startswith(("data/", ".venv/", "notes/", "learning/", "brain/"))
 
 
-def apply_staged(project: Path = PROJECT) -> Optional[Dict[str, Any]]:
+def apply_staged(project: Optional[Path] = None) -> Optional[Dict[str, Any]]:
     """Install a downloaded update before the engine starts. Returns what happened, or None when nothing is staged."""
+    project = project or PROJECT
     record = staged()
     if not record or is_git_checkout(project):
         return None
@@ -240,8 +243,9 @@ def apply_staged(project: Path = PROJECT) -> Optional[Dict[str, Any]]:
     return result
 
 
-def rollback(project: Path = PROJECT) -> Dict[str, Any]:
+def rollback(project: Optional[Path] = None) -> Dict[str, Any]:
     """Put back the files the last update replaced."""
+    project = project or PROJECT
     try:
         last = json.loads(data_path("updates/last_apply.json").read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:

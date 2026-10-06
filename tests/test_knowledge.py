@@ -64,3 +64,11 @@ def test_knowledge_missing_file_is_empty(tmp_path):
     assert not knowledge.chunks
     assert knowledge.search("anything") == []
     assert knowledge.build_context_prompt() == ""
+
+
+def test_knowledge_is_found_whatever_folder_nyx_was_started_from(tmp_path, monkeypatch):
+    """A CWD-relative path made an engine started from the outer folder load an empty knowledge base."""
+    monkeypatch.chdir(tmp_path)
+    knowledge = GeneralKnowledge()
+    assert knowledge.chunks
+    assert knowledge.path.is_absolute()

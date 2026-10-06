@@ -44,6 +44,20 @@ def _team_summary(office: Any) -> str:
 # ---------------------------------------------------------------------------
 
 
+#: The office's "Auto decisions" switch (Update 1, U42): "a button allows for auto decisions so the ai knows it needs
+#: to really give an output or do what is asked such as running a site or making a site".
+AUTO_DECISIONS = (
+    "AUTO DECISIONS IS ON: the owner will not answer questions during this job. Decide every open question "
+    "yourselves, choose the sensible option and say which you chose, and produce the real result — the actual "
+    "files, page, code, list or answer — never a plan, an outline or a proposal in its place. If part of it truly "
+    "cannot be done here, deliver the closest thing that works and say exactly what is missing."
+)
+
+
+def auto_decisions(office: Any) -> str:
+    return AUTO_DECISIONS if bool((getattr(office, "settings", None) or {}).get("auto_decisions")) else ""
+
+
 def top_manager_system(office: Any) -> str:
     return (
         f"You are the Top Manager of \"{office.name}\", an office of AI agents inside Nyx Ichos on the owner's own "
@@ -52,6 +66,7 @@ def top_manager_system(office: Any) -> str:
         "You think in whole projects. You reuse the team you already have before adding to it, you never invent a "
         "section for work that fits an existing one, and you size the office to the job — a small ask gets a "
         "handful of agents, a real project gets dozens working in parallel."
+        + (f"\n{auto_decisions(office)}" if auto_decisions(office) else "")
     )
 
 
@@ -105,7 +120,16 @@ def amend(office: Any, request: str, *, job: Any) -> str:
     ]))
 
 
-def wrap(office: Any, job: Any, *, reports: Sequence[Dict[str, Any]], files: Sequence[str]) -> str:
+def _file_contents(file_texts: Dict[str, str]) -> str:
+    if not file_texts:
+        return ""
+    shown = [f"--- {name} ---\n{text}" for name, text in file_texts.items()]
+    return ("What those files actually say (quote these in the output; never write a different version of a file's "
+            "content):\n" + "\n\n".join(shown))
+
+
+def wrap(office: Any, job: Any, *, reports: Sequence[Dict[str, Any]], files: Sequence[str],
+         file_texts: Optional[Dict[str, str]] = None) -> str:
     body = []
     for report in reports:
         body.append(f"### {report['section']}\n{report['text'][:2500]}")
@@ -116,13 +140,36 @@ def wrap(office: Any, job: Any, *, reports: Sequence[Dict[str, Any]], files: Seq
         "\n\n".join(body) or "(no section reported anything)",
         "",
         ("Files the office produced: " + ", ".join(files[:40])) if files else "",
+        _file_contents(file_texts or {}),
         "",
         "Write the answer for the owner: what was done, what they now have (name the files), what is worth knowing, "
-        "and anything left open. Markdown, no preamble, no 'as an AI'. Then write what this office should remember "
-        "next time it is opened.",
+        "and anything left open. Markdown, no preamble, no 'as an AI'. Then write the output itself: the finished "
+        "deliverable the owner asked for — the text, list, code, figures or links, ready to use, not a description "
+        "of the work (it goes in the office's Output box, the one place that says the job is done). Then write what "
+        "this office should remember next time it is opened.",
         JSON_ONLY,
-        '{"reply": "markdown for the owner", "summary": "one paragraph for the office memory", '
-        '"decisions": ["..."], "facts": ["..."], "open": ["..."]}',
+        '{"reply": "markdown for the owner", "output": "the deliverable itself, markdown", '
+        '"summary": "one paragraph for the office memory", "decisions": ["..."], "facts": ["..."], "open": ["..."]}',
+    ]))
+
+
+def deliver(office: Any, job: Any, *, reports: Sequence[Dict[str, Any]], files: Sequence[str], running: bool,
+            file_texts: Optional[Dict[str, str]] = None) -> str:
+    """The owner pressed Deliver now: hand over what exists, even mid-job (Update 1, U41)."""
+    body = [f"### {r['section']}\n{r['text'][:2500]}" for r in reports]
+    return "\n".join(filter(None, [
+        f"The owner wants the output now for: {job.request[:1000]}",
+        "The office is still working; deliver what is finished so far." if running else "",
+        "",
+        "Work finished so far:",
+        "\n\n".join(body) or "(nothing finished yet)",
+        ("Files in the office's work folder: " + ", ".join(files[:40])) if files else "",
+        _file_contents(file_texts or {}),
+        "",
+        "Write the deliverable itself — the text, list, code, figures or links the owner asked for, ready to use — "
+        "from what is finished. Say in one line at the end what is still missing, if anything. Markdown, no preamble.",
+        JSON_ONLY,
+        '{"title": "a few words naming what this is", "output": "the deliverable, markdown", "complete": true}',
     ]))
 
 
@@ -138,6 +185,7 @@ def manager_system(office: Any, section: Any, agent: Any) -> str:
         "You split work so two agents never do the same thing, you give each agent everything it needs (they "
         "cannot see any chat), and you check what comes back before you report it as done. You ask for another "
         "agent only when nobody on your team can do the work."
+        + (f"\n{auto_decisions(office)}" if auto_decisions(office) else "")
     )
 
 
@@ -210,6 +258,8 @@ def worker_system(office: Any, section: Any, agent: Any, *, allow_web: bool = Tr
     lines.append("")
     lines.append(officetools.describe(allow_web=allow_web))
     lines.append("")
+    if auto_decisions(office):
+        lines.append(auto_decisions(office))
     lines.append("Be concrete and brief. Work, then report — never narrate what you are about to do in prose.")
     return "\n".join(lines)
 

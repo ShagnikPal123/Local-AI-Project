@@ -1,0 +1,176 @@
+/* Second Brain → Core (owner request, 2026-09-16). Deep navy, one glowing core, quiet glass at the edges.
+   Text on panels (#0a1330-ish): #EAF2FF 16:1, #A9BEE8 9:1, #8EA4D2 6.6:1 — nothing below 4.5:1. */
+
+.core { position: absolute; inset: 0; z-index: 2; container-type: inline-size; color: #eaf2ff; }
+.core__backdrop { position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 60% 55% at calc(50% - var(--core-shift, 0px)) 50%, rgba(46, 92, 196, 0.34), rgba(10, 22, 58, 0.55) 45%, transparent 75%),
+    radial-gradient(ellipse at 50% 120%, rgba(30, 60, 140, 0.25), transparent 60%),
+    linear-gradient(180deg, #030612 0%, #050b1e 45%, #02040b 100%); }
+.core__scene { position: absolute; inset: 0; }
+.core__scene canvas { display: block; width: 100%; height: 100%; }
+
+.core__arc { position: absolute; top: 46px; left: 10%; width: 80%; height: 96px; pointer-events: none; overflow: visible; }
+.core__arc path { fill: none; }
+.core__arc-glow { stroke-width: 7; opacity: 0.35; filter: blur(6px); }
+.core__arc-leds { stroke-width: 3.2; stroke-linecap: round; stroke-dasharray: 0.1 12; filter: drop-shadow(0 0 3px rgba(190, 225, 255, 0.9)); }
+
+.core__hud { position: absolute; inset: 58px 16px 12px 16px; pointer-events: none; display: grid; gap: 14px;
+  grid-template-columns: minmax(230px, 300px) minmax(0, 1fr) minmax(250px, 320px); grid-template-rows: auto minmax(0, 1fr) auto; }
+.nyx-stage.has-chat .core__hud { right: calc(min(var(--sheet-w, 440px), 100% - 24px) + 28px); }
+.nyx-stage.has-chat .core__arc { left: calc((100% - var(--sheet-w, 440px) - 24px) * 0.1); width: calc((100% - var(--sheet-w, 440px) - 24px) * 0.8); }
+
+.core__panel { pointer-events: auto; border-radius: 16px; padding: 12px 14px; min-width: 0;
+  background: linear-gradient(180deg, rgba(22, 38, 82, 0.46), rgba(8, 14, 34, 0.62));
+  box-shadow: inset 0 0 0 1px rgba(140, 190, 255, 0.16), inset 0 1px 0 rgba(200, 225, 255, 0.08), 0 18px 50px rgba(0, 0, 18, 0.45);
+  backdrop-filter: blur(16px) saturate(1.3); -webkit-backdrop-filter: blur(16px) saturate(1.3); }
+.core__caption { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-family: var(--font-mono); font-size: 10.5px;
+  letter-spacing: 0.14em; text-transform: uppercase; color: #a9bee8; }
+.core__caption > span { margin-left: auto; letter-spacing: 0.06em; color: #8ea4d2; text-transform: none; font-size: 11px; }
+.core__dot { width: 6px; height: 6px; border-radius: 50%; background: #7cc4ff; box-shadow: 0 0 8px #7cc4ff; }
+.core__dot.is-live { background: #7ee2a0; box-shadow: 0 0 10px #7ee2a0; animation: coreblink 1.2s infinite; }
+
+.core__stat { grid-column: 1; grid-row: 1; align-self: start; }
+.core__big { font-family: var(--font-heading); font-size: 34px; line-height: 1; font-weight: 600; letter-spacing: -0.02em; color: #fff;
+  text-shadow: 0 0 24px rgba(124, 196, 255, 0.35); }
+.core__sub { margin-top: 6px; font-size: 12px; color: #8ea4d2; }
+
+.core__gauges { grid-column: 3; grid-row: 1; justify-self: end; align-self: start; display: flex; gap: 8px; pointer-events: auto; }
+.core__ring { position: relative; width: 66px; height: 66px; border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(circle, rgba(20, 36, 80, 0.7), rgba(6, 12, 30, 0.8));
+  box-shadow: inset 0 0 0 1px rgba(140, 190, 255, 0.2), 0 10px 30px rgba(0, 0, 18, 0.5); backdrop-filter: blur(12px); }
+.core__ring svg { position: absolute; inset: 7px; width: 52px; height: 52px; }
+.core__ring-track { fill: none; stroke: rgba(140, 190, 255, 0.14); stroke-width: 3; }
+.core__ring-fill { fill: none; stroke: #7cc4ff; stroke-width: 3; stroke-linecap: round; filter: drop-shadow(0 0 3px rgba(124, 196, 255, 0.8));
+  transition: stroke-dasharray 600ms ease; }
+.core__ring-fill.is-hot { stroke: #ffb36b; filter: drop-shadow(0 0 3px rgba(255, 179, 107, 0.8)); }
+.core__ring-value { font-family: var(--font-mono); font-size: 12.5px; font-weight: 600; color: #fff; margin-top: -6px; }
+.core__ring-caption { position: absolute; bottom: 12px; font-family: var(--font-mono); font-size: 8.5px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: #a9bee8; }
+
+.core__col { min-height: 0; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; scrollbar-width: thin; pointer-events: none;
+  padding-bottom: 4px; }
+.core__col > * { flex: none; }
+.core__col--left { grid-column: 1; grid-row: 2; align-self: start; max-height: 100%; }
+.core__col--right { grid-column: 3; grid-row: 2; align-self: start; max-height: 100%; }
+
+.core__rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.core__empty { font-size: 12px; color: #8ea4d2; padding: 4px 0; }
+.core__api { display: grid; grid-template-columns: 26px minmax(0, 1fr) 56px auto; gap: 8px; align-items: center; padding: 5px 4px; border-radius: 10px; }
+.core__api.is-quiet { opacity: 0.72; }
+.core__badge { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; font-size: 12px; font-weight: 700; color: #061022;
+  background: linear-gradient(135deg, #9ad4ff, #5f8dff); box-shadow: 0 0 12px rgba(124, 196, 255, 0.35); }
+.core__badge.is-market { background: linear-gradient(135deg, #ffd28a, #ff9f43); }
+.core__api-name { display: grid; min-width: 0; }
+.core__api-name b { display: flex; gap: 6px; align-items: center; font-size: 12.5px; font-weight: 600; color: #eaf2ff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.core__api-name > span { font-size: 11px; color: #8ea4d2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.core__api-num { display: grid; justify-items: end; gap: 2px; font-family: var(--font-mono); }
+.core__api-num b { font-size: 12.5px; color: #fff; }
+.core__api-num > span { font-size: 10.5px; color: #8ea4d2; }
+.core__spark { width: 56px; height: 18px; }
+.core__spark polyline { stroke: #7cc4ff; }
+.core__spark.is-warn polyline { stroke: #ffb36b; }
+.core__spark.is-up polyline, .is-up { stroke: #7ee2a0; color: #7ee2a0 !important; }
+.core__spark.is-down polyline, .is-down { stroke: #ff9a8f; color: #ff9a8f !important; }
+.core__limit { display: block; width: 44px; height: 4px; border-radius: 2px; background: rgba(140, 190, 255, 0.15); overflow: hidden; }
+.core__limit i { display: block; height: 100%; background: #7cc4ff; }
+
+.core__plus { margin-left: 4px; width: 22px; height: 22px; border-radius: 50%; border: 0; display: grid; place-items: center; cursor: pointer;
+  font-size: 15px; line-height: 1; color: #061022; background: #9ad4ff; box-shadow: 0 0 10px rgba(124, 196, 255, 0.45); }
+.core__plus:hover, .core__plus:focus-visible { background: #fff; outline: none; box-shadow: 0 0 0 2px rgba(124, 196, 255, 0.6), 0 0 14px rgba(124, 196, 255, 0.6); }
+.core__make { display: grid; gap: 6px; margin-bottom: 8px; }
+.core__make input, .core__project select { height: 30px; padding: 0 10px; border-radius: 9px; border: 0; font: inherit; font-size: 12.5px; color: #eaf2ff;
+  background: rgba(4, 10, 26, 0.7); box-shadow: inset 0 0 0 1px rgba(140, 190, 255, 0.18); min-width: 0; }
+.core__make input:focus-visible, .core__project select:focus-visible { outline: 2px solid #7cc4ff; outline-offset: 1px; }
+.core__make-actions { display: flex; justify-content: space-between; align-items: center; }
+.core__filter { display: flex; gap: 4px; margin-bottom: 6px; }
+.core__filter button { height: 22px; padding: 0 9px; border-radius: 999px; border: 0; font: inherit; font-size: 11px; cursor: pointer; color: #a9bee8;
+  background: rgba(140, 190, 255, 0.08); }
+.core__filter button[aria-pressed="true"] { color: #061022; background: #9ad4ff; }
+.core__agentlist { max-height: 34vh; overflow-y: auto; scrollbar-width: thin; }
+.core__agent { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; gap: 6px; align-items: center; padding: 3px 4px; border-radius: 10px; cursor: grab; }
+.core__agent:hover, .core__agent:focus-within { background: rgba(140, 190, 255, 0.08); }
+.core__agent:active { cursor: grabbing; }
+.core__agent.is-working .core__emoji { box-shadow: 0 0 0 1.5px #7ee2a0, 0 0 12px rgba(126, 226, 160, 0.5); }
+.core__grip { font-size: 10px; letter-spacing: -2px; color: #5f739e; }
+.core__agent-main { display: flex; gap: 8px; align-items: center; min-width: 0; padding: 2px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: 8px; }
+.core__agent-main:focus-visible { outline: 2px solid #7cc4ff; }
+.core__emoji { display: grid; place-items: center; width: 26px; height: 26px; flex: none; border-radius: 8px; font-size: 14px; background: rgba(4, 10, 26, 0.7); }
+.core__tag { font-style: normal; font-size: 9.5px; font-weight: 600; letter-spacing: 0.04em; padding: 1px 5px; border-radius: 999px; color: #061022; background: #b8a8ff; }
+.core__run { height: 24px; padding: 0 10px; border-radius: 999px; border: 0; font: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer;
+  color: #eaf2ff; background: rgba(124, 196, 255, 0.16); box-shadow: inset 0 0 0 1px rgba(124, 196, 255, 0.35); opacity: 0.85; }
+.core__run:hover, .core__run:focus-visible { opacity: 1; color: #061022; background: #9ad4ff; outline: none; }
+
+.core__proc { display: grid; gap: 4px; padding: 4px; }
+.core__proc-main { display: flex; gap: 8px; align-items: center; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; min-width: 0; }
+.core__proc-main .core__api-name { flex: 1; }
+.core__proc-time { font-family: var(--font-mono); font-size: 10.5px; color: #8ea4d2; }
+.core__progress { display: block; height: 3px; border-radius: 2px; background: rgba(140, 190, 255, 0.14); overflow: hidden; }
+.core__progress i { display: block; height: 100%; background: linear-gradient(90deg, #5f8dff, #9ad4ff); transition: width 500ms ease; }
+.core__progress.is-indeterminate i { width: 30%; animation: coreslide 1.6s ease-in-out infinite; }
+.core__proc-main:focus-visible { outline: 2px solid #7cc4ff; border-radius: 6px; }
+.core__proc-main.is-static { cursor: default; }
+/* U31: always-on loops fold under the jobs, so the list reads as "what is working" first. */
+.core__procs { max-height: 42vh; overflow-y: auto; }
+.core__services { margin-top: 8px; padding-top: 6px; box-shadow: inset 0 1px 0 rgba(140, 190, 255, 0.12); }
+.core__services summary { cursor: pointer; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: #8ea4d2; padding: 2px 4px; border-radius: 6px; }
+.core__services summary:hover { color: #eaf2ff; }
+.core__services summary:focus-visible { outline: 2px solid #7cc4ff; }
+.core__services .core__rows { margin-top: 4px; }
+.core__proc.is-service { padding: 2px 4px; }
+.core__proc.is-service .core__api-name b { font-weight: 500; }
+
+.core__bottom { grid-column: 1 / -1; grid-row: 3; justify-self: center; width: min(780px, 100%); display: grid; gap: 10px; pointer-events: none; }
+.core__dispatches { display: grid; gap: 8px; pointer-events: auto; max-height: 30vh; overflow-y: auto; }
+.core__dock { padding: 10px 14px; transition: box-shadow 180ms ease; }
+.core__dock:not(.is-open) .core__caption { margin-bottom: 0; }
+.core__dock-toggle { padding: 0; border: 0; background: none; font: inherit; color: #eaf2ff; letter-spacing: 0.14em; text-transform: uppercase; cursor: pointer; }
+.core__dock-toggle:focus-visible { outline: 2px solid #7cc4ff; outline-offset: 2px; }
+.core__dock-body { display: grid; gap: 10px; }
+.core__dock .boxes { background: rgba(4, 10, 26, 0.45); max-height: 34vh; overflow-y: auto; }
+.core__dock .box { background: rgba(18, 30, 64, 0.72); }
+.core__dock .box__task { background: rgba(3, 8, 20, 0.8); }
+.core__project { display: flex; gap: 8px; align-items: center; font-size: 12px; color: #a9bee8; }
+.core__project select { flex: 1; }
+.core__dock-foot { display: flex; justify-content: flex-end; gap: 8px; }
+
+.core__voice { justify-self: center; width: min(520px, 100%); padding: 10px 14px 12px; }
+.core__voice .core__caption { margin-bottom: 6px; }
+.core__wave { display: flex; align-items: center; justify-content: center; gap: 3px; height: 34px; }
+.core__wave span { display: block; width: 3px; border-radius: 2px; height: calc(4px + var(--h) * 6px); background: linear-gradient(180deg, #d5ecff, #6fa8ff);
+  opacity: 0.55; transition: height 300ms ease; }
+.core__wave.is-active span { height: calc(6px + var(--h) * 28px); opacity: 0.95; animation: corewave 900ms ease-in-out infinite alternate; }
+.core__status { justify-self: center; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.2em; color: #8ea4d2; text-align: center;
+  pointer-events: auto; text-shadow: 0 0 12px rgba(0, 0, 0, 0.8); }
+
+@keyframes corewave { from { transform: scaleY(0.35); } to { transform: scaleY(1); } }
+@keyframes coreslide { 0% { transform: translateX(-100%); } 100% { transform: translateX(340%); } }
+@keyframes coreblink { 50% { opacity: 0.4; } }
+
+/* The memory field's overlays belong to that view only. */
+.nyx-stage.is-core .nyx-threads, .nyx-stage.is-core .nyx-hud, .nyx-stage.is-core .nyx-title,
+.nyx-stage.is-core .nyx-legend, .nyx-stage.is-core .nyx-tags, .nyx-stage.is-core .nyx-hints { display: none; }
+.nyx-stage.is-core .nyx-stage__views { background: rgba(8, 14, 34, 0.7); }
+
+@container (max-width: 860px) {
+  .core__hud { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto auto auto auto; overflow-y: auto; pointer-events: auto; }
+  .core__stat { grid-column: 1; }
+  .core__gauges { grid-column: 2; }
+  .core__col--left { grid-column: 1; grid-row: 2; max-height: none; overflow: visible; }
+  .core__col--right { grid-column: 2; grid-row: 2; max-height: none; overflow: visible; }
+  .core__bottom { grid-row: 3; }
+  .core__arc { display: none; }
+}
+@container (max-width: 560px) {
+  .core__hud { grid-template-columns: minmax(0, 1fr); }
+  .core__gauges, .core__col--right { grid-column: 1; justify-self: stretch; }
+  .core__gauges { grid-row: 2; justify-content: space-between; }
+  .core__col--left { grid-row: 3; }
+  .core__col--right { grid-row: 4; }
+  .core__bottom { grid-row: 5; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .core__wave.is-active span, .core__progress.is-indeterminate i, .core__dot.is-live { animation: none; }
+  .core__ring-fill, .core__progress i { transition: none; }
+}

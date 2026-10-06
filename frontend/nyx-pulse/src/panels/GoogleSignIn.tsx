@@ -2,15 +2,27 @@
  *
  * Three steps, each shown only when it is the next one: make a free OAuth client in Google Cloud,
  * paste its ID and secret, then Sign In with Google. The client secret is sent once and never shown.
+ *
+ * Connectors (Update 1, U24) reuses this same card for every Google app: `products` asks Google only for those apps'
+ * permissions, and "connected" then means the addresses that granted them. Without props it is the Gmail card.
  */
 
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api";
 import { onWorkspaceEvent } from "../state/workspaceEvents";
 
-interface Status { client_configured: boolean; connected: string[]; redirect_uri: string }
+interface Status { client_configured: boolean; connected: string[]; redirect_uri: string; products?: Record<string, string[]> }
 
-export function GoogleSignIn() {
+interface Props {
+  /** Google apps to ask permission for, e.g. ["sheets"]. Empty: Gmail, as Keys & Models always did. */
+  products?: string[];
+  title?: string;
+  /** The Google Cloud page where this app's API is switched on (step 1). */
+  enableUrl?: string;
+  apiName?: string;
+}
+
+export function GoogleSignIn({ products, title, enableUrl, apiName }: Props = {}) {
   const [status, setStatus] = useState<Status | null>(null);
   const [clientId, setClientId] = useState("");
   const [clientSecret, setClientSecret] = useState("");
@@ -43,7 +55,7 @@ export function GoogleSignIn() {
   }
 
   async function signIn() {
-    const result = await api.post<{ auth_url: string }>("/api/google/oauth/start", { login_hint: hint });
+    const result = await api.post<{ auth_url: string }>("/api/google/oauth/start", { login_hint: hint, products: products ?? [] });
     if (!result.ok) { setMessage({ ok: false, text: result.error }); return; }
     window.open(result.data.auth_url, "_blank", "noopener");
     setWaiting(true);
@@ -52,22 +64,27 @@ export function GoogleSignIn() {
 
   if (!status) return null;
   const needsClient = !status.client_configured || editingClient;
+  const wanted = products ?? [];
+  const otherApp = wanted.length > 0 && !wanted.includes("gmail");
+  const connected = wanted.length
+    ? Object.entries(status.products ?? {}).filter(([, granted]) => wanted.every((p) => granted.includes(p))).map(([address]) => address)
+    : status.connected;
 
   return (
     <div className="card keys-provider google-signin">
       <div className="keys-provider__head">
-        <strong>Gmail with Google sign-in</strong>
+        <strong>{title ?? "Gmail with Google sign-in"}</strong>
         <span className="keys-badge">No app password</span>
-        {status.connected.length > 0 && <span className="keys-status is-ok">✓ {status.connected.join(", ")}</span>}
+        {connected.length > 0 && <span className="keys-status is-ok">✓ {connected.join(", ")}</span>}
       </div>
       <p className="keys-notes">
-        Use this when Google won't give you an app password. You approve Nyx on Google's own page; Nyx never sees your Google password.
+        {otherApp ? "" : "Use this when Google won't give you an app password. "}You approve Nyx on Google's own page; Nyx never sees your Google password.
       </p>
 
       {needsClient ? (
         <>
           <ol className="google-signin__steps">
-            <li>Open <a href="https://console.cloud.google.com/apis/library/gmail.googleapis.com" target="_blank" rel="noopener noreferrer">Google Cloud → Gmail API ↗</a> and click <b>Enable</b> (make a project if asked — it's free).</li>
+            <li>Open <a href={enableUrl ?? "https://console.cloud.google.com/apis/library/gmail.googleapis.com"} target="_blank" rel="noopener noreferrer">Google Cloud → {apiName ?? "Gmail API"} ↗</a> and click <b>Enable</b> (make a project if asked — it's free).</li>
             <li>In <a href="https://console.cloud.google.com/auth/audience" target="_blank" rel="noopener noreferrer">Google Auth Platform → Audience ↗</a>, choose <b>External</b>, keep it in <b>Testing</b>, and add your Gmail address under <b>Test users</b>.</li>
             <li>In <a href="https://console.cloud.google.com/auth/clients" target="_blank" rel="noopener noreferrer">Clients ↗</a>, create a client of type <b>Desktop app</b>, then copy its Client ID and Client secret here.</li>
           </ol>
@@ -84,11 +101,14 @@ export function GoogleSignIn() {
         </>
       ) : (
         <div className="keys-form">
-          <label className="keys-field"><span>Gmail address <em>optional</em></span>
+          {otherApp && enableUrl && (
+            <p className="keys-notes">First turn on the <a href={enableUrl} target="_blank" rel="noopener noreferrer">{apiName ?? "API"} ↗</a> in the same Google Cloud project. Google then asks only for this app's permission.</p>
+          )}
+          <label className="keys-field"><span>{otherApp ? "Google account" : "Gmail address"} <em>optional</em></span>
             <input value={hint} placeholder="you@gmail.com" onChange={(e) => setHint(e.target.value)} /></label>
           <div className="keys-actions">
             <button className="btn btn-primary google-signin__button" onClick={() => void signIn()} disabled={waiting}>
-              {waiting ? "Waiting for Google…" : status.connected.length ? "Sign In Another Account" : "Sign In with Google"}
+              {waiting ? "Waiting for Google…" : connected.length ? "Sign In Another Account" : "Sign In with Google"}
             </button>
             <button type="button" className="btn btn-secondary" onClick={() => setEditingClient(true)}>Change Client</button>
           </div>

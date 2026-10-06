@@ -289,3 +289,149 @@ def test_the_snapshot_is_everything_the_tab_draws(engine):
     assert snapshot["office"]["capacity_detail"]["concurrency"] == 4
     assert any(r["id"] == "coder" for r in snapshot["roles"]), "the role colours and glyphs travel with it"
     assert snapshot["office"]["path"].endswith("Snapshot")
+
+
+# --- Update 1: the Output box (U41) and the office as a company (U42) --------------------------------------
+
+
+def test_a_finished_job_lands_in_the_output_box_with_its_files(engine):
+    office_engine, _router = engine
+    office, _ = library.create_office("Output box")
+    office_engine.open(office.id)
+    office_engine.say(office.id, "Build me a landing page for the new product.")
+    assert _wait(lambda: not office_engine.running_office())
+
+    state = office_engine.open(office.id)
+    assert len(state.outputs) == 1, "one clear 'done' per job"
+    output = state.outputs[0]
+    assert output.status == "done" and output.job_id == state.jobs[-1].id
+    assert output.text.startswith("# Done"), "with no separate output from the model, the answer is the output"
+    assert {"kind": "file", "label": "page.html", "path": "page.html"} in output.links
+    assert office_engine.snapshot(office.id)["outputs"][0]["id"] == output.id
+
+
+def test_deliver_now_hands_over_the_deliverable_with_working_links(engine, monkeypatch):
+    office_engine, router = engine
+    answer = router._answer
+
+    def with_deliverable(text, messages):
+        if "The owner wants the output now" in text:
+            return json.dumps({"title": "The page", "output": "Live preview: https://example.com/page.", "complete": True})
+        return answer(text, messages)
+
+    monkeypatch.setattr(router, "_answer", with_deliverable)
+    office, _ = library.create_office("Deliver")
+    office_engine.open(office.id)
+    with pytest.raises(OfficeError):
+        office_engine.deliver_now(office.id)  # nothing to deliver before the first job
+
+    office_engine.say(office.id, "Build me a landing page.")
+    assert _wait(lambda: not office_engine.running_office())
+    office_engine.deliver_now(office.id)
+    assert _wait(lambda: len(office_engine.open(office.id).outputs) == 2)
+
+    delivered = office_engine.open(office.id).outputs[-1]
+    assert delivered.title == "The page" and delivered.status == "done"
+    assert {"kind": "url", "label": "example.com/page", "href": "https://example.com/page"} in delivered.links
+
+
+def test_a_halted_job_says_so_in_the_output_box(engine):
+    office_engine, _router = engine
+    office, _ = library.create_office("Halted output")
+    office_engine.open(office.id)
+    office_engine.say(office.id, "Build me a landing page.")
+    _wait(lambda: office_engine.open(office.id).phase in ("staff", "brief", "work"), seconds=20)
+    office_engine.control(office.id, "halt")
+    _wait(lambda: not office_engine.running_office())
+
+    outputs = office_engine.open(office.id).outputs
+    assert outputs and outputs[-1].status == "stopped" and "Deliver now" in outputs[-1].text
+
+
+def test_auto_decisions_tells_every_agent_to_decide_and_produce_the_real_result(engine):
+    from office import prompts
+
+    office_engine, _router = engine
+    office, _ = library.create_office("Auto decide")
+    state = office_engine.open(office.id)
+    assert prompts.AUTO_DECISIONS not in prompts.top_manager_system(state)
+
+    snapshot = office_engine.set_options(office.id, auto_decisions=True)
+    assert snapshot["office"]["settings"]["auto_decisions"] is True
+    state = office_engine.open(office.id)
+    head = next(iter(state.sections.values()))
+    assert prompts.AUTO_DECISIONS in prompts.top_manager_system(state)
+    assert prompts.AUTO_DECISIONS in prompts.manager_system(state, head, state.top_manager())
+    office_engine.set_options(office.id, auto_decisions=False)
+    assert prompts.AUTO_DECISIONS not in prompts.top_manager_system(office_engine.open(office.id))
+
+
+def _company(workers: int = 12):
+    from office.state import Agent, Job, Office, Section, Task
+
+    office = Office(id="ofc-co", name="Co")
+    office.sections["s1"] = Section(id="s1", name="Build", color="#fff")
+    office.agents["top"] = Agent(id="top", name="Boss", role="top-manager", section_id="s1")
+    for n in range(workers):
+        office.agents[f"a{n}"] = Agent(id=f"a{n}", name=f"Coder #{n}", role="coder", section_id="s1", desk=n + 1)
+    job = Job(id="job-1", request="build it")
+    office.jobs.append(job)
+    return office, job, Task
+
+
+def test_idle_agents_go_part_time_then_are_let_go_and_busy_ones_come_back():
+    from office import staffing
+
+    office, job, Task = _company()
+    office.tasks["t1"] = Task(id="t1", title="x", job_id=job.id, agent_id="a0", status="done")
+    staffing.review(office, job)
+    assert office.agents["a1"].jobs_idle == 1 and office.agents["a1"].employment == "full"
+
+    changes = staffing.review(office, job)
+    assert office.agents["a1"].employment == "part_time" and office.agents["a0"].employment == "full"
+    assert any(c.change == "part_time" and c.agent_id == "a1" for c in changes)
+    assert "top" not in {c.agent_id for c in office.staffing}, "the top manager is never moved"
+
+    for _ in range(2):
+        staffing.review(office, job)
+    let_go = [c for c in office.staffing if c.change == "let_go"]
+    assert let_go and "a1" not in office.agents, "idle part-timers are let go while the office is bigger than a team"
+    assert len(office.agents) >= 10, "never below a real team"
+
+    # A part-timer who works two jobs in a row is full time again.
+    office2, job2, Task2 = _company(workers=3)
+    worker = office2.agents["a2"]
+    worker.employment, worker.jobs_idle = "part_time", 3
+    office2.tasks["t"] = Task2(id="t", title="x", job_id=job2.id, agent_id="a2", status="done")
+    staffing.review(office2, job2)
+    staffing.review(office2, job2)
+    assert worker.employment == "full" and office2.staffing[-1].change == "full_time"
+
+
+def test_clean_work_is_promoted_and_poor_work_demoted():
+    from office import staffing
+
+    office, job, Task = _company(workers=2)
+    star, weak = office.agents["a0"], office.agents["a1"]
+    star.tasks_done = 6
+    for n in range(2):
+        office.tasks[f"s{n}"] = Task(id=f"s{n}", title="x", job_id=job.id, agent_id="a0", status="done")
+    for n in range(3):
+        office.tasks[f"w{n}"] = Task(id=f"w{n}", title="x", job_id=job.id, agent_id="a1", status="failed")
+
+    changes = {c.agent_id: c.change for c in staffing.review(office, job)}
+    assert changes == {"a0": "promoted", "a1": "demoted"}
+    assert star.rank == 1 and staffing.rank_name(star.rank) == "Senior"
+    assert weak.rank == -1 and staffing.rank_name(weak.rank) == "Junior"
+
+
+def test_the_output_quotes_the_files_the_office_wrote(engine):
+    """Found live: the saved haiku and the Output box's haiku were two different poems."""
+    office_engine, router = engine
+    office, _ = library.create_office("Quote files")
+    office_engine.open(office.id)
+    office_engine.say(office.id, "Build me a landing page.")
+    assert _wait(lambda: not office_engine.running_office())
+
+    wrap_prompt = next(p for p in router.prompts if "Write the answer for the owner" in p)
+    assert "What those files actually say" in wrap_prompt and "<h1>Hello</h1>" in wrap_prompt

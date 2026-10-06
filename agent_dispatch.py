@@ -50,6 +50,9 @@ class Instance:
     status: str = "queued"          # queued | working | done | error | stopped
     step: str = ""
     understanding: str = ""
+    #: What this copy was handed besides its task — the shared context, the project, its siblings — exactly as
+    #: sent, so the owner can read what was asked as well as what came back (U46).
+    context: str = ""
     report: str = ""
     seconds: float = 0.0
     started_at: Optional[float] = None
@@ -68,10 +71,18 @@ class Dispatch:
     status: str = "running"          # running | done | stopped
     posted: bool = False
     cancel: threading.Event = field(default_factory=threading.Event, repr=False)
+    #: A swarm's size (Swarm chat mode, swarm.py): the owner's slider, which may be more boxes than an ordinary
+    #: dispatch holds — or fewer. 0 = an ordinary dispatch with the usual limits.
+    max_instances: int = 0
+    #: How many of this dispatch's boxes work at once. 0 = share the registry's slots with every other dispatch.
+    parallel: int = 0
+    slots: Optional[threading.BoundedSemaphore] = field(default=None, repr=False)
 
     def view(self) -> Dict[str, Any]:
         # Not asdict(self): it would deep-copy the cancel Event, which holds a lock.
-        data = {k: getattr(self, k) for k in ("dispatch_id", "chat_id", "origin", "context", "created_at", "status", "posted")}
+        data = {k: getattr(self, k) for k in ("dispatch_id", "chat_id", "origin", "context", "created_at", "status", "posted",
+                                              "parallel")}
+        data["swarm"] = self.max_instances > 0
         data["project"] = dict(self.project)
         data["instances"] = [asdict(i) for i in self.instances]
         data["counts"] = {s: sum(1 for i in self.instances if i.status == s) for s in ("queued", "working", "done", "error", "stopped")}
@@ -173,10 +184,17 @@ class DispatchRegistry:
     # --- writes -------------------------------------------------------------------
 
     def start(self, items: List[Dict[str, Any]], *, chat_id: str = "", origin: str = "owner", context: str = "",
-              project: Optional[Dict[str, Any]] = None, wait: bool = False) -> Dict[str, Any]:
-        clean = self._clean_items(items)
+              project: Optional[Dict[str, Any]] = None, wait: bool = False, max_instances: int = 0,
+              parallel: int = 0) -> Dict[str, Any]:
+        """Start a set of boxes. ``max_instances``/``parallel`` make it a swarm: its size, and its own slots."""
+        swarm_size = max(0, int(max_instances or 0))
+        clean = self._clean_items(items, cap=swarm_size or MAX_INSTANCES, swarm=bool(swarm_size))
         dispatch = Dispatch(dispatch_id=uuid.uuid4().hex[:10], chat_id=chat_id or "", origin=origin,
-                            context=(context or "")[:4000], project=dict(project or {}))
+                            context=(context or "")[:4000], project=dict(project or {}),
+                            max_instances=swarm_size, parallel=max(0, int(parallel or 0)))
+        if dispatch.parallel:
+            # Its own slots: a swarm of twenty must not starve, or be starved by, the owner's /coder [2].
+            dispatch.slots = threading.BoundedSemaphore(dispatch.parallel)
         with self._lock:
             for item in clean:
                 dispatch.instances.append(self._instance(dispatch, item))
@@ -195,9 +213,10 @@ class DispatchRegistry:
             dispatch = self._dispatches.get(dispatch_id)
             if dispatch is None:
                 raise DispatchError("That dispatch is gone.")
-            if len(dispatch.instances) >= MAX_INSTANCES:
-                raise DispatchError(f"At most {MAX_INSTANCES} boxes in one dispatch.")
-            item = self._clean_items([{"agent": agent, "task": task}])[0]
+            cap = dispatch.max_instances or MAX_INSTANCES
+            if len(dispatch.instances) >= cap:
+                raise DispatchError(f"At most {cap} boxes in one dispatch.")
+            item = self._clean_items([{"agent": agent, "task": task}], cap=cap, swarm=bool(dispatch.max_instances))[0]
             inst = self._instance(dispatch, item)
             dispatch.instances.append(inst)
             dispatch.status, dispatch.posted = "running", False
@@ -219,13 +238,15 @@ class DispatchRegistry:
 
     # --- internals ---------------------------------------------------------------------
 
-    def _clean_items(self, items: List[Dict[str, Any]]) -> List[Dict[str, str]]:
+    def _clean_items(self, items: List[Dict[str, Any]], cap: int = MAX_INSTANCES, swarm: bool = False) -> List[Dict[str, str]]:
         from agent_runtime import load_roster, roster_entry_exact, roster_entry
 
         if not isinstance(items, list) or not items:
             raise DispatchError("Add at least one agent box.")
-        if len(items) > MAX_INSTANCES:
-            raise DispatchError(f"At most {MAX_INSTANCES} boxes at once.")
+        if len(items) > cap:
+            raise DispatchError(f"At most {cap} boxes at once.")
+        # In a swarm one specialist may fill every box (twenty Coders on twenty small fixes).
+        per_agent_cap = cap if swarm else MAX_PER_AGENT
         clean: List[Dict[str, str]] = []
         for item in items:
             if not isinstance(item, dict):
@@ -242,9 +263,9 @@ class DispatchRegistry:
                 raise DispatchError(f"Say what {entry['name']} should do.")
             clean.append({"agent": entry["name"], "task": task[:4000], "emoji": entry.get("emoji", "")})
         per_agent = _count_by_agent([Instance(0, c["agent"], "", "") for c in clean])
-        too_many = [a for a, n in per_agent.items() if n > MAX_PER_AGENT]
+        too_many = [a for a, n in per_agent.items() if n > per_agent_cap]
         if too_many:
-            raise DispatchError(f"At most {MAX_PER_AGENT} copies of {too_many[0]} at once.")
+            raise DispatchError(f"At most {per_agent_cap} copies of {too_many[0]} at once.")
         return clean
 
     def _instance(self, dispatch: Dispatch, item: Dict[str, str]) -> Instance:
@@ -278,7 +299,7 @@ class DispatchRegistry:
         return thread
 
     def _run(self, dispatch: Dispatch, inst: Instance) -> None:
-        slots = self._semaphore()
+        slots = dispatch.slots or self._semaphore()
         with slots:
             if dispatch.cancel.is_set() or inst.status == "stopped":
                 self._finish_if_done(dispatch)
@@ -295,6 +316,8 @@ class DispatchRegistry:
                 context += (f"\n\nYou are {inst.label}. {len(others)} other cop{'y' if len(others) == 1 else 'ies'} of you work "
                             "on other parts at the same time — do only your own task:\n"
                             + "\n".join(f"- {o.label}: {o.task[:160]}" for o in others))
+            with self._lock:
+                inst.context = context.strip()[:6000]
             try:
                 report = self._run_specialist(dispatch, inst, context.strip())
                 with self._lock:
@@ -414,15 +437,24 @@ def tool_dispatch_agents(agent: str = "", count: Any = 1, task: str = "", tasks:
                     list(tasks) if isinstance(tasks, list) else [str(tasks)])
             except (ValueError, TypeError):
                 task_list = [str(tasks)]
+        ctx_now = current()
+        most = int(getattr(ctx_now, "swarm", 0) or 0) or MAX_PER_AGENT if ctx_now is not None else MAX_PER_AGENT
         try:
-            n = max(1, min(MAX_PER_AGENT, int(count or 1)))
+            n = max(1, min(most, int(count or 1)))
         except (TypeError, ValueError):
             n = 1
         n = max(n, len(task_list))
         items = [{"agent": agent, "task": (task_list[i] if i < len(task_list) else task)} for i in range(n)]
     ctx = current()
+    swarm_size = int(getattr(ctx, "swarm", 0) or 0) if ctx is not None else 0
     try:
-        view = DISPATCHES.start(items, chat_id=ctx.chat_id if ctx else "", origin="nyx", context=context, wait=True)
+        if swarm_size:
+            import swarm
+
+            view = DISPATCHES.start(items, chat_id=ctx.chat_id if ctx else "", origin="nyx", context=context, wait=True,
+                                    max_instances=swarm_size, parallel=swarm.parallel(swarm_size))
+        else:
+            view = DISPATCHES.start(items, chat_id=ctx.chat_id if ctx else "", origin="nyx", context=context, wait=True)
     except DispatchError as error:
         return f"Error: {error}"
     if ctx is not None:
@@ -442,7 +474,7 @@ def register_dispatch_tools(registry: Any) -> None:
                      "for a mix. The owner sees a box per copy and can add more. Returns every report."),
         parameters=[
             ToolParam("agent", "string", "Specialist name, e.g. Coder", required=False),
-            ToolParam("count", "integer", "How many copies (1-8)", required=False),
+            ToolParam("count", "integer", "How many copies (1-8; in Swarm mode up to the swarm size)", required=False),
             ToolParam("task", "string", "The shared task when every copy does the same kind of work", required=False),
             ToolParam("tasks", "array", "One task per copy (overrides task)", required=False),
             ToolParam("agents", "array", "Mixed dispatch: list of {agent, task}", required=False),

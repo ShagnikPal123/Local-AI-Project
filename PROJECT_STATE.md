@@ -698,6 +698,45 @@ all trading tests 49 green):
   scratch `NYX_DATA_DIR`: $50 → 4 buys of ~$12 queued for the open, stock adder added 8 symbols, Stop works.
 - Owner's real practice account: $50, AI on, approval "never" (set 2026-09-22). Adaptive mode left OFF for the owner to press.
 
+### Session — 2026-09-26 (Claude Opus 5.5, session 985454) — engine shutdown hang
+
+- FIXED: `server._shutdown_background_work` awaited every task in `asyncio.all_tasks()`, which includes the server's own
+  task (uvicorn's serve / TestClient's portal) that is waiting for shutdown to finish, so shutdown waited on itself:
+  `with TestClient(server.app)` never exited, and under uvicorn each foreign task cost `SHUTDOWN_TIMEOUT` on every stop or
+  restart. Shutdown now waits only on `_BACKGROUND_TASKS` (async work started through the new `server.spawn_background`):
+  one bounded wait, then cancel what overran. The scheduler stop is unchanged. Nothing in Nyx starts asyncio tasks yet;
+  all background work is threads. Test: `tests/test_server_shutdown.py`. Full suite 2114 passed (on top of d682945).
+
+
+### Session — 2026-10-04 → 05 (Claude Opus 5.5, session 0757e7, with three Claude sub-agents) — Update 1
+
+- Built "Update 1" from the owner's UPDATE_IDEAS list and pushed it as `update-1`. Details are in
+  `AI_HANDOFF/START_HERE.md` § Update 1, which is local only: the handoff is no longer tracked in git.
+- **New:**
+  - Swarm and Auto chat modes (`swarm.py`, `chat_modes.choose`).
+  - Full request and reply shown for every sub-agent hand-off (`agent_runtime`, `components/agents/Handoff.tsx`).
+  - /auto and @auto (`auto_team.py`).
+  - The Research tab is wired in and finished.
+  - The live process list (`feature_catalog.live_processes`).
+  - An 88-app connector catalogue (`connectors/catalog.py`, Microsoft Graph, "add any site").
+  - Auto-assign for models (`model_autoassign.py`).
+  - Office: Output box, Deliver now, Auto decisions, and staffing (`office/staffing.py`).
+  - Nyx tab: chats on the left (`ChatRail.tsx`) with a Chat / Second Brain switch.
+  - A voice bar (`VoiceTopBar.tsx`).
+  - Nyx's own computer through Cua (`own_computer.py`, a worker process, and an owner-screen gate on `computer_control`).
+  - The site's download button is now an outline that fills from 0 %.
+- **Fixed:**
+  - `.gitignore` data rules hid 47 frontend source files from GitHub.
+  - The fast-path test read the owner's real accounts file.
+  - Tests wrote swarm.json and google_granted.json into the real data folder.
+  - A crash in one tab blanked the whole app (`TabBoundary`).
+  - The window went blank after a rebuild.
+  - The Office focus question could not be dismissed.
+  - The Ollama model switch returned 404.
+  - The context bar treated Ollama as 8k.
+  - Engine shutdown waited on its own task (peer session's fix, reviewed).
+- **Tests:** full suite green, with the final count in the Update 1 commit message. `npm run build` green.
+
 ---
 
 ## Agent roster

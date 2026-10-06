@@ -28,6 +28,7 @@ TOOL_MODULES: List[Tuple[str, str]] = [
     ("system_info", "register_system_tools"),
     ("machine_tools", "register_machine_tools"),
     ("computer_control", "register_computer_tools"),
+    ("own_computer", "register_own_computer_tools"),
     ("email_client", "register_email_tools"),
     ("tts", "register_voice_tools"),
     ("improve_tools", "register_improve_tools"),
@@ -46,6 +47,8 @@ TOOL_MODULES: List[Tuple[str, str]] = [
     ("diagram_engine", "register_diagram_tools"),
     ("freewill", "register_freewill_tools"),
     ("identity0.tools", "register_identity0_tools"),
+    ("connector_use", "register_connector_tools"),
+    ("model_autoassign", "register_autoassign_tools"),
 ]
 
 _lock = threading.Lock()

@@ -50,8 +50,21 @@ WINDOWS: List[Tuple[str, str, int]] = [
     ("perplexity", "", 128_000),
     ("aws", "amazon.nova", 300_000),
     ("aws", "", 128_000),
-    ("ollama", "", 8_192),
 ]
+
+
+def _ollama_window() -> int:
+    """What Nyx really asks of a local model: ``num_ctx`` on every Ollama call (providers.ollama_provider).
+
+    This was a fixed 8,192 while the provider asked for 32,768, so a fresh local chat — Nyx's instructions alone
+    are ~15k tokens — read "186 % · almost full", and past six messages every turn auto-compacted for nothing.
+    """
+    try:
+        from providers.ollama_provider import NUM_CTX
+
+        return int(NUM_CTX)
+    except Exception:  # noqa: BLE001 - the meter never fails because the provider would not import
+        return 32_768
 
 _LOCK = threading.Lock()
 _UNDO: Dict[int, List[Dict[str, Any]]] = {}
@@ -105,6 +118,8 @@ def window_for(provider: str, model: str = "") -> int:
     for key in (f"{name}:{model}", name):
         if key in override:
             return override[key]
+    if name == "ollama":
+        return _ollama_window()
     for prov, prefix, size in WINDOWS:
         if name == prov and model.startswith(prefix):
             return size

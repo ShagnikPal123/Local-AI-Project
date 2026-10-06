@@ -20,11 +20,13 @@ interface ChatsResponse {
   count?: number;
 }
 
-interface KnowledgeResponse {
-  entries?: number;
+/** The `knowledge` part of /api/status. /api/knowledge is the search (it needs `?q=`), so asking it
+ * for a status got a 422 and this layer always said nothing was loaded. */
+interface KnowledgeStatus {
   loaded?: boolean;
-  path?: string;
-  [key: string]: unknown;
+  chunks?: number;
+  sections?: string[];
+  file?: string;
 }
 
 function Layer({ title, subtitle, children }: {
@@ -50,7 +52,7 @@ function Empty({ text }: { text: string }) {
 export function WorkPanel() {
   const [memory, setMemory] = useState<MemoryResponse | null>(null);
   const [chats, setChats] = useState<ChatsResponse | null>(null);
-  const [knowledge, setKnowledge] = useState<KnowledgeResponse | null>(null);
+  const [knowledge, setKnowledge] = useState<KnowledgeStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -58,13 +60,13 @@ export function WorkPanel() {
     void Promise.all([
       api.get<MemoryResponse>("/api/memory"),
       api.get<ChatsResponse>("/api/chats"),
-      api.get<KnowledgeResponse>("/api/knowledge"),
+      api.get<{ knowledge?: KnowledgeStatus }>("/api/status"),
     ]).then(([m, c, k]) => {
       if (!alive) return;
       if (m.ok) setMemory(m.data);
       else setError(m.error);
       if (c.ok) setChats(c.data);
-      if (k.ok) setKnowledge(k.data);
+      if (k.ok) setKnowledge(k.data.knowledge ?? null);
     });
     return () => {
       alive = false;
@@ -92,18 +94,23 @@ export function WorkPanel() {
           {knowledge?.loaded ? (
             <div style={{ fontSize: 13 }}>
               Loaded
-              {typeof knowledge.entries === "number" && ` · ${knowledge.entries} entries`}
-              {knowledge.path && (
+              {typeof knowledge.chunks === "number" && ` · ${knowledge.chunks} entries`}
+              {knowledge.sections && knowledge.sections.length > 0 && (
+                <div style={{ fontSize: 12, color: "var(--color-neutral-500)", marginTop: 4, lineHeight: 1.55 }}>
+                  {knowledge.sections.join(" · ")}
+                </div>
+              )}
+              {knowledge.file && (
                 <div style={{
                   fontSize: 11, color: "var(--color-neutral-600)",
                   fontFamily: "var(--font-mono)", marginTop: 4,
                 }}>
-                  {String(knowledge.path)}
+                  {String(knowledge.file)}
                 </div>
               )}
             </div>
           ) : (
-            <Empty text="No permanent knowledge loaded. general_knowledge.md exists in the project but is not yet wired in (roadmap E3)." />
+            <Empty text="No permanent knowledge loaded — general_knowledge.md is missing from the project folder." />
           )}
         </Layer>
 

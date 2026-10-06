@@ -83,6 +83,14 @@ def isolated_secret_store(monkeypatch):
         setattr(config.SETTINGS, name, value)
 
 
+@pytest.fixture(autouse=True)
+def no_ollama_probe(monkeypatch):
+    """Listing Ollama probes the loopback port; these tests decide its answer instead."""
+    import routes_providers
+
+    monkeypatch.setattr(routes_providers, "_ollama_running", lambda: False)
+
+
 @pytest.fixture
 def store(tmp_path, monkeypatch):
     fresh = AuthStore(path=tmp_path / "auth.json")
@@ -202,6 +210,20 @@ def test_ollama_needs_no_key(loopback_client):
     response = loopback_client.post("/api/providers/ollama/key", json={"api_key": "x" * 20})
     assert response.status_code == 400
     assert "locally" in response.json()["detail"]
+
+
+def test_ollama_counts_as_configured_exactly_when_it_is_running(loopback_client, monkeypatch):
+    """No key to hold, so a running Ollama must not be listed as "(no key)" / "(not running)"."""
+    import routes_providers
+
+    def ollama():
+        body = loopback_client.get("/api/providers").json()
+        return next(p for p in body["providers"] if p["name"] == "ollama")
+
+    monkeypatch.setattr(routes_providers, "_ollama_running", lambda: True)
+    assert ollama()["configured"] is True
+    monkeypatch.setattr(routes_providers, "_ollama_running", lambda: False)
+    assert ollama()["configured"] is False
 
 
 def test_remove_key_forgets_it(loopback_client, isolated_secret_store):

@@ -1,7 +1,7 @@
 /** The smaller pieces of the office view: one agent's card, the focus-mode question, and the hiring list. */
 
 import { useState } from "react";
-import type { FocusState, OfficeAgent, OfficeHire, OfficeRole, OfficeSection, OfficeTask } from "./types";
+import type { FocusState, OfficeAgent, OfficeHire, OfficeRole, OfficeSection, OfficeStaffChange, OfficeTask } from "./types";
 
 // --- one agent -------------------------------------------------------------------------------
 
@@ -99,11 +99,29 @@ export function FocusSheet({ focus, officeName, onAnswer }: FocusSheetProps) {
 
 // --- who asked for whom ----------------------------------------------------------------------
 
-export function HiringList({ hires, boardName }: { hires: OfficeHire[]; boardName: string }) {
-  if (!hires.length) return null;
+const STAFF_WORDS: Record<OfficeStaffChange["change"], string> = {
+  part_time: "part-time", full_time: "full time again", let_go: "let go", promoted: "promoted", demoted: "demoted",
+};
+
+export function HiringList({ hires, staffing = [], boardName }: {
+  hires: OfficeHire[]; staffing?: OfficeStaffChange[]; boardName: string;
+}) {
+  if (!hires.length && !staffing.length) return null;
   return (
-    <section className="ofc-hiring" aria-label="Requests for new agents">
-      <h3>Hiring{boardName ? ` · ${boardName} decides` : ""}</h3>
+    <section className="ofc-hiring" aria-label="Hiring and staffing">
+      <h3>Hiring &amp; staffing{boardName ? ` · ${boardName} decides` : ""}</h3>
+      {/* Update 1, U42: who went part-time, was let go, promoted or demoted after a job — beside who was hired. */}
+      {staffing.length > 0 && (
+        <ul className="ofc-staffing">
+          {staffing.slice(-8).reverse().map((change) => (
+            <li key={change.id} className={`is-${change.change}`}>
+              <b>{change.agent_name}</b>
+              <span className={`ofc-verdict is-${change.change}`}>{STAFF_WORDS[change.change] ?? change.change}</span>
+              <p className="ofc-muted">{change.why}</p>
+            </li>
+          ))}
+        </ul>
+      )}
       <ul>
         {hires.slice(-8).reverse().map((hire) => (
           <li key={hire.id} className={`is-${hire.status}`}>

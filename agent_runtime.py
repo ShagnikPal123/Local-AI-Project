@@ -31,6 +31,7 @@ import contextvars
 import json
 import threading
 import time
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -505,6 +506,11 @@ def _specialist_prompt(entry: Dict[str, Any]) -> str:
     )
 
 
+#: How much of a hand-off the chat shows: the request as sent, and the reply as given (U46).
+ASKED_CHARS = 6000
+REPLY_CHARS = 12000
+
+
 def run_specialist(name: str, task: str, context: str = "", max_steps: int = SPECIALIST_MAX_STEPS) -> str:
     """Hand ``task`` to one specialist and return its report for the Manager."""
     import re
@@ -525,8 +531,10 @@ def run_specialist(name: str, task: str, context: str = "", max_steps: int = SPE
 
     parent = current()
     started = time.perf_counter()
+    # One id per hand-off, so two calls to the same agent in one turn are two entries the owner can read, not one
+    # that overwrites the other (Update 1, U46: "we the user can see what is asked as well as what they responded with").
     base = {"agent_id": member.agent_id, "name": member.name, "emoji": entry.get("emoji", ""),
-            "color": entry.get("color", "")}
+            "color": entry.get("color", ""), "call_id": uuid.uuid4().hex[:10]}
 
     origin_chat = parent.chat_id if parent else ""
     origin_turn = parent.turn_id if parent else ""
@@ -563,7 +571,10 @@ def run_specialist(name: str, task: str, context: str = "", max_steps: int = SPE
         child.cancelled = parent.cancelled
 
     AGENT_TEAM.begin(member.agent_id, "Reading the task")
-    parent_emit({"type": "agent.update", **base, "status": "working", "step": "Reading the task", "task": task[:300]})
+    # Exactly what the agent was handed — the task and the context it was given, as sent — so the owner can check
+    # what Nyx asked for. Capped only so one huge paste cannot flood every open window.
+    parent_emit({"type": "agent.update", **base, "status": "working", "step": "Reading the task",
+                 "task": task[:ASKED_CHARS], "context": (context or "")[:ASKED_CHARS]})
 
     history: List[Dict[str, Any]] = [
         {"role": "system", "content": _specialist_prompt(entry)},
@@ -655,7 +666,7 @@ def run_specialist(name: str, task: str, context: str = "", max_steps: int = SPE
     AGENT_TEAM.record_task(member.agent_id, task, report, seconds, ok=ok, chat_id=origin_chat, turn_id=origin_turn)
     parent_emit({"type": "agent.update", **base, "status": "done" if ok else "error",
                  "step": "Reported back" if ok else "Failed", "result_preview": report[:400],
-                 "seconds": round(seconds, 1)})
+                 "report": report[:REPLY_CHARS], "seconds": round(seconds, 1)})
     try:
         from agent_events import publish_ui
 

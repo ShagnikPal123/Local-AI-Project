@@ -68,16 +68,17 @@ export function applyTurnEvent(turnId: string, event: TurnEvent): AssistantTurn 
   const next = reduceTurn(existing, event);
   if (next === existing) return existing;
   store.set((s) => {
+    // The same map unless the turn ended: ChatPanel reloads the chat list whenever this map changes,
+    // and a fresh copy on every streamed event sent ~30 /api/chats/summaries requests per answer.
+    if (!isTerminal(String(event.type))) return { turns: { ...s.turns, [turnId]: next }, runningByChat: s.runningByChat };
+    // Clear every chat that points at this turn, not only the one named in
+    // the event: the panel may have registered it under "default" before the
+    // server said which chat it really belongs to. A leftover entry kept a
+    // finished turn looking like it was still "Starting", with Stop showing.
     const runningByChat = { ...s.runningByChat };
-    if (isTerminal(String(event.type))) {
-      // Clear every chat that points at this turn, not only the one named in
-      // the event: the panel may have registered it under "default" before the
-      // server said which chat it really belongs to. A leftover entry kept a
-      // finished turn looking like it was still "Starting", with Stop showing.
-      if (next.chatId) delete runningByChat[next.chatId];
-      for (const [chat, id] of Object.entries(runningByChat)) {
-        if (id === turnId) delete runningByChat[chat];
-      }
+    if (next.chatId) delete runningByChat[next.chatId];
+    for (const [chat, id] of Object.entries(runningByChat)) {
+      if (id === turnId) delete runningByChat[chat];
     }
     return { turns: { ...s.turns, [turnId]: next }, runningByChat };
   });

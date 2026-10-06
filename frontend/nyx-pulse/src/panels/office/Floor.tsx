@@ -227,15 +227,20 @@ interface DeskProps {
   onPick: (agentId: string, additive: boolean) => void;
 }
 
+/** Rank words before the role (Update 1, U42: promotions and demotions). */
+const RANKS: Record<number, string> = { [-1]: "Junior ", 0: "", 1: "Senior ", 2: "Lead " };
+
 const Desk = memo(function Desk({ agent, x, y, role, sectionColor, picked, board, reduced, onPick }: DeskProps) {
   const head = role?.color ?? "#9397ab";
   const working = agent.status === "working";
   const ring = STATUS_COLOR[agent.status] ?? "transparent";
   return (
-    <g data-desk={agent.id} className={`ofc-desk is-${agent.status}${picked ? " is-picked" : ""}${board ? " is-board" : ""}`}
+    <g data-desk={agent.id} className={`ofc-desk is-${agent.status}${picked ? " is-picked" : ""}${board ? " is-board" : ""}${
+         agent.employment === "part_time" ? " is-part-time" : ""}`}
        transform={`translate(${x} ${y})`} role="button" tabIndex={-1}
        onClick={(event) => onPick(agent.id, event.shiftKey || event.metaKey || event.ctrlKey)}>
-      <title>{`${agent.name} — ${role?.title ?? agent.role}\n${agent.step || agent.status}${
+      <title>{`${agent.name} — ${RANKS[agent.rank ?? 0] ?? ""}${role?.title ?? agent.role}${
+        agent.employment === "part_time" ? " (part-time)" : ""}\n${agent.step || agent.status}${
         agent.member ? `\nmodel: ${agent.member}` : ""}`}</title>
       <rect className="ofc-desk__surface" x={-27} y={2} width={54} height={16} rx={5}
             style={{ stroke: sectionColor }} />

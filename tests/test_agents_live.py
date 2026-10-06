@@ -66,6 +66,28 @@ def test_agent_updates_reach_the_workspace_channel_with_their_chat(monkeypatch):
     assert finance["tasks_completed"] >= 1
 
 
+def test_the_owner_sees_exactly_what_an_agent_was_asked_and_what_it_answered(monkeypatch):
+    """Update 1, U46: "we the user can see what is asked as well as what they responded with"."""
+    long_answer = "Understood: compare two funds\n" + "Fund A beats fund B on fees. " * 40
+    monkeypatch.setattr(agent_runtime, "_router", lambda: _fake_stream(long_answer))
+    events = []
+    ctx = ToolContext(turn_id="turn-u46", chat_id="chat-u46", sink=events.append)
+    task = "Compare fund A and fund B on fees, risk and five-year returns. " * 10
+    with use_context(ctx):
+        agent_runtime.run_specialist("Finance", task, context="The owner holds fund A in an ISA.")
+        agent_runtime.run_specialist("Finance", "Now just fees, in one line")
+
+    updates = [e for e in events if e["type"] == "agent.update"]
+    asked = [e for e in updates if e.get("step") == "Reading the task"]
+    assert asked[0]["task"] == task, "the whole request, not the first 300 characters"
+    assert asked[0]["context"] == "The owner holds fund A in an ISA."
+    finished = [e for e in updates if e["status"] == "done"]
+    assert "Fund A beats fund B on fees." in finished[0]["report"] and len(finished[0]["report"]) > 400
+    # Two hand-offs to the same agent are two things to read, not one entry overwritten by the next.
+    assert len({e["call_id"] for e in asked}) == 2
+    assert {e["call_id"] for e in finished} == {e["call_id"] for e in asked}
+
+
 def test_an_agent_created_in_chat_remembers_where(monkeypatch):
     events = []
     ctx = ToolContext(turn_id="turn-y", chat_id="trip-chat", sink=events.append)

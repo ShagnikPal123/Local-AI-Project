@@ -55,6 +55,8 @@ class ToolContext:
     #: An extra gate for this turn's tools — the Free Will tab's (freewill.guard). Called with (tool name, category)
     #: before a tool runs; it raises PermissionDenied to refuse.
     guard: Optional[Callable[[str, str], None]] = None
+    #: In Swarm mode (chat_modes, swarm.py): how many agents this turn may dispatch at once. 0 = the usual limits.
+    swarm: int = 0
 
     def emit(self, event_type: str, **payload: Any) -> None:
         if self.sink is None:

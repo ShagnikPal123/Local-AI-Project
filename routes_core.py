@@ -5,8 +5,9 @@ agents and a way to run them from there and a way to … drop into a single proj
 
 ``GET /api/core/overview`` is one cheap read for every gauge on that screen — the machine, the engine
 process, each API provider (calls, failures, latency, known limits, key health), each agent (working copies,
-tasks done, model) and the background processes (turns, autopilot, analysis, review jobs, dispatches). The
-page polls it every few seconds, so nothing here may block: no model calls, no network.
+tasks done, model) and every background process (``feature_catalog.live_processes``: jobs, threads, child
+processes, training runs). The page polls it every few seconds, so nothing here may block: no model calls, no
+network.
 
 ``/api/dispatch*`` start, watch, extend and stop a set of agent boxes (``agent_dispatch``).
 """
@@ -16,7 +17,7 @@ from __future__ import annotations
 import os
 import threading
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -200,80 +201,19 @@ def _agents() -> List[Dict[str, Any]]:
 
 
 def _processes() -> List[Dict[str, Any]]:
-    """Background work the owner may want to see or stop."""
-    rows: List[Dict[str, Any]] = []
-    try:
-        from turn_registry import TURNS
+    """Background work the owner may want to see or stop — all of it, found rather than listed.
 
-        for turn in TURNS.active(include_recent=False):
-            rows.append({"kind": "turn", "id": turn["turn_id"], "label": "Answering", "detail": turn["message"][:90],
-                         "status": turn["status"], "seconds": turn["elapsed_seconds"], "chat_id": turn["chat_id"]})
-    except Exception:  # noqa: BLE001
-        pass
-    try:
-        from improve_autopilot import AUTOPILOT
-
-        run = AUTOPILOT.active()
-        if run:
-            rows.append({"kind": "autopilot", "id": run["run_id"], "label": f"Improve autopilot · {run['phase']['kind']}",
-                         "detail": run["work"][:90], "status": run["status"],
-                         "seconds": round(time.time() - run["created_at"]), "progress": _run_progress(run)})
-    except Exception:  # noqa: BLE001
-        pass
-    try:
-        from improvement_engine import ENGINE
-
-        for session in ENGINE.list_sessions()[:3]:
-            if session["status"] in ("running", "stopping"):
-                rows.append({"kind": "analysis", "id": session["session_id"], "label": "Code analysis",
-                             "detail": session["progress"][:90], "status": session["status"],
-                             "seconds": session["elapsed_seconds"]})
-    except Exception:  # noqa: BLE001
-        pass
-    try:
-        from improve_review import REVIEW_QUEUE
-
-        job = REVIEW_QUEUE.job()
-        if job and job["status"] == "running":
-            rows.append({"kind": "review", "id": job["id"], "label": "Reviewing changes", "detail": job["now"][:90],
-                         "status": "running", "seconds": round(time.time() - job["started_at"]),
-                         "progress": round(job["done"] / job["total"], 3) if job.get("total") else None})
-    except Exception:  # noqa: BLE001
-        pass
-    try:
-        from agent_dispatch import DISPATCHES
-
-        for dispatch in DISPATCHES.list(active_only=True):
-            counts = dispatch["counts"]
-            total = len(dispatch["instances"]) or 1
-            names = " + ".join(f"{n}× {a}" if n > 1 else a for a, n in dispatch["agents"].items())
-            rows.append({"kind": "dispatch", "id": dispatch["dispatch_id"], "label": f"Agents: {names}"[:60],
-                         "detail": f"{counts['working']} working · {counts['done']} done · {counts['queued']} waiting",
-                         "status": "running", "seconds": round(time.time() - dispatch["created_at"]),
-                         "progress": round((counts["done"] + counts["error"] + counts["stopped"]) / total, 3)})
-    except Exception:  # noqa: BLE001
-        pass
-    # Everything else that is running, found rather than listed, so a feature
-    # built after this file still shows up here (Project Null N100).
+    This used to be five hand-written blocks plus the catalog with its threads thrown away, so a
+    research job, a Big Kahuna training run or anything built later never showed (U31). The
+    catalog now reads the registries, every ``background_status()``, Nyx's own threads and its
+    child processes, and labels each one; this view only takes what it says.
+    """
     try:
         import feature_catalog
 
-        known = {(row.get("kind"), str(row.get("id"))) for row in rows}
-        for found in feature_catalog.live_processes():
-            if found["source"] == "thread" or (found["kind"], found["id"]) in known:
-                continue
-            rows.append({"kind": found["kind"], "id": found["id"], "label": found["label"],
-                         "detail": found["detail"], "status": found["status"], "seconds": 0})
-    except Exception:  # noqa: BLE001
-        pass
-    return rows
-
-
-def _run_progress(run: Dict[str, Any]) -> Optional[float]:
-    if run.get("remaining_seconds") is None or not run.get("ends_at"):
-        return None
-    total = max(1.0, float(run["ends_at"]) - float(run["created_at"]))
-    return round(1 - float(run["remaining_seconds"]) / total, 3)
+        return feature_catalog.live_processes()
+    except Exception:  # noqa: BLE001 - the gauges must load even if the scan breaks
+        return []
 
 
 def _today() -> Dict[str, Any]:

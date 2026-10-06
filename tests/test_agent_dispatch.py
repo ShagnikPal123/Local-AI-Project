@@ -148,3 +148,14 @@ def test_core_overview_and_dispatch_routes(monkeypatch):
     assert started["agents"] == {"Coder": 2}
     assert local.get(f"/api/dispatch/{started['dispatch_id']}").json()["dispatch"]["status"] == "done"
     assert local.post("/api/dispatch", json={"items": [{"agent": "Nobody", "task": "x"}]}).status_code == 400
+
+
+def test_each_box_keeps_what_it_was_handed_so_the_owner_can_read_it():
+    """Update 1, U46: the owner sees what each copy was asked — its task and the context it got — and its reply."""
+    registry = ad.DispatchRegistry(runner=lambda agent, task, context: f"done: {task}", threaded=False,
+                                   poster=lambda chat, text: None)
+    view = registry.start([{"agent": "Coder", "task": "fix the header"}, {"agent": "Coder", "task": "fix the footer"}],
+                          context="The site lives in site/ and uses plain CSS.")
+    first, second = view["instances"]
+    assert "plain CSS" in first["context"] and "Coder #2: fix the footer" in first["context"]
+    assert first["report"] == "done: fix the header" and second["report"] == "done: fix the footer"

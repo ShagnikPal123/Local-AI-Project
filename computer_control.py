@@ -918,11 +918,31 @@ def tool_window_action(name: str, action: str, x: Any = None, y: Any = None, wid
     return _tool(lambda: window_action(name, action, x, y, width, height) + ".")
 
 
+def _owner_screen(name: str, handler: Any) -> Any:
+    """Every tool here works on the owner's own screen, so each first asks own_computer's gate (Update 1, U49):
+    "never" refuses and points Nyx at its own computer, "ask" shows an approval card, "allow" goes ahead."""
+
+    def gated(**arguments: Any) -> str:
+        from permissions import PermissionDenied
+
+        try:
+            import own_computer
+
+            own_computer.host_gate(name.replace("_", " "))
+        except PermissionDenied as error:
+            return f"Not on the owner's screen: {error}"
+        return handler(**arguments)
+
+    gated.__name__ = getattr(handler, "__name__", name)
+    gated.__doc__ = getattr(handler, "__doc__", None)
+    return gated
+
+
 def register_computer_tools(registry: Any) -> None:
     from tools import ToolParam as P
 
     def reg(name, description, params, handler, category, label):
-        registry.register(name, description, params, handler, category=category, label=label)
+        registry.register(name, description, params, _owner_screen(name, handler), category=category, label=label)
 
     reg("screen_view", "Look at the screen (all monitors) with a coordinate grid in real screen pixels, the AI cursor "
         "and the focused window. Use before and after clicking. region=x,y,width,height zooms in to read small text.",

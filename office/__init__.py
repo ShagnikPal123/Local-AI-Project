@@ -51,5 +51,8 @@ HIRE_WINDOW_SECONDS = 600
 KEEP_CHAT = 400
 KEEP_FEED = 600
 KEEP_TASK_PREVIEW = 1500
+#: The Output box (Update 1, U41) and the staffing record (U42) keep their last N in the office file.
+KEEP_OUTPUTS = 100
+KEEP_STAFFING = 200
 
 VERSION = "1.0.0"
