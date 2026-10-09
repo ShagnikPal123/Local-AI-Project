@@ -219,6 +219,7 @@ def tool_ui_notify(message: str, level: str = "info") -> str:
 
 
 def register_landscape_tools(registry: Any) -> None:
+    from dynamic_tabs import BLOCK_GUIDE, BlockType
     from tools import ToolParam
 
     color_hint = "A #rrggbb colour or a name like violet, teal, rose, gold"
@@ -258,9 +259,9 @@ def register_landscape_tools(registry: Any) -> None:
     )
     registry.register(
         name="ui_create_tab",
-        description="Create a new tab in Nyx and open it. Give blocks as JSON for full control "
-                    "(types: text, notes, checklist, chat, list, stat, links, embed; config holds items/text/url/value), "
-                    "or just a description and it will be designed for you.",
+        description="Create a new tab in Nyx and open it. Give blocks as JSON for full control, or just a "
+                    "description and it will be designed for you. Block types: "
+                    + ", ".join(b.value for b in BlockType) + ". " + BLOCK_GUIDE,
         parameters=[
             ToolParam("name", "string", "Tab name (max 40 characters)"),
             ToolParam("description", "string", "What the tab is for", required=False),

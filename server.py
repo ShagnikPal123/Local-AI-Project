@@ -357,6 +357,9 @@ class TabCreateRequest(BaseModel):
     description: str = ""
     connectors: List[str] = []
     accent: str = ""
+    # The look and the layout (columns) a tab carries; checked by dynamic_tabs like everything else.
+    theme: Optional[Dict[str, Any]] = None
+    background: Optional[Dict[str, Any]] = None
 
 
 class TabFromTextRequest(BaseModel):
@@ -1588,6 +1591,8 @@ def create_tab(request: TabCreateRequest, user=RequireChat) -> Dict[str, Any]:
             connectors=request.connectors,
             accent=request.accent,
             author=getattr(user, "email", ""),
+            theme=request.theme,
+            background=request.background,
         )
     except TabSpecError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error

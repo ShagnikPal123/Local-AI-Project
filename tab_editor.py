@@ -21,7 +21,7 @@ import json
 import re
 from typing import Any, Dict, Optional
 
-from dynamic_tabs import ALLOWED_CONNECTORS, BlockType, TabSpec, TabSpecError
+from dynamic_tabs import ALLOWED_CONNECTORS, BLOCK_GUIDE, BlockType, TabSpec, TabSpecError
 
 # Colour words to design tokens. Deliberately small — a wrong guess here produces
 # a colour the user did not ask for, which is worse than falling through to the
@@ -93,8 +93,13 @@ def _trim_label(raw: str) -> str:
         if found != -1:
             cut = min(cut, found)
     return label[:cut].strip(" ,.")
+
+
+#: Blocks that need content to mean anything (a picture's link, a form's fields, a button's action) are left to
+#: the model; "add an image of a cat" has to become a picture, not an empty block that fails to validate.
+_NEEDS_CONTENT = {"image", "gallery", "actions", "form", "embed"}
 _ADD_BLOCK_RE = re.compile(
-    r"\badd\b[^.]*?\b(" + "|".join(b.value for b in BlockType) + r")\b",
+    r"\badd\b[^.]*?\b(" + "|".join(b.value for b in BlockType if b.value not in _NEEDS_CONTENT) + r")\b",
     re.IGNORECASE,
 )
 _REMOVE_BLOCK_RE = re.compile(
@@ -163,14 +168,10 @@ def build_edit_prompt(spec: TabSpec, instruction: str) -> str:
         "description, accent, blocks, connectors, background, theme. Omit anything unchanged. "
         "blocks replaces the whole list, so keep existing blocks you are not removing.\n"
         f"Block types: {', '.join(b.value for b in BlockType)}.\n"
-        "Block configs: list {items: [..]}; chart {chart: {type: line|bar|scatter|area|function, title, x: [..], "
-        "series: [{name, values: [..]}]} or {type: function, expressions: [\"sin(x)\"], from, to}}; "
-        "tracker {unit, goal, kind: number|yes_no}; timer {mode: countdown|stopwatch|pomodoro, minutes, "
-        "ai_prompt (what Nyx should do when it ends)}; ai_task {prompt, every_minutes (0 = only on demand, else >= 5)}; "
-        "competition {game: tictactoe|connect4, difficulty: easy|hard}; game {game: snake|memory|tictactoe}.\n"
+        f"{BLOCK_GUIDE}\n"
         "background: {kind: none|color|gradient|image, value: #rrggbb or https picture link, colors: [#rrggbb, #rrggbb], "
         "angle, dim: 0-0.9}. theme (the text boxes): {surface: solid|glass|clear, font: system|rounded|serif|mono, "
-        "text: #rrggbb, radius: 0-28}. A game request should add a game block and usually a matching background and theme.\n"
+        "text: #rrggbb, radius: 0-28, columns: 1-4}. A game request should add a game block and usually a matching background and theme.\n"
         f"Connectors: {', '.join(sorted(ALLOWED_CONNECTORS))}.\n"
         "accent must be #rrggbb. icon must be a Phosphor name like ph-note.\n"
         "If the request cannot be expressed as a change to this tab, reply "

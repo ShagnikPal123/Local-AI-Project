@@ -59,7 +59,7 @@ def test_a_tab_needs_at_least_one_block():
 
 def test_too_many_blocks_are_refused():
     with pytest.raises(TabSpecError):
-        _spec(blocks=[{"type": "text"}] * 20)
+        _spec(blocks=[{"type": "text"}] * 41)   # the cap is 40 since U4
 
 
 def test_an_absurdly_long_label_is_refused():
@@ -217,7 +217,7 @@ def test_combining_leaves_the_originals_alone(store):
 
 
 def test_combining_over_the_block_limit_is_refused(store):
-    blocks = [{"type": "text", "title": f"b{i}"} for i in range(8)]
+    blocks = [{"type": "text", "title": f"b{i}"} for i in range(21)]
     first = store.create(_spec(label="A", blocks=blocks))
     second = store.create(_spec(label="B", blocks=blocks))
     with pytest.raises(TabSpecError):
@@ -296,3 +296,45 @@ def test_a_malformed_design_is_refused(reply):
     """A malformed tab would render broken in front of the user."""
     with pytest.raises(TabSpecError):
         parse_tab_reply(reply)
+
+
+
+# --- U4 "super free create": more to build with, all of it data ----------------------------------------------
+
+
+def test_the_new_blocks_are_cleaned_to_what_the_page_can_draw():
+    spec = _spec(blocks=[
+        {"type": "form", "config": {"fields": [{"label": "Mood", "kind": "select", "options": ["good", "bad"]},
+                                                {"label": "Notes", "kind": "<script>"}, {"nope": 1}],
+                                     "ai_prompt": "Tell me if my week is getting better.", "layout": {"span": 2, "variant": "hero"}}},
+        {"type": "table", "config": {"columns": ["Item", "Qty"], "rows": [["Eggs", "12", "extra"], ["Milk"]]}},
+        {"type": "board", "config": {"cards": {"To do": ["Plan trip"]}}},
+        {"type": "image", "config": {"src": "https://example.com/a.png", "caption": "Hi"}},
+        {"type": "gallery", "config": {"images": ["https://example.com/b.png", "javascript:alert(1)", {"src": "/api/uploads/abcd1234"}]}},
+        {"type": "actions", "config": {"buttons": [{"label": "Brief me", "do": "ask", "value": "Morning brief"},
+                                                    {"label": "Bad", "do": "link", "value": "javascript:alert(1)"},
+                                                    {"label": "Notes", "do": "open_tab", "value": "notes"}]}},
+        {"type": "counter", "config": {"label": "Glasses of water", "goal": 8, "layout": {"accent": "#30a46c", "span": 9}}},
+    ], theme={"columns": 3})
+    form, table, board, image, gallery, actions, counter = (b.config for b in spec.blocks)
+    assert [f["kind"] for f in form["fields"]] == ["select", "text"] and form["layout"] == {"span": 2, "variant": "hero"}
+    assert table["rows"] == [["Eggs", "12"], ["Milk", ""]]
+    assert board["columns"] == ["To do", "Doing", "Done"] and board["cards"]["To do"] == ["Plan trip"]
+    assert image["src"].startswith("https://")
+    assert [g["src"] for g in gallery["images"]] == ["https://example.com/b.png", "/api/uploads/abcd1234"]
+    assert [b["label"] for b in actions["buttons"]] == ["Brief me", "Notes"]
+    assert counter["goal"] == 8 and counter["layout"] == {"span": 4, "accent": "#30a46c"}
+    assert spec.theme["columns"] == 3
+
+
+def test_a_picture_block_without_a_safe_picture_is_refused():
+    with pytest.raises(TabSpecError):
+        _spec(blocks=[{"type": "image", "config": {"src": "file:///C:/secrets.png"}}])
+
+
+def test_the_model_is_told_the_whole_vocabulary():
+    from dynamic_tabs import build_tab_prompt
+
+    prompt = build_tab_prompt("a habit tracker")
+    for word in ("form", "board", "actions", "counter", "layout", "columns"):
+        assert word in prompt

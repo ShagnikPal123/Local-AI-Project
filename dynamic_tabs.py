@@ -49,6 +49,14 @@ class BlockType(Enum):
     AI_TASK = "ai_task"      # a prompt Nyx runs on demand or every N minutes while the tab is open
     COMPETITION = "competition"  # you vs Nyx: tic-tac-toe, connect four
     GAME = "game"            # built-in games that play inside the tab
+    # UPDATE_IDEAS U4 "super free create": more to build with, still all data the client renders.
+    FORM = "form"            # fields you fill in; entries kept locally, optionally handed to Nyx
+    TABLE = "table"          # an editable table
+    BOARD = "board"          # columns of cards you move along (to do / doing / done)
+    IMAGE = "image"          # one picture with a caption
+    GALLERY = "gallery"      # several pictures
+    ACTIONS = "actions"      # buttons that ask Nyx something, open a tab, or open a link
+    COUNTER = "counter"      # a number you tap up or down, with a goal
 
 
 class TabSpecError(Exception):
@@ -62,13 +70,34 @@ ALLOWED_CONNECTORS = frozenset({
     "web_search", "youtube", "finance", "local_files", "google",
 })
 
-_MAX_BLOCKS = 12
+_MAX_BLOCKS = 40
 _ICON_RE = re.compile(r"^ph-[a-z0-9-]{2,40}$")
 _HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 _UPLOAD_RE = re.compile(r"^/api/uploads/[A-Za-z0-9_-]{4,64}$")
 _MAX_CONFIG_CHARS = 20_000
 
 GAMES = ("snake", "memory", "tictactoe")
+FIELD_KINDS = ("text", "textarea", "number", "date", "select", "checkbox")
+ACTION_KINDS = ("ask", "open_tab", "link")
+VARIANTS = ("card", "plain", "hero")
+_PICTURE_RE = re.compile(r"^(?:/api/uploads/[A-Za-z0-9_-]{4,64}|https://[^\s\"'<>()]{4,500})$")
+
+#: What a model is told it can build with. One text, used for new tabs and for edits.
+BLOCK_GUIDE = (
+    "Block configs: list {items: [..]}; chart {chart: {type: line|bar|scatter|area|function, title, x: [..], "
+    "series: [{name, values: [..]}]} or {type: function, expressions: [\"sin(x)\"], from, to}}; "
+    "tracker {unit, goal, kind: number|yes_no}; timer {mode: countdown|stopwatch|pomodoro, minutes, "
+    "ai_prompt (what Nyx should do when it ends)}; ai_task {prompt, every_minutes (0 = only on demand, else >= 5)}; "
+    "competition {game: tictactoe|connect4, difficulty: easy|hard}; game {game: snake|memory|tictactoe}; "
+    "form {fields: [{name, label, kind: text|textarea|number|date|select|checkbox, options: [..], required}], "
+    "submit: \"Save\", ai_prompt (optional: what Nyx does with each entry)}; table {columns: [..], rows: [[..]]}; "
+    "board {columns: [\"To do\", \"Doing\", \"Done\"], cards: {\"To do\": [\"a card\"]}}; "
+    "image {src: https link or /api/uploads/id, caption, fit: cover|contain}; gallery {images: [{src, caption}]}; "
+    "actions {buttons: [{label, do: ask|open_tab|link, value: prompt, tab id or https link}]}; "
+    "counter {label, start, step, goal}; text {text}; stat {value, label}; links {links: [{label, url}]}.\n"
+    "Any block may add layout: {span: 1-4 columns wide, variant: card|plain|hero, accent: #rrggbb}. "
+    "theme.columns (1-4) sets how many columns the tab has. Up to 40 blocks; use as many as the request needs."
+)
 COMPETITIONS = ("tictactoe", "connect4")
 TIMER_MODES = ("countdown", "stopwatch", "pomodoro")
 
@@ -80,9 +109,37 @@ def _num(value: Any, low: float, high: float, default: float) -> float:
         return default
 
 
+def _clean_layout(raw: Any) -> Dict[str, Any]:
+    """Where a block sits and how it looks: width in columns, card / plain / hero, an accent colour."""
+    if not isinstance(raw, dict):
+        return {}
+    layout: Dict[str, Any] = {}
+    if raw.get("span") not in (None, ""):
+        layout["span"] = int(_num(raw.get("span"), 1, 4, 1))
+    if raw.get("variant") in VARIANTS:
+        layout["variant"] = raw["variant"]
+    accent = str(raw.get("accent") or "").strip()
+    if _HEX_RE.match(accent):
+        layout["accent"] = accent
+    return layout
+
+
+def _picture(value: Any) -> str:
+    text = str(value or "").strip()
+    return text if _PICTURE_RE.match(text) else ""
+
+
 def _clean_block_config(block_type: "BlockType", config: Dict[str, Any]) -> Dict[str, Any]:
     """Keep only settings the client understands, within limits. Nothing in a config is ever run."""
     raw = {k: v for k, v in (config or {}).items() if isinstance(k, str)}
+    layout = _clean_layout(raw.pop("layout", None))
+    cleaned = _clean_block_settings(block_type, raw)
+    if layout:
+        cleaned["layout"] = layout
+    return cleaned
+
+
+def _clean_block_settings(block_type: "BlockType", raw: Dict[str, Any]) -> Dict[str, Any]:
     if len(json.dumps(raw, default=str)) > _MAX_CONFIG_CHARS:
         raise TabSpecError("That block's settings are too large.")
     text = lambda key, limit: str(raw.get(key) or "").strip()[:limit]  # noqa: E731
@@ -108,6 +165,73 @@ def _clean_block_config(block_type: "BlockType", config: Dict[str, Any]) -> Dict
     if block_type is BlockType.LIST:
         items = raw.get("items") if isinstance(raw.get("items"), list) else []
         return {**{k: v for k, v in raw.items() if k != "items"}, "items": [str(i)[:200] for i in items[:100]]}
+    if block_type is BlockType.FORM:
+        fields = []
+        for index, item in enumerate(raw.get("fields") if isinstance(raw.get("fields"), list) else []):
+            if not isinstance(item, dict) or len(fields) >= 20:
+                continue
+            label = str(item.get("label") or item.get("name") or "").strip()[:60]
+            if not label:
+                continue
+            kind = item.get("kind") if item.get("kind") in FIELD_KINDS else "text"
+            name = re.sub(r"[^a-z0-9_]+", "_", str(item.get("name") or label).lower()).strip("_")[:40] or f"field_{index}"
+            entry: Dict[str, Any] = {"name": name, "label": label, "kind": kind, "required": bool(item.get("required"))}
+            if kind == "select":
+                entry["options"] = [str(o)[:60] for o in (item.get("options") or [])[:20]] or ["Yes", "No"]
+            fields.append(entry)
+        if not fields:
+            fields = [{"name": "note", "label": "Note", "kind": "text", "required": False}]
+        return {"fields": fields, "submit": text("submit", 30) or "Save", "ai_prompt": text("ai_prompt", 600)}
+    if block_type is BlockType.TABLE:
+        columns = [str(c)[:40] for c in (raw.get("columns") or [])[:12] if str(c).strip()] or ["Item", "Notes"]
+        rows = [[str(cell)[:200] for cell in (row if isinstance(row, list) else [])[:len(columns)]]
+                for row in (raw.get("rows") or [])[:200]]
+        return {"columns": columns, "rows": [r + [""] * (len(columns) - len(r)) for r in rows]}
+    if block_type is BlockType.BOARD:
+        columns = [str(c)[:30] for c in (raw.get("columns") or [])[:6] if str(c).strip()] or ["To do", "Doing", "Done"]
+        cards_raw = raw.get("cards") if isinstance(raw.get("cards"), dict) else {}
+        cards = {c: [str(card)[:200] for card in (cards_raw.get(c) or [])[:50]] for c in columns}
+        return {"columns": columns, "cards": cards}
+    if block_type is BlockType.IMAGE:
+        src = _picture(raw.get("src") or raw.get("url"))
+        if not src:
+            raise TabSpecError("A picture block needs an https link or an uploaded picture.")
+        return {"src": src, "caption": text("caption", 200), "fit": "contain" if raw.get("fit") == "contain" else "cover"}
+    if block_type is BlockType.GALLERY:
+        images = []
+        for item in (raw.get("images") or [])[:24]:
+            src = _picture(item.get("src") if isinstance(item, dict) else item)
+            if src:
+                images.append({"src": src, "caption": str(item.get("caption") or "")[:120] if isinstance(item, dict) else ""})
+        return {"images": images}
+    if block_type is BlockType.ACTIONS:
+        buttons = []
+        for item in (raw.get("buttons") or [])[:8]:
+            if not isinstance(item, dict):
+                continue
+            label = str(item.get("label") or "").strip()[:40]
+            action = item.get("do") if item.get("do") in ACTION_KINDS else "ask"
+            value = str(item.get("value") or "").strip()[:600]
+            if action == "link" and not re.match(r"^https://[^\s\"'<>()]{4,500}$", value):
+                continue
+            if action == "open_tab" and not re.match(r"^[a-z0-9_-]{2,40}$", value):
+                continue
+            if label and value:
+                buttons.append({"label": label, "do": action, "value": value})
+        return {"buttons": buttons}
+    if block_type is BlockType.LINKS:
+        links = []
+        for item in (raw.get("links") or [])[:30]:
+            url = str(item.get("url") if isinstance(item, dict) else item or "").strip()
+            if re.match(r"^https?://[^\s\"'<>()]{4,500}$", url):
+                links.append({"label": str(item.get("label") or "")[:80] if isinstance(item, dict) else "", "url": url})
+        return {"links": links}
+    if block_type is BlockType.STAT:
+        return {"value": text("value", 40), "label": text("label", 80)}
+    if block_type is BlockType.COUNTER:
+        goal = raw.get("goal")
+        return {"label": text("label", 40) or "Count", "start": _num(raw.get("start"), -1e9, 1e9, 0),
+                "step": _num(raw.get("step"), 0.01, 1e6, 1), "goal": _num(goal, -1e9, 1e9, 0) if goal not in (None, "") else None}
     return raw
 
 
@@ -158,6 +282,8 @@ def _validate_theme(theme: Any) -> Dict[str, Any]:
         clean["text"] = text
     if theme.get("radius") not in (None, ""):
         clean["radius"] = int(_num(theme.get("radius"), 0, 28, 14))
+    if theme.get("columns") not in (None, ""):
+        clean["columns"] = int(_num(theme.get("columns"), 1, 4, 1))
     return clean
 
 
@@ -587,12 +713,13 @@ def build_tab_prompt(description: str) -> str:
         f"{description}\n\n"
         "Reply with JSON only, no prose, in exactly this shape:\n"
         '{"label": "...", "icon": "ph-...", "description": "...", '
-        '"blocks": [{"type": "...", "title": "..."}], "connectors": []}\n\n'
-        f"Block types available: {', '.join(b.value for b in BlockType)}.\n"
+        '"blocks": [{"type": "...", "title": "...", "config": {}}], "connectors": [], "theme": {}}\n\n'
+        f"Block types available: {', '.join(b.value for b in BlockType)}. Each block may have a config.\n"
+        f"{BLOCK_GUIDE}\n"
         f"Connectors available: {', '.join(sorted(ALLOWED_CONNECTORS))} (use only if needed).\n"
         "Icons are Phosphor names, e.g. ph-note, ph-envelope, ph-chart-line.\n"
-        "Use between one and six blocks. Choose the blocks that actually serve the "
-        "request rather than filling space."
+        "Build what the request really needs — as many blocks as that takes, filled in with real content, not "
+        "placeholders. Choose blocks that serve the request rather than filling space."
     )
 
 
