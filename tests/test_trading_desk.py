@@ -133,3 +133,31 @@ def test_with_the_desk_on_the_trader_s_scan_hands_over_to_it(monkeypatch):
     assert calls, "the desk ran instead of the single picker"
     assert summary["desk"]["agents"][0]["name"] == "Trend"
     assert any(a.get("agent") == "Trend" for a in summary["actions"])
+
+
+def test_one_failing_order_costs_that_order_not_the_desk_s_run():
+    desk.configure(enabled=True, agents=two_agents())
+
+    def flaky(order):
+        if order.symbol == "AAPL":
+            raise RuntimeError("no price for AAPL")
+        return {"status": "filled", "price_at_request": PRICES[order.symbol], "reasons": []}
+
+    out = desk.run(AI, watchlist=["AAPL", "MSFT"], submit=flaky, history=lambda s: rising(),
+                   quote=lambda s: PRICES[s], ai_owned={})
+    assert any(a["result"] == "error" and a["symbol"] == "AAPL" for a in out["actions"] if a["action"] == "buy")
+    assert any(a["result"] == "filled" and a["symbol"] == "MSFT" for a in out["actions"] if a["action"] == "buy")
+
+
+def test_a_holding_the_account_no_longer_has_is_let_go_without_an_order():
+    desk.configure(enabled=True, agents=two_agents()[:1])
+    data = desk.state()
+    agent_id = data["agents"][0]["id"]
+    data["ledger"] = {agent_id: {"holdings": {"AAPL": 2.0}, "cost": {"AAPL": 200.0}, "realized": 0.0, "trades": 1}}
+    desk._save(data)
+    broker = Broker()
+    out = desk.run(AI, watchlist=[], submit=broker.submit, history=lambda s: falling(), quote=lambda s: PRICES[s],
+                   ai_owned={})
+    assert not [o for o in broker.orders if o.side == "sell"]
+    assert any(a["action"] == "gone" for a in out["actions"])
+    assert "AAPL" not in desk.state()["ledger"][agent_id]["holdings"]

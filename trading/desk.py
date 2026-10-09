@@ -147,6 +147,18 @@ def performance(book: Dict[str, Any], quote: Quote) -> Dict[str, float]:
             "pct": round(gain / base * 100, 2) if base else 0.0}
 
 
+#: Results after which the trader's book does not change: nothing was bought or sold (yet).
+_NOT_DONE = ("refused", "rejected", "canceled", "awaiting_approval", "error")
+
+
+def _try(submit: Submit, order: OrderRequest) -> Dict[str, Any]:
+    """One order; a failure (no price, broker down, a bad order) costs this order, not the rest of the desk's run."""
+    try:
+        return submit(order)
+    except Exception as error:  # noqa: BLE001 - recorded on the action, and the next trader still runs
+        return {"status": "error", "reasons": [f"{type(error).__name__}: {error}"[:200]]}
+
+
 def run(ai: Dict[str, Any], *, watchlist: List[str], submit: Submit, history: History, quote: Quote,
         ai_owned: Dict[str, float]) -> Dict[str, Any]:
     """Every enabled agent: sell what its strategy says to leave, then buy its strongest picks within its pot.
@@ -182,11 +194,18 @@ def run(ai: Dict[str, Any], *, watchlist: List[str], submit: Submit, history: Hi
             if signal["action"] != "sell":
                 actions.append({**tag, "symbol": symbol, "action": "hold", "why": signal["why"]})
                 continue
-            qty = min(qty, float(ai_owned.get(symbol, qty)))
-            result = submit(OrderRequest(symbol=symbol, side="sell", qty=round(qty, 6), requested_by="ai",
-                                         reason=f"{agent['name']} ({signal.get('title', agent['strategy'])}): {signal['why']}"))
+            qty = min(qty, float(ai_owned.get(symbol, 0.0)))
+            if qty <= 1e-9:
+                # The AI's account no longer holds it (sold by hand, or the broker's record changed): nothing to
+                # sell, so the trader's book lets it go instead of placing a zero-share order every scan.
+                book["holdings"].pop(symbol, None)
+                book["cost"].pop(symbol, None)
+                actions.append({**tag, "symbol": symbol, "action": "gone", "why": "No longer held in the account."})
+                continue
+            result = _try(submit, OrderRequest(symbol=symbol, side="sell", qty=round(qty, 6), requested_by="ai",
+                                               reason=f"{agent['name']} ({signal.get('title', agent['strategy'])}): {signal['why']}"))
             actions.append({**tag, "symbol": symbol, "action": "sell", "result": result["status"], "why": signal["why"]})
-            if result["status"] not in ("refused", "rejected", "canceled", "awaiting_approval"):
+            if result["status"] not in _NOT_DONE:
                 price = float(result.get("price_at_request") or 0) or quote(symbol)
                 share_of_cost = book["cost"].get(symbol, 0.0) * (qty / book["holdings"][symbol])
                 book["realized"] = round(book["realized"] + qty * price - share_of_cost, 2)
@@ -216,11 +235,11 @@ def run(ai: Dict[str, Any], *, watchlist: List[str], submit: Submit, history: Hi
             notional = round(min(free / slots, allocator.position_cap(ai)), 2)
             if notional < 1:
                 continue
-            result = submit(OrderRequest(symbol=symbol, side="buy", notional=notional, requested_by="ai",
-                                         reason=f"{agent['name']} ({signal.get('title', agent['strategy'])}): {signal['why']}"))
+            result = _try(submit, OrderRequest(symbol=symbol, side="buy", notional=notional, requested_by="ai",
+                                               reason=f"{agent['name']} ({signal.get('title', agent['strategy'])}): {signal['why']}"))
             actions.append({**tag, "symbol": symbol, "action": "buy", "notional": notional, "result": result["status"],
-                            "why": signal["why"] if result["status"] != "refused" else (result.get("reasons") or [""])[-1]})
-            if result["status"] in ("refused", "rejected", "canceled", "awaiting_approval"):
+                            "why": signal["why"] if result["status"] not in ("refused", "error") else (result.get("reasons") or [""])[-1]})
+            if result["status"] in _NOT_DONE:
                 continue
             price = float(result.get("price_at_request") or 0) or quote(symbol)
             book["holdings"][symbol] = round(book["holdings"].get(symbol, 0.0) + notional / max(price, 0.01), 6)
