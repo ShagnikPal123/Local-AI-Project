@@ -139,3 +139,19 @@
 .t-adaptive__values dd { margin: 2px 0 0; font-size: 16px; font-variant-numeric: tabular-nums; color: #f5f5f7; }
 .t-adaptive__list { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 13px; }
 .t-adaptive__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* The trading desk (DeskCard.tsx, U16) */
+.t-desk__rows { display: grid; gap: 6px; overflow-x: auto; }
+.t-desk__row { display: grid; grid-template-columns: minmax(150px, 1.2fr) minmax(140px, 1fr) minmax(120px, 0.9fr) minmax(150px, 1fr) minmax(130px, 1fr) auto;
+  gap: 10px; align-items: center; min-width: 760px; padding: 6px 8px; border-radius: 10px; background: rgba(255, 255, 255, 0.025); font-size: 13px; }
+.t-desk__row--head { background: none; color: #8e8e93; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; }
+.t-desk__row.is-off { opacity: 0.55; }
+.t-desk__row select, .t-desk__input { width: 100%; font: inherit; color: var(--color-text); background: var(--color-surface-2, #16161d);
+  border: 0; border-radius: 8px; padding: 4px 6px; box-shadow: inset 0 0 0 1px var(--color-divider); }
+.t-desk__name { display: flex; align-items: center; gap: 6px; }
+.t-desk__share { display: flex; align-items: center; gap: 6px; }
+.t-desk__share input { flex: 1; min-width: 60px; accent-color: var(--color-accent); }
+.t-desk__foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.t-desk__shifts { margin: 0; padding-left: 18px; display: grid; gap: 2px; }
+.t-up { color: #30d158; }
+.t-down { color: #ff6b6b; }

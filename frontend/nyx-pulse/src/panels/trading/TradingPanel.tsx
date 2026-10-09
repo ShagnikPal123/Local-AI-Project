@@ -13,6 +13,7 @@ import { api } from "../../api";
 import { Toasts } from "../../components/chat";
 import { pushToast, useToasts, dismissToast } from "../../state/toastStore";
 import { AdaptiveCard } from "./AdaptiveCard";
+import { DeskCard } from "./DeskCard";
 import "./trading.css";
 
 interface BrokerInfo { name: string; label: string; kind: string; connected: boolean; live: boolean; fields: { name: string; label: string; secret?: boolean; type?: string }[]; signup_url: string; brokerages: string[] }
@@ -286,6 +287,7 @@ export function TradingPanel() {
       )}
 
       <AdaptiveCard isReal={isReal} onChanged={() => void load()} />
+      <DeskCard isReal={isReal} />
 
       <section className="t-kpis" aria-label="Account">
         <div className="t-card t-kpi">
