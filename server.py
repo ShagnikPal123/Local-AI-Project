@@ -2729,7 +2729,22 @@ async def _shutdown_background_work() -> None:
         logger.warning("scheduler shutdown timed out after %.1fs", SHUTDOWN_TIMEOUT, exc_info=True)
     except Exception:
         logger.warning("scheduler shutdown failed", exc_info=True)
-    
+
+    # Child processes Nyx started for the owner: site previews' dev servers and the WhatsApp helper.
+    try:
+        import site_preview
+
+        site_preview.stop_all()
+    except Exception:
+        logger.warning("site previews did not stop", exc_info=True)
+    try:
+        import whatsapp_link
+
+        if whatsapp_link._LINK is not None:
+            whatsapp_link._LINK.stop()
+    except Exception:
+        logger.warning("WhatsApp helper did not stop", exc_info=True)
+
     # Only what Nyx started (see _BACKGROUND_TASKS). A task left from an earlier loop — a previous
     # TestClient session — cannot be awaited or cancelled from this one.
     loop = asyncio.get_running_loop()

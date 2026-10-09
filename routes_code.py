@@ -292,3 +292,52 @@ def propose_files(body: BuildRequest, _owner=Owner) -> Dict[str, Any]:
     import code_workspace
 
     return {"proposal": code_workspace.propose_files(body.root, body.instruction)}
+
+
+# --- try what was built: a preview that keeps running, inside Nyx, or as a download (U11/U12) -------------------
+
+
+class PreviewRequest(BaseModel):
+    path: str
+    mode: str = "auto"          # auto | static | dev
+
+
+def _preview_errors(action):
+    import site_preview
+
+    try:
+        return action()
+    except site_preview.PreviewError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+@router.get("/api/code/previews")
+def list_previews(_owner=Owner) -> Dict[str, Any]:
+    import site_preview
+
+    return {"previews": site_preview.running()}
+
+
+@router.post("/api/code/previews")
+def start_preview(body: PreviewRequest, _owner=Owner) -> Dict[str, Any]:
+    import site_preview
+
+    return {"preview": _preview_errors(lambda: site_preview.start(body.path, body.mode))}
+
+
+@router.delete("/api/code/previews/{preview_id}")
+def stop_preview(preview_id: str, _owner=Owner) -> Dict[str, Any]:
+    import site_preview
+
+    _preview_errors(lambda: site_preview.stop(preview_id))
+    return {"previews": site_preview.running()}
+
+
+@router.get("/api/code/download")
+def download_folder(path: str, _owner=Owner):
+    """The folder as a .zip, to run or share by hand. Nothing is published."""
+    import site_preview
+    from fastapi.responses import FileResponse
+
+    archive = _preview_errors(lambda: site_preview.zip_folder(path))
+    return FileResponse(str(archive), media_type="application/zip", filename=archive.name)

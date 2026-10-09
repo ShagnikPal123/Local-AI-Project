@@ -101,6 +101,9 @@ changes.json
 # The WhatsApp line: the link's keys (session.sqlite3) and who it reaches. Tied to one PC; never shared.
 /whatsapp/
 
+# Previews of the owner's sites: the zips made for download and each dev server's output.
+/previews/
+
 # --- Runtime state written by a running Nyx, not part of the project ---------
 # Each of these is produced on the machine as features get used: the owner's
 # own chats, learned weights for the prompt optimiser, live provider quota
