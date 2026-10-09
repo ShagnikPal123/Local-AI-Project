@@ -197,8 +197,10 @@ class WorkerTransport:
 
     def _spawn(self) -> None:
         env = dict(os.environ, PYTHONIOENCODING="utf-8")
+        # The helper's own log, for when the owner asks why it will not connect. Local, git-ignored, one run long.
+        self._log = open(data_path("whatsapp/helper.log"), "w", encoding="utf-8", errors="replace")
         self._proc = subprocess.Popen([sys.executable, str(WORKER)], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                      stderr=subprocess.DEVNULL, text=True, encoding="utf-8", bufsize=1, env=env,
+                                      stderr=self._log, text=True, encoding="utf-8", bufsize=1, env=env,
                                       cwd=str(data_path("whatsapp").resolve()), creationflags=_NO_WINDOW)
         hello = threading.Event()
         self._waiting[0] = {"event": hello, "reply": None}
@@ -268,6 +270,9 @@ class WorkerTransport:
             proc.wait(timeout=15)
         except Exception:  # noqa: BLE001 - a stuck helper is ended
             proc.kill()
+        log_file = getattr(self, "_log", None)
+        if log_file is not None:
+            log_file.close()
 
 
 # ---------------------------------------------------------------------------
@@ -464,6 +469,8 @@ class WhatsAppLink:
             self.last_error = "WhatsApp signed this PC out (removed from Linked devices on the phone)."
         elif kind == "stopped":
             self.connected = False
+        elif kind == "needs_pairing" and self.state.get("status") == "linked":
+            self.last_error = "WhatsApp no longer accepts this PC's link (it was removed on the phone). Pair again."
         elif kind == "error":
             self.last_error = str(event.get("message") or "")[:300]
         elif kind == "message":

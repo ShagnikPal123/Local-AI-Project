@@ -103,6 +103,7 @@ def _start(args: dict) -> dict:
         # notification on the phone rather than pointing its camera at the screen.
         global _pair_requested
         if not pair_phone or _pair_requested:
+            _emit({"event": "needs_pairing"})        # an old session WhatsApp no longer accepts
             return
         _pair_requested = True
 
