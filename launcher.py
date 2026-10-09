@@ -169,9 +169,57 @@ def wait_for_engine(port: int, timeout: float = READY_TIMEOUT_SECONDS,
     return False
 
 
-def open_app(port: int, path: str = "/") -> None:
-    """Open the workspace in the default browser."""
-    webbrowser.open(f"http://localhost:{port}{path}")
+VIEW_MODES = ("browser", "app")
+
+
+def _view_file() -> Path:
+    import paths
+
+    return paths.data_path("view_mode.json")
+
+
+def view_mode() -> str:
+    """How Nyx opens (UPDATE_IDEAS U25): "browser" = a tab in the default browser, "app" = its own window."""
+    try:
+        mode = json.loads(_view_file().read_text(encoding="utf-8")).get("mode")
+    except (OSError, ValueError, AttributeError):
+        mode = ""
+    return mode if mode in VIEW_MODES else "browser"
+
+
+def set_view_mode(mode: str) -> str:
+    if mode not in VIEW_MODES:
+        raise ValueError("Choose browser or app.")
+    _view_file().write_text(json.dumps({"mode": mode}), encoding="utf-8")
+    return mode
+
+
+def app_browser() -> str:
+    """A browser that can open a page as an app window (no tabs or address bar): Edge first, then Chrome."""
+    names = []
+    for base in (os.environ.get("ProgramFiles(x86)", ""), os.environ.get("ProgramFiles", ""),
+                 os.environ.get("LOCALAPPDATA", "")):
+        if not base:
+            continue
+        names += [os.path.join(base, "Microsoft", "Edge", "Application", "msedge.exe"),
+                  os.path.join(base, "Google", "Chrome", "Application", "chrome.exe")]
+    return next((name for name in names if os.path.isfile(name)), "")
+
+
+def open_app(port: int, path: str = "/", mode: str = "") -> str:
+    """Open the workspace — in the default browser, or as its own app window. Returns how it was opened."""
+    url = f"http://localhost:{port}{path}"
+    if (mode or view_mode()) == "app":
+        exe = app_browser()
+        if exe:
+            try:
+                subprocess.Popen([exe, f"--app={url}", "--new-window"], close_fds=True,
+                                 creationflags=getattr(subprocess, "DETACHED_PROCESS", 0))
+                return "app"
+            except OSError:
+                pass
+    webbrowser.open(url)
+    return "browser"
 
 
 # ---------------------------------------------------------------------------
@@ -627,6 +675,15 @@ def run_tray(engine: Engine) -> bool:
     def open_nyx(_icon=None, _item=None) -> None:
         open_app(engine.port)
 
+    def open_in_browser(_icon=None, _item=None) -> None:
+        open_app(engine.port, mode="browser")
+
+    def open_as_app(_icon=None, _item=None) -> None:
+        open_app(engine.port, mode="app")
+
+    def toggle_app_default(_icon=None, _item=None) -> None:
+        set_view_mode("browser" if view_mode() == "app" else "app")
+
     def restart(_icon=None, _item=None) -> None:
         engine.request_restart()
 
@@ -671,6 +728,10 @@ def run_tray(engine: Engine) -> bool:
 
     menu = pystray.Menu(
         pystray.MenuItem("Open Nyx", open_nyx, default=True),
+        pystray.MenuItem("Open in browser", open_in_browser),
+        pystray.MenuItem("Open as app window", open_as_app),
+        pystray.MenuItem("Open as app window by default", toggle_app_default,
+                         checked=lambda _item: view_mode() == "app"),
         pystray.MenuItem("Restart engine", restart),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Start with Windows", toggle_autostart, checked=lambda _item: autostart_enabled()),

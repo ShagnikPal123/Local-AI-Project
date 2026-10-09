@@ -100,6 +100,31 @@ function Choice({ selected, label, description, badge, onSelect }: {
  * window open for. It now runs in the background with a tray icon; this is the
  * in-app view of the same controls.
  */
+/** How Nyx opens (UPDATE_IDEAS U25): a tab in the browser, like a website, or a window of its own like an app. */
+function ViewSection() {
+  const [view, setView] = useState<{ mode: "browser" | "app"; app_window: boolean } | null>(null);
+  const [note, setNote] = useState("");
+  useEffect(() => {
+    void api.get<{ mode: "browser" | "app"; app_window: boolean }>("/api/engine/view").then((r) => { if (r.ok) setView(r.data); });
+  }, []);
+  if (!view) return null;
+  const choose = async (mode: "browser" | "app", openNow = false) => {
+    const r = await api.post<{ mode: "browser" | "app"; app_window: boolean; opened: string }>("/api/engine/view", { mode, open_now: openNow });
+    if (!r.ok) { setNote(r.error); return; }
+    setView(r.data);
+    setNote(openNow ? (r.data.opened === "app" ? "Opened Nyx in its own window." : "No Edge or Chrome found, so it opened as a tab.") : "");
+  };
+  return (
+    <Section title="How Nyx opens" hint="From the desktop icon, the tray and nyx:// links. The app window has no tabs or address bar — just Nyx.">
+      <Choice selected={view.mode === "browser"} label="As a website" description="A tab in your default browser, next to your other tabs." onSelect={() => void choose("browser")} />
+      <Choice selected={view.mode === "app"} label="As an app" badge={view.app_window ? undefined : "needs Edge or Chrome"}
+        description="Its own window on the taskbar, opened through Microsoft Edge (or Chrome)." onSelect={() => void choose("app")} />
+      <button className="btn btn-secondary" disabled={!view.app_window} onClick={() => void choose(view.mode, true)}>Open as an App Window Now</button>
+      {note && <div style={{ fontSize: 12, color: "var(--color-neutral-500)", marginTop: 8 }} role="status">{note}</div>}
+    </Section>
+  );
+}
+
 function EngineSection() {
   const [status, setStatus] = useState<EngineStatus | null>(null);
   const [busy, setBusy] = useState<"" | "autostart" | "restart" | "stop">("");
@@ -254,6 +279,8 @@ export function SettingsPanel() {
         {error && <ErrorState error={error} />}
 
         <EngineSection />
+
+        <ViewSection />
 
         <IntelligenceSettings />
 

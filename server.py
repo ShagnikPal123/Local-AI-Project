@@ -707,6 +707,35 @@ def engine_admin_console(_owner=Depends(require_local_owner)) -> Dict[str, Any]:
     return {"url": f"http://127.0.0.1:{port}/", "started": not in_use}
 
 
+class ViewModeRequest(BaseModel):
+    mode: str = ""
+    open_now: bool = False
+
+
+@app.get("/api/engine/view")
+def engine_view(_owner=Depends(require_local_owner)) -> Dict[str, Any]:
+    """How Nyx opens — a browser tab or its own app window (UPDATE_IDEAS U25)."""
+    import launcher
+
+    return {"mode": launcher.view_mode(), "app_window": bool(launcher.app_browser())}
+
+
+@app.post("/api/engine/view")
+def engine_set_view(request: ViewModeRequest, http_request: Request,
+                    _owner=Depends(require_local_owner)) -> Dict[str, Any]:
+    """Choose how Nyx opens from now on, and/or open an app window of it right now."""
+    import launcher
+
+    try:
+        mode = launcher.set_view_mode(request.mode) if request.mode else launcher.view_mode()
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    opened = ""
+    if request.open_now:
+        opened = launcher.open_app(http_request.url.port or 8000, "/", mode="app")
+    return {"mode": mode, "app_window": bool(launcher.app_browser()), "opened": opened}
+
+
 @app.post("/api/engine/autostart")
 def engine_autostart(request: AutostartRequest, _owner=Depends(require_local_owner)) -> Dict[str, Any]:
     """Turn start-with-Windows on or off."""

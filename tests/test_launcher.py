@@ -316,3 +316,36 @@ def test_the_logon_runner_no_longer_points_at_the_blocked_exe():
     command_lines = [line for line in body.splitlines() if not line.lower().lstrip().startswith("rem")]
     assert not any("Nyx.exe" in line for line in command_lines)
     assert "launcher.py" in body and "--background" in body
+
+
+def test_nyx_opens_as_a_browser_tab_or_its_own_app_window(tmp_path, monkeypatch):
+    """UPDATE_IDEAS U25: two ways to view Nyx — a website tab, or an app window of its own."""
+    import paths
+
+    monkeypatch.setattr(paths, "data_path", lambda name: tmp_path / name)
+    opened, spawned = [], []
+    monkeypatch.setattr(launcher.webbrowser, "open", lambda url: opened.append(url))
+    monkeypatch.setattr(launcher.subprocess, "Popen", lambda args, **kw: spawned.append(args))
+
+    assert launcher.view_mode() == "browser"
+    assert launcher.open_app(8000) == "browser" and opened == ["http://localhost:8000/"]
+
+    launcher.set_view_mode("app")
+    monkeypatch.setattr(launcher, "app_browser", lambda: "C:/Edge/msedge.exe")
+    assert launcher.open_app(8000, "/chat") == "app"
+    assert spawned == [["C:/Edge/msedge.exe", "--app=http://localhost:8000/chat", "--new-window"]]
+
+    monkeypatch.setattr(launcher, "app_browser", lambda: "")
+    assert launcher.open_app(8000) == "browser", "no Edge or Chrome: the browser tab is the fallback"
+    with pytest.raises(ValueError):
+        launcher.set_view_mode("window")
+
+
+def test_the_view_routes_are_the_local_owner_s():
+    from fastapi.testclient import TestClient
+
+    import server
+
+    remote = TestClient(server.app, client=("203.0.113.9", 50051))
+    assert remote.get("/api/engine/view").status_code in (401, 403)
+    assert remote.post("/api/engine/view", json={"mode": "app", "open_now": True}).status_code in (401, 403)
