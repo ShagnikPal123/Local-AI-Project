@@ -228,6 +228,12 @@ def _scan(force: bool) -> Dict[str, Any]:
     ai = guard.effective_ai(rules)
     waiting = {a["order"]["symbol"] for a in guard.pending_approvals()}
 
+    # U16: with the trading desk on, its agents trade instead of the single picker (trading/desk.py).
+    from trading import desk
+
+    if desk.state().get("enabled"):
+        return _remember(desk.scan(rules, ai, summary, owned))
+
     # 0) The auto stock adder.
     if ai.get("auto_discover"):
         try:

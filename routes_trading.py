@@ -569,3 +569,32 @@ def register_trading_tools(registry: Any) -> None:
     registry.register("trading_discover", "Run the auto stock adder now: scan its stock universe and today's market news for "
                       "stocks doing well or predicted to, research the best, and add them to the watchlist.",
                       [], tool_trading_discover, category="finance", label=lambda a: "Looking for new stocks")
+
+
+# --- the trading desk (UPDATE_IDEAS U16): several AI traders, each with its own share --------------------------
+
+
+class DeskBody(BaseModel):
+    enabled: Optional[bool] = None
+    agents: Optional[List[Dict[str, Any]]] = None
+
+
+@router.get("/api/trading/desk")
+def desk_view(_owner=Owner) -> Dict[str, Any]:
+    from trading import desk
+
+    return desk.view()
+
+
+@router.put("/api/trading/desk")
+def desk_configure(body: DeskBody, _owner=Owner) -> Dict[str, Any]:
+    """Turn the desk on or off and edit its traders. Turning it on also makes sure the AI trader's schedule runs."""
+    from trading import autopilot, desk
+
+    try:
+        result = desk.configure(enabled=body.enabled, agents=body.agents)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    if body.enabled:
+        autopilot.ensure_running()
+    return result
