@@ -8,6 +8,7 @@
  */
 
 import { useState } from "react";
+import { api } from "../../api";
 import { Markdown } from "../../components/chat/Markdown";
 import { officeApi } from "./officeApi";
 import type { OfficeOutput } from "./types";
@@ -41,6 +42,16 @@ export function OutputBox({ officeId, outputs, onError }: {
     const result = await officeApi.file(officeId, path);
     if (result.ok) setFile({ path: result.data.path, text: result.data.text });
     else onError(result.error);
+  };
+
+  /** A page the office wrote: serve its folder (site_preview.py) and open it, so the result can be used, not read. */
+  const tryIt = async (path: string) => {
+    const tab = window.open("", "_blank");
+    const result = await api.post<{ preview: { url: string } }>(`/api/office/offices/${officeId}/try`, { path });
+    if (!result.ok) { tab?.close(); onError(result.error); return; }
+    const page = path.split("/").pop() ?? "";
+    const url = result.data.preview.url + (/^index\.html?$/i.test(page) ? "" : encodeURIComponent(page));
+    if (tab) tab.location.href = url; else window.open(url, "_blank");
   };
 
   const copy = async (id: string, text: string) => {
@@ -83,8 +94,14 @@ export function OutputBox({ officeId, outputs, onError }: {
                 {output.links.map((link) => (
                   <li key={`${link.kind}-${link.path ?? link.href}`}>
                     {link.kind === "file" && link.path ? (
-                      <button type="button" className="ofc-chip" onClick={() => void open(link.path!)}
-                              title={`Open ${link.path} from this office's work folder`}>📄 {link.label}</button>
+                      <>
+                        <button type="button" className="ofc-chip" onClick={() => void open(link.path!)}
+                                title={`Open ${link.path} from this office's work folder`}>📄 {link.label}</button>
+                        {/\.html?$/i.test(link.path) && (
+                          <button type="button" className="ofc-chip" onClick={() => void tryIt(link.path!)}
+                                  title="Run the folder this page is in on this PC and open it in a browser tab">▶ Try it</button>
+                        )}
+                      </>
                     ) : (
                       <a className="ofc-chip" href={link.href} target="_blank" rel="noopener noreferrer">↗ {link.label}</a>
                     )}

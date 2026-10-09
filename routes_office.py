@@ -278,6 +278,29 @@ def office_file(office_id: str, path: str = "", _owner=Owner) -> Dict[str, Any]:
     return {"path": officetools.safe_relative(path), "text": text, "size": target.stat().st_size}
 
 
+class TryBody(BaseModel):
+    path: str = ""
+
+
+@router.post("/api/office/offices/{office_id}/try")
+def office_try(office_id: str, body: TryBody, _owner=Owner) -> Dict[str, Any]:
+    """Run what the office built (the folder holding a page it wrote) so the owner can try it (site_preview.py)."""
+    import site_preview
+    from office import library, officetools
+
+    try:
+        work = library.work_dir(office_id)
+    except Exception as error:  # noqa: BLE001
+        raise _fail(error) from error
+    target = work / officetools.safe_relative(body.path)
+    if not target.exists():
+        raise HTTPException(status_code=404, detail="No such file in this office.")
+    try:
+        return {"preview": site_preview.start(str(target.parent if target.is_file() else target))}
+    except site_preview.PreviewError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+
+
 @router.get("/api/office/offices/{office_id}/memory")
 def office_memory(office_id: str, _owner=Owner) -> Dict[str, Any]:
     from office import memory

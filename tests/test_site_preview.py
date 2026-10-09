@@ -82,3 +82,29 @@ def test_preview_routes_are_owner_only():
     assert remote.post("/api/code/previews", json={"path": "C:/"}).status_code in (401, 403)
     assert remote.get("/api/code/download", params={"path": "C:/"}).status_code in (401, 403)
     assert remote.delete("/api/code/previews/pv-x").status_code in (401, 403)
+
+
+def test_a_page_an_office_wrote_can_be_tried(tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    import server
+    from office import library
+
+    library.use_root(tmp_path / "offices")
+    try:
+        office, _ = library.create_office("Site shop")
+        work = library.work_dir(office.id)
+        (work / "site").mkdir()
+        (work / "site" / "index.html").write_text("<h1>Built by the office</h1>", encoding="utf-8")
+        local = TestClient(server.app, client=("127.0.0.1", 50071))
+        response = local.post(f"/api/office/offices/{office.id}/try", json={"path": "site/index.html"})
+        assert response.status_code == 200, response.text
+        url = response.json()["preview"]["url"]
+        with urllib.request.urlopen(url, timeout=5) as page:
+            assert "Built by the office" in page.read().decode()
+        assert local.post(f"/api/office/offices/{office.id}/try", json={"path": "../../etc"}).status_code in (404, 409)
+        remote = TestClient(server.app, client=("203.0.113.9", 50072))
+        assert remote.post(f"/api/office/offices/{office.id}/try", json={"path": "site/index.html"}).status_code in (401, 403)
+    finally:
+        site_preview.stop_all()
+        library.use_root(None)
