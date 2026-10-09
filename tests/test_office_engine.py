@@ -480,3 +480,86 @@ def test_how_many_offices_at_once_comes_from_the_machine_or_the_owner(monkeypatc
         assert casting.parallel_offices()[0] == casting.MAX_PARALLEL_OFFICES
     finally:
         library.use_root(None)
+
+
+def test_a_big_job_turns_the_head_office_into_a_company(engine, monkeypatch):
+    """U42: "if an office project seems big the main head office splits into a bigger one … CEO, CFO, decision
+    bots, decision teams, thinkers, overhead managers, and manager distributors"."""
+    from office import executive
+
+    office_engine, _router = engine
+    monkeypatch.setitem(PLAN, "scale", "large")
+    office, _ = library.create_office("Big company")
+    office_engine.open(office.id)
+
+    office_engine.say(office.id, "Build me a whole product site with research behind it.")
+    assert _wait(lambda: not office_engine.running_office())
+
+    state = office_engine.open(office.id)
+    suite = state.section_by_name(executive.EXECUTIVE_SUITE)
+    assert suite is not None
+    roles = [a.role for a in state.agents_in(suite.id)]
+    for role in (executive.CFO, executive.DECISION_BOT, executive.THINKER, executive.OVERHEAD, executive.DISTRIBUTOR):
+        assert role in roles, f"{role} has a seat"
+    assert roles.count(executive.DECISION_BOT) == 3
+    assert state.top_manager().name.startswith("CEO")
+    assert any(m.text.startswith("CFO's ledger") for m in state.feed), "the CFO reports what the job used"
+    executives = {a.id for a in state.agents.values() if a.role in executive.ROLE_IDS}
+    assert not any(t.agent_id in executives for t in state.tasks.values()), "executives never take tasks"
+    assert state.jobs[-1].status == "done"
+
+
+def test_a_small_job_never_pays_for_a_company(engine):
+    from office import executive
+
+    office_engine, _router = engine
+    office, _ = library.create_office("Small shop")
+    office_engine.open(office.id)
+    office_engine.say(office.id, "Build me a landing page.")
+    assert _wait(lambda: not office_engine.running_office())
+    assert not executive.active(office_engine.open(office.id))
+
+
+def test_the_decision_team_votes_and_the_cfo_holds_the_budget():
+    from types import SimpleNamespace
+
+    from office import crit_think, executive
+
+    office = SimpleNamespace(capacity=100, agents={}, hires=[])
+    request = SimpleNamespace(role_words="video editor", why="x" * 50, long_term="", count=1, clone_of="",
+                              section_id="", by_name="Ann")
+    for score, expected in ((0.7, "approve"), (0.6, "approve"), (0.5, "deny"), (0.3, "deny")):
+        base = crit_think.Verdict("approve", "because", score=score, checks={"head_room": 50})
+        original = crit_think.weigh
+        crit_think.weigh = lambda *a, **k: base
+        try:
+            verdict = executive.decide_hire(office, request, None)
+        finally:
+            crit_think.weigh = original
+        assert verdict.decision == expected, (score, verdict.reason)
+        assert "decision team voted" in verdict.reason
+
+    job = SimpleNamespace(section_ids=["a"], started_at=1.0)
+    office.hires = [SimpleNamespace(status="approved", decided_at=5.0) for _ in range(4)]
+    base = crit_think.Verdict("approve", "because", score=0.9, checks={"head_room": 50})
+    original = crit_think.weigh
+    crit_think.weigh = lambda *a, **k: base
+    try:
+        verdict = executive.decide_hire(office, request, job)
+    finally:
+        crit_think.weigh = original
+    assert verdict.decision == "deny" and "budget" in verdict.reason
+
+
+def test_overhead_managers_retry_a_failed_task_once_with_the_error():
+    from types import SimpleNamespace
+
+    from office import executive
+
+    failed = SimpleNamespace(status="failed", tries=1, result="Timed out", feedback="", ended_at=9.0, agent_id="a1")
+    final = SimpleNamespace(status="failed", tries=2, result="Again", feedback="", ended_at=9.0, agent_id="a2")
+    office = SimpleNamespace(agents={"o": SimpleNamespace(role=executive.OVERHEAD)}, tasks={"t1": failed, "t2": final})
+    job = SimpleNamespace(task_ids=["t1", "t2"])
+    again = executive.rescue(office, job)
+    assert again == [failed] and failed.status == "queued" and "Timed out" in failed.feedback
+    assert final.status == "failed"

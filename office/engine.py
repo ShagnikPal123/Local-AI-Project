@@ -26,6 +26,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from office import (MAX_AGENTS_PER_SECTION, MAX_SECTIONS, casting, focus, gatekeeper, library, memory,
                     officetools, prompts, settings as settings_module, staffing, talk, targeting)
+from office import executive
 from office import roles as role_module
 from office.roles import HIRING_BOARD, LIAISON, SECTION_MANAGER, TOP_MANAGER
 from office.state import (AGENT_ERROR, AGENT_IDLE, AGENT_PAUSED, AGENT_WORKING, Agent, HireRequest, Job, Message, Output,
@@ -81,6 +82,8 @@ class Engine:
         self._offices: Dict[str, Office] = {}
         self._saved_at: Dict[str, float] = {}
         self._runs: Dict[str, Run] = {}
+        #: What the executive suite's thinkers said about each big job's plan (office/executive.py).
+        self._exec_notes: Dict[str, List[Dict[str, str]]] = {}
         self._casting = casting.Casting()
         self._published: Dict[str, float] = {}
         self._replies = ThreadPoolExecutor(max_workers=6, thread_name_prefix="office-reply")
@@ -344,6 +347,10 @@ class Engine:
                     return
                 self._phase(office, job, "staff")
                 self._apply_plan(office, job, plan, run)
+                if executive.is_big(job):
+                    # U42: a big job turns the head office into a company before the work is handed out.
+                    executive.expand(self, office, job)
+                    self._exec_notes[job.id] = executive.think_through(self, office, job, cancelled=run.cancel.is_set)
                 self._phase(office, job, "brief")
                 self._brief_sections(office, job, run)
             self._phase(office, job, "work")
@@ -355,6 +362,13 @@ class Engine:
             if run.cancel.is_set():
                 return
             self._phase(office, job, "wrap")
+            if executive.active(office) and job.id in self._exec_notes:
+                reports = list(reports) + self._exec_notes.pop(job.id, [])
+                cfo = next(iter(executive.seated(office, executive.CFO)), None)
+                book = executive.ledger(office, job)
+                reports.append({"section": "CFO", "text": book})
+                self._post(office, Message(id=new_id("msg"), by=cfo.id if cfo else "office",
+                                           by_name=cfo.name if cfo else "CFO", kind="report", job_id=job.id, text=book))
             self._wrap(office, job, reports, run)
         except Exception as error:  # noqa: BLE001 - a failed job is reported, never a dead engine
             job.status, job.error, job.ended_at = "failed", f"{type(error).__name__}: {error}"[:400], time.time()
@@ -725,13 +739,22 @@ class Engine:
         return ready
 
     def _pick_agent(self, office: Office, task: Task) -> Optional[Agent]:
-        pool = [a for a in office.agents_in(task.section_id)
-                if a.status == AGENT_IDLE and a.role not in (SECTION_MANAGER, TOP_MANAGER, HIRING_BOARD)]
+        not_workers = (SECTION_MANAGER, TOP_MANAGER, HIRING_BOARD, *executive.ROLE_IDS)
+        pool = [a for a in office.agents_in(task.section_id) if a.status == AGENT_IDLE and a.role not in not_workers]
         same_role = [a for a in pool if a.role == task.role]
         if same_role:
             return min(same_role, key=lambda a: a.tasks_done)
         if pool:
             return min(pool, key=lambda a: a.tasks_done)
+        job = office.job(task.job_id) if task.job_id else None
+        lent = executive.lend(office, job, task, excluded=not_workers) if job is not None and executive.active(office) else None
+        if lent is not None:
+            source = office.section(lent.section_id)
+            self._post(office, Message(id=new_id("msg"), by="office", by_name="Manager-Distributor", kind="chat",
+                                       job_id=job.id, section_id=task.section_id,
+                                       text=f"Lent {lent.name} from {source.name if source else 'another section'} "
+                                            f"for “{task.title}” — nobody here was free."))
+            return lent
         # Nobody free with the right skill: bring one in if there is room, else wait for a desk.
         if len(office.agents) < (office.capacity or 0) and len(office.agents_in(task.section_id)) < MAX_AGENTS_PER_SECTION:
             return self._add_agent(office, task.section_id, task.role or "coder")
@@ -770,7 +793,11 @@ class Engine:
                     except Exception:  # noqa: BLE001 - recorded on the task itself
                         pass
                 if not running and not self._ready_tasks(office, job):
-                    break
+                    retried = executive.rescue(office, job) if executive.active(office) else []
+                    for task in retried:
+                        self._publish(office, "task", task=task.as_dict())
+                    if not retried:
+                        break
                 focus.touch()
                 self._save(office)
                 time.sleep(0.25)
@@ -1322,6 +1349,10 @@ class Engine:
         request.new_type = known is None
         office.hires.append(request)
         self._publish(office, "hire", hire=request.as_dict())
+        if executive.active(office):
+            job = office.current_job()
+            verdict = executive.decide_hire(office, request, job if job is not None and job.status == "running" else None)
+            return self._apply_hire(office, request, verdict, decided_by="the decision team")
         if gatekeeper.is_awake(office):
             self._replies.submit(self._decide_hire, office, request)
             return (f"Your request for {request.count} × {wanted} has gone to the Hiring Board. Carry on with what "
@@ -1431,6 +1462,7 @@ class Engine:
             self._offices.clear()
             self._saved_at.clear()
             self._runs.clear()
+            self._exec_notes.clear()
             self._published.clear()
         self._casting = casting.Casting()
 

@@ -33,7 +33,7 @@ IDLE_TO_LET_GO = 4
 TASKS_FOR_RANK = {0: 2, 1: 6, 2: 14}
 RANK_NAMES = {-1: "Junior", 0: "", 1: "Senior", 2: "Lead"}
 
-_UNMOVABLE = {TOP_MANAGER, HIRING_BOARD}
+_UNMOVABLE = {TOP_MANAGER, HIRING_BOARD, "cfo", "decision-bot", "thinker", "overhead-manager", "distributor"}
 
 
 def rank_name(rank: int) -> str:
