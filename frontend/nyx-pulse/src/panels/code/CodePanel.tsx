@@ -17,6 +17,7 @@ import { Markdown } from "../../components/chat/Markdown";
 import { DiffSummary, describeLines, parseDiff, type LineStats } from "../../components/DiffSummary";
 import { Toasts } from "../../components/chat";
 import { pushToast, useToasts, dismissToast } from "../../state/toastStore";
+import { PreviewBar } from "./PreviewBar";
 import "./code.css";
 
 interface Workspace { id: string; path: string; name: string; file: string }
@@ -434,6 +435,7 @@ export function CodePanel() {
               <button className="chat-inline" onClick={() => { setCreating("file"); setNewName(""); }}>New File</button>
               <button className="chat-inline" onClick={() => { setCreating("folder"); setNewName(""); }}>New Folder</button>
             </div>
+            <PreviewBar folder={targetDir || current.path} />
             {creating && (
               <form className="code__open" onSubmit={(e) => { e.preventDefault(); void createEntry(); }}>
                 <input value={newName} onChange={(e) => setNewName(e.target.value)} autoFocus aria-label={creating === "file" ? "New file name" : "New folder name"}
