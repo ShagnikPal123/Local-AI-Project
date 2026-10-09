@@ -52,6 +52,9 @@ Every part is a tab in the app, and they share one memory.
 | **Research & Notes** | Cited research reports; slides turned into notes and quizzes |
 | **Code & Build** | Edit a folder together; design 3D-printable parts and circuits |
 | **Trading practice** | Paper trading with simulated money, fees and market hours |
+| **WhatsApp** | Text Nyx from your phone and get texts back; the line is tied to the PC you paired it on ([how](docs/WHATSAPP.md)) |
+| **World** | An office upscaled into a planet of agents with its own government, laws and growth ([design](docs/WORLD.md)) |
+| **Mods** | Lasting changes to Nyx's setup — standing instructions, commands, themes, reminders — that you can pause or undo |
 
 ## Privacy
 
