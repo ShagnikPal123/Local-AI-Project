@@ -79,12 +79,20 @@ Standing file ownership when delegating:
 
 ## 2. Now (max 3)
 
+### 2026-10-06 — the World tab built (not committed)
+
+- [x] **The World tab** (session a40a67): the AI Environment planet, UPDATE_IDEAS U34–U40 with U41, U44 and part of
+  U45. `world/`, `routes_world.py`, `panels/world/`, small hooks in `office/`. Design: `docs/WORLD.md`; write-up and
+  open decisions: `AI_HANDOFF/START_HERE.md` § The World tab.
+- [ ] **Next:** the owner picks the next item from `AI_HANDOFF/UPDATE_IDEAS.md`; commit/push when they ask.
+
 ### 2026-10-05 — Update 1 shipped
 
 - [x] **Update 1** (session 0757e7): Swarm + Auto modes, /auto and @auto, every sub-agent's request and reply shown,
   Research tab, complete process list, 88 connectors, auto-assign models, Office Output box + staffing, Nyx tab with
   chats on the left and the Second Brain one switch away, voice bar, Nyx's own computer (Cua), site download button.
   Write-up: `AI_HANDOFF/START_HERE.md` § Update 1 (the handoff is local only now, not in git).
+- [x] **The World tab** — built 2026-10-06, see above.
 - [ ] **Owner to do:** Docker Desktop or a Cua Cloud key for Nyx's own computer; redeploy `site/` for the new
   download button; decide whether old commits that still contain `AI_HANDOFF/` should be rewritten.
 
@@ -331,12 +339,14 @@ Owner could access and use the app; these are the follow-ups, verbatim intent pr
 
 ## 7. Handoff
 
-**Last touched:** Update 1, 2026-10-05.
+**Last touched:** the World tab, 2026-10-06 (session a40a67).
 
-**State:** Update 1 is committed and on GitHub (branch `update-1`, merged to `main`, tag `update-1`). Full pytest suite
-green; `npm run build` green; live-checked in the browser on a scratch engine.
+**State:** Update 1 is on GitHub (`main`, tag `update-1`). The World tab is built on top of it and **not committed**.
+Full pytest suite green, `npm run build` green, and it was checked live in the browser on a scratch engine with real
+models.
 
 **Next:** whatever the owner picks from `AI_HANDOFF/UPDATE_IDEAS.md` (still queued: U2–U4, U7, U8, U10–U12, U14, U16,
-U18–U20, U22, U23, U25, U27 rest, U28, U32–U40, U42 CEO/CFO split, U43–U45).
+U18–U20, U22, U23, U25, U27 rest, U28, U32, U33, U42 CEO/CFO split, U43, U45 rest), plus the World tab's open
+decisions (`AI_HANDOFF/START_HERE.md` § The World tab).
 
 **Check first:** `.venv/Scripts/python.exe -m pytest -q -p no:warnings`, then `cd frontend/nyx-pulse && npm run build`.

@@ -15,6 +15,7 @@ import { BackgroundsSection } from "./BackgroundsSection";
 import { StorageSection } from "./StorageSection";
 import { ContentModeSection } from "./ContentModeSection";
 import { IntelligenceSettings } from "./IntelligenceSettings";
+import { ModsSection } from "./ModsSection";
 
 interface SpeedMode {
   id: string;
@@ -255,6 +256,13 @@ export function SettingsPanel() {
         <EngineSection />
 
         <IntelligenceSettings />
+
+        <Section
+          title="Mods"
+          hint="Your lasting changes to Nyx, one per wish. Ask Nyx for one in chat; pause or remove it here and what it changed is undone."
+        >
+          <ModsSection />
+        </Section>
 
         <Section
           title="Response speed"

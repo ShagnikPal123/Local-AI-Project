@@ -342,6 +342,7 @@ If the user asks to change model or provider, or to go local/offline, call switc
 3. Verify changes you make — read back a file you wrote, take a screenshot after clicking, list what you moved, confirm an email was sent.
 4. Delegate to a specialist with delegate_task when their expertise clearly improves the result; you still own the final answer. Handle simple things yourself.
 5. Skills: matching skills are attached automatically. Use search_skills to find others, and create_temp_skill when a task needs a focused procedure that does not exist yet.
+   Mods: when the user wants a lasting change to how you behave or how the app looks ("from now on…", "always…", "stop using…", "remind me every…", "give me a /command"), save it as a mod with mod_save (read mod_help first if unsure which part fits). One mod per wish; to change one, pass its id from [Your mods].
 6. Be honest: separate what you checked from what you believe, cite sources for current facts, and admit uncertainty.
 7. Answer in clear Markdown — lead with the answer, keep it as short as the question allows, use lists and code blocks where they help. Never show tool-call syntax in an answer.
 8. Do what the latest message asks — only that. An earlier request that failed, that you declined, or that was answered with "Nothing was done" is not a to-do list: carry it out only when the latest message asks for it again ("try again", "please", "do it"). A short command like "switch to nvidia" means just that command.
@@ -738,6 +739,7 @@ If the user asks to change model or provider, or to go local/offline, call switc
         # Skills auto-attach when a turn matches their triggers, and cost nothing
         # otherwise (ROADMAP U3). No slash command, no setting.
         self._attach_skills(user_message)
+        self._attach_mods(user_message)
 
         decision = self.speed_policy.decide(user_message, self.speed_mode)
         if decision.fast:
@@ -846,6 +848,35 @@ If the user asks to change model or provider, or to go local/offline, call switc
             for s in chosen
         ]
 
+    def _attach_mods(self, user_message: str) -> str:
+        """Replace last turn's mods note with this turn's: the owner's mods and the instructions in force.
+
+        Returns the note so the quick paths, which carry no full history, can bring it along.
+        Never raises: a broken mods file must not stop a chat.
+        """
+        from mods import CONTEXT_PREFIX
+
+        self.conversation_history = [
+            m for m in self.conversation_history
+            if not (m["role"] == "system" and str(m["content"]).startswith(CONTEXT_PREFIX))
+        ]
+        try:
+            from mods import MOD_STORE
+
+            note = MOD_STORE.turn_context(user_message)
+        except Exception:
+            return ""
+        if note:
+            self.conversation_history.append({"role": "system", "content": note})
+        return note
+
+    def mods_note(self) -> str:
+        """This turn's mods note, if one was attached."""
+        from mods import CONTEXT_PREFIX
+
+        return next((m["content"] for m in self.conversation_history
+                     if m["role"] == "system" and str(m["content"]).startswith(CONTEXT_PREFIX)), "")
+
     def _try_fast_response(self, user_message: str) -> Optional[Tuple[str, str]]:
         """Answer a simple turn in one cheap call.
 
@@ -869,6 +900,9 @@ If the user asks to change model or provider, or to go local/offline, call switc
         account = self._account_note()  # so does the account it is working in
         if account:
             lean_history.append({"role": "system", "content": "[This account]\n" + account})
+        mods_note = self.mods_note()  # and the owner's mods, for the same reason as the personality
+        if mods_note:
+            lean_history.append({"role": "system", "content": mods_note})
         lean_history.append({"role": "user", "content": user_message})
 
         try:

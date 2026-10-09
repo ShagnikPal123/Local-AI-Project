@@ -22,6 +22,7 @@ import { AgentProperties } from "../components/AgentProperties";
 import { AgentDetails } from "../components/AgentDetails";
 import { DispatchCard, DispatchSheet, useRoster, type DispatchView } from "../components/agents/AgentBoxes";
 import { onWorkspaceEvent } from "../state/workspaceEvents";
+import { ModBand } from "../components/chat/ModBand";
 import { DiagramOverlay, type Diagram } from "../components/diagram/DiagramOverlay";
 import { ActiveTalkBar, activeTalkSupported, useActiveTalk, VoiceSwitch } from "../components/chat/ActiveTalk";
 import { onVoiceMode, setVoiceMode, voiceMode, type VoiceMode } from "../voice/voiceBus";
@@ -601,7 +602,7 @@ export function ChatPanel({
   useEffect(() => { void loadCommands(); }, [loadCommands]);
   // An agent made in chat (or anywhere) is a /command at once.
   useEffect(() => onWorkspaceEvent((event) => {
-    if (event.type === "agents.changed" || event.type === "agent.created" || event.type === "skills.changed") void loadCommands();
+    if (event.type === "agents.changed" || event.type === "agent.created" || event.type === "skills.changed" || event.type === "mods.changed") void loadCommands();
   }), [loadCommands]);
 
   const openSkillCreator = useCallback((text: string) => {
@@ -1098,6 +1099,7 @@ export function ChatPanel({
               <DispatchSheet text={dispatchText} chatId={activeChatId === "default" ? "" : activeChatId} onClose={() => setDispatchText(null)}
                 onStarted={(d) => setDispatches((current) => [d, ...current.filter((x) => x.dispatch_id !== d.dispatch_id)])} />
             )}
+            <ModBand />
             <Composer
               value={draft}
               onChange={setDraft}
@@ -1186,6 +1188,7 @@ export function ChatPanel({
           <DispatchSheet text={dispatchText} chatId={activeChatId === "default" ? "" : activeChatId} onClose={() => setDispatchText(null)}
             onStarted={(d) => setDispatches((current) => [d, ...current.filter((x) => x.dispatch_id !== d.dispatch_id)])} />
         )}
+        <ModBand />
         <Composer
           value={draft}
           onChange={setDraft}
@@ -1267,6 +1270,7 @@ export function ChatPanel({
           <DispatchSheet text={dispatchText} chatId={activeChatId === "default" ? "" : activeChatId} onClose={() => setDispatchText(null)}
             onStarted={(d) => setDispatches((current) => [d, ...current.filter((x) => x.dispatch_id !== d.dispatch_id)])} />
         )}
+        <ModBand />
         <Composer
           value={draft}
           onChange={setDraft}

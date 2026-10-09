@@ -132,6 +132,13 @@ more false positives cost.
 
 ## Session log
 
+### Session — 2026-10-08 (Claude Opus 5.5, session aa7147) — Mods
+
+Added `mods.py` (Claude Code-style mods as data): catalogue of parts, validation with named refusals, mod_* tools, a
+per-turn `[Your mods]` note, tool blocking at `tools.call_tool`, mod /commands, `/api/mods`, Settings → Mods, the band
+above the composer, reminders. Also wired the frontend to the `ui.theme` / `ui.open_tab` / `tabs.changed` events it
+had never listened to. Tests: `tests/test_mods.py` (17). Detail: AI_HANDOFF/START_HERE.md → DONE — MODS.
+
 ### Session — 2026-09-22 → 25 (Claude Opus 5, session be872d) — Project Null N19b, N20–N25 (rows N80–N89)
 
 Eight sessions worked this tree at once, so the first act was agreeing file ownership by message; that list is in
@@ -736,6 +743,22 @@ all trading tests 49 green):
   - The context bar treated Ollama as 8k.
   - Engine shutdown waited on its own task (peer session's fix, reviewed).
 - **Tests:** full suite green, with the final count in the Update 1 commit message. `npm run build` green.
+
+
+### Session — 2026-10-06 (Claude Opus 5.5, session a40a67) — the World tab (AI Environment, U34–U40)
+
+- Built the owner's top-priority item: a planet of AIs that is Office Space upscaled. A world owns a backing office and
+  hands it one project at a time, so the work is real (`world/` package, `routes_world.py`, `panels/world/`). Design
+  and every default decision: `docs/WORLD.md`. Write-up and open decisions: `AI_HANDOFF/START_HERE.md` § The World tab.
+- Shared code touched (small): `office/engine.py` (effort per office, `add_section` / `add_agent`, `say(by_name=)`),
+  `office/focus.py` (pin), `office/roles.py` (`invent(exact=)`), `OfficeView.tsx` (Upscale button), and the usual route,
+  hosted-build, account-scope, process-name, gitignore and release-exclude lists.
+- Live-checked on a scratch engine with real models. The government planned a project, and the office delivered it to
+  the Output box. A trial law was enforced. A contest was heard and decided, and the loser's idea was founded as a
+  start-up. A child was born. Stop handed the machine back. Two problems found live were fixed and tested: a
+  child's name, and the Output card title.
+- **Tests:** 62 new world tests and the world auth block. Full suite **2476 passed**. `npm run build` green.
+- Not committed (AGENTS.md: only when asked).
 
 ---
 

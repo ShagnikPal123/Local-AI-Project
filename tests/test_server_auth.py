@@ -295,6 +295,8 @@ DATA_ROUTES = [
     "/api/connectors/catalog/github",
     "/api/connectors/mine",
     "/api/model-roles/auto-assign",
+    # The owner's mods (mods.py).
+    "/api/mods",
 ]
 
 
@@ -847,8 +849,6 @@ def test_office_routes_do_not_exist_on_a_hosted_build():
     assert "/api/office" in deploy_mode.HOSTED_BLOCKED_PREFIXES
 
 
-# Proto Voice (Project Null N92): the microphone that may act on the computer.
-OWNER_ONLY_PROTO_VOICE_ROUTES = [
 # --- UPDATE_IDEAS U34–U40: an AI Environment world runs an office for days and pauses the rest of Nyx ----------
 
 OWNER_ONLY_WORLD_ROUTES = [
@@ -893,6 +893,8 @@ def test_world_routes_do_not_exist_on_a_hosted_build():
     assert "/api/world" in deploy_mode.HOSTED_BLOCKED_PREFIXES
 
 
+# Proto Voice (Project Null N92): the microphone that may act on the computer.
+OWNER_ONLY_PROTO_VOICE_ROUTES = [
     ("get", "/api/proto-voice", None),
     ("put", "/api/proto-voice", {"allowed": True}),
     ("post", "/api/proto-voice/act", {"text": "shut down the computer"}),

@@ -35,6 +35,7 @@ import { Companion, KahunaBarButton } from "./components/kahuna/Companion";
 import { TopTabs } from "./components/TopTabs";
 import { TabBoundary } from "./components/TabBoundary";
 import { onWorkspaceEvent } from "./state/workspaceEvents";
+import { startMods } from "./state/modsStore";
 import { startVoicePlayer } from "./voice/voicePlayer";
 import { FileDropOverlay } from "./files/FileDropOverlay";
 import { VoiceListener } from "./voice/VoiceListener";
@@ -70,8 +71,8 @@ const FreeWillPanel = lazy(() => import("./panels/freewill/FreeWillPanel").then(
 const KahunaPanel = lazy(() => import("./panels/kahuna/KahunaPanel").then((m) => ({ default: m.KahunaPanel })));
 const OwnComputerPanel = lazy(() => import("./panels/computer/OwnComputerPanel").then((m) => ({ default: m.OwnComputerPanel })));
 const OfficePanel = lazy(() => import("./panels/office/OfficePanel").then((m) => ({ default: m.OfficePanel })));
-const AdminPanel = lazy(() => import("./panels/AdminPanel").then((m) => ({ default: m.AdminPanel })));
 const WorldPanel = lazy(() => import("./panels/world/WorldPanel").then((m) => ({ default: m.WorldPanel })));
+const AdminPanel = lazy(() => import("./panels/AdminPanel").then((m) => ({ default: m.AdminPanel })));
 const StorePanel = lazy(() => import("./panels/StorePanel").then((m) => ({ default: m.StorePanel })));
 
 const LAYOUT_KEY = "nyx.layout";
@@ -199,6 +200,8 @@ export default function App() {
   // turn summaries, theme/tab/agent events. The hook itself reconnects with
   // backoff; this effect just ties its lifetime to the app's.
   useEffect(() => onWorkspaceEvent(() => {}), []);
+  // Mods, and the assistant's live theme and tab changes (state/modsStore.ts).
+  useEffect(() => startMods(), []);
   // Nyx's `speak` tool broadcasts `voice.say`; one open window plays it.
   useEffect(() => { startVoicePlayer(); }, []);
 
@@ -238,6 +241,12 @@ export default function App() {
   }, []);
 
   useEffect(() => { void loadUserTabs(); }, [loadUserTabs]);
+  // A tab Nyx made, edited or deleted (ui_create_tab and friends) shows up without a reload.
+  useEffect(() => {
+    const onChanged = () => void loadUserTabs();
+    window.addEventListener("nyx:tabs-changed", onChanged);
+    return () => window.removeEventListener("nyx:tabs-changed", onChanged);
+  }, [loadUserTabs]);
 
   // Cmd/Ctrl-K opens find-or-create, the way every other workspace does it.
   useEffect(() => {
@@ -414,6 +423,7 @@ export default function App() {
         {active === "freewill" && <FreeWillPanel />}
         {active === "kahuna" && <KahunaPanel />}
         {active === "office" && <OfficePanel />}
+        {active === "world" && <WorldPanel />}
         {active === "computer" && <OwnComputerPanel />}
         {active === "admin" && <AdminPanel />}
         {active === "settings" && <SettingsPanel />}
@@ -423,7 +433,6 @@ export default function App() {
           <DynamicTab
             spec={activeUserTab}
             onChanged={(updated) =>
-        {active === "world" && <WorldPanel />}
               setUserTabs((tabs) => tabs.map((t) => (t.id === updated.id ? updated : t)))
             }
             onDelete={() => void deleteUserTab(activeUserTab.id)}

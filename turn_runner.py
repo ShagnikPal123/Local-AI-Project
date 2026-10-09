@@ -393,6 +393,9 @@ class TurnRunner:
             self.emit("status", phase="route", text=f"Reading {names} first")
 
         skills = service._attach_skills(user_text) or []
+        attach_mods = getattr(service, "_attach_mods", None)  # the owner's mods: what exists, the instructions in force
+        if attach_mods is not None:
+            attach_mods(user_text)
         if command_brief["skills"]:
             called = {str(x["id"]) for x in command_brief["skills"]}
             skills = command_brief["skills"] + [s for s in skills if str(s.get("id")) not in called]
@@ -418,6 +421,13 @@ class TurnRunner:
         route = suggestion.get("route") or {}
         if command_brief["found"]:
             mode = "full"  # the quick path carries no skills, so a message with /commands never takes it
+        try:
+            import mods
+
+            if mods.wants_setup_change(user_text):
+                mode = "full"  # "from now on…" needs mod_save, and the quick path has no tools
+        except Exception:  # pragma: no cover
+            pass
         if mode is None and isinstance(route, dict) and route.get("label") == "full" and float(route.get("p") or 0) >= 0.75:
             mode = "full"
             self.emit("learning.note", text="Similar requests needed tools before, so going straight to the full pipeline.")
@@ -749,6 +759,9 @@ class TurnRunner:
             if message.get("role") == "system" and content.startswith(service._PERSONALITY_PREFIX):
                 lean.append({"role": "system", "content": content})
                 break
+        mods_note = service.mods_note() if hasattr(service, "mods_note") else ""  # "answer in French" holds on quick turns too
+        if mods_note:
+            lean.append({"role": "system", "content": mods_note})
         recent = [m for m in service.conversation_history if m.get("role") in ("user", "assistant")]
         for message in recent[-_FAST_CONTEXT_TURNS:]:
             lean.append({"role": message["role"], "content": message.get("content", "")})

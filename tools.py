@@ -207,6 +207,11 @@ class ToolRegistry:
                 from permissions import PermissionDenied, require
 
                 require(tool.category, label, detail=json.dumps(_safe_args(kwargs))[:1200])
+                from mods import MOD_STORE  # the owner's block_tools mods: they only ever narrow
+
+                refusal = MOD_STORE.blocked(name)
+                if refusal:
+                    raise PermissionDenied(refusal)
                 guard = getattr(ctx, "guard", None) if ctx is not None else None
                 if guard is not None:
                     guard(name, tool.category)  # the turn's own gate: Free Will's deny-by-default list (freewill.py)

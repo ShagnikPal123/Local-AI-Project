@@ -1,0 +1,31 @@
+/* Mods (mods.py): the band above the composer and Settings → Mods. */
+
+.mod-band { display: flex; flex-direction: column; gap: 6px; margin: 0 0 8px; }
+.mod-band__banner {
+  font-size: 13px; line-height: 1.5; padding: 8px 12px; border-radius: var(--radius);
+  background: var(--color-surface-2); color: var(--color-text);
+  box-shadow: inset 3px 0 0 var(--color-info);
+}
+.mod-band__banner--ok { box-shadow: inset 3px 0 0 var(--color-ok); }
+.mod-band__banner--warn { box-shadow: inset 3px 0 0 var(--color-warn); }
+.mod-band__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.mod-band__chip { font-size: 12px; }
+
+.mods { display: flex; flex-direction: column; gap: 8px; }
+.mods__empty { font-size: 13px; color: var(--color-neutral-500); line-height: 1.6; }
+.mods__row {
+  padding: 10px 12px; border-radius: var(--radius); background: var(--color-nav);
+  display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: start;
+}
+.mods__row--off { opacity: 0.6; }
+.mods__name { font-size: 13px; font-weight: 600; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.mods__by { font-size: 11px; font-weight: 400; color: var(--color-neutral-500); }
+.mods__summary { grid-column: 1; font-size: 12px; color: var(--color-neutral-500); line-height: 1.5; }
+.mods__asked { grid-column: 1; font-size: 12px; color: var(--color-neutral-600); font-style: italic; }
+.mods__actions { grid-column: 2; grid-row: 1 / span 3; display: flex; gap: 8px; align-items: center; }
+.mods__parts {
+  grid-column: 1 / -1; margin: 6px 0 0; padding: 8px; border-radius: var(--radius);
+  background: var(--color-bg); font: 11px/1.5 var(--font-mono); color: var(--color-neutral-400);
+  white-space: pre-wrap; overflow-x: auto; max-height: 240px;
+}
+.mods__error { font-size: 12px; color: var(--color-danger); }

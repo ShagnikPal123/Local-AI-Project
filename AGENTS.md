@@ -130,6 +130,7 @@ Each has an enforcement point in code. Do not weaken them.
 | `overlay.py` | Published, install-wide changes + checkpoints |
 | `profiles.py` | Per-user layered customization |
 | `dynamic_tabs.py` / `widgets.py` / `skills.py` | The three declarative spec systems |
+| `mods.py` | The owner's lasting changes as named bundles of validated parts (instructions, commands, tool blocks, theme…) |
 | `change_review.py` | Draft → reviewed → approved → published state machine |
 | `machine_control.py` | Capability grants for system access |
 

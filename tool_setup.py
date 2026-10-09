@@ -24,6 +24,7 @@ TOOL_MODULES: List[Tuple[str, str]] = [
     ("research_engine", "register_research_tools"),
     ("context_budget", "register_context_tools"),
     ("landscape_tools", "register_landscape_tools"),
+    ("mods", "register_mod_tools"),
     ("media_tools", "register_media_tools"),
     ("system_info", "register_system_tools"),
     ("machine_tools", "register_machine_tools"),

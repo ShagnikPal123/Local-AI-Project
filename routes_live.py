@@ -478,6 +478,64 @@ def delete_command(name: str, _user=RequireChat) -> Dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# Mods: the owner's lasting changes to Nyx, one named bundle each (mods.py)
+# ---------------------------------------------------------------------------
+
+
+class SaveModRequest(BaseModel):
+    name: str
+    parts: List[Dict[str, Any]]
+    description: str = ""
+    mod_id: str = ""
+    enabled: bool = True
+
+
+class ToggleModRequest(BaseModel):
+    enabled: bool
+
+
+@router.get("/api/mods")
+def list_mods(_user=RequireChat) -> Dict[str, Any]:
+    """Every mod, what the app draws for the enabled ones, and the catalogue of parts."""
+    import mods
+
+    return {"mods": mods.MOD_STORE.list(), "view": mods.MOD_STORE.view(),
+            "parts": {kind: spec["does"] for kind, spec in mods.PARTS.items()}}
+
+
+@router.post("/api/mods")
+def save_mod(body: SaveModRequest, _user=RequireChat) -> Dict[str, Any]:
+    import mods
+
+    try:
+        return {"mod": mods.MOD_STORE.save(body.name, body.parts, description=body.description,
+                                           mod_id=body.mod_id, author="owner", enabled=body.enabled)}
+    except mods.ModError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+@router.post("/api/mods/{mod_id}/toggle")
+def toggle_mod(mod_id: str, body: ToggleModRequest, _user=RequireChat) -> Dict[str, Any]:
+    import mods
+
+    try:
+        return {"mod": mods.MOD_STORE.set_enabled(mod_id, body.enabled)}
+    except mods.ModError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+
+
+@router.delete("/api/mods/{mod_id}")
+def delete_mod(mod_id: str, _user=RequireChat) -> Dict[str, Any]:
+    import mods
+
+    try:
+        mods.MOD_STORE.delete(mod_id)
+    except mods.ModError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
 # Backgrounds (Request G8)
 # ---------------------------------------------------------------------------
 

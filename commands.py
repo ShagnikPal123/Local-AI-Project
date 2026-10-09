@@ -173,7 +173,15 @@ def all_commands() -> List[Dict[str, Any]]:
     names = {c["name"] for c in builtin}
     owner = [c for c in user_commands() if c["name"] not in names]
     names |= {c["name"] for c in owner}
-    agents = [dict(c, origin="agent") for c in agent_commands() if c["name"] not in names]
+    try:
+        from mods import MOD_STORE
+
+        modded = [c for c in MOD_STORE.commands() if c["name"] not in names]
+    except Exception:  # pragma: no cover - a broken mods file must not empty the menu
+        modded = []
+    owner += modded
+    names |= {c["name"] for c in modded}
+    agents =[dict(c, origin="agent") for c in agent_commands() if c["name"] not in names]
     names |= {c["name"] for c in agents}
     skills = [c for c in skill_commands() if c["name"] not in names]
     return builtin + owner + agents + skills

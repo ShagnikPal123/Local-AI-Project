@@ -154,6 +154,16 @@ def isolate_persistent_stores(tmp_path, monkeypatch):
     except Exception:
         pass
 
+    # The owner's mods reach every prompt and can block tools; a mod's theme writes the owner's look.
+    try:
+        import mods
+        import ui_state
+
+        monkeypatch.setattr(mods, "MOD_STORE", mods.ModStore(tmp_path / "mods.json"))
+        monkeypatch.setattr(ui_state, "UI_STATE", ui_state.UiState(tmp_path / "ui_state.json"))
+    except Exception:
+        pass
+
     # The owner's accounts (local_accounts) reach every prompt as "## This account", the fast
     # path included, so a named Main with a purpose on this PC made test_fast_response count a
     # third message that only exists on his machine. Tests start in a bare Main with no index;
