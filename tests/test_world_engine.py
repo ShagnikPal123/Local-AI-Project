@@ -290,7 +290,7 @@ def test_a_world_will_not_take_the_machine_from_a_working_office_unless_told(wor
     data = engine.create(name="Patient", goal="Anything")
     other, _ = library.create_office("Busy office")
     OFFICE.open(other.id)
-    monkeypatch.setattr(OFFICE, "running_office", lambda: other.id)
+    monkeypatch.setattr(OFFICE, "running_offices", lambda: [other.id])
     halted = []
     monkeypatch.setattr(OFFICE, "control", lambda office_id, action, **kw: halted.append((office_id, action)) or {})
 

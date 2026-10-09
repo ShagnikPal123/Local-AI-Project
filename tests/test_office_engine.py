@@ -163,8 +163,9 @@ def test_a_job_runs_end_to_end_and_the_office_remembers_it(engine):
     assert len(reopened.agents) >= 5
 
 
-def test_a_second_office_cannot_start_while_one_is_working(engine):
+def test_a_second_office_cannot_start_while_one_is_working(engine, monkeypatch):
     office_engine, _router = engine
+    monkeypatch.setattr(casting, "parallel_offices", lambda: (1, "this PC runs one office at a time"))
     first, _ = library.create_office("Busy")
     second, _ = library.create_office("Waiting")
     office_engine.open(first.id)
@@ -435,3 +436,47 @@ def test_the_output_quotes_the_files_the_office_wrote(engine):
 
     wrap_prompt = next(p for p in router.prompts if "Write the answer for the owner" in p)
     assert "What those files actually say" in wrap_prompt and "<h1>Hello</h1>" in wrap_prompt
+
+
+def test_a_high_end_pc_runs_several_offices_at_once_up_to_its_limit(engine, monkeypatch):
+    """UPDATE_IDEAS U14: "make sure that it can run multiple offices at once if needed on high end machines"."""
+    office_engine, _router = engine
+    monkeypatch.setattr(casting, "parallel_offices", lambda: (2, "test: two at once"))
+    first, _ = library.create_office("One")
+    second, _ = library.create_office("Two")
+    third, _ = library.create_office("Three")
+    for office in (first, second, third):
+        office_engine.open(office.id)
+    try:
+        office_engine.say(first.id, "Build me a landing page.")
+        office_engine.say(second.id, "Build me a landing page too.")
+        assert set(office_engine.running_offices()) <= {first.id, second.id}
+        if len(office_engine.running_offices()) == 2:
+            with pytest.raises(OfficeError, match="2 offices at once"):
+                office_engine.say(third.id, "And a third.")
+        overview = office_engine.overview()
+        assert overview["parallel"]["limit"] == 2
+    finally:
+        assert _wait(lambda: not office_engine.running_offices())
+    for office in (first, second):
+        assert office_engine.open(office.id).jobs[-1].status == "done"
+    assert not focus.status()["held"], "focus is let go once the last office finishes"
+
+
+def test_how_many_offices_at_once_comes_from_the_machine_or_the_owner(monkeypatch, tmp_path):
+    from office import settings as office_settings
+    from types import SimpleNamespace
+
+    library.use_root(tmp_path / "offices")
+    try:
+        monkeypatch.setattr(casting, "_device", lambda: SimpleNamespace(max_workers=8))
+        assert casting.parallel_offices()[0] == 3
+        monkeypatch.setattr(casting, "_device", lambda: SimpleNamespace(max_workers=4))
+        assert casting.parallel_offices()[0] == 1
+        office_settings.save({"parallel_offices": 2})
+        limit, why = casting.parallel_offices()
+        assert limit == 2 and "you set" in why
+        office_settings.save({"parallel_offices": 99})
+        assert casting.parallel_offices()[0] == casting.MAX_PARALLEL_OFFICES
+    finally:
+        library.use_root(None)

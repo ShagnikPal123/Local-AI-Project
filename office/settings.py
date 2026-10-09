@@ -23,6 +23,8 @@ DEFAULTS: Dict[str, Any] = {
     # The staffing animation: desks appearing one after another as the office is built in front of the owner.
     "animate": True,
     "keep_open_offices": 3,
+    # How many offices may work at the same time. 0 = let the machine decide (casting.parallel_offices, U14).
+    "parallel_offices": 0,
 }
 
 _CHOICES = {"focus_mode": ("ask", "always", "never")}

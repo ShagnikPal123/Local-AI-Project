@@ -22,7 +22,7 @@ from __future__ import annotations
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from office import MAX_AGENTS, MIN_AGENTS
 
@@ -80,6 +80,30 @@ def capacity(*, focus: bool = False, member_count: Optional[int] = None) -> Capa
               f"{'s' if member_count != 1 else ''} to share between them.")
     return Capacity(agents=head, concurrency=concurrency, members=member_count, reason=reason, focus=focus,
                     power=power)
+
+
+MAX_PARALLEL_OFFICES = 4
+
+
+def parallel_offices() -> Tuple[int, str]:
+    """How many offices may work at once here (UPDATE_IDEAS U14: "run multiple offices at once … on high end machines").
+
+    Only a machine in the top worker class (32 GB+ of memory and a 12 GB+ graphics card — ``max_workers`` 8) runs
+    more than one by itself, because two offices on a smaller one would each be slower than one alone. The owner can
+    choose a number in the office settings; that is their call and is said so.
+    """
+    from office import settings as settings_module
+
+    device = _device()
+    workers = int(getattr(device, "max_workers", 2) or 2) if device is not None else 2
+    auto = 3 if workers >= 8 else 1
+    chosen = int(settings_module.load().get("parallel_offices") or 0)
+    if chosen:
+        n = max(1, min(MAX_PARALLEL_OFFICES, chosen))
+        return n, f"you set {n} office{'s' if n != 1 else ''} at once"
+    if auto > 1:
+        return auto, f"this is a high-end PC, so {auto} offices can work at once"
+    return 1, "this PC runs one office at a time; a high-end one runs up to three"
 
 
 # ---------------------------------------------------------------------------

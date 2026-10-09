@@ -9,8 +9,10 @@ Everything that changes is published as an ``office.event`` the moment it happen
 is watching it happen. Everything that matters is written into the office file, because the point of an office
 is that it is still there tomorrow.
 
-Only one office runs at a time. That is not a limitation to work around — focus mode pauses the rest of Nyx for
-*this* office, and two offices fighting over the same free API keys would make both of them slower than one.
+How many offices work at once comes from the machine (``casting.parallel_offices``, UPDATE_IDEAS U14): one on an
+ordinary PC, where two offices fighting over the same free API keys would make both slower than one, and up to three
+on a high-end one. Each running office has its own ``Run``; focus mode is held while any of them works and released
+when the last one finishes.
 """
 
 from __future__ import annotations
@@ -78,7 +80,7 @@ class Engine:
         self._lock = threading.RLock()
         self._offices: Dict[str, Office] = {}
         self._saved_at: Dict[str, float] = {}
-        self._run: Optional[Run] = None
+        self._runs: Dict[str, Run] = {}
         self._casting = casting.Casting()
         self._published: Dict[str, float] = {}
         self._replies = ThreadPoolExecutor(max_workers=6, thread_name_prefix="office-reply")
@@ -113,8 +115,7 @@ class Engine:
     def _forget_idle_offices(self) -> None:
         """Keep a few offices in memory; the rest are on disk and one read away."""
         keep = int(settings_module.load().get("keep_open_offices") or 3)
-        running = self._run.office_id if self._run else ""
-        extra = [oid for oid in list(self._offices) if oid != running]
+        extra = [oid for oid in list(self._offices) if oid not in self._runs]
         for office_id in extra[:-keep] if len(extra) > keep else []:
             office = self._offices.pop(office_id, None)
             if office is not None:
@@ -149,7 +150,7 @@ class Engine:
             "folder": {"id": folder.id, "name": folder.name, "linked": folder.linked} if folder else None,
             "linked_offices": [{"id": s.id, "name": s.name} for s in library.linked_siblings(office_id)],
             "capacity_detail": self._capacity(office).as_dict(),
-            "running": bool(self._run and self._run.office_id == office_id),
+            "running": office_id in self._runs,
             "gatekeeper_reason": gatekeeper.wake_reason(office),
         })
         data["focus"] = focus.status()
@@ -158,13 +159,16 @@ class Engine:
     def overview(self) -> Dict[str, Any]:
         """What the tab needs before an office is open: the library, the settings, and what is running."""
         tree = library.tree()
-        running = self._run.office_id if self._run else ""
+        running = self.running_offices()
+        limit, why = casting.parallel_offices()
         return {
             "library": tree,
             "settings": settings_module.load(),
             "focus": focus.status(),
             "capacity": casting.capacity(focus=focus.status()["held"]).as_dict(),
-            "running_office": running,
+            "running_office": running[0] if running else "",
+            "running_offices": running,
+            "parallel": {"limit": limit, "reason": why},
             "first_run": not tree["offices"],
             "models": [m.get("member") for m in casting.members(router=self._router())][:12],
         }
@@ -183,16 +187,13 @@ class Engine:
             raise OfficeError("Say what the office should do.")
         office = self.open(office_id)
         self._post(office, Message(id=new_id("msg"), text=body, by=by, by_name=by_name or "You", kind="chat"))
-        run = self._run
-        if run is not None and run.office_id == office_id:
+        run = self._runs.get(office_id)
+        if run is not None:
             job = office.job(run.job_id)
             if job is not None and job.status == "running":
                 self._replies.submit(self._amend, office, job, body)
                 return {"queued": True, "job_id": job.id}
-        if run is not None and run.office_id != office_id:
-            other = self._offices.get(run.office_id)
-            raise OfficeError(f"\"{other.name if other else 'Another office'}\" is working right now. "
-                              "One office runs at a time — halt that one first.")
+        self._check_room(office_id)
         job = self._start_job(office, body)
         return {"queued": False, "job_id": job.id}
 
@@ -234,7 +235,7 @@ class Engine:
         action = (action or "").strip().lower()
         if action not in ("pause", "resume", "halt"):
             raise OfficeError("Use pause, resume or halt.")
-        run = self._run if self._run and self._run.office_id == office_id else None
+        run = self._runs.get(office_id)
 
         if scope == "agent":
             agent = office.agent(target_id)
@@ -289,9 +290,29 @@ class Engine:
         self._post(office, Message(id=new_id("msg"), text="Halted. Everything stopped where it was; the work that "
                                                           "was already saved is still in the work folder.",
                                    by="office", by_name="Office", kind="chat"))
-        focus.leave()
+        with self._lock:
+            others = [oid for oid in self._runs if oid != office.id]
+        if not others:          # the run itself is cleared when its thread winds down (_finish_job)
+            focus.leave()
 
     # ------------------------------------------------------------------ jobs
+
+    def _check_room(self, office_id: str) -> None:
+        """Refuse a new job when as many offices as this PC runs at once are already working (U14)."""
+        limit, why = casting.parallel_offices()
+        with self._lock:
+            others = [oid for oid in self._runs if oid != office_id]
+        if len(others) < limit:
+            return
+        names = []
+        for oid in others:
+            other = self._offices.get(oid)
+            names.append(f"\"{other.name if other else 'Another office'}\"")
+        if limit == 1:
+            raise OfficeError(f"{names[0]} is working right now. One office runs at a time on this PC — halt that "
+                              f"one first. ({why})")
+        raise OfficeError(f"{', '.join(names)} are working — {limit} offices at once is this PC's most. Halt one "
+                          f"first. ({why})")
 
     def _start_job(self, office: Office, request: str, *, kind: str = "job") -> Job:
         job = Job(id=new_id("job"), request=request[:6000], kind=kind)
@@ -300,8 +321,11 @@ class Engine:
         office.goal = request[:200]
         run = Run(office_id=office.id, job_id=job.id)
         with self._lock:
-            self._run = run
-        talk.GATES.resize(self._capacity(office).concurrency)
+            self._runs[office.id] = run
+            together = len(self._runs)
+        # Offices working side by side share the machine's model calls; the gates grow with them, the machine's
+        # ceiling (casting.capacity) still caps each one.
+        talk.GATES.resize(self._capacity(office).concurrency * together)
         mode = str(settings_module.load().get("focus_mode") or "ask")
         if mode == "always" and not focus.held_by(office.id):
             focus.enter(office.id, f"Office Space — {office.name}")
@@ -362,15 +386,20 @@ class Engine:
         office.phase = ""
         self._save(office, force=True)
         self._publish(office, "job", job=job.as_dict())
-        self._publish(office, "office", office=self.snapshot(office.id)["office"])
+        try:
+            self._publish(office, "office", office=self.snapshot(office.id)["office"])
+        except library.LibraryError:
+            pass            # the office's folder was moved or deleted while it worked; the run still ends cleanly
         next_request = run.pending.pop(0) if run.pending else ""
         with self._lock:
-            if self._run is run:
-                self._run = None
+            if self._runs.get(office.id) is run:
+                self._runs.pop(office.id, None)
+            last = not self._runs
         if next_request and not run.cancel.is_set():
             self._start_job(office, next_request)
             return
-        focus.leave()
+        if last:
+            focus.leave()
 
     def _phase(self, office: Office, job: Job, phase: str) -> None:
         job.phase = phase
@@ -1116,7 +1145,7 @@ class Engine:
 
     def _amend(self, office: Office, job: Job, request: str) -> None:
         top = office.top_manager()
-        run = self._run
+        run = self._runs.get(office.id)
         if top is None or run is None:
             return
         self._set_agent(office, top, AGENT_WORKING, "Reading what you said")
@@ -1193,13 +1222,14 @@ class Engine:
 
     def _queue_adhoc(self, office: Office, task: Task) -> None:
         """Work that came out of the targeted chat: run it now if the office is otherwise idle."""
-        run = self._run
-        if run is not None and run.office_id == office.id:
+        run = self._runs.get(office.id)
+        if run is not None:
             job = office.job(run.job_id)
             if job is not None and job.status == "running":
                 task.job_id = job.id
                 job.task_ids.append(task.id)
                 return
+        self._check_room(office.id)
         job = self._start_job(office, task.title, kind="ad-hoc")
         task.job_id = job.id
         job.task_ids.append(task.id)
@@ -1380,19 +1410,27 @@ class Engine:
 
     # ------------------------------------------------------------------ housekeeping
 
+    def running_offices(self) -> List[str]:
+        with self._lock:
+            return list(self._runs)
+
     def running_office(self) -> str:
-        run = self._run
-        return run.office_id if run else ""
+        """The first office working, for callers that only ask "is anything running"."""
+        running = self.running_offices()
+        return running[0] if running else ""
+
+    def is_running(self, office_id: str) -> bool:
+        return office_id in self._runs
 
     def watchdog(self) -> None:
         """Release focus mode if it is being held with nothing running (called from the routes layer)."""
-        focus.release_if_idle(running=bool(self._run))
+        focus.release_if_idle(running=bool(self._runs))
 
     def reset_for_tests(self) -> None:
         with self._lock:
             self._offices.clear()
             self._saved_at.clear()
-            self._run = None
+            self._runs.clear()
             self._published.clear()
         self._casting = casting.Casting()
 

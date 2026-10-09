@@ -332,13 +332,14 @@ class Engine:
             if not world.goal and not world.commands:
                 raise WorldError("Give the world a goal first — what should its AIs work toward?")
             office_engine = _office_engine()
-            busy = office_engine.running_office()
-            if busy and busy != world.office_id:
+            busy = [oid for oid in office_engine.running_offices() if oid != world.office_id]
+            if busy:
                 if not halt_office:
-                    other = office_engine.opened(busy)
-                    raise WorldError(f"The office “{other.name if other else busy}” is working. A world needs "
+                    other = office_engine.opened(busy[0])
+                    raise WorldError(f"The office “{other.name if other else busy[0]}” is working. A world needs "
                                      "the machine to itself — halt that office first.")
-                office_engine.control(busy, "halt")
+                for office_id in busy:              # several offices may be working on a high-end PC (U14)
+                    office_engine.control(office_id, "halt")
             if world.duration and world.spent >= world.duration:
                 world.spent = 0.0          # a new run of the same length
             world.status = "running"
@@ -355,7 +356,7 @@ class Engine:
             # Whatever the backing office is already doing becomes this world's first project.
             office = office_engine.open(world.office_id)
             job = office.current_job()
-            if job is not None and office_engine.running_office() == world.office_id:
+            if job is not None and office_engine.is_running(world.office_id):
                 run.job_id = job.id
                 if not world.current_project():
                     world.add_project(Project(n=len(world.projects) + 1, title=job.title or job.request[:60],
@@ -402,7 +403,7 @@ class Engine:
             if run is not None:
                 run.paused.set()
             office_engine = _office_engine()
-            if office_engine.running_office() == world.office_id:
+            if office_engine.is_running(world.office_id):
                 office_engine.control(world.office_id, "pause")
             focus.unpin()
             focus.leave()
@@ -421,7 +422,7 @@ class Engine:
                 run.stop.set()
                 run.paused.clear()
             office_engine = _office_engine()
-            if status == "stopped" and office_engine.running_office() == world.office_id:
+            if status == "stopped" and office_engine.is_running(world.office_id):
                 office_engine.control(world.office_id, "halt")
             current = world.current_project()
             if current is not None and status == "stopped":

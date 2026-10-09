@@ -106,7 +106,7 @@ def office_change_item(item_id: str, body: ItemChanges, _owner=Owner) -> Dict[st
         item = library.find(item_id)
         if item is None:
             raise library.LibraryError("That item is gone.")
-        if item.kind == "office" and engine.running_office() == item_id and (body.name or body.parent is not None):
+        if item.kind == "office" and engine.is_running(item_id) and (body.name or body.parent is not None):
             raise library.LibraryError("That office is working right now. Halt it before moving or renaming it.")
         result: Dict[str, Any] = {}
         if body.name:
@@ -127,7 +127,7 @@ def office_delete_item(item_id: str, _owner=Owner) -> Dict[str, Any]:
     from office import library
 
     engine = _engine()
-    if engine.running_office() == item_id:
+    if engine.is_running(item_id):
         raise HTTPException(status_code=409, detail="That office is working right now. Halt it first.")
     try:
         engine.close(item_id)
