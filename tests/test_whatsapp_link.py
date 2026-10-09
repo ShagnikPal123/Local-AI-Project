@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+
 import pytest
 
 import whatsapp_link as wa
@@ -52,6 +54,9 @@ def _pair(link, mode="self", nyx=""):
     link._on_event({"event": "pair_code", "code": "ABCD-EFGH"})
     assert link.status()["pair_code"] == "ABCD-EFGH"
     link._on_event({"event": "connected", "me": wa.digits(nyx) or "447700900123"})
+    deadline = time.time() + 5
+    while time.time() < deadline and not (link.state["status"] == "linked" and link.transport.sent()):
+        time.sleep(0.01)
 
 
 def test_pairing_asks_whatsapp_for_a_code_for_the_right_number_and_ties_the_pc(line):
@@ -169,3 +174,29 @@ def test_linkpreview_s_stray_tests_package_is_removed_only_when_it_is_theirs(tmp
     record.mkdir()
     (record / "RECORD").write_text("linkpreview/__init__.py,,\ntests/__init__.py,,\n")
     assert wa.remove_stray_tests() is True and not (tmp_path / "tests").exists()
+
+
+
+def test_the_reader_thread_never_waits_on_a_send(line, monkeypatch):
+    """The welcome text after pairing used to be sent from the helper's reader thread, which then waited for a reply
+    only it could read."""
+    slow = []
+
+    def request(op, timeout=60, **args):
+        line.transport.calls.append((op, args))
+        if op == "send":
+            slow.append(op)
+            time.sleep(1.0)
+        if op == "start":
+            line.transport.running = True
+        return {}
+
+    monkeypatch.setattr(line.transport, "request", request)
+    line.begin_pairing("+44 7700 900123")
+    started = time.time()
+    line._on_event({"event": "connected", "me": "447700900123"})
+    assert time.time() - started < 0.5
+    deadline = time.time() + 5
+    while not slow and time.time() < deadline:
+        time.sleep(0.01)
+    assert slow, "the welcome text is still sent, just not from the reader thread"

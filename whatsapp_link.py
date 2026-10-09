@@ -452,6 +452,8 @@ class WhatsAppLink:
     # -- events from the helper ----------------------------------------------
 
     def _on_event(self, event: Dict[str, Any]) -> None:
+        """Runs on the helper's reader thread. Anything that sends goes to its own thread: a request made here
+        would wait for a reply only this same thread can read (a 60-second hang, then a failed send)."""
         kind = event.get("event")
         if kind == "pair_code":
             self.pair_code = str(event.get("code") or "")
@@ -460,7 +462,7 @@ class WhatsAppLink:
             self._me = digits(event.get("me"))
             self.last_error = ""
             if self.state.get("status") == "pairing":
-                self._finish_pairing()
+                threading.Thread(target=self._finish_pairing, name="nyx-whatsapp-paired", daemon=True).start()
         elif kind == "logged_out":
             self.connected = False
             with self._lock:
