@@ -73,6 +73,8 @@ HOSTED_BLOCKED_PREFIXES = (
     # Project Null N8: an office of agents runs on the owner's own keys, writes into their own folders and can
     # pause the rest of Nyx. None of that belongs to a hosted visitor.
     "/api/office",
+    # UPDATE_IDEAS U34–U40: a world is an office that runs for days on the owner's keys. Not for a hosted visitor.
+    "/api/world",
     # Project Null N92/N103/N104: the always-listening microphone that acts on this PC, Nyx's own
     # questions and mistakes, and the money it is allowed to work with.
     "/api/proto-voice",

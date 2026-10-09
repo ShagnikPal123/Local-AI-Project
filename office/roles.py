@@ -204,9 +204,13 @@ def find(words: str) -> Optional[Role]:
     return None
 
 
-def invent(name: str, goal: str = "", how: str = "", domain: str = "", kind: str = "worker") -> Role:
-    """Register a type the office asked for and Nyx does not have. Returns the existing role if it is known."""
-    existing = find(name)
+def invent(name: str, goal: str = "", how: str = "", domain: str = "", kind: str = "worker", *,
+           exact: bool = False) -> Role:
+    """Register a type the office asked for and Nyx does not have. Returns the existing role if it is known.
+
+    ``exact`` matches the name only by its own id, not loosely: an AI Environment child is a "Research Coder" — a new
+    kind with both parents' skills — even though "coder" appears in its name (U35)."""
+    existing = get(name) if exact else find(name)
     if existing is not None:
         return existing
     role_id = slug(name) or "specialist"

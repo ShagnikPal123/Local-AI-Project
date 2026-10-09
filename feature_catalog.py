@@ -265,6 +265,8 @@ _THREAD_WORDS: List[tuple] = [
     ("kahuna-score", "Big Kahuna · scoring", "kahuna", "job"),
     ("kahuna-serve-exit", "Big Kahuna · stopping its server", "kahuna", "job"),
     ("office-", "Office Space job", "office", "job"),
+    ("world-ask", "AI Environment · government", "world", "job"),
+    ("world-", "AI Environment world", "world", "service"),
     ("finance-simulator", "Finance simulator", "trading", "job"),
     ("thought-", "Thinking", "nyx", "job"),
     ("voice-", "Voice", "nyx", "job"),

@@ -1,6 +1,7 @@
 /** One office, open: the floor, the two chats, the section bars, and everything that controls them. */
 
 import { useCallback, useMemo, useState } from "react";
+import { api } from "../../api";
 import { Floor } from "./Floor";
 import { MainChat, TargetChat } from "./Chats";
 import { SectionBar } from "./SectionBar";
@@ -45,6 +46,21 @@ export function OfficeView({ live, snapshot, tree, onLobby, onOpenOffice, onNewO
     if (result.ok) live.apply(result.data);
     else onError(result.error);
   }, [office.id, autoDecisions, live, onError]);
+
+  // U34: "when the user wants basically a super large scale project they can press upscale for the office".
+  const [upscaling, setUpscaling] = useState(false);
+  const upscale = useCallback(async () => {
+    setUpscaling(true);
+    const result = await api.post<{ world: { id: string } }>("/api/world/upscale", { office_id: office.id }, 60_000);
+    setUpscaling(false);
+    if (!result.ok) {
+      onError(result.error);
+      return;
+    }
+    try { sessionStorage.setItem("nyx.world.open", result.data.world.id); } catch { /* the World tab opens its lobby instead */ }
+    window.dispatchEvent(new CustomEvent("nyx:open-tab", { detail: { tab: "world" } }));
+    window.dispatchEvent(new CustomEvent("nyx:world-open", { detail: { id: result.data.world.id } }));
+  }, [office.id, onError]);
 
   const control = useCallback(async (action: "pause" | "resume" | "halt",
                                      scope: "office" | "section" | "agent" = "office", id = "") => {
@@ -96,6 +112,10 @@ export function OfficeView({ live, snapshot, tree, onLobby, onOpenOffice, onNewO
           </span>
         )}
         <div className="ofc-top__actions">
+          <button className="ofc-btn ofc-btn--small" onClick={() => void upscale()} disabled={upscaling}
+                  title="Upscale this office into an AI Environment world — a planet for projects that run for days">
+            {upscaling ? "Upscaling…" : "Upscale to a world"}
+          </button>
           {/* U42: "a button allows for auto decisions so the ai knows it needs to really give an output". */}
           <button className={`ofc-btn ofc-btn--small ofc-auto${autoDecisions ? " is-on" : ""}`} aria-pressed={autoDecisions}
                   onClick={() => void toggleAuto()}

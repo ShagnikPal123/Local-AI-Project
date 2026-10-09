@@ -2646,7 +2646,7 @@ def _include_routers() -> Dict[str, str]:
                         "routes_absorb", "routes_local_models", "routes_diagram", "routes_screen", "routes_apply",
                         "routes_security", "routes_proto_voice", "routes_features", "routes_curiosity", "routes_finance_lab", "routes_voice_gestures",
                         "routes_design", "routes_accounts", "routes_swarm", "routes_own_computer", "routes_connectors",
-                        "routes_freewill", "routes_identity0", "routes_office"):
+                        "routes_freewill", "routes_identity0", "routes_office", "routes_world"):
         try:
             module = importlib.import_module(module_name)
         except ModuleNotFoundError as error:

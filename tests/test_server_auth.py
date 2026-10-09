@@ -849,6 +849,50 @@ def test_office_routes_do_not_exist_on_a_hosted_build():
 
 # Proto Voice (Project Null N92): the microphone that may act on the computer.
 OWNER_ONLY_PROTO_VOICE_ROUTES = [
+# --- UPDATE_IDEAS U34–U40: an AI Environment world runs an office for days and pauses the rest of Nyx ----------
+
+OWNER_ONLY_WORLD_ROUTES = [
+    ("get", "/api/world", None),
+    ("post", "/api/world/worlds", {"name": "theirs", "goal": "do something"}),
+    ("post", "/api/world/upscale", {"office_id": "ofc-nope"}),
+    ("get", "/api/world/worlds/wld-nope", None),
+    ("patch", "/api/world/worlds/wld-nope", {"goal": "theirs now"}),
+    ("delete", "/api/world/worlds/wld-nope", None),
+    ("post", "/api/world/worlds/wld-nope/control", {"action": "start"}),
+    ("post", "/api/world/worlds/wld-nope/say", {"text": "hello"}),
+    ("post", "/api/world/worlds/wld-nope/speed", {"speed": "rush"}),
+    ("post", "/api/world/worlds/wld-nope/laws", {"text": "A law"}),
+    ("post", "/api/world/worlds/wld-nope/laws/1", {"action": "enforce"}),
+    ("post", "/api/world/worlds/wld-nope/wars/war-nope/hearing", None),
+    ("post", "/api/world/worlds/wld-nope/wars/war-nope/decide", {"choice": "a"}),
+    ("post", "/api/world/worlds/wld-nope/startups/su-nope", {"action": "approve"}),
+    ("post", "/api/world/worlds/wld-nope/mood", {"agent_id": "agt-nope"}),
+    ("post", "/api/world/worlds/wld-nope/graves/1/rejoin", None),
+]
+
+
+@pytest.mark.parametrize("method,path,body", OWNER_ONLY_WORLD_ROUTES)
+def test_world_routes_refuse_anonymous_callers(client, store, method, path, body):
+    _claim(store)
+    call = getattr(client, method)
+    response = call(path, json=body) if body is not None else call(path)
+    assert response.status_code in (401, 403), f"{path} was reachable anonymously"
+
+
+@pytest.mark.parametrize("method,path,body", OWNER_ONLY_WORLD_ROUTES)
+def test_a_beta_tester_cannot_reach_a_world(client, beta_token, method, path, body):
+    call = getattr(client, method)
+    response = (call(path, json=body, headers=_auth(beta_token)) if body is not None
+                else call(path, headers=_auth(beta_token)))
+    assert response.status_code == 403, f"beta tester reached {path}"
+
+
+def test_world_routes_do_not_exist_on_a_hosted_build():
+    import deploy_mode
+
+    assert "/api/world" in deploy_mode.HOSTED_BLOCKED_PREFIXES
+
+
     ("get", "/api/proto-voice", None),
     ("put", "/api/proto-voice", {"allowed": True}),
     ("post", "/api/proto-voice/act", {"text": "shut down the computer"}),

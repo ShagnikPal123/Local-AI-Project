@@ -71,6 +71,7 @@ const KahunaPanel = lazy(() => import("./panels/kahuna/KahunaPanel").then((m) =>
 const OwnComputerPanel = lazy(() => import("./panels/computer/OwnComputerPanel").then((m) => ({ default: m.OwnComputerPanel })));
 const OfficePanel = lazy(() => import("./panels/office/OfficePanel").then((m) => ({ default: m.OfficePanel })));
 const AdminPanel = lazy(() => import("./panels/AdminPanel").then((m) => ({ default: m.AdminPanel })));
+const WorldPanel = lazy(() => import("./panels/world/WorldPanel").then((m) => ({ default: m.WorldPanel })));
 const StorePanel = lazy(() => import("./panels/StorePanel").then((m) => ({ default: m.StorePanel })));
 
 const LAYOUT_KEY = "nyx.layout";
@@ -422,6 +423,7 @@ export default function App() {
           <DynamicTab
             spec={activeUserTab}
             onChanged={(updated) =>
+        {active === "world" && <WorldPanel />}
               setUserTabs((tabs) => tabs.map((t) => (t.id === updated.id ? updated : t)))
             }
             onDelete={() => void deleteUserTab(activeUserTab.id)}

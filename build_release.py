@@ -59,6 +59,8 @@ EXCLUDE = [
     "AI_HANDOFF/*",
     # The owner's accounts: their chats, memory and files, and the password hashes that guard them.
     "accounts/*",
+    # The owner's offices and AI Environment worlds: their agents' work and their own projects.
+    "offices/*", "worlds/*",
     # Update 1 runtime state: Google grants per address, connector connections, where Nyx may work, the swarm size.
     "google_granted.json", "own_computer.json", "swarm.json", "model_roles_auto_undo.json",
     "connectors/connections.json", "connectors/microsoft.json", "connectors/custom.json",

@@ -25,7 +25,7 @@ NO_BACKGROUND_TOKEN = "no-background-jobs"
 
 _lock = threading.RLock()
 _state: Dict[str, Any] = {"token": "", "since": 0.0, "office_id": "", "reason": "", "paused": [], "kept": [],
-                          "last_active": 0.0, "note": ""}
+                          "last_active": 0.0, "note": "", "pinned_by": ""}
 
 
 def _module() -> Any:
@@ -61,6 +61,7 @@ def status() -> Dict[str, Any]:
             "paused": list(_state["paused"]),
             "kept_running": list(_state["kept"]),
             "note": _state["note"],
+            "pinned_by": _state["pinned_by"],
             "background": live,
         }
 
@@ -95,13 +96,35 @@ def enter(office_id: str, reason: str = "") -> Dict[str, Any]:
     return status()
 
 
+def pin(holder: str) -> None:
+    """Keep the token across jobs: an AI Environment world runs one office job after another for hours, and the
+    rest of Nyx must not wake up in the gaps (the owner: "All tasks shut down before this is run"). While pinned,
+    only ``leave(force=True)`` — or :func:`unpin` followed by ``leave`` — lets go."""
+    with _lock:
+        _state["pinned_by"] = str(holder or "")
+
+
+def unpin() -> None:
+    with _lock:
+        _state["pinned_by"] = ""
+
+
+def pinned() -> str:
+    with _lock:
+        return str(_state["pinned_by"])
+
+
 def leave(*, force: bool = False) -> Dict[str, Any]:
     """Let everything resume. Called when the office finishes, is halted, or has been idle too long."""
     with _lock:
         token = _state["token"]
         if not token and not force:
             return status()
-        _state.update(token="", since=0.0, office_id="", reason="", paused=[], kept=[], last_active=0.0)
+        if _state["pinned_by"] and not force:
+            _state["last_active"] = time.time()
+            return status()
+        _state.update(token="", since=0.0, office_id="", reason="", paused=[], kept=[], last_active=0.0,
+                      pinned_by="")
     module = _module()
     if module is not None and token and token != NO_BACKGROUND_TOKEN:
         try:
@@ -124,7 +147,7 @@ def release_if_idle(*, running: bool) -> bool:
     with _lock:
         if not _state["token"]:
             return False
-        if running:
+        if running or _state["pinned_by"]:
             _state["last_active"] = time.time()
             return False
         idle_for = time.time() - float(_state["last_active"] or _state["since"] or time.time())
@@ -150,4 +173,5 @@ def _announce(on: bool) -> None:
 
 def reset_for_tests() -> None:
     with _lock:
-        _state.update(token="", since=0.0, office_id="", reason="", paused=[], kept=[], last_active=0.0, note="")
+        _state.update(token="", since=0.0, office_id="", reason="", paused=[], kept=[], last_active=0.0, note="",
+                      pinned_by="")

@@ -174,13 +174,15 @@ class Engine:
 
     # ------------------------------------------------------------------ the main chat
 
-    def say(self, office_id: str, text: str, *, by: str = "owner") -> Dict[str, Any]:
-        """The owner's big text box: a new job, or something to say to a job already running."""
+    def say(self, office_id: str, text: str, *, by: str = "owner", by_name: str = "You") -> Dict[str, Any]:
+        """The owner's big text box: a new job, or something to say to a job already running.
+
+        ``by_name`` lets an AI Environment world's government sign the projects it hands the office."""
         body = (text or "").strip()
         if not body:
             raise OfficeError("Say what the office should do.")
         office = self.open(office_id)
-        self._post(office, Message(id=new_id("msg"), text=body, by=by, by_name="You", kind="chat"))
+        self._post(office, Message(id=new_id("msg"), text=body, by=by, by_name=by_name or "You", kind="chat"))
         run = self._run
         if run is not None and run.office_id == office_id:
             job = office.job(run.job_id)
@@ -325,7 +327,7 @@ class Engine:
             if run.cancel.is_set():
                 return
             self._phase(office, job, "review")
-            reports = self._review(office, job, run, rounds=1)
+            reports = self._review(office, job, run, rounds=self._effort(office, "review_rounds", 1, 0, 3))
             if run.cancel.is_set():
                 return
             self._phase(office, job, "wrap")
@@ -547,15 +549,16 @@ class Engine:
             time.sleep(pace)
         return agent
 
-    def _role_id_for(self, office: Office, words: str, *, why: str = "") -> str:
+    def _role_id_for(self, office: Office, words: str, *, why: str = "", exact: bool = False,
+                     domain: str = "") -> str:
         """A role id for what the planner asked for, inventing a kind (and a sub-agent) when it is genuinely new."""
         text = (words or "").strip()
         if not text:
             return "coder"
-        role = role_module.find(text)
+        role = role_module.get(text) if exact else role_module.find(text)
         if role is not None:
             return role.id
-        invented = role_module.invent(text, goal=why or f"Work as {text} in this office.")
+        invented = role_module.invent(text, goal=why or f"Work as {text} in this office.", domain=domain, exact=exact)
         if not any(r.get("id") == invented.id for r in office.invented_roles):
             office.invented_roles.append(invented.as_dict())
             note = role_module.add_to_subagents(invented, office.name)
@@ -763,7 +766,8 @@ class Engine:
                                                                             limit=4), inbox=inbox)}]
         report, error = "", ""
         member = agent.member or self._casting.pick(agent.role)
-        for step in range(1, MAX_WORKER_STEPS + 1):
+        steps = self._effort(office, "worker_steps", MAX_WORKER_STEPS, 2, 8)
+        for step in range(1, steps + 1):
             if run.cancel.is_set():
                 error = "stopped"
                 break
@@ -795,7 +799,7 @@ class Engine:
                 results.append(f"{name} → {box.run(name, arguments)}")
             history.append({"role": "user", "content": "Tool results:\n" + "\n\n".join(results) +
                                                        "\n\nCarry on, or write your report."})
-            if step == MAX_WORKER_STEPS:
+            if step == steps:
                 history.append({"role": "user", "content": "Write your report now — no more tools."})
                 final = talk.ask(member, history, system=system, max_tokens=WORKER_TOKENS, timeout=WORKER_TIMEOUT,
                                  cancelled=run.cancel.is_set, router=self._router())
@@ -1050,15 +1054,63 @@ class Engine:
             title, status = job.title or job.request[:80], "partial"
         self._deliver_output(office, job, status=status, title=title, text=text, files=files, by=top)
 
-    def set_options(self, office_id: str, *, auto_decisions: Optional[bool] = None) -> Dict[str, Any]:
-        """This office's own switches. Auto decisions: decide everything and produce the real result (U42)."""
+    def set_options(self, office_id: str, *, auto_decisions: Optional[bool] = None,
+                    review_rounds: Optional[int] = None, worker_steps: Optional[int] = None) -> Dict[str, Any]:
+        """This office's own switches. Auto decisions: decide everything and produce the real result (U42).
+
+        ``review_rounds`` and ``worker_steps`` are its effort — how many times managers may send work back, and how
+        many tool steps a worker gets. An AI Environment world sets them from its speed (U38)."""
         office = self.open(office_id)
         if auto_decisions is not None:
             office.settings["auto_decisions"] = bool(auto_decisions)
+        if review_rounds is not None:
+            office.settings["review_rounds"] = max(0, min(3, int(review_rounds)))
+        if worker_steps is not None:
+            office.settings["worker_steps"] = max(2, min(8, int(worker_steps)))
         self._save(office, force=True)
         snapshot = self.snapshot(office_id)
         self._publish(office, "office", office=snapshot["office"])
         return snapshot
+
+    @staticmethod
+    def _effort(office: Office, key: str, default: int, low: int, high: int) -> int:
+        try:
+            return max(low, min(high, int(office.settings.get(key, default))))
+        except (TypeError, ValueError):
+            return default
+
+    # ------------------------------------------------------------------ for the AI Environment (world/)
+
+    def add_section(self, office_id: str, name: str, purpose: str = "", *, with_manager: bool = True) -> Dict[str, Any]:
+        """A new section with its manager — how a world founds a start-up (U36)."""
+        office = self.open(office_id)
+        clean = (name or "").strip()[:40]
+        if not clean:
+            raise OfficeError("Give the section a name.")
+        existing = office.section_by_name(clean)
+        if existing is not None and existing.name.lower() == clean.lower():
+            return existing.as_dict()
+        section = self._make_section(office, clean, purpose)
+        if with_manager:
+            manager = self._add_agent(office, section.id, SECTION_MANAGER, origin="founding")
+            section.manager_id = manager.id
+            self._publish(office, "section", section=section.as_dict())
+        self._save(office, force=True)
+        return section.as_dict()
+
+    def add_agent(self, office_id: str, section_id: str, role_words: str, *, origin: str = "hired",
+                  why: str = "", exact: bool = False, domain: str = "") -> Dict[str, Any]:
+        """One more agent at a desk, its kind found or invented from plain words — how a world's bots have a child
+        ("finance" + "coder" → a Finance Coder, U35; ``exact`` keeps that a new kind) or bring a retired one back."""
+        office = self.open(office_id)
+        if office.section(section_id) is None:
+            raise OfficeError("That section is gone.")
+        if len(office.agents) >= max(1, office.capacity or self._capacity(office).agents):
+            raise OfficeError("The office is full — this computer cannot hold another agent right now.")
+        role_id = self._role_id_for(office, role_words, why=why, exact=exact, domain=domain)
+        agent = self._add_agent(office, section_id, role_id, origin=origin)
+        self._save(office, force=True)
+        return agent.as_dict()
 
     # ------------------------------------------------------------------ amendments and replies
 

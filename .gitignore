@@ -95,6 +95,9 @@ changes.json
 # Project Null N8: Office Space — the owner's office files, folders and the work their agents produce
 /offices/
 
+# UPDATE_IDEAS U34–U40: the owner's AI Environment worlds (one .world file each)
+/worlds/
+
 # --- Runtime state written by a running Nyx, not part of the project ---------
 # Each of these is produced on the machine as features get used: the owner's
 # own chats, learned weights for the prompt optimiser, live provider quota

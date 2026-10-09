@@ -28,6 +28,7 @@ export type TabId =
   | "freewill"
   | "kahuna"
   | "office"
+  | "world"
   | "computer"
   | "admin"
   | "settings";
@@ -83,6 +84,8 @@ export const CORE_TABS: TabDef[] = [
   { id: "kahuna", label: "Big Kahuna", icon: "ph-crown-simple", pinned: true, core: true },
   // Project Null N8: a whole office of agents — hierarchy, sections, and the owner watching them work.
   { id: "office", label: "Office Space", icon: "ph-buildings", pinned: true, core: true },
+  // UPDATE_IDEAS U34–U40: the AI Environment — an office upscaled into a planet that grows as its AIs deliver.
+  { id: "world", label: "World", icon: "ph-globe-hemisphere-west", pinned: true, core: true },
   // Update 1, U49: a sandboxed desktop of Nyx's own (Cua), and where it may work — never borrowing yours unasked.
   { id: "computer", label: "Nyx's Computer", icon: "ph-desktop-tower", pinned: true, core: true },
   { id: "dashboard", label: "Dashboard", icon: "ph-radar", pinned: false, core: true },

@@ -73,7 +73,7 @@ MAIN_ACCOUNT = "main"
 ACCOUNT_SCOPED = frozenset({
     "chats.json", "internal_chats.json", "memory.json", "custom_personality.json", "speech_patterns.json",
     "predictions.json", "notes", "slides", "brain", "learning", "uploads", "attachments", "research",
-    "absorb", "data_process", "diagrams", "offices",
+    "absorb", "data_process", "diagrams", "offices", "worlds",
 })
 
 _ACCOUNT_ID = re.compile(r"[a-z0-9][a-z0-9-]{0,39}")
