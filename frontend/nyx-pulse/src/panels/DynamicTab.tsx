@@ -14,6 +14,7 @@ import { api } from "../api";
 import { PanelShell } from "../components/Panel";
 import { ChartBox } from "../components/chat/ChartBox";
 import { TabLook } from "./tabs/TabLook";
+import { ActionsBlock, BoardBlock, CounterBlock, FormBlock, GalleryBlock, ImageBlock, LinksBlock, StatBlock, TableBlock } from "./tabs/RichBlocks";
 import "./tabs/tabs.css";
 
 export interface TabBlock {
@@ -667,8 +668,33 @@ function Block({ block, spec }: { block: TabBlock; spec: TabSpec }) {
       body = block.config.game === "memory" ? <MemoryGame />
         : block.config.game === "tictactoe" ? <TicTacToe versusNyx /> : <SnakeGame />;
       break;
+    case "form":
+      body = <FormBlock config={block.config} storageKey={storageKey} />;
+      break;
+    case "table":
+      body = <TableBlock config={block.config} storageKey={storageKey} />;
+      break;
+    case "board":
+      body = <BoardBlock config={block.config} storageKey={storageKey} />;
+      break;
+    case "image":
+      body = <ImageBlock config={block.config} />;
+      break;
+    case "gallery":
+      body = <GalleryBlock config={block.config} />;
+      break;
+    case "actions":
+      body = <ActionsBlock config={block.config} />;
+      break;
+    case "counter":
+      body = <CounterBlock config={block.config} storageKey={storageKey} />;
+      break;
     case "links":
+      body = <LinksBlock config={block.config} />;
+      break;
     case "stat":
+      body = <StatBlock config={block.config} />;
+      break;
     case "embed":
       body = (
         <div style={{ fontSize: 12, color: "var(--color-neutral-500)", lineHeight: 1.6 }}>
@@ -687,14 +713,21 @@ function Block({ block, spec }: { block: TabBlock; spec: TabSpec }) {
       );
   }
 
+  // U4: where the block sits (columns wide) and how it looks (card, plain, hero; its own accent).
+  const layout = (block.config.layout ?? {}) as { span?: number; variant?: string; accent?: string };
+  const accent = layout.accent || spec.accent;
   return (
     <div className="card" style={{
-      borderLeft: spec.accent ? `3px solid ${spec.accent}` : undefined,
+      gridColumn: layout.span && layout.span > 1 ? `span ${layout.span}` : undefined,
+      borderLeft: accent ? `3px solid ${accent}` : undefined,
       background: surface,
       backdropFilter: theme.surface === "glass" ? "blur(12px)" : undefined,
       color: typeof theme.text === "string" ? theme.text : undefined,
       borderRadius: typeof theme.radius === "number" ? theme.radius : undefined,
       fontFamily: font,
+      minWidth: 0,
+      ...(layout.variant === "plain" ? { background: "transparent", boxShadow: "none", borderLeft: undefined, padding: "4px 0" } : {}),
+      ...(layout.variant === "hero" ? { padding: 22, fontSize: 15, background: accent ? `linear-gradient(135deg, ${accent}33, transparent 70%), ${surface}` : surface } : {}),
     }}>
       {block.title && (
         <div className="label" style={{ marginBottom: 9 }}>{block.title}</div>
@@ -901,9 +934,10 @@ export function DynamicTab({ spec, onChanged, onDelete }: {
             </>
           }
         >
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div className="dyn-grid" style={{ display: "grid", gap: 14,
+            gridTemplateColumns: `repeat(${Math.max(1, Math.min(4, Number(spec.theme?.columns) || 1))}, minmax(0, 1fr))` }}>
             {spec.connectors.length > 0 && (
-              <div style={{ fontSize: 11, color: "var(--color-neutral-600)" }}>
+              <div style={{ fontSize: 11, color: "var(--color-neutral-600)", gridColumn: "1 / -1" }}>
                 Uses: {spec.connectors.join(", ")}
               </div>
             )}
