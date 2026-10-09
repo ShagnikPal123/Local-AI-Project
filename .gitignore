@@ -104,6 +104,9 @@ changes.json
 # Previews of the owner's sites: the zips made for download and each dev server's output.
 /previews/
 
+# The owner's drawings from the Create tab (sketch_studio.py).
+/sketches/
+
 # --- Runtime state written by a running Nyx, not part of the project ---------
 # Each of these is produced on the machine as features get used: the owner's
 # own chats, learned weights for the prompt optimiser, live provider quota
