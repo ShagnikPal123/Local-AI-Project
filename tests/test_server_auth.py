@@ -893,6 +893,40 @@ def test_world_routes_do_not_exist_on_a_hosted_build():
     assert "/api/world" in deploy_mode.HOSTED_BLOCKED_PREFIXES
 
 
+# --- The WhatsApp line (whatsapp_link.py): it texts the owner's phone and answers it -------------------------------
+
+OWNER_ONLY_WHATSAPP_ROUTES = [
+    ("get", "/api/whatsapp", None),
+    ("post", "/api/whatsapp/setup", None),
+    ("post", "/api/whatsapp/pair", {"phone": "+447700900123", "mode": "self"}),
+    ("post", "/api/whatsapp/send", {"text": "hello"}),
+    ("post", "/api/whatsapp/settings", {"allow": "full"}),
+    ("post", "/api/whatsapp/unlink", None),
+]
+
+
+@pytest.mark.parametrize("method,path,body", OWNER_ONLY_WHATSAPP_ROUTES)
+def test_whatsapp_routes_refuse_anonymous_callers(client, store, method, path, body):
+    _claim(store)
+    call = getattr(client, method)
+    response = call(path, json=body) if body is not None else call(path)
+    assert response.status_code in (401, 403), f"{path} was reachable anonymously"
+
+
+@pytest.mark.parametrize("method,path,body", OWNER_ONLY_WHATSAPP_ROUTES)
+def test_a_beta_tester_cannot_reach_the_whatsapp_line(client, beta_token, method, path, body):
+    call = getattr(client, method)
+    response = (call(path, json=body, headers=_auth(beta_token)) if body is not None
+                else call(path, headers=_auth(beta_token)))
+    assert response.status_code == 403, f"beta tester reached {path}"
+
+
+def test_whatsapp_routes_do_not_exist_on_a_hosted_build():
+    import deploy_mode
+
+    assert "/api/whatsapp" in deploy_mode.HOSTED_BLOCKED_PREFIXES
+
+
 # Proto Voice (Project Null N92): the microphone that may act on the computer.
 OWNER_ONLY_PROTO_VOICE_ROUTES = [
     ("get", "/api/proto-voice", None),

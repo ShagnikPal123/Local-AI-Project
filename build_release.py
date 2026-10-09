@@ -61,6 +61,8 @@ EXCLUDE = [
     "accounts/*",
     # The owner's offices and AI Environment worlds: their agents' work and their own projects.
     "offices/*", "worlds/*",
+    # The WhatsApp line's keys and the owner's number.
+    "whatsapp/*",
     # Update 1 runtime state: Google grants per address, connector connections, where Nyx may work, the swarm size.
     "google_granted.json", "own_computer.json", "swarm.json", "model_roles_auto_undo.json",
     "connectors/connections.json", "connectors/microsoft.json", "connectors/custom.json",

@@ -98,6 +98,9 @@ changes.json
 # UPDATE_IDEAS U34–U40: the owner's AI Environment worlds (one .world file each)
 /worlds/
 
+# The WhatsApp line: the link's keys (session.sqlite3) and who it reaches. Tied to one PC; never shared.
+/whatsapp/
+
 # --- Runtime state written by a running Nyx, not part of the project ---------
 # Each of these is produced on the machine as features get used: the owner's
 # own chats, learned weights for the prompt optimiser, live provider quota

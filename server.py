@@ -2646,7 +2646,7 @@ def _include_routers() -> Dict[str, str]:
                         "routes_absorb", "routes_local_models", "routes_diagram", "routes_screen", "routes_apply",
                         "routes_security", "routes_proto_voice", "routes_features", "routes_curiosity", "routes_finance_lab", "routes_voice_gestures",
                         "routes_design", "routes_accounts", "routes_swarm", "routes_own_computer", "routes_connectors",
-                        "routes_freewill", "routes_identity0", "routes_office", "routes_world"):
+                        "routes_freewill", "routes_identity0", "routes_office", "routes_world", "routes_whatsapp"):
         try:
             module = importlib.import_module(module_name)
         except ModuleNotFoundError as error:
@@ -2793,6 +2793,14 @@ def _resume_background_work() -> None:
             logging.getLogger("nyx.server").warning("brain first-run growth failed", exc_info=True)
 
     threading.Thread(target=grow_on_first_run, name="nyx-brain-first-run", daemon=True).start()
+
+    try:
+        import whatsapp_link
+
+        # The owner's phone line reconnects by itself, but only on the PC it was paired with.
+        whatsapp_link.start_in_background()
+    except Exception:  # pragma: no cover - the phone line must never stop the API
+        logging.getLogger("nyx.server").warning("WhatsApp link did not start", exc_info=True)
 
     try:
         from predictor import SCHEDULER
