@@ -156,3 +156,16 @@ def test_the_phone_guard_blocks_the_pc_but_allows_talking(monkeypatch):
         wa.phone_guard("run_command", "machine")
     with pytest.raises(PermissionDenied):
         wa.phone_guard("trading_order", "trading")
+
+
+def test_linkpreview_s_stray_tests_package_is_removed_only_when_it_is_theirs(tmp_path, monkeypatch):
+    import sysconfig
+
+    monkeypatch.setattr(sysconfig, "get_paths", lambda: {"purelib": str(tmp_path)})
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "__init__.py").write_text("")
+    assert wa.remove_stray_tests() is False, "nobody's record names it: left alone"
+    record = tmp_path / "linkpreview-0.12.1.dist-info"
+    record.mkdir()
+    (record / "RECORD").write_text("linkpreview/__init__.py,,\ntests/__init__.py,,\n")
+    assert wa.remove_stray_tests() is True and not (tmp_path / "tests").exists()

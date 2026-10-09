@@ -601,7 +601,30 @@ def install() -> Dict[str, Any]:
     if done.returncode != 0:
         raise WhatsAppError("The WhatsApp client did not install: " + (done.stderr or done.stdout)[-400:])
     importlib.invalidate_caches()
+    remove_stray_tests()
     return {"installed": sdk_installed()}
+
+
+def remove_stray_tests() -> bool:
+    """linkpreview (pulled in by neonize) ships its own test suite as a top-level ``tests`` package in site-packages.
+    That shadows Nyx's ``tests`` folder (``from tests.conftest import …`` stops working), so it is removed — only
+    when linkpreview's install record says the folder is its own."""
+    import shutil
+    import sysconfig
+
+    site = Path(sysconfig.get_paths()["purelib"])
+    stray = site / "tests"
+    if not stray.is_dir():
+        return False
+    for record in site.glob("linkpreview-*.dist-info/RECORD"):
+        try:
+            owned = any(line.startswith("tests/__init__.py") for line in record.read_text(encoding="utf-8").splitlines())
+        except OSError:
+            continue
+        if owned:
+            shutil.rmtree(stray, ignore_errors=True)
+            return True
+    return False
 
 
 # ---------------------------------------------------------------------------
