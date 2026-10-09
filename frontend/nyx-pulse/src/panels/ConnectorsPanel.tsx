@@ -16,6 +16,7 @@ import { onWorkspaceEvent } from "../state/workspaceEvents";
 import { AddConnector } from "./connectors/AddConnector";
 import { ConnectorSheet } from "./connectors/ConnectorSheet";
 import { Mark } from "./connectors/Mark";
+import { WhatsAppLine } from "./connectors/WhatsAppLine";
 import type { BuiltinConnector, CatalogResponse, Connector, UseSettings } from "./connectors/types";
 import "./connectors/connectors.css";
 
@@ -159,6 +160,8 @@ export function ConnectorsPanel() {
             hint="Sending, posting or editing in another app waits for your yes in the chat."
             onChange={(confirm_writes) => void saveSettings({ confirm_writes })} />
         </div>
+
+        {(filter === "all" || filter === "connected") && (!query.trim() || /whats|phone|text|sms/i.test(query)) && <WhatsAppLine />}
 
         {groups.length === 0 && !showMachine && (
           <div className="cx-empty">

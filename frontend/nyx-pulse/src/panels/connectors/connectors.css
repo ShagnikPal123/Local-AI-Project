@@ -150,3 +150,32 @@
   .cx-grid { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); }
   .cx-sheet { padding: 16px; }
 }
+
+/* The WhatsApp line (WhatsAppLine.tsx) */
+.wa { display: flex; flex-direction: column; gap: 12px; padding: 16px 18px; border-radius: var(--radius-lg);
+  background: var(--color-surface); box-shadow: inset 0 0 0 1px var(--color-divider); }
+.wa-head { display: flex; align-items: flex-start; gap: 12px; }
+.wa-head > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.wa-mark { display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 10px;
+  color: #fff; background: #25d366; }
+.wa-error { margin: 0; font-size: 12.5px; color: var(--color-warn); }
+.wa-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.wa-form { display: flex; flex-direction: column; gap: 12px; max-width: 560px; }
+.wa-form .btn { align-self: flex-start; }
+.wa-choice { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; }
+.wa-choice legend { margin-bottom: 6px; padding: 0; }
+.wa-choice label { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: 12px; cursor: pointer;
+  background: var(--color-surface-2); box-shadow: inset 0 0 0 1px var(--color-divider); }
+.wa-choice label.is-on { box-shadow: inset 0 0 0 1.5px var(--color-accent); }
+.wa-choice label > span { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.wa-choice input { margin-top: 3px; accent-color: var(--color-accent); }
+.wa-pair { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.wa-code { font: 600 30px/1.1 var(--font-mono); letter-spacing: 0.14em; color: var(--color-text);
+  padding: 10px 16px; border-radius: 12px; background: var(--color-surface-2); user-select: all; }
+.wa-send { display: flex; gap: 8px; }
+.wa-send .cx-search { flex: 1; }
+.wa-log { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
+.wa-log li { max-width: 80%; padding: 7px 10px; border-radius: 12px; background: var(--color-surface-2); overflow-wrap: anywhere; }
+.wa-log li[data-dir="in"] { align-self: flex-end; background: color-mix(in srgb, #25d366 18%, var(--color-surface-2)); }
+.wa-log li > span { display: block; margin-bottom: 2px; font-size: 11px; color: var(--color-neutral-500); }
+@media (max-width: 520px) { .wa-send { flex-direction: column; } .wa-log li { max-width: 100%; } }
