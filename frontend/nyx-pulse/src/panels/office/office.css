@@ -431,3 +431,7 @@
 .ofc-verdict.is-demoted, .ofc-verdict.is-let_go { color: var(--ofc-risk); }
 .ofc-verdict.is-part_time { color: var(--ofc-warn); }
 .ofc-desk.is-part-time { opacity: 0.55; }
+
+/* Offices working at once (U14) */
+.ofc-parallel { display: block; margin-top: 8px; font-size: 12.5px; }
+.ofc-parallel select { font: inherit; color: var(--color-text); background: var(--color-surface-2); border: 0; border-radius: 8px; padding: 2px 6px; box-shadow: inset 0 0 0 1px var(--color-divider); }

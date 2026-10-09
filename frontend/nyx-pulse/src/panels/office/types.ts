@@ -226,10 +226,13 @@ export interface LibraryTree {
 export interface OfficeOverview {
   library: LibraryTree;
   settings: { focus_mode: "ask" | "always" | "never"; allow_web: boolean; max_agents: number; animate: boolean;
-    keep_open_offices: number };
+    keep_open_offices: number; parallel_offices: number };
   focus: FocusState;
   capacity: { agents: number; concurrency: number; members: number; reason: string; focus: boolean; power: string };
   running_office: string;
+  /** Every office working right now; several on a high-end PC (U14). */
+  running_offices: string[];
+  parallel: { limit: number; reason: string };
   first_run: boolean;
   models: string[];
 }

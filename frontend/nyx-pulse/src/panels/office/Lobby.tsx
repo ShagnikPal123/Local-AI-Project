@@ -18,7 +18,9 @@ interface LobbyProps {
   onOpen: (officeId: string) => void;
   onChanged: () => Promise<void> | void;
   onError: (message: string) => void;
-  runningOffice: string;
+  runningOffices: string[];
+  parallel?: { limit: number; reason: string };
+  parallelSetting: number;
 }
 
 function ago(seconds: number): string {
@@ -30,7 +32,8 @@ function ago(seconds: number): string {
   return `${Math.round(hours / 24)} days ago`;
 }
 
-export function Lobby({ tree, onOpen, onChanged, onError, runningOffice }: LobbyProps) {
+export function Lobby({ tree, onOpen, onChanged, onError, runningOffices, parallel, parallelSetting }: LobbyProps) {
+  const isRunning = (id: string) => runningOffices.includes(id);
   const [folderId, setFolderId] = useState("");
   const [picked, setPicked] = useState<LibraryItem | null>(null);
   const [renaming, setRenaming] = useState("");
@@ -86,6 +89,17 @@ export function Lobby({ tree, onOpen, onChanged, onError, runningOffice }: Lobby
             An office file holds one office — its team, its chat, its memory and everything it makes. Folders hold
             office files and other folders, like Windows.
           </p>
+          {parallel && (
+            <label className="ofc-muted ofc-parallel">
+              Offices working at once:{" "}
+              <select value={parallelSetting} disabled={busy}
+                      onChange={(event) => void act(officeApi.saveSettings({ parallel_offices: Number(event.currentTarget.value) }))}>
+                <option value={0}>Auto</option>
+                {[1, 2, 3, 4].map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
+              <span> — {parallel.reason}{runningOffices.length ? ` · ${runningOffices.length} working now` : ""}</span>
+            </label>
+          )}
         </div>
         <div className="ofc-lobby__actions">
           <button className="ofc-btn" disabled={busy}
@@ -138,7 +152,7 @@ each other's work">
               <article key={item.id}
                        className={`ofc-cardlet${isFolder ? " is-folder" : ""}${picked?.id === item.id ? " is-picked" : ""}`
                          + (dropTarget === item.id ? " is-drop" : "")
-                         + (item.id === runningOffice ? " is-running" : "")}
+                         + (isRunning(item.id) ? " is-running" : "")}
                        draggable
                        onDragStart={(event) => event.dataTransfer.setData("text/nyx-office-item", item.id)}
                        onDragOver={(event) => { if (isFolder) { event.preventDefault(); setDropTarget(item.id); } }}
@@ -172,7 +186,7 @@ each other's work">
                     : `${item.agents ?? 0} agents · ${ago(item.updated_at)}`}
                 </span>
                 {!isFolder && item.summary && <span className="ofc-cardlet__summary">{item.summary}</span>}
-                {item.id === runningOffice && <span className="ofc-cardlet__live">working now</span>}
+                {isRunning(item.id) && <span className="ofc-cardlet__live">working now</span>}
               </article>
             );
           })}
@@ -217,7 +231,7 @@ each other's work">
                 In File Explorer
               </button>
               <button className="ofc-btn ofc-btn--small" onClick={() => setRenaming(picked.id)}>Rename</button>
-              <button className="ofc-btn ofc-btn--small ofc-btn--risk" disabled={busy || picked.id === runningOffice}
+              <button className="ofc-btn ofc-btn--small ofc-btn--risk" disabled={busy || isRunning(picked.id)}
                       onClick={async () => {
                         if (await act(officeApi.remove(picked.id))) setPicked(null);
                       }}>Move to trash</button>

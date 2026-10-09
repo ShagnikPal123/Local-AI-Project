@@ -131,7 +131,8 @@ export function OfficePanel() {
       ) : (
         <Lobby tree={overview.library} onOpen={(id) => void openOffice(id)}
                onChanged={async () => { await load(); }}
-               onError={setError} runningOffice={overview.running_office} />
+               onError={setError} runningOffices={overview.running_offices ?? [overview.running_office].filter(Boolean)}
+               parallel={overview.parallel} parallelSetting={overview.settings.parallel_offices ?? 0} />
       )}
 
       {asking && officeId && (
