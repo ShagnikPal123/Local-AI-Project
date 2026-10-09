@@ -24,6 +24,7 @@ interface Line {
   paired_at: string;
   enabled: boolean;
   allow: "chat" | "full";
+  notify?: { office?: boolean };
   log: LogEntry[];
   error: string;
 }
@@ -181,6 +182,12 @@ export function WhatsAppLine() {
               <span><b>Full access from the phone</b><span className="cx-muted">Off (safer): answers, web, memory and pictures only. On: everything the PC chat can do — a lost phone could too.</span></span>
             </label>
           </div>
+
+          <label className="cx-switch">
+            <button type="button" className="switch" role="switch" aria-checked={Boolean(line.notify?.office)}
+              onClick={() => void call("notify", "/api/whatsapp/settings", { notify_office: !line.notify?.office })} />
+            <span><b>Text me when an Office job finishes</b><span className="cx-muted">The result's title and the start of it, sent to your phone.</span></span>
+          </label>
 
           {line.log.length > 0 && (
             <ol className="wa-log" aria-label="Recent messages">

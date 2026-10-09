@@ -70,13 +70,15 @@ def whatsapp_send(body: SendBody, _owner_user=Depends(_owner)) -> Dict[str, Any]
 class SettingsBody(BaseModel):
     enabled: Optional[bool] = None
     allow: Optional[str] = None
+    notify_office: Optional[bool] = None
 
 
 @router.post("/api/whatsapp/settings")
 def whatsapp_settings(body: SettingsBody, _owner_user=Depends(_owner)) -> Dict[str, Any]:
     import whatsapp_link
 
-    return _run(lambda: whatsapp_link.link().update(enabled=body.enabled, allow=body.allow))
+    return _run(lambda: whatsapp_link.link().update(enabled=body.enabled, allow=body.allow,
+                                                         notify_office=body.notify_office))
 
 
 @router.post("/api/whatsapp/unlink")

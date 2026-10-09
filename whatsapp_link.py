@@ -286,7 +286,9 @@ def _now() -> str:
 
 def _blank() -> Dict[str, Any]:
     return {"status": "unpaired", "phone": "", "mode": "self", "nyx_number": "", "device": "", "pc": "",
-            "paired_at": "", "enabled": True, "allow": "chat", "chat_id": "", "log": []}
+            "paired_at": "", "enabled": True, "allow": "chat", "chat_id": "", "log": [],
+            # Things Nyx may text the owner about without being asked (all off until they switch one on).
+            "notify": {"office": False}}
 
 
 class WhatsAppLink:
@@ -350,6 +352,7 @@ class WhatsAppLink:
             "paired_at": state.get("paired_at", ""),
             "enabled": bool(state.get("enabled", True)),
             "allow": state.get("allow", "chat"),
+            "notify": dict(state.get("notify") or {"office": False}),
             "chat_id": state.get("chat_id", ""),
             "log": list(state.get("log") or [])[-20:],
             "error": self.last_error,
@@ -372,7 +375,7 @@ class WhatsAppLink:
         if session.exists():               # an old link's keys: kept aside, never reused for a new pairing
             os.replace(session, session.with_suffix(".sqlite3.old"))
         with self._lock:
-            keep = {k: self.state.get(k) for k in ("allow", "chat_id", "log")}
+            keep = {k: self.state.get(k) for k in ("allow", "chat_id", "log", "notify") if self.state.get(k) is not None}
             self.state = {**_blank(), **keep, "status": "pairing", "phone": owner, "mode": mode,
                           "nyx_number": nyx if mode == "number" else "", "device": device_fingerprint(),
                           "pc": pc_name()}
@@ -434,8 +437,11 @@ class WhatsAppLink:
         self.pair_code = ""
         return self.status()
 
-    def update(self, *, enabled: Optional[bool] = None, allow: Optional[str] = None) -> Dict[str, Any]:
+    def update(self, *, enabled: Optional[bool] = None, allow: Optional[str] = None,
+               notify_office: Optional[bool] = None) -> Dict[str, Any]:
         with self._lock:
+            if notify_office is not None:
+                self.state["notify"] = {**(self.state.get("notify") or {}), "office": bool(notify_office)}
             if allow is not None:
                 if allow not in ALLOW_LEVELS:
                     raise WhatsAppError("The phone's access is 'chat' or 'full'.")
@@ -575,6 +581,25 @@ def _notify_pc(text: str) -> None:
         tool_ui_notify(f"From your phone: {text[:120]}", "info")
     except Exception:  # noqa: BLE001 - a missed toast never costs the reply
         pass
+
+
+def notify(kind: str, text: str) -> bool:
+    """Text the owner about something they switched on (e.g. "office": a job finished). Never raises, never waits:
+    a phone that is off, unlinked or not opted in simply gets nothing."""
+    current = _LINK
+    if current is None or not (current.state.get("notify") or {}).get(kind):
+        return False
+    if current.state.get("status") != "linked" or not current.connected:
+        return False
+
+    def send() -> None:
+        try:
+            current.send(text, origin=f"notify:{kind}")
+        except Exception:  # noqa: BLE001
+            log.info("WhatsApp notice not sent", exc_info=True)
+
+    threading.Thread(target=send, name="nyx-whatsapp-notice", daemon=True).start()
+    return True
 
 
 _LINK: Optional[WhatsAppLink] = None

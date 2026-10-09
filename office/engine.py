@@ -1040,6 +1040,13 @@ class Engine:
                                           by=by.id if by else "office", by_name=by.name if by else "Office"))
         self._publish(office, "output", output=output.as_dict())
         self._save(office, force=True)
+        try:
+            import whatsapp_link
+
+            # Only when the owner switched "text me when an Office job finishes" on; never waits, never raises.
+            whatsapp_link.notify("office", f"Office “{office.name}” — {status}: {output.title}\n\n{output.text[:600]}")
+        except Exception:  # noqa: BLE001
+            pass
         return output
 
     @staticmethod

@@ -200,3 +200,21 @@ def test_the_reader_thread_never_waits_on_a_send(line, monkeypatch):
     while not slow and time.time() < deadline:
         time.sleep(0.01)
     assert slow, "the welcome text is still sent, just not from the reader thread"
+
+
+def test_office_notices_only_when_switched_on_and_never_to_anyone_else(line, monkeypatch):
+    _pair(line)
+    monkeypatch.setattr(wa, "_LINK", line)
+    before = len(line.transport.sent())
+    assert wa.notify("office", "Office done") is False, "off until the owner switches it on"
+    line.update(notify_office=True)
+    assert line.status()["notify"]["office"] is True
+    assert wa.notify("office", "Office “Site” — done: Landing page") is True
+    deadline = time.time() + 5
+    while len(line.transport.sent()) == before and time.time() < deadline:
+        time.sleep(0.01)
+    sends = [args for op, args in line.transport.calls if op == "send"]
+    assert "Landing page" in sends[-1]["text"] and sends[-1]["to"] == "447700900123"
+    assert wa.notify("world", "x") is False
+    line.connected = False
+    assert wa.notify("office", "while offline") is False
