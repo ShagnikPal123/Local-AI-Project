@@ -89,3 +89,15 @@ def test_sketch_routes_are_the_owner_s():
         call = getattr(remote, method)
         response = call(path, json=body) if body is not None else call(path)
         assert response.status_code in (401, 403), path
+
+
+def test_a_background_from_a_scan_goes_under_the_drawing_and_raw_json_is_never_what_it_saw(monkeypatch):
+    roles = FakeRoles(json.dumps({"say": "Added a sky.", "shapes": [
+        {"kind": "rect", "x": 0, "y": 0, "w": 1000, "h": 700, "fill": "#e0f2fe"},
+        {"kind": "ellipse", "cx": 100, "cy": 100, "rx": 20, "ry": 20, "fill": "yellow"}]}))
+    monkeypatch.setattr(sk, "_roles", lambda: roles)
+    out = sk.scan(PNG)
+    assert [s["kind"] for s in out["under"]] == ["rect"] and [s["kind"] for s in out["shapes"]] == ["ellipse"]
+    assert out["sees"] == "Added a sky."
+    roles.text = "Not JSON at all { broken"
+    assert sk.scan(PNG)["sees"] == ""

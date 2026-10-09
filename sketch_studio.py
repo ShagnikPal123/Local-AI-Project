@@ -40,8 +40,7 @@ _NAMED = {"black": "#111111", "white": "#ffffff", "red": "#e5484d", "orange": "#
           "grey": "#8b8d98", "gray": "#8b8d98", "sky": "#7ce2fe", "teal": "#12a594", "none": ""}
 MAX_SKETCH_BYTES = 6 * 1024 * 1024
 
-FORMAT = f"""Answer with JSON only: {{"say": "one short sentence about what you drew", "shapes": [...]}}.
-The canvas is {WIDTH} wide and {HEIGHT} tall; (0,0) is the top-left corner. Each shape is one of:
+SHAPES = f"""The canvas is {WIDTH} wide and {HEIGHT} tall; (0,0) is the top-left corner. Each shape is one of:
   {{"kind": "line", "points": [[x,y],[x,y]], "stroke": "#hex", "width": 4}}
   {{"kind": "path", "points": [[x,y], ... up to {MAX_POINTS}], "stroke": "#hex", "width": 3, "fill": "#hex or none", "smooth": true}}
   {{"kind": "rect", "x": 0, "y": 0, "w": 100, "h": 50, "stroke": "#hex", "fill": "#hex or none", "width": 2, "radius": 8}}
@@ -50,6 +49,9 @@ The canvas is {WIDTH} wide and {HEIGHT} tall; (0,0) is the top-left corner. Each
   {{"kind": "text", "x": 100, "y": 100, "text": "words", "size": 28, "fill": "#hex"}}
 Draw back to front (sky and ground first, details last). Use clear colours and enough shapes to be recognisable:
 a simple object needs 5-20 shapes, a scene 20-80. At most {MAX_SHAPES} shapes."""
+FORMAT = 'Answer with JSON only: {"say": "one short sentence about what you drew", "shapes": [...]}.\n' + SHAPES
+#: A shape this big with a fill is a background: it goes under the drawing, never over it.
+BACKGROUND_SHARE = 0.4
 
 
 class SketchError(RuntimeError):
@@ -131,6 +133,28 @@ def clean_shapes(raw: Any) -> List[Dict[str, Any]]:
     return shapes
 
 
+def _area(shape: Dict[str, Any]) -> float:
+    if shape["kind"] == "rect":
+        return shape["w"] * shape["h"]
+    if shape["kind"] == "ellipse":
+        return 3.1416 * shape["rx"] * shape["ry"]
+    if shape["kind"] in ("polygon", "path") and shape.get("fill"):
+        xs = [p[0] for p in shape["points"]]
+        ys = [p[1] for p in shape["points"]]
+        return (max(xs) - min(xs)) * (max(ys) - min(ys))
+    return 0.0
+
+
+def split_backgrounds(shapes: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """(under, over): filled shapes covering a large part of the canvas are backgrounds and go under the drawing."""
+    under: List[Dict[str, Any]] = []
+    over: List[Dict[str, Any]] = []
+    for shape in shapes:
+        big = bool(shape.get("fill")) and _area(shape) >= BACKGROUND_SHARE * WIDTH * HEIGHT
+        (under if big else over).append(shape)
+    return under, over
+
+
 def _json_from(text: str) -> Optional[Dict[str, Any]]:
     """The first JSON object in a model's answer, fenced or not."""
     text = re.sub(r"<think>.*?</think>", "", text or "", flags=re.S)
@@ -194,12 +218,15 @@ def scan(image: str, request: str = "") -> Dict[str, Any]:
     prompt = (f"{goal}This is a drawing on a {WIDTH}x{HEIGHT} canvas. Say in one sentence what it shows, give up "
               "to three short suggestions that would make it better, then add those improvements as new shapes "
               "drawn on top (outlines, shading, missing parts, a background) — never redraw what is there. "
-              'JSON only: {"sees": "...", "suggestions": ["..."], "shapes": [...]}. Shape format:\n' + FORMAT)
+              'Answer with JSON only: {"sees": "what the drawing shows", "suggestions": ["..."], "shapes": [...]}.\n'
+              + SHAPES)
     run = _roles().run("image_check", prompt, images=[(picture, mime)], max_tokens=3000)
     data = _json_from(run.text) or {}
-    sees = str(data.get("sees") or "").strip()[:300] or run.text.strip()[:300]
+    # Some models answer with "say" or "description" instead; the raw answer is never shown as what it saw.
+    sees = str(data.get("sees") or data.get("description") or data.get("say") or "").strip()[:300]
     suggestions = [str(s)[:200] for s in (data.get("suggestions") or []) if str(s).strip()][:3]
-    return {"sees": sees, "suggestions": suggestions, "shapes": clean_shapes(data.get("shapes")), "model": run.label}
+    under, over = split_backgrounds(clean_shapes(data.get("shapes")))
+    return {"sees": sees, "suggestions": suggestions, "shapes": over, "under": under, "model": run.label}
 
 
 def render(request: str, sees: str = "") -> Dict[str, Any]:
