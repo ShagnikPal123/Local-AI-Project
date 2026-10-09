@@ -132,6 +132,18 @@ more false positives cost.
 
 ## Session log
 
+### Session — 2026-10-09 (Claude Opus 5.5, session c17036a4) — WhatsApp line, then the update ideas
+
+Committed the World tab and Mods (separate commits), then: the WhatsApp line (`whatsapp_link.py`, helper process,
+phone-number pairing, tied to the PC by a hash of MachineGuid + MAC; `docs/WHATSAPP.md`); several offices at once
+(U14); the executive split for big office jobs (U42: CFO, decision team, thinkers, distributors, overhead managers);
+the trading desk (U16); site/game previews that keep running, a zip download and an in-app view (U11/U12,
+`site_preview.py`); open Nyx as a website or an app window (U25); the Create tab (U2, `sketch_studio.py`); and a much
+larger tab vocabulary (U4: form, table, board, image, gallery, actions, counter, layout, columns, 40 blocks). Fixed:
+linkpreview (a neonize dependency) installs a stray top-level `tests` package that broke the suite. Full suite 2545
+passed mid-session. Owner asked for many small commits; 25+ commits, the first eight are on GitHub — the rest wait
+because the owner's Midnight mode holds uploads (it needs `--ship`). Detail: AI_HANDOFF/START_HERE.md.
+
 ### Session — 2026-10-08 (Claude Opus 5.5, session aa7147) — Mods
 
 Added `mods.py` (Claude Code-style mods as data): catalogue of parts, validation with named refusals, mod_* tools, a

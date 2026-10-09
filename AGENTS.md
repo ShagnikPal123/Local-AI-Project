@@ -130,6 +130,9 @@ Each has an enforcement point in code. Do not weaken them.
 | `overlay.py` | Published, install-wide changes + checkpoints |
 | `profiles.py` | Per-user layered customization |
 | `dynamic_tabs.py` / `widgets.py` / `skills.py` | The three declarative spec systems |
+| `whatsapp_link.py` | The owner's WhatsApp line: pairing, the PC tie, phone turns behind a guard (helper in `whatsapp_worker/`) |
+| `site_preview.py` | Serving a built site or web game until stopped, and zipping it for download |
+| `sketch_studio.py` | The Create tab: drawing as checked shape data, scan, picture |
 | `mods.py` | The owner's lasting changes as named bundles of validated parts (instructions, commands, tool blocks, theme…) |
 | `change_review.py` | Draft → reviewed → approved → published state machine |
 | `machine_control.py` | Capability grants for system access |

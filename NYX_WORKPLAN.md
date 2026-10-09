@@ -79,6 +79,15 @@ Standing file ownership when delegating:
 
 ## 2. Now (max 3)
 
+### 2026-10-09 — WhatsApp line + seven update ideas (session c17036a4)
+
+- [x] **WhatsApp line** — text Nyx from the phone, tied to this PC (`docs/WHATSAPP.md`). Real pairing not yet tried
+  (needs the owner's phone).
+- [x] **U2 Create tab, U4 richer tabs, U11/U12 previews, U14 several offices, U16 trading desk, U25 app window, U42
+  executive split** — committed one by one; write-up in `AI_HANDOFF/START_HERE.md`.
+- [ ] **Next:** upload the local commits to GitHub (Midnight mode held them), pair WhatsApp with the owner's phone,
+  then the owner picks from what is left in `AI_HANDOFF/UPDATE_IDEAS.md`.
+
 ### 2026-10-06 — the World tab built (not committed)
 
 - [x] **The World tab** (session a40a67): the AI Environment planet, UPDATE_IDEAS U34–U40 with U41, U44 and part of
@@ -339,14 +348,16 @@ Owner could access and use the app; these are the follow-ups, verbatim intent pr
 
 ## 7. Handoff
 
-**Last touched:** the World tab, 2026-10-06 (session a40a67).
+**Last touched:** 2026-10-09 (session c17036a4) — WhatsApp line, U2, U4, U11/U12, U14, U16, U25, U42.
 
-**State:** Update 1 is on GitHub (`main`, tag `update-1`). The World tab is built on top of it and **not committed**.
-Full pytest suite green, `npm run build` green, and it was checked live in the browser on a scratch engine with real
-models.
+**State:** everything is committed in small commits. GitHub's `main` has the World tab, Mods and the WhatsApp line;
+the commits after `27b0b98` are **local only** because the owner's Midnight mode holds uploads until it is given
+`--ship`. Full suite green mid-session (2545 passed); later items have their own tests, each run green.
 
-**Next:** whatever the owner picks from `AI_HANDOFF/UPDATE_IDEAS.md` (still queued: U2–U4, U7, U8, U10–U12, U14, U16,
-U18–U20, U22, U23, U25, U27 rest, U28, U32, U33, U42 CEO/CFO split, U43, U45 rest), plus the World tab's open
-decisions (`AI_HANDOFF/START_HERE.md` § The World tab).
+**Next:** upload the local commits once the owner allows it; pair WhatsApp with the owner's phone (Connectors →
+WhatsApp); then the owner picks from `AI_HANDOFF/UPDATE_IDEAS.md` — still queued: U3 (needs Vercel tokens), U7/U8
+(cloud hosting — exposes the PC, owner's call), U10 (on hold per U65), U18/U33 (relax invariant 4 — owner's call),
+U20/U22/U23 (template library — Safe-mix decision), U27, U28 (owner signs in), U32, U43, U45; U50–U66 wait for the
+Mission Control mod.
 
 **Check first:** `.venv/Scripts/python.exe -m pytest -q -p no:warnings`, then `cd frontend/nyx-pulse && npm run build`.
