@@ -5,7 +5,7 @@
  * block is kept in this browser (localStorage), like notes and checklists. */
 
 import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
-import { api } from "../../api";
+import { api, authedUrl } from "../../api";
 
 type Config = Record<string, unknown>;
 
@@ -161,11 +161,30 @@ export function BoardBlock({ config, storageKey }: { config: Config; storageKey:
 
 // --- pictures ------------------------------------------------------------------------------------------------------
 
+/** An uploaded picture needs the sign-in header an <img> cannot send, so it is fetched and shown as a blob URL;
+ * https pictures load as they are. */
+function usePicture(src: string): string {
+  const [url, setUrl] = useState(src.startsWith("/api/") ? "" : src);
+  useEffect(() => {
+    if (!src.startsWith("/api/")) { setUrl(src); return; }
+    let live = true;
+    void authedUrl(src).then((found) => { if (live) setUrl(found ?? ""); });
+    return () => { live = false; };
+  }, [src]);
+  return url;
+}
+
+function Picture({ src, alt, style }: { src: string; alt: string; style: React.CSSProperties }) {
+  const url = usePicture(src);
+  return url ? <img src={url} alt={alt} loading="lazy" referrerPolicy="no-referrer" style={style} />
+    : <div style={{ ...style, background: "var(--color-surface-2)", minHeight: 80 }} aria-label={alt} />;
+}
+
 export function ImageBlock({ config }: { config: Config }) {
   return (
     <figure style={{ margin: 0, display: "grid", gap: 6 }}>
-      <img src={String(config.src ?? "")} alt={String(config.caption ?? "")} loading="lazy" referrerPolicy="no-referrer"
-           style={{ width: "100%", maxHeight: 420, objectFit: config.fit === "contain" ? "contain" : "cover", borderRadius: 10 }} />
+      <Picture src={String(config.src ?? "")} alt={String(config.caption ?? "")}
+               style={{ width: "100%", maxHeight: 420, objectFit: config.fit === "contain" ? "contain" : "cover", borderRadius: 10 }} />
       {config.caption ? <figcaption style={muted}>{String(config.caption)}</figcaption> : null}
     </figure>
   );
@@ -177,9 +196,9 @@ export function GalleryBlock({ config }: { config: Config }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 8 }}>
       {images.map((image) => (
-        <a key={image.src} href={image.src} target="_blank" rel="noreferrer" title={image.caption}>
-          <img src={image.src} alt={image.caption} loading="lazy" referrerPolicy="no-referrer" style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: 8 }} />
-        </a>
+        <div key={image.src} title={image.caption}>
+          <Picture src={image.src} alt={image.caption} style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: 8 }} />
+        </div>
       ))}
     </div>
   );

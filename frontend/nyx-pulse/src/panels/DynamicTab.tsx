@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useRef, useState, type CSSProperties, type Dispatch, type SetStateAction } from "react";
-import { api } from "../api";
+import { api, authedUrl } from "../api";
 import { PanelShell } from "../components/Panel";
 import { ChartBox } from "../components/chat/ChartBox";
 import { TabLook } from "./tabs/TabLook";
@@ -886,7 +886,8 @@ function EditPanel({ spec, onChanged, onClose }: {
   );
 }
 
-function backdropStyle(background: Record<string, unknown> | undefined): CSSProperties {
+/** ``picture`` is the blob URL of an uploaded background (see DynamicTab): CSS url() cannot send the sign-in header. */
+function backdropStyle(background: Record<string, unknown> | undefined, picture = ""): CSSProperties {
   const value = background ?? {};
   const kind = value.kind;
   if (kind === "color" && typeof value.value === "string" && /^#[0-9a-f]{6}$/i.test(value.value)) {
@@ -900,8 +901,10 @@ function backdropStyle(background: Record<string, unknown> | undefined): CSSProp
   if (kind === "image" && typeof value.value === "string" && (/^https:\/\/[^\s"'<>()]{4,500}$/.test(value.value) || /^\/api\/uploads\/[A-Za-z0-9_-]{4,64}$/.test(value.value))) {
     const dim = Math.max(0, Math.min(0.9, Number(value.dim) || 0.35));
     const blur = Math.max(0, Math.min(20, Number(value.blur) || 0));
+    const uploaded = value.value.startsWith("/api/");
+    if (uploaded && !picture) return {};
     return {
-      backgroundImage: `linear-gradient(rgba(9, 10, 15, ${dim}), rgba(9, 10, 15, ${dim})), url("${value.value}")`,
+      backgroundImage: `linear-gradient(rgba(9, 10, 15, ${dim}), rgba(9, 10, 15, ${dim})), url("${uploaded ? picture : value.value}")`,
       backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed",
       // A CSS blur would blur the controls too. The soft overlay retains text clarity instead.
       boxShadow: blur ? `inset 0 0 ${blur * 2}px rgba(9, 10, 15, 0.75)` : undefined,
@@ -916,7 +919,17 @@ export function DynamicTab({ spec, onChanged, onDelete }: {
   onDelete: () => void;
 }) {
   const [editing, setEditing] = useState(false);
-  const background = backdropStyle(spec.background);
+  const rawBackground = (spec.background ?? {}) as Record<string, unknown>;
+  const uploadedBackground = rawBackground.kind === "image" && typeof rawBackground.value === "string"
+    && rawBackground.value.startsWith("/api/uploads/") ? rawBackground.value : "";
+  const [backgroundPicture, setBackgroundPicture] = useState("");
+  useEffect(() => {
+    if (!uploadedBackground) { setBackgroundPicture(""); return; }
+    let live = true;
+    void authedUrl(uploadedBackground).then((url) => { if (live) setBackgroundPicture(url ?? ""); });
+    return () => { live = false; };
+  }, [uploadedBackground]);
+  const background = backdropStyle(spec.background, backgroundPicture);
 
   return (
     <div style={{ display: "flex", height: "100%", minHeight: 0, ...background }}>
