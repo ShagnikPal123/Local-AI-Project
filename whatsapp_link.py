@@ -511,6 +511,7 @@ class WhatsAppLink:
         if not text or not self.state.get("enabled", True) or not self.device_ok():
             return
         self._note("in", text)
+        _notify_pc(text)
         command = text.lower().split()[0] if text.startswith("/") else ""
         try:
             if command == "/help":
@@ -562,6 +563,16 @@ class WhatsAppLink:
         finally:
             service.tool_guard = guard_before
         return str((result or {}).get("reply") or "") if isinstance(result, dict) else str(result or "")
+
+
+def _notify_pc(text: str) -> None:
+    """A toast on the PC, so a text from the phone is noticed there too; the answer lands in the WhatsApp chat."""
+    try:
+        from landscape_tools import tool_ui_notify
+
+        tool_ui_notify(f"From your phone: {text[:120]}", "info")
+    except Exception:  # noqa: BLE001 - a missed toast never costs the reply
+        pass
 
 
 _LINK: Optional[WhatsAppLink] = None
