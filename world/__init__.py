@@ -14,6 +14,9 @@ What lives where
 ``store.py``   one file per world on disk (``worlds/<name>.world``), gzipped; deleting moves it to ``.trash``.
 ``sim.py``     how the world grows from the work its office did — pure functions, seeded, no model calls.
 ``laws.py``    laws: checked against the owner's standing rules, tried on one project, then enforced or repealed.
+``planet.py``  what the planet itself is like: its type, size, seas, mountains, air, rings and moons, from the seed.
+``civics.py``  the government as its own place, apart from every sector: its branches, ministries and the Assembly vote.
+``tech.py``    the technology tree, from footpaths and carts to railways, maglev, hover vehicles and warp gates.
 ``engine.py``  the run: census, the clock, the government's projects through the office, wars, start-ups, births.
 ``api.py``     the stable surface the rest of Nyx calls.
 
@@ -34,10 +37,12 @@ TAB_ID = "world"
 VERSION = "1.0.0"
 
 #: The planet's eras, in order. Thresholds are tech points (``sim.tech_points``).
-ERAS = ("First Light", "Settlement", "Township", "City", "Metropolis", "Orbital", "Stellar")
-ERA_THRESHOLDS = (0, 6, 20, 50, 110, 220, 400)
+#: Append only: a world file stores its era as a number.
+ERAS = ("First Light", "Settlement", "Township", "City", "Metropolis", "Orbital", "Stellar", "Interstellar",
+        "Ascendant")
+ERA_THRESHOLDS = (0, 6, 20, 50, 110, 220, 400, 700, 1100)
 #: The tallest a building may be in each era.
-ERA_MAX_FLOORS = (2, 4, 8, 16, 30, 50, 80)
+ERA_MAX_FLOORS = (2, 4, 8, 16, 30, 50, 80, 120, 180)
 ORBITAL_ERA = 5
 STELLAR_ERA = 6
 
@@ -69,9 +74,10 @@ SPEED_BY_WORKERS = ((8, "rush"), (4, "fast"), (0, "steady"))
 #: What a world file keeps (U40: small files).
 KEEP_TIMELINE = 400
 KEEP_GRAVES = 500
-KEEP_BUILDINGS = 900
+KEEP_BUILDINGS = 1600
 KEEP_PROJECTS = 200
 KEEP_COMMANDS = 20
+KEEP_GROWTH = 160
 MAX_LAWS_WORLD = 12
 MAX_LAWS_SECTOR = 4
 

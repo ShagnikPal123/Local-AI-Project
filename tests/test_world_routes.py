@@ -69,6 +69,10 @@ def test_a_world_is_made_read_changed_and_put_in_the_trash(client):
     speed = client.post(f"/api/world/worlds/{world_id}/speed", json={"speed": "deliberate"}).json()
     assert speed["world"]["speed"] == "deliberate"
 
+    focus = client.post(f"/api/world/worlds/{world_id}/focus", json={"branch": "transport"}).json()
+    assert focus["focus"] == "transport" and next(t for t in focus["tree"] if t["id"] == "railways")["cost"] < 30
+    assert client.post(f"/api/world/worlds/{world_id}/focus", json={"branch": "magic"}).status_code == 409
+
     gone = client.delete(f"/api/world/worlds/{world_id}").json()
     assert ".trash" in gone["trashed"] and client.get("/api/world").json()["worlds"] == []
     assert client.get(f"/api/world/worlds/{world_id}").status_code == 409

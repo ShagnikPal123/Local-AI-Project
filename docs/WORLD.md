@@ -95,7 +95,7 @@ office's top manager at once (`ENGINE.say`, which passes it on); between project
 ## 6. Routes (`routes_world.py`, owner-only, absent from hosted builds)
 
 `GET /api/world` · `POST /api/world/worlds` · `POST /api/world/upscale` · `GET|PATCH|DELETE /api/world/worlds/{id}` ·
-`POST …/{id}/control` (start · pause · resume · stop, with `halt_office`) · `POST …/{id}/say` · `POST …/{id}/speed` ·
+`POST …/{id}/control` (start · pause · resume · stop, with `halt_office`) · `POST …/{id}/say` · `POST …/{id}/speed` · `POST …/{id}/focus` ·
 `POST …/{id}/laws` · `POST …/{id}/laws/{law}` · `POST …/{id}/wars/{war}/hearing` · `POST …/{id}/wars/{war}/decide` ·
 `POST …/{id}/startups/{startup}` · `POST …/{id}/mood` · `POST …/{id}/graves/{grave}/rejoin`.
 Live changes: `world.event` on the workspace stream; agents, tasks, talk lines and outputs come from the backing

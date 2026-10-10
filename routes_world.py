@@ -85,6 +85,10 @@ class SpeedBody(BaseModel):
     speed: str
 
 
+class FocusBody(BaseModel):
+    branch: str = ""
+
+
 class LawBody(BaseModel):
     text: str
     scope: str = "world"
@@ -153,6 +157,12 @@ def world_say(world_id: str, body: TextBody, _owner=Owner) -> Dict[str, Any]:
 @router.post("/api/world/worlds/{world_id}/speed")
 def world_speed(world_id: str, body: SpeedBody, _owner=Owner) -> Dict[str, Any]:
     return _call(_engine().set_speed, world_id, body.speed)
+
+
+@router.post("/api/world/worlds/{world_id}/focus")
+def world_focus(world_id: str, body: FocusBody, _owner=Owner) -> Dict[str, Any]:
+    """The research focus the Ministry of Science follows ("" hands the choice back to it)."""
+    return _call(_engine().set_focus, world_id, body.branch)
 
 
 @router.post("/api/world/worlds/{world_id}/laws")

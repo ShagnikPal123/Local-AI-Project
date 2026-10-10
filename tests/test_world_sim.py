@@ -1,7 +1,7 @@
 """How a world grows from its office's work (U34, U35, U37, U40) — the sim alone, no models, no threads."""
 
 from world import ERA_MAX_FLOORS, ERA_THRESHOLDS, ORBITAL_ERA, laws, sim
-from world.state import World
+from world.state import GOV_SID, World
 
 
 def _view(done=None, agents=None, sections=None, let_go=None):
@@ -31,14 +31,14 @@ def _settle(world, view, rounds=40):
         sim.grow(world, view, dt=60, build_rate=1.0)
 
 
-def test_sectors_and_people_follow_the_office_with_the_capital_first():
+def test_sectors_and_people_follow_the_office_and_no_sector_is_a_head_office():
     world, view = _world(), _view()
 
     sim.sync_sectors(world, view)
     sim.sync_bots(world, view)
 
-    capital = world.capital()
-    assert capital.sid == "sec-hq" and capital.important and capital.gov == "World Government"
+    assert not any(s.important for s in world.sectors.values()), "the government has its own district"
+    assert world.sectors["sec-hq"].gov == "Head Office Council"
     assert world.sectors["sec-code"].gov == "Backend Council"
     assert world.sectors["sec-code"].kind == "data_center", "a code sector works in a data centre"
     assert set(world.bots) == {"agt-top", "agt-man", "agt-c1", "agt-c2"}
@@ -52,7 +52,9 @@ def test_the_skyline_rises_with_finished_tasks_and_homes_follow_the_people():
     _settle(world, quiet)
     before = [b for b in world.buildings if b.sector == "sec-code" and b.kind == "data_center"]
     assert len(before) == 1 and before[0].floors == 1
-    assert any(b.kind == "capitol" for b in world.buildings) and any(b.kind == "council" for b in world.buildings)
+    assert any(b.kind == "capitol" and b.sector == GOV_SID for b in world.buildings), "the Assembly, in its district"
+    assert any(b.kind == "chancellery" and b.sector == GOV_SID for b in world.buildings)
+    assert sum(1 for b in world.buildings if b.kind == "council") == 2, "every sector has its own council hall"
     assert sum(1 for b in world.buildings if b.kind == "house" and b.sector == "sec-code") == 1, "3 AIs, one home"
 
     busy = _view(done={"sec-code": 13})

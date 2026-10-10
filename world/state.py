@@ -16,27 +16,36 @@ import uuid
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
 
-from world import (DEFAULT_SPEED, ERAS, KEEP_BUILDINGS, KEEP_COMMANDS, KEEP_GRAVES, KEEP_PROJECTS, KEEP_TIMELINE,
-                   SPEEDS)
+from world import (DEFAULT_SPEED, ERAS, KEEP_BUILDINGS, KEEP_COMMANDS, KEEP_GRAVES, KEEP_GROWTH, KEEP_PROJECTS,
+                   KEEP_TIMELINE, SPEEDS)
 
-FORMAT = 1
+#: 2 (2026-10-10): the government became its own district ("No head office but a separate government with splits"),
+#: so a format-1 file's capital sector becomes an ordinary sector when it is read.
+FORMAT = 2
+#: Buildings of the government district carry this instead of a sector id.
+GOV_SID = "gov"
 
 #: Workplace and building kinds. The position in this tuple is the code written to disk — append, never reorder.
 KINDS = ("capitol", "house", "office", "lab", "data_center", "mine", "farm", "factory", "refinery", "archive",
-         "studio", "bank", "tower", "council", "station", "planet")
+         "studio", "bank", "tower", "council", "station", "planet", "chancellery", "court", "ministry", "power",
+         "transit", "spaceport")
 WORKPLACES = ("office", "lab", "data_center", "mine", "farm", "factory", "refinery", "archive", "studio", "bank",
               "tower")
 KIND_LABELS = {"capitol": "Capitol", "house": "Homes", "office": "Office", "lab": "Laboratory",
                "data_center": "Data centre", "mine": "Mine", "farm": "Farm", "factory": "Factory",
                "refinery": "Refinery", "archive": "Archive", "studio": "Studio", "bank": "Bank", "tower": "Tower",
-               "council": "Council hall", "station": "Space station", "planet": "Artificial planet"}
+               "council": "Council hall", "station": "Space station", "planet": "Artificial planet",
+               "chancellery": "The Chancellery", "court": "The High Court", "ministry": "Ministry",
+               "power": "Power plant", "transit": "Transit station", "spaceport": "Spaceport"}
+#: The district of the government — not a sector, and never anyone's head office.
+GOV_KINDS = ("capitol", "chancellery", "court", "ministry")
 BUILD_STATES = ("constructing", "standing", "demolishing")
 LAW_STATUSES = ("proposed", "testing", "enforced", "repealed", "rejected")
 LAW_SCOPES = ("world", "sector", "firm")
 WAR_STATUSES = ("open", "hearing", "awaiting", "resolved")
 STARTUP_STATUSES = ("proposed", "approved", "declined", "founded")
 EVENT_KINDS = ("founded", "project", "done", "era", "law", "war", "startup", "birth", "death", "build", "teardown",
-               "station", "census", "owner", "stall", "note", "retool", "rejoin")
+               "station", "census", "owner", "stall", "note", "retool", "rejoin", "tech", "vote", "ministry", "economy")
 
 
 def new_id(prefix: str) -> str:
@@ -103,9 +112,28 @@ class Building:
     state: str = "constructing"
     progress: float = 0.0
     why: str = ""
+    tag: str = ""                   # which ministry, for a ministry building
 
     def as_dict(self) -> Dict[str, Any]:
-        return asdict(self)
+        out = asdict(self)
+        out["phase"] = phase_of(self)
+        return out
+
+
+#: Construction is done in phases (owner: "Building new structures … should be more complex"): the share of the
+#: progress each one ends at. Demolition runs them backwards.
+PHASES = (("survey", 0.06), ("foundation", 0.2), ("frame", 0.62), ("facade", 0.9), ("fit-out", 1.0))
+PHASE_WORDS = {"survey": "Surveying the site", "foundation": "Pouring the foundation", "frame": "Raising the frame",
+               "facade": "Closing in the facade", "fit-out": "Fitting out", "standing": "Standing",
+               "demolishing": "Coming down"}
+
+
+def phase_of(building: "Building") -> str:
+    if building.state == "standing":
+        return "standing"
+    if building.state == "demolishing":
+        return "demolishing"
+    return next((name for name, end in PHASES if building.progress < end), "fit-out")
 
 
 @dataclass
@@ -120,6 +148,7 @@ class Law:
     note: str = ""
     trial_job: str = ""
     code: int = 0
+    votes: str = ""                 # the Assembly's tally, "yes-no-abstain", when it voted
 
     def as_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -258,6 +287,14 @@ class World:
     note: str = ""
     births: int = 0
     deaths: int = 0
+    # The upscale (2026-10-10): technology, the economy, the government's own district, and how the world grew.
+    researched: List[str] = field(default_factory=list)
+    research: float = 0.0           # tech points the world's labs researched while it ran
+    focus: str = ""                 # the Ministry of Science's branch ("" = it picks one)
+    focus_by: str = ""              # "owner" when the owner set it
+    stock: Dict[str, float] = field(default_factory=lambda: {"materials": 40.0, "energy": 0.0, "compute": 0.0})
+    government: Dict[str, Any] = field(default_factory=dict)
+    growth: List[List[float]] = field(default_factory=list)   # [game day, tech, buildings, floors, AIs]
 
     # --- reads ------------------------------------------------------------------
 
@@ -273,6 +310,7 @@ class World:
                         None))
 
     def capital(self) -> Optional[Sector]:
+        """The first sector — only a fallback place to put someone. The government has its own district."""
         return next((s for s in self.sectors.values() if s.important), None) or next(iter(self.sectors.values()), None)
 
     def law(self, lid: int) -> Optional[Law]:
@@ -319,6 +357,19 @@ class World:
         self.projects = _keep_last(self.projects, KEEP_PROJECTS)
         return project
 
+    def sample_growth(self) -> None:
+        """One point on the growth chart (owner: "it shows the user their idea is growing")."""
+        standing = [b for b in self.buildings if b.state == "standing"]
+        row = [round(self.game_days, 2), int(self.tech_points), len(standing), sum(b.floors for b in standing),
+               len(self.bots)]
+        if self.growth and self.growth[-1][1:] == row[1:]:
+            return
+        self.growth.append(row)
+        if len(self.growth) > KEEP_GROWTH:
+            # Keep the shape of the whole history: thin the older half instead of dropping the start.
+            half = len(self.growth) // 2
+            self.growth = self.growth[:half:2] + self.growth[half:]
+
     def add_command(self, text: str) -> None:
         self.commands.append(str(text)[:2000])
         self.commands = _keep_last(self.commands, KEEP_COMMANDS)
@@ -339,7 +390,7 @@ class World:
         where = {sid: index for index, sid in enumerate(order)}
 
         def at(sid: str) -> int:
-            return where.get(sid, -1)
+            return -2 if sid == GOV_SID else where.get(sid, -1)
 
         return {
             "f": FORMAT, "id": self.id, "n": self.name, "o": self.office_id, "g": self.goal,
@@ -354,10 +405,10 @@ class World:
             "B": [[b.aid, b.code, round(b.born_day, 2), b.parents[:2], int(b.state == "asleep"), b.home, b.name,
                    b.role, at(b.sector), b.last_busy] for b in self.bots.values()],
             "U": [[u.bid, at(u.sector), _code(KINDS, u.kind, 2), u.floors, u.era, u.plot, round(u.built_day, 2),
-                   _code(BUILD_STATES, u.state), round(u.progress, 3), u.why] for u in self.buildings],
+                   _code(BUILD_STATES, u.state), round(u.progress, 3), u.why, u.tag] for u in self.buildings],
             "nb": self.next_building, "sky": [self.stations, self.planets],
             "L": [[w.lid, w.text, _code(LAW_SCOPES, w.scope), at(w.sector), _code(LAW_STATUSES, w.status), w.by,
-                   round(w.day, 2), w.note, w.trial_job, w.code] for w in self.laws],
+                   round(w.day, 2), w.note, w.trial_job, w.code, w.votes] for w in self.laws],
             "nl": self.next_law,
             "W": [[w.wid, at(w.a), at(w.b), w.a_stance, w.b_stance, w.reason, _code(WAR_STATUSES, w.status),
                    w.cases, w.winner, w.decision, w.by, w.why, round(w.opened_at, 1), round(w.deadline, 1),
@@ -373,6 +424,9 @@ class World:
                   for e in self.timeline],
             "C": list(self.commands), "set": dict(self.settings), "seed": self.seed, "stall": self.stalled,
             "note": self.note, "bd": [self.births, self.deaths],
+            "R": list(self.researched), "rp": round(self.research, 2), "fc": [self.focus, self.focus_by],
+            "K": {k: round(float(v), 1) for k, v in self.stock.items()}, "GV": dict(self.government),
+            "H": [list(r) for r in self.growth],
         }
 
     @classmethod
@@ -410,6 +464,8 @@ class World:
                 position = int(index)
             except (TypeError, ValueError):
                 return ""
+            if position == -2:
+                return GOV_SID
             return order[position] if 0 <= position < len(order) else ""
 
         for row in raw.get("B") or []:
@@ -424,11 +480,11 @@ class World:
                 continue
         for row in raw.get("U") or []:
             try:
-                bid, sector, kind, floors, era, plot, built, state, progress, why = (list(row) + [0] * 10)[:10]
+                bid, sector, kind, floors, era, plot, built, state, progress, why, tag = (list(row) + [0] * 11)[:11]
                 world.buildings.append(Building(bid=int(bid), sector=sid_at(sector), kind=_word(KINDS, kind, "office"),
                                                 floors=int(floors or 1), era=int(era or 0), plot=int(plot or 0),
                                                 built_day=float(built or 0), state=_word(BUILD_STATES, state, "standing"),
-                                                progress=float(progress or 0), why=str(why or "")))
+                                                progress=float(progress or 0), why=str(why or ""), tag=str(tag or "")))
             except (TypeError, ValueError):
                 continue
         world.next_building = int(raw.get("nb") or (max((b.bid for b in world.buildings), default=0) + 1))
@@ -436,11 +492,11 @@ class World:
         world.stations, world.planets = int(sky[0] or 0), int(sky[1] or 0)
         for row in raw.get("L") or []:
             try:
-                lid, text, scope, sector, status, by, day, note, trial, code = (list(row) + [0] * 10)[:10]
+                lid, text, scope, sector, status, by, day, note, trial, code, votes = (list(row) + [0] * 11)[:11]
                 world.laws.append(Law(lid=int(lid), text=str(text), scope=_word(LAW_SCOPES, scope, "world"),
                                       sector=sid_at(sector), status=_word(LAW_STATUSES, status, "proposed"),
                                       by=str(by or ""), day=float(day or 0), note=str(note or ""),
-                                      trial_job=str(trial or ""), code=int(code or 0)))
+                                      trial_job=str(trial or ""), code=int(code or 0), votes=str(votes or "")))
             except (TypeError, ValueError):
                 continue
         world.next_law = int(raw.get("nl") or (max((w.lid for w in world.laws), default=0) + 1))
@@ -501,6 +557,26 @@ class World:
         world.note = str(raw.get("note") or "")
         births, deaths = (list(raw.get("bd") or []) + [0, 0])[:2]
         world.births, world.deaths = int(births or 0), int(deaths or 0)
+        world.researched = [str(t) for t in (raw.get("R") or [])]
+        world.research = float(raw.get("rp") or 0)
+        focus, focus_by = (list(raw.get("fc") or []) + ["", ""])[:2]
+        world.focus, world.focus_by = str(focus or ""), str(focus_by or "")
+        stock = raw.get("K") or {}
+        if isinstance(stock, dict) and stock:
+            world.stock = {k: float(stock.get(k) or 0) for k in ("materials", "energy", "compute")}
+        world.government = dict(raw.get("GV") or {})
+        world.growth = [[float(x) for x in r][:5] for r in (raw.get("H") or []) if isinstance(r, list)]
+
+        if int(raw.get("f") or 1) < 2:
+            # A format-1 world had a capital sector that was also the government's seat. The government now has a
+            # district of its own (``civics.ensure`` builds it), so the old capital becomes an ordinary sector.
+            for sector in world.sectors.values():
+                if sector.important:
+                    sector.important = False
+                    sector.gov = f"{sector.name} Council"
+            for building in world.buildings:
+                if building.kind == "capitol" and building.sector != GOV_SID:
+                    building.kind = "council"
 
         # A world is never re-opened mid-run: the thread that ran it did not survive the engine stopping. It comes
         # back paused, so the owner sees it was interrupted and can resume it — never a ghost that looks alive.

@@ -861,6 +861,7 @@ OWNER_ONLY_WORLD_ROUTES = [
     ("post", "/api/world/worlds/wld-nope/control", {"action": "start"}),
     ("post", "/api/world/worlds/wld-nope/say", {"text": "hello"}),
     ("post", "/api/world/worlds/wld-nope/speed", {"speed": "rush"}),
+    ("post", "/api/world/worlds/wld-nope/focus", {"branch": "transport"}),
     ("post", "/api/world/worlds/wld-nope/laws", {"text": "A law"}),
     ("post", "/api/world/worlds/wld-nope/laws/1", {"action": "enforce"}),
     ("post", "/api/world/worlds/wld-nope/wars/war-nope/hearing", None),

@@ -1,9 +1,9 @@
 """What the world's governments are asked, and how their answers are checked (U36, U37, U39, U44).
 
 The owner: *"Each sector of the world can be different and has governments of ai the rule and make commands and
-rules. They decide on what to make and this goes down a hierarchy til it is made and starts."* The world government
-is the backing office's top manager — Big Kahuna when it is up (``talk.ask_lead``) — and it is asked one question
-between projects: what next. Its answer is **data**: a JSON object whose every field is checked here, clipped, and
+rules. They decide on what to make and this goes down a hierarchy til it is made and starts."* The government is its
+own district with branches (``civics``); its executive, the Chancellery, is led by the backing office's top manager —
+Big Kahuna when it is up (``talk.ask_lead``) — and it is asked one question between projects: what next. Its answer is **data**: a JSON object whose every field is checked here, clipped, and
 dropped when it does not make sense. Nothing it writes is ever run.
 
 Every question has an offline answer too, so a world keeps working (more plainly) when no model answers.
@@ -14,7 +14,7 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, List, Optional
 
-from world import ERAS
+from world import ERAS, civics, planet as planet_module, tech
 from world.clock import describe_seconds, game_date_words
 from world.state import WORKPLACES, World
 
@@ -37,6 +37,10 @@ OFFLINE_TECHS = (
      "palette": ["#d2cefd", "#30d158", "#14162a"]},
     {"tech": "Stellar forges", "about": "Artificial planets built to think.", "style": "dome",
      "palette": ["#ffd60a", "#ff6482", "#0e0e13"]},
+    {"tech": "Warp lattice", "about": "Gates of light join the sectors; nothing is far any more.", "style": "ring",
+     "palette": ["#9ef0ff", "#bf5af2", "#0a0f1f"]},
+    {"tech": "Living architecture", "about": "Buildings that grow and reshape themselves.", "style": "spire",
+     "palette": ["#f5f0ff", "#64ffda", "#120a1f"]},
 )
 
 #: The plain sequence a world follows when the government cannot be reached.
@@ -69,9 +73,19 @@ def plan_prompt(world: World, *, people: Dict[str, int], done: Dict[str, int], l
             f"{world.sectors[w.b].name if w.b in world.sectors else '?'}: {w.reason} ({w.status})"
             for w in world.wars if w.status != "resolved"]
     n = len(world.projects) + 1
+    ministries = [m["name"] for m in civics.snapshot(world)["ministries"] if m["open"]]
+    upcoming = tech.next_up(world, 3)
     return (
-        f"You are the world government of {world.name}, an AI civilisation that does real work for its owner. "
-        f"It is {game_date_words(world.game_days)}, the {ERAS[world.era]} era. Plan the next project.\n\n"
+        f"You are the Chancellery — the executive branch of the government of {world.name}, an AI civilisation that "
+        f"does real work for its owner. The government is its own district, apart from every sector; the Assembly "
+        f"votes on your laws and the High Court judges contests. It is {game_date_words(world.game_days)}, the "
+        f"{ERAS[world.era]} era. Plan the next project.\n\n"
+        f"The planet: {planet_module.words(world.seed)}\n"
+        f"Technology: {len(world.researched)} of {len(tech.TREE)} discovered; transport is "
+        f"{tech.TRANSPORT_LEVELS[tech.level(world)].lower()}; next: "
+        f"{', '.join(t['name'] for t in upcoming) or 'nothing left'}. Research focus: "
+        f"{tech.BRANCHES.get(world.focus, 'none')}.\n"
+        f"Ministries: {', '.join(ministries) or 'none yet'}.\n\n"
         f"The world's goal (the owner's words): {world.goal or '(none yet — follow the owner)'}\n"
         f"Projects so far: {len(world.projects)} ({world.projects_done()} finished). This is project {n}.\n"
         f"Real time left: {time_left}.\n"
@@ -95,7 +109,9 @@ def plan_prompt(world: World, *, people: Dict[str, int], done: Dict[str, int], l
         " \"startup\": null or {\"name\": \"...\", \"idea\": \"a new direction worth a small new group\", \"why\": \"...\"},\n"
         " \"teardown\": null or {\"sector\": \"...\", \"why\": \"why its oldest building should come down\"},\n"
         " \"retool\": null or {\"sector\": \"...\", \"into\": \"office | lab | data_center | mine | farm | factory | refinery "
-        "| archive | studio | bank | tower\", \"why\": \"...\"}}\n"
+        "| archive | studio | bank | tower\", \"why\": \"...\"},\n"
+        " \"focus\": null or \"transport | energy | construction | computing | space | society\" (what the Ministry of "
+        "Science should research first)}\n"
         "Set \"done\" true only when the goal is fully delivered. Propose at most one law, and only one that changes "
         "how the work is done. Use \"rivals\" only when two sectors would honestly do the next step differently — "
         "it starts a contest of ideas, not a fight. Never propose publishing, sending, paying, or touching passwords."
@@ -115,6 +131,7 @@ def parse_plan(raw: Optional[Dict[str, Any]], world: World) -> Optional[Dict[str
         "why": _clip(raw.get("why"), 400),
         "done": bool(raw.get("done") is True or str(raw.get("done")).lower() == "true"),
         "laws": [], "rivals": None, "startup": None, "teardown": None, "retool": None,
+        "focus": tech.clean_focus(raw.get("focus") if isinstance(raw.get("focus"), str) else ""),
     }
     for law in (raw.get("laws") or [])[:2] if isinstance(raw.get("laws"), list) else []:
         if isinstance(law, dict) and _clip(law.get("text"), 220):
@@ -158,7 +175,8 @@ def offline_plan(world: World) -> Dict[str, Any]:
     done = n >= len(_OFFLINE_STEPS) - 1 and not world.duration
     return {"project": f"{detail} The goal: {world.goal}", "title": title,
             "why": "No model answered the government, so the world follows its plain plan.", "done": done,
-            "laws": [], "rivals": None, "startup": None, "teardown": None, "retool": None, "offline": True}
+            "laws": [], "rivals": None, "startup": None, "teardown": None, "retool": None, "focus": "",
+            "offline": True}
 
 
 def brief(world: World, plan: Dict[str, Any], *, commands: List[str], law_lines: List[str],
@@ -196,7 +214,7 @@ def judge_prompt(world: World, war: Any) -> str:
     return (f"Two sectors of {world.name} disagree: {war.reason}\n"
             f"{a.name if a else 'A'} would: {war.a_stance}\n{b.name if b else 'B'} would: {war.b_stance}{cases}\n"
             f"The world's goal: {world.goal}\n"
-            "As the world government, pick the better idea for the goal. Answer with ONE JSON object: "
+            "As the High Court of the world, pick the better idea for the goal. Answer with ONE JSON object: "
             "{\"winner\": \"a\" or \"b\", \"why\": \"one or two sentences\"}")
 
 
@@ -229,7 +247,8 @@ def mood_prompt(world: World, *, name: str, role: str, doing: str, sector: str) 
 
 
 def tech_prompt(world: World, era: int) -> str:
-    return (f"{world.name} has just reached the {ERAS[era]} era (its goal: {world.goal}). As the world government, "
+    return (f"{world.name} has just reached the {ERAS[era]} era (its goal: {world.goal}; the planet: "
+            f"{planet_module.words(world.seed)}). As the Chancellery, "
             "name the new technology that got it here and describe how its buildings look now. Answer with ONE JSON "
             "object: {\"tech\": \"2-4 words\", \"about\": \"one sentence\", \"style\": \"block | spire | dome | tower "
             "| ring | arch\", \"palette\": [\"#rrggbb\", \"#rrggbb\", \"#rrggbb\"]}")

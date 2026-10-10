@@ -11,8 +11,18 @@ The rules, in one place (``docs/WORLD.md`` §5):
   with its finished tasks, and one home per four AIs;
 * a building is capped by the era it was built in — to grow past that cap it is torn down and rebuilt taller in the
   current era (*"old buildings are torn down when there's no use and newer taller, more fancy buildings are made"*);
-* a sector has ``8 + 4 × era`` plots; when every sector is full, Orbital technology builds space stations and Stellar
+* a sector has ``12 + 6 × era`` plots; when every sector is full, Orbital technology builds space stations and Stellar
   technology artificial planets — before that the world is stalled and says what it needs.
+
+The upscale (owner, 2026-10-10: *"Building new structures and more should be more complex"*):
+
+* building is done in phases (survey → foundation → frame → facade → fit-out, ``state.PHASES``), takes longer the
+  taller it is, and **uses materials** that the workplaces produce (mines, factories and refineries most) — a site
+  with nothing in stock waits, and says so;
+* technology adds infrastructure: power plants (Coal power), transit stations (Steam railways), a spaceport in the
+  government district (Rocketry), and it speeds building up (``tech.multiplier``);
+* the government is a district of its own (``civics``) whose buildings — the Assembly, the Chancellery, the High
+  Court and one per open ministry — rise here like everything else.
 """
 
 from __future__ import annotations
@@ -22,14 +32,27 @@ import random
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
-from world import (ERA_MAX_FLOORS, ERA_THRESHOLDS, ERAS, KEEP_BUILDINGS, ORBITAL_ERA, STELLAR_ERA, genome)
-from world.state import WORKPLACES, Bot, Building, Grave, Sector, World
+from world import (ERA_MAX_FLOORS, ERA_THRESHOLDS, ERAS, KEEP_BUILDINGS, ORBITAL_ERA, STELLAR_ERA, civics, genome,
+                   tech)
+from world.state import GOV_SID, WORKPLACES, Bot, Building, Grave, Sector, World, phase_of
 
 CAPITAL_LAT = 18.0
 AIS_PER_HOME = 4
 TASKS_PER_WORKPLACE = 6
 MAX_STATIONS = 6
 MAX_PLANETS = 3
+
+#: Materials a building costs: a base plus a share per floor. The government's buildings cost half again.
+COST_BASE = 4.0
+COST_PER_FLOOR = 3.0
+#: Materials each standing building makes, per unit of ``build_rate`` and second (times ``PRODUCTION``).
+YIELDS = {"mine": 3.0, "factory": 3.0, "refinery": 2.5, "farm": 1.5, "council": 1.0, "capitol": 1.0}
+PRODUCTION = 4.0
+MAX_STOCK = 5000.0
+WAITING = "Waiting for materials — the mines and factories are behind."
+#: The district's fixed layout: what stands on each plot around the seat.
+GOV_PLOTS = ("capitol", "chancellery", "court", "ministry:works", "ministry:science", "ministry:treasury",
+             "ministry:transport", "ministry:energy", "ministry:space", "ministry:interstellar", "spaceport")
 
 #: The sector's purpose → the kind of workplace it works in (owner: "a workplace can be a normal office or a coal mine
 #: or a data center or just a farm").
@@ -119,7 +142,7 @@ def place_sector(index: int, seed: int = 0) -> Tuple[float, float]:
 
 
 def plots_for(era: int) -> int:
-    return 8 + 4 * max(0, int(era))
+    return 12 + 6 * max(0, int(era))
 
 
 def workplace_kind(purpose: str, *, era: int = 0, important: bool = False, current: str = "") -> str:
@@ -149,7 +172,8 @@ def tech_points(world: World, view: OfficeView) -> int:
     laws = sum(1 for law in world.laws if law.status == "enforced")
     wars = sum(1 for war in world.wars if war.status == "resolved")
     startups = sum(1 for s in world.startups if s.status == "founded")
-    return int(view.tasks_done() + 3 * world.projects_done() + 2 * laws + 2 * wars + 3 * startups)
+    return int(view.tasks_done() + 3 * world.projects_done() + 2 * laws + 2 * wars + 3 * startups
+               + int(world.research))
 
 
 def next_era_at(era: int) -> Optional[int]:
@@ -168,14 +192,14 @@ def sync_sectors(world: World, view: OfficeView) -> List[Dict[str, Any]]:
     for index, section in enumerate(ordered):
         sector = world.sectors.get(section.id)
         if sector is None:
-            important = not world.sectors
-            lat, lon = place_sector(len(world.sectors), world.seed)
+            # No sector is the head office any more: the government has its own district (``civics``), on place 0.
+            first = not world.sectors
+            lat, lon = place_sector(len(world.sectors) + 1, world.seed)
             sector = Sector(sid=section.id, name=section.name, lat=lat, lon=lon,
-                            kind=workplace_kind(section.purpose, era=world.era, important=important),
-                            gov="World Government" if important else f"{section.name} Council",
-                            founded_day=round(world.game_days, 2), important=important)
+                            kind=workplace_kind(section.purpose, era=world.era),
+                            gov=f"{section.name} Council", founded_day=round(world.game_days, 2))
             world.sectors[section.id] = sector
-            world.log("founded", (f"{world.name} was founded around {section.name}." if important
+            world.log("founded", (f"{world.name}'s first sector, {section.name}, was settled." if first
                                   else f"A new sector, {section.name}, was settled."), ref=section.id)
             changes.append({"kind": "sector", "sector": sector_dict(sector)})
         elif sector.name != section.name:
@@ -273,7 +297,7 @@ def census_plan(world: World, view: OfficeView, *, project: int = 0) -> List[Dic
     by_sector: Dict[str, List[AgentView]] = {}
     for agent in view.agents:
         by_sector.setdefault(agent.section, []).append(agent)
-    order = sorted(world.sectors.values(), key=lambda s: (not s.important, s.founded_day, s.name))
+    order = sorted(world.sectors.values(), key=lambda s: (not s.important, s.founded_day))  # stable: founding order
     steps: List[Dict[str, Any]] = []
     for sector in order:
         people = by_sector.get(sector.sid, [])
@@ -321,6 +345,12 @@ def _target(world: World, sector: Sector, view: OfficeView, people: int) -> List
     for index in range(workplaces):
         floors = 1 + max(0, done - TASKS_PER_WORKPLACE * index) // 2
         wanted.append((sector.kind, max(1, min(era_cap, floors))))
+    unlocked = tech.unlocked_kinds(world)
+    if "power" in unlocked and workplaces >= 2:
+        for _ in range(min(3, 1 + workplaces // 6)):
+            wanted.append(("power", max(1, min(era_cap, 1 + world.era // 3))))
+    if "transit" in unlocked and (people or workplaces >= 2):
+        wanted.append(("transit", max(1, min(era_cap, 1 + tech.level(world) // 3))))
     homes = max(1, math.ceil(people / AIS_PER_HOME)) if people else 0
     for _ in range(homes):
         wanted.append(("house", 1 + world.era // 2))
@@ -337,16 +367,37 @@ def grow(world: World, view: OfficeView, *, dt: float, build_rate: float) -> Lis
     people: Dict[str, int] = {}
     for agent in view.agents:
         people[agent.section] = people.get(agent.section, 0) + 1
+    civics.ensure(world)
+    produce(world, dt=dt, build_rate=build_rate)
 
     # Construction and demolition move first, so a finished building counts below.
+    faster = tech.multiplier(world, "build")
     for building in list(world.buildings):
+        before = phase_of(building)
         if building.state == "constructing":
-            building.progress = min(1.0, building.progress + dt * build_rate)
-            if building.progress >= 1.0:
+            speed = build_rate * faster / (1.0 + building.floors / 8.0)
+            step = min(1.0 - building.progress, dt * speed)
+            cost = build_cost(building) * step
+            have = world.stock.get("materials", 0.0)
+            if cost > have:
+                step = step * have / cost if cost > 0 else step
+                cost = have
+            world.stock["materials"] = max(0.0, have - cost)
+            if step <= 1e-6 and building.progress < 1.0:
+                if building.why != WAITING:
+                    building.why = WAITING
+                    changes.append({"kind": "building", "building": building.as_dict()})
+                continue
+            if building.why == WAITING:
+                building.why = ""
+            building.progress = min(1.0, building.progress + step)
+            if building.progress >= 1.0 - 1e-9:
                 building.state, building.progress = "standing", 1.0
                 changes.append({"kind": "building", "building": building.as_dict()})
+            elif phase_of(building) != before:
+                changes.append({"kind": "building", "building": building.as_dict()})
         elif building.state == "demolishing":
-            building.progress = max(0.0, building.progress - dt * build_rate * 2)
+            building.progress = max(0.0, building.progress - dt * build_rate * faster * 2 / (1.0 + building.floors / 16.0))
             if building.progress <= 0.0:
                 world.buildings.remove(building)
                 changes.append({"kind": "building.gone", "bid": building.bid})
@@ -410,7 +461,78 @@ def grow(world: World, view: OfficeView, *, dt: float, build_rate: float) -> Lis
         if sector.full:
             full_sectors += 1
 
+    changes.extend(_grow_government(world))
     changes.extend(_space(world, full_sectors))
+    return changes
+
+
+def build_cost(building: Building) -> float:
+    """Materials for the whole building; the government builds grander, so half again."""
+    cost = COST_BASE + COST_PER_FLOOR * max(1, building.floors)
+    return cost * (1.5 if building.sector == GOV_SID else 1.0)
+
+
+def produce(world: World, *, dt: float, build_rate: float) -> None:
+    """The economy (the Treasury's books): materials pile up from what stands; energy and compute are capacities."""
+    materials = energy = compute = 0.0
+    for building in world.buildings:
+        if building.state != "standing":
+            continue
+        if building.kind == "power":
+            energy += 6.0 * (1 + building.floors / 4.0)
+        elif building.kind in ("data_center", "lab"):
+            compute += building.floors
+        made = YIELDS.get(building.kind, 1.0 if building.kind in WORKPLACES else 0.0)
+        materials += made * (1 + building.floors / 10.0)
+    gain = materials * tech.multiplier(world, "yields") * PRODUCTION * build_rate * dt
+    world.stock["materials"] = min(MAX_STOCK, world.stock.get("materials", 0.0) + gain)
+    world.stock["energy"] = round(energy * tech.multiplier(world, "yields"), 1)
+    world.stock["compute"] = float(compute)
+
+
+def _gov_wanted(world: World) -> List[Tuple[int, str, str, int]]:
+    """The district right now: (plot, kind, ministry, floors). Plots are fixed, so a ministry keeps its place."""
+    cap = ERA_MAX_FLOORS[world.era]
+    era = world.era
+    wanted = [(0, "capitol", "", max(1, min(cap, 1 + era // 2))),
+              (1, "chancellery", "", max(1, min(cap, 2 + era * 2)))]
+    if tech.has(world, "written_law"):
+        wanted.append((2, "court", "", max(1, min(cap, 1 + era // 2))))
+    for key in civics.open_ministries(world):
+        wanted.append((GOV_PLOTS.index(f"ministry:{key}"), "ministry", key, max(1, min(cap, 1 + era))))
+    if "spaceport" in tech.unlocked_kinds(world):
+        wanted.append((GOV_PLOTS.index("spaceport"), "spaceport", "", 1))
+    return wanted
+
+
+def _grow_government(world: World) -> List[Dict[str, Any]]:
+    changes: List[Dict[str, Any]] = []
+    mine = [b for b in world.buildings if b.sector == GOV_SID]
+    busy = sum(1 for b in mine if b.state != "standing")
+    for plot, kind, tag, floors in _gov_wanted(world):
+        match = next((b for b in mine if b.kind == kind and b.tag == tag and b.state != "demolishing"), None)
+        if match is None:
+            if busy >= 2 or any(b.plot == plot for b in mine):
+                continue
+            building = Building(bid=world.next_building, sector=GOV_SID, kind=kind, floors=floors, era=world.era,
+                                plot=plot, built_day=round(world.game_days, 2), state="constructing", progress=0.0,
+                                tag=tag)
+            world.next_building += 1
+            world.buildings.append(building)
+            changes.append({"kind": "building", "building": building.as_dict()})
+            busy += 1
+        elif match.state == "standing" and floors > match.floors:
+            if floors > ERA_MAX_FLOORS[match.era] and match.era < world.era:
+                if busy < 2:
+                    match.state = "demolishing"
+                    match.why = (f"Rebuilt for the {ERAS[world.era]} era: the old "
+                                 f"{civics.ministry_for(tag) or kind.replace('_', ' ')} is too small.")
+                    world.log("teardown", f"The government: {match.why}", ref=str(match.bid))
+                    changes.append({"kind": "building", "building": match.as_dict()})
+                    busy += 1
+            else:
+                match.floors = min(floors, ERA_MAX_FLOORS[match.era])
+                changes.append({"kind": "building", "building": match.as_dict()})
     return changes
 
 
@@ -424,7 +546,9 @@ def _space(world: World, full_sectors: int) -> List[Dict[str, Any]]:
             world.stalled = ""
             changes.append({"kind": "stall", "stalled": ""})
         return changes
-    if world.era >= ORBITAL_ERA:
+    orbital = world.era >= ORBITAL_ERA or tech.has(world, "orbital_lift")
+    stellar = world.era >= STELLAR_ERA or tech.has(world, "stellar_forge")
+    if orbital:
         if world.stalled:
             world.stalled = ""
             changes.append({"kind": "stall", "stalled": ""})
@@ -433,7 +557,7 @@ def _space(world: World, full_sectors: int) -> List[Dict[str, Any]]:
             world.log("station", f"The planet is full — station {world.stations} went up in orbit for the more "
                                  "advanced agents.")
             changes.append({"kind": "sky", "stations": world.stations, "planets": world.planets})
-        if world.era >= STELLAR_ERA and world.stations >= 3 and world.planets < MAX_PLANETS:
+        if stellar and world.stations >= 3 and world.planets < MAX_PLANETS:
             world.planets += 1
             world.log("station", f"Artificial planet {world.planets} was built.")
             changes.append({"kind": "sky", "stations": world.stations, "planets": world.planets})

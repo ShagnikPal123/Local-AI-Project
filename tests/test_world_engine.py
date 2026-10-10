@@ -16,7 +16,7 @@ import world as world_package
 from office import casting, focus, library, talk
 from office import roles as role_module
 from office.engine import ENGINE as OFFICE
-from world import engine as engine_module, genome, sim, store
+from world import civics, engine as engine_module, genome, sim, store
 from world.engine import ENGINE, WorldError
 
 OFFICE_PLAN = {
@@ -142,8 +142,13 @@ def test_a_new_world_starts_from_a_camp_with_its_own_office_in_office_space(worl
     world = data["world"]
     assert world["name"] == "Moon base" and world["duration"] == 5 * 86400 and world["speed"] == "rush"
     assert world["era_name"] == "First Light" and world["status"] == "idle"
-    assert [s["name"] for s in data["sectors"]] == ["Head Office"] and data["sectors"][0]["important"]
-    assert any(b["kind"] == "capitol" and b["state"] == "standing" for b in data["buildings"]), "the camp stands"
+    assert [s["name"] for s in data["sectors"]] == ["Head Office"] and not data["sectors"][0]["important"]
+    assert any(b["kind"] == "capitol" and b["sector"] == "gov" and b["state"] == "standing" for b in data["buildings"]),         "the Assembly stands in the government's own district"
+    assert any(b["kind"] == "council" and b["state"] == "standing" for b in data["buildings"]), "the camp stands"
+    branches = {b["key"]: b for b in data["government"]["branches"]}
+    assert branches["executive"]["members"][0]["role"] == "Top Manager", "the top manager leads the Chancellery"
+    assert {m["key"] for m in data["government"]["ministries"] if m["open"]} == {"works", "science"}
+    assert data["planet"]["type"] and data["tech"]["researched"] >= 5 and data["growth"]
     assert data["bots"][0]["role"] == "Top Manager" and genome.decode(data["bots"][0]["code"])
     folder = next(f for f in library.tree()["folders"] if f["name"] == "Worlds")
     office = next(o for o in library.tree()["offices"] if o["id"] == world["office_id"])
@@ -169,8 +174,10 @@ def test_upscaling_an_office_makes_its_team_the_first_citizens_once(worlds):
     assert len(first["bots"]) == 2
 
 
-def test_a_world_runs_its_governments_projects_through_the_office_until_the_goal_is_met(worlds):
+def test_a_world_runs_its_governments_projects_through_the_office_until_the_goal_is_met(worlds, monkeypatch):
     engine, router = worlds
+    # Every seat votes yes, so the government's law reaches its trial (the vote itself: test_world_civics.py).
+    monkeypatch.setattr(civics, "_stable", lambda text: types.SimpleNamespace(random=lambda: 0.0))
     data = engine.create(name="Pageland", goal="Build a landing page for the product", speed="rush")
     world_id, office_id = data["world"]["id"], data["world"]["office_id"]
 
@@ -188,7 +195,7 @@ def test_a_world_runs_its_governments_projects_through_the_office_until_the_goal
     assert first_job.request.startswith("Project 1: First page\n[Pageland · Year 1"), \
         "the project's name first (the office titles its Output card from it), then the world's header"
     assert "Every report names its sources. — on trial in this project" in first_job.request
-    assert office.chat[0].by_name == "World Government", "the government signs its projects"
+    assert office.chat[0].by_name == "The Chancellery of Pageland", "the executive signs its projects"
     assert office.outputs and office.outputs[-1].status == "done", "the result is in the Output box"
 
     law = snap["laws"][0]

@@ -20,8 +20,8 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
 from world import (ERAS, MAX_PROJECTS_UNTIL_DONE, POPULATION_BY_WORKERS, SPEED_BY_WORKERS, SPEED_ORDER, SPEEDS,
-                   clock, genome, government, laws as law_module, sim, store)
-from world.state import Project, Startup, War, World, new_id
+                   civics, clock, genome, government, laws as law_module, planet as planet_module, sim, store, tech)
+from world.state import GOV_SID, Project, Startup, War, World, new_id
 
 #: How often the run looks at the world. Tests make it faster.
 TICK_SECONDS = 1.0
@@ -29,6 +29,9 @@ TICK_SECONDS = 1.0
 CENSUS_STEP_SECONDS = 0.35
 SAVE_EVERY = 5.0
 CLOCK_EVERY = 2.0
+GROWTH_EVERY = 15.0
+#: How fast the world's own labs research, by speed (``tech.research_rate``).
+RESEARCH_BY_SPEED = {"deliberate": 0.5, "steady": 1.0, "fast": 2.0, "rush": 4.0}
 PLAN_TIMEOUT = 150.0
 ASK_TIMEOUT = 90.0
 MOOD_TIMEOUT = 45.0
@@ -52,6 +55,7 @@ class Run:
     census: Optional[Dict[str, Any]] = None
     saved_at: float = 0.0
     clock_at: float = 0.0
+    grown_at: float = 0.0
     stopping_by_world: bool = False
     goal_met: bool = False
 
@@ -125,7 +129,30 @@ class Engine:
                 except store.StoreError as error:
                     raise WorldError(str(error)) from error
                 self._worlds[world_id] = world
+                self._upgrade(world)
             return world
+
+    def _upgrade(self, world: World) -> None:
+        """A world saved before the upscale gets its government district, its technologies and its first growth
+        point the first time it is opened — standing at once, the way a new world's camp does."""
+        made = civics.ensure(world)
+        caught_up = tech.advance(world) if not world.researched else []
+        if not (made or caught_up):
+            return
+        if caught_up and len(caught_up) > len(tech.STARTING):
+            world.log("tech", f"{len(caught_up)} technologies on record, up to {caught_up[-1]['name']}.")
+        try:
+            view = self._view(world)
+            civics.seat(world, view)
+            for _ in range(12):
+                sim.grow(world, view, dt=60.0, build_rate=1.0)
+        except Exception:  # noqa: BLE001 - the office may be gone; the district comes up on the next run
+            pass
+        for building in world.buildings:
+            if building.sector == GOV_SID and building.state == "constructing":
+                building.state, building.progress, building.why = "standing", 1.0, ""
+        world.sample_growth()
+        self._save(world)
 
     def _save(self, world: World) -> None:
         try:
@@ -192,11 +219,15 @@ class Engine:
         sim.sync_bots(world, view)
         world.tech_points = sim.tech_points(world, view)
         world.era = sim.era_for(world.tech_points)
+        civics.ensure(world)
+        tech.advance(world)
+        civics.seat(world, view)
         for _ in range(30):
             sim.grow(world, view, dt=60.0, build_rate=1.0)
         for building in world.buildings:
             if building.state == "constructing":
-                building.state, building.progress = "standing", 1.0
+                building.state, building.progress, building.why = "standing", 1.0, ""
+        world.sample_growth()
         if not world.techs:
             world.techs.append({**government.parse_tech(None, world.era), "era": world.era,
                                 "day": round(world.game_days, 2), "ts": time.time()})
@@ -273,6 +304,11 @@ class Engine:
                     "census": run.census if run else None,
                     "thinking": bool(run and run.plan is not None and not run.plan.done()),
                 },
+                "planet": planet_module.describe(world.seed),
+                "government": civics.snapshot(world),
+                "tech": tech.status(world),
+                "stock": {k: round(v, 1) for k, v in world.stock.items()},
+                "growth": [list(r) for r in world.growth],
                 "sectors": [sim.sector_dict(s) for s in world.sectors.values()],
                 "bots": [sim.bot_dict(world, b) for b in world.bots.values()],
                 "buildings": [b.as_dict() for b in world.buildings],
@@ -451,6 +487,21 @@ class Engine:
         snapshot = self.snapshot(world_id)
         _publish(world.id, "world", world=snapshot["world"])
         return snapshot
+
+    def set_focus(self, world_id: str, branch: str) -> Dict[str, Any]:
+        """The owner tells the Ministry of Science what to research first ("" hands the choice back to it)."""
+        chosen = tech.clean_focus(branch)
+        if branch and not chosen:
+            raise WorldError(f"Pick one of: {', '.join(tech.BRANCHES)}.")
+        world = self.open(world_id)
+        with self._lock:
+            world.focus, world.focus_by = chosen, "owner" if chosen else ""
+            if chosen:
+                world.log("owner", f"You set the research focus: {tech.BRANCHES[chosen]} costs a quarter less now.")
+            tech.advance(world)
+            self._save(world)
+        _publish(world.id, "research", tech=None)
+        return tech.status(world)
 
     def _apply_effort(self, world: World) -> None:
         """U38: the speed is the office's effort — review rounds and steps per task."""
@@ -638,8 +689,8 @@ class Engine:
             win.influence += 2
         if lose is not None:
             lose.influence -= 1
-        capital = world.capital()
-        who = "You" if by == "owner" else capital.gov if capital else "The government"
+        who = "You" if by == "owner" else civics.court_name(world) if world.government.get("justices") \
+            else civics.signer(world)
         world.log("war", f"{who} settled {a.name if a else '?'} vs {b.name if b else '?'}: "
                          f"{(win.name + ' wins') if win else 'your own way'} — {war.decision[:160]}", ref=war.wid)
         _publish(world.id, "war", war=war.as_dict())
@@ -945,7 +996,21 @@ class Engine:
             changes += sim.sync_bots(world, view, project=project)
             changes += sim.sleep(world, view, project=project)
             changes += sim.grow(world, view, dt=dt, build_rate=config["build_rate"])
+            research_floors = sum(b.floors for b in world.buildings
+                                  if b.state == "standing" and b.kind in ("lab", "data_center"))
+            world.research += tech.research_rate(world, research_floors, RESEARCH_BY_SPEED.get(world.speed, 1.0)) * dt
             world.tech_points = sim.tech_points(world, view)
+            if not world.focus:
+                world.focus = tech.pick_focus(world, [s.kind for s in world.sectors.values()])
+            for new in tech.advance(world):
+                world.log("tech", f"Discovered {new['name']}: {new['about']}", ref=new["id"])
+                changes.append({"kind": "research", "tech": {"id": new["id"], "name": new["name"],
+                                                             "branch": new["branch"], "about": new["about"]}})
+            if civics.seat(world, view):
+                changes.append({"kind": "government", "government": civics.snapshot(world)})
+            if time.time() - run.grown_at >= GROWTH_EVERY:
+                run.grown_at = time.time()
+                world.sample_growth()
             era = sim.era_for(world.tech_points)
             if era > world.era:
                 world.era = era
@@ -1019,14 +1084,21 @@ class Engine:
                     return
             for law in plan.get("laws") or []:
                 made = law_module.propose(world, law["text"], scope=law["scope"], sector=law["sector"],
-                                          by=world.capital().gov if world.capital() else "The government")
+                                          by=civics.signer(world))
+                if made.status == "testing":
+                    # The Chancellery proposes; the Assembly decides. The owner's own laws skip this (``propose_law``).
+                    civics.vote(world, made)
                 _publish(world.id, "law", law=made.as_dict())
+            if plan.get("focus") and world.focus_by != "owner" and plan["focus"] != world.focus:
+                world.focus = plan["focus"]
+                world.log("ministry", f"The Ministry of Science turned the research toward "
+                                      f"{tech.BRANCHES[world.focus].lower()}.")
             if plan.get("rivals"):
                 self._declare_war(world, plan["rivals"])
             if plan.get("startup"):
                 startup = plan["startup"]
                 self._propose_startup(world, name=startup["name"], idea=startup["idea"], why=startup["why"],
-                                      by=world.capital().gov if world.capital() else "The government")
+                                      by=civics.signer(world))
             if plan.get("teardown"):
                 self._teardown(world, plan["teardown"])
             if plan.get("retool"):
@@ -1050,7 +1122,7 @@ class Engine:
                         "title": plan["title"] if not plan.get("offline") else "Your command"}
             request = government.brief(world, plan, commands=commands, law_lines=law_module.brief_lines(world),
                                        decisions=decisions, startups=startups)
-            gov = world.capital().gov if world.capital() else "World Government"
+            gov = civics.signer(world)
             try:
                 result = _office_engine().say(world.office_id, request, by="world", by_name=gov)
             except Exception as error:  # noqa: BLE001
