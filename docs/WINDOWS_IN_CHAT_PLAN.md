@@ -198,3 +198,22 @@ so it can be built without lifting the hold. When Equalize resumes it uses the s
   Re-approve whenever a routine's steps change (store a hash). Mute command matching while Ichos speaks; barge-in stops
   speech within a few hundred ms. Caption both sides. Picovoice's free tier ended 30 June 2026 and openWakeWord's models
   are non-commercial — stay with transcript + text matching.
+
+## Dockview v8 — tested live 2026-10-10 (overrides the docking notes above where they differ)
+- **Licence split (v8 introduced `dockview-enterprise`, paid, 30-day trial, no public price):** enterprise-only =
+  keyboard docking, spatial keyboard navigation, auto-hide edge groups, dock-to-edge groups, layout history
+  (undo/redo), pinned tabs, multi-row tabs, DnD compass, smart guides, searchable overflow. **Free (MIT):** panels,
+  groups, drag-drop docking, floating groups, popout windows, `toJSON`/`fromJSON`, tab groups, context menus (close,
+  maximize, float, popout), the v8 accessibility refresh.
+- **Measured on the free demo:** tabs are `role=tab` with roving `tabindex`, `aria-selected`, `aria-controls`,
+  `aria-label`; three `tablist`/`tabpanel` pairs; ArrowRight/End move focus (Enter selects — manual activation);
+  `:focus-visible` styles present; polite + assertive live regions. **Resize sashes have no role, no tabindex and no
+  aria — not keyboard-operable.**
+- **Decision:** use free dockview and build the paid bits ourselves on the free API (`panel.api.moveTo`,
+  `addFloatingGroup`, `addPopoutGroup`, `maximize`, `toJSON`/`fromJSON`):
+  1. "Move focused panel…" quick-pick (Top / Bottom / Left / Right / Float / Pop out / Notch) = our keyboard docking.
+  2. Layout undo = a snapshot stack of `toJSON()` on every committed change (cap 50), Ctrl+Z inside layout mode.
+  3. Auto-hide = our own edge strip that collapses a slot to its header; peek on hover/focus.
+  4. Keyboard resize = a focusable `role="separator"` overlay on each sash with `aria-valuenow`, arrow keys ±16 px,
+     Shift ±64 px, Home/End min/max (or react-resizable-panels inside panels, which already does this).
+  Do **not** depend on enterprise features; re-check the licence page on every major upgrade.
