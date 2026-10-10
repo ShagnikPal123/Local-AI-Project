@@ -9,6 +9,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import { ErrorState, Loading, PanelShell } from "../components/Panel";
+import { GithubSkills } from "./store/GithubSkills";
 
 interface Skill {
   id: string;
@@ -195,6 +196,8 @@ export function StorePanel() {
             {creating ? "Writing the skill…" : "Create skill"}
           </button>
         </div>
+
+        <GithubSkills onAdded={() => void load()} />
 
         <div className="card">
           <div className="label" style={{ marginBottom: 6 }}>Which skills would this message use?</div>
