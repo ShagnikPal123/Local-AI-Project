@@ -88,3 +88,28 @@ def digest_run(_owner_user=Depends(_owner)) -> Dict[str, Any]:
     import morning_digest
 
     return morning_digest.build()
+
+
+# --- skills from GitHub (skill_import.py; OpenJarvis's agentskills import) -----------------------------------------
+
+
+@router.post("/api/skills/github/preview")
+def skills_github_preview(body: Dict[str, Any], _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import skill_import
+    from fastapi import HTTPException
+
+    try:
+        return skill_import.find(str((body or {}).get("url") or ""))
+    except skill_import.SkillImportError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+@router.post("/api/skills/github/import")
+def skills_github_import(body: Dict[str, Any], _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import skill_import
+    from fastapi import HTTPException
+
+    try:
+        return {"added": skill_import.import_skills(str(body.get("url") or ""), [str(p) for p in body.get("paths") or []])}
+    except skill_import.SkillImportError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
