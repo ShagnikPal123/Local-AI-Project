@@ -1,4 +1,4 @@
-"""The Jarvis page's data (from the Jarvis projects the owner pointed at, 2026-10-09): what needs the owner right now,
+"""The equalize page's data (from the Jarvis projects the owner pointed at, 2026-10-09): what needs the owner right now,
 and every Claude Code session on this PC. All the owner's, all read-only, absent from hosted builds."""
 
 from __future__ import annotations
@@ -16,8 +16,8 @@ def _owner(request: Request) -> Any:
     return require_local_owner(request, request.headers.get("authorization"))
 
 
-@router.get("/api/jarvis/sessions")
-def jarvis_sessions(_owner_user=Depends(_owner)) -> Dict[str, Any]:
+@router.get("/api/equalize/sessions")
+def equalize_sessions(_owner_user=Depends(_owner)) -> Dict[str, Any]:
     import claude_sessions
 
     return {"sessions": claude_sessions.sessions()}
@@ -56,22 +56,22 @@ def needs_you() -> List[Dict[str, Any]]:
     return sorted(items, key=lambda i: -float(i.get("since") or 0))
 
 
-@router.get("/api/jarvis/needs-you")
-def jarvis_needs_you(_owner_user=Depends(_owner)) -> Dict[str, Any]:
+@router.get("/api/equalize/needs-you")
+def equalize_needs_you(_owner_user=Depends(_owner)) -> Dict[str, Any]:
     return {"items": needs_you()}
 
 
 # --- Morning Digest (morning_digest.py) ----------------------------------------------------------------------------
 
 
-@router.get("/api/jarvis/digest")
+@router.get("/api/equalize/digest")
 def digest_state(_owner_user=Depends(_owner)) -> Dict[str, Any]:
     import morning_digest
 
     return morning_digest.settings()
 
 
-@router.put("/api/jarvis/digest")
+@router.put("/api/equalize/digest")
 def digest_save(body: Dict[str, Any], _owner_user=Depends(_owner)) -> Dict[str, Any]:
     import morning_digest
     from fastapi import HTTPException
@@ -82,7 +82,7 @@ def digest_save(body: Dict[str, Any], _owner_user=Depends(_owner)) -> Dict[str, 
         raise HTTPException(status_code=400, detail=str(error)) from error
 
 
-@router.post("/api/jarvis/digest/run")
+@router.post("/api/equalize/digest/run")
 def digest_run(_owner_user=Depends(_owner)) -> Dict[str, Any]:
     """Make today's digest now (it may take a few seconds: several sources and one short model call)."""
     import morning_digest

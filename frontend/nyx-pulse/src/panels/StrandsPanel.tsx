@@ -115,7 +115,7 @@ type EnergySource = "mic" | "thinking" | "delivering" | "idle";
 const SOURCE_LABEL: Record<EnergySource, string> = {
   mic: "Live microphone",
   thinking: "Synthesised — request in flight",
-  delivering: "Synthesised — reply cadence",
+  delivering: "Synthesised — reply equalize",
   idle: "Still — no signal",
 };
 

@@ -133,7 +133,7 @@ CACHE_SECONDS = 3.0
 def sessions(now: Optional[float] = None, base: Optional[Path] = None) -> List[Dict[str, Any]]:
     """Recent sessions, those that need the owner first, then working, then by last activity.
 
-    The Jarvis page asks twice per poll (sessions, and "needs you"), so a live read is reused for a few seconds."""
+    The equalize page asks twice per poll (sessions, and "needs you"), so a live read is reused for a few seconds."""
     if now is None and base is None:
         if _CACHE["rows"] is not None and time.time() - _CACHE["at"] < CACHE_SECONDS:
             return list(_CACHE["rows"])

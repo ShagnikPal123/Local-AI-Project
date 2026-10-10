@@ -1,4 +1,4 @@
-/** Morning Digest on the Jarvis page (morning_digest.py): the last briefing, Brief Me Now, Play, and its settings. */
+/** Morning Digest on the equalize page (morning_digest.py): the last briefing, Brief Me Now, Play, and its settings. */
 
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../../api";
@@ -21,19 +21,19 @@ export function DigestCard() {
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
-    const r = await api.get<Settings>("/api/jarvis/digest");
+    const r = await api.get<Settings>("/api/equalize/digest");
     if (r.ok) setConf(r.data); else setError(r.error);
   }, []);
   useEffect(() => { void load(); }, [load]);
 
   const save = async (changes: Partial<Settings>) => {
-    const r = await api.put<Settings>("/api/jarvis/digest", changes);
+    const r = await api.put<Settings>("/api/equalize/digest", changes);
     if (r.ok) setConf(r.data); else setError(r.error);
   };
 
   const run = async () => {
     setBusy(true); setError("");
-    const r = await api.post<Digest>("/api/jarvis/digest/run", {}, 180000);
+    const r = await api.post<Digest>("/api/equalize/digest/run", {}, 180000);
     setBusy(false);
     if (!r.ok) { setError(r.error); return; }
     await load();

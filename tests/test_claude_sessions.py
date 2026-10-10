@@ -1,4 +1,4 @@
-"""The Jarvis page: Claude Code sessions read from their transcripts, and what needs the owner."""
+"""The equalize page: Claude Code sessions read from their transcripts, and what needs the owner."""
 
 from __future__ import annotations
 
@@ -58,13 +58,13 @@ def test_sessions_are_listed_needs_you_first_with_their_titles(tmp_path, monkeyp
     assert rows[1]["title"] == "Build the landing page" and rows[1]["state"] == "your_turn"
 
 
-def test_jarvis_routes_are_the_owner_s():
+def test_equalize_routes_are_the_owner_s():
     from fastapi.testclient import TestClient
 
     import deploy_mode
     import server
 
     remote = TestClient(server.app, client=("203.0.113.9", 50081))
-    for path in ("/api/jarvis/sessions", "/api/jarvis/needs-you"):
+    for path in ("/api/equalize/sessions", "/api/equalize/needs-you"):
         assert remote.get(path).status_code in (401, 403)
-    assert "/api/jarvis" in deploy_mode.HOSTED_BLOCKED_PREFIXES
+    assert "/api/equalize" in deploy_mode.HOSTED_BLOCKED_PREFIXES

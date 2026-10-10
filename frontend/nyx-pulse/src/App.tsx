@@ -72,7 +72,7 @@ const KahunaPanel = lazy(() => import("./panels/kahuna/KahunaPanel").then((m) =>
 const OwnComputerPanel = lazy(() => import("./panels/computer/OwnComputerPanel").then((m) => ({ default: m.OwnComputerPanel })));
 const OfficePanel = lazy(() => import("./panels/office/OfficePanel").then((m) => ({ default: m.OfficePanel })));
 const DesignResearchPanel = lazy(() => import("./panels/design/DesignResearchPanel").then((m) => ({ default: m.DesignResearchPanel })));
-const JarvisPanel = lazy(() => import("./panels/jarvis/JarvisPanel").then((m) => ({ default: m.JarvisPanel })));
+const EqualizePanel = lazy(() => import("./panels/equalize/EqualizePanel").then((m) => ({ default: m.EqualizePanel })));
 const SketchPanel = lazy(() => import("./panels/sketch/SketchPanel").then((m) => ({ default: m.SketchPanel })));
 const WorldPanel = lazy(() => import("./panels/world/WorldPanel").then((m) => ({ default: m.WorldPanel })));
 const AdminPanel = lazy(() => import("./panels/AdminPanel").then((m) => ({ default: m.AdminPanel })));
@@ -435,7 +435,7 @@ export default function App() {
         {active === "office" && <OfficePanel />}
         {active === "world" && <WorldPanel />}
         {active === "sketch" && <SketchPanel />}
-        {active === "jarvis" && <JarvisPanel />}
+        {active === "equalize" && <EqualizePanel />}
         {active === "design_research" && <DesignResearchPanel />}
         {active === "computer" && <OwnComputerPanel />}
         {active === "admin" && <AdminPanel />}

@@ -1,4 +1,4 @@
-/** The Jarvis page (from the Jarvis projects the owner pointed at, 2026-10-09; rebuilt for Nyx, no code taken).
+/** The equalize page (from the Jarvis projects the owner pointed at, 2026-10-09; rebuilt for Nyx, no code taken).
  *
  * One screen to talk to Nyx and see what is waiting: a particle orb that listens, thinks and speaks; an Ask box that
  * can answer out loud; "Needs you" — every approval Nyx is waiting on, trades to approve, and Claude Code sessions
@@ -10,7 +10,7 @@ import { api } from "../../api";
 import { onVoice, setVoiceMode, voiceMode, onVoiceMode } from "../../voice/voiceBus";
 import { speakText } from "../../voice/voicePlayer";
 import { DigestCard } from "./DigestCard";
-import "./jarvis.css";
+import "./equalize.css";
 
 type OrbState = "idle" | "listening" | "thinking" | "speaking";
 interface Need { kind: "approval" | "trade" | "claude"; id: string; title: string; detail: string; where: string; since: number }
@@ -101,14 +101,14 @@ function Orb({ state }: { state: OrbState }) {
   return <div ref={host} className="jv-orb" role="img" aria-label={`Nyx is ${STATE_WORDS[state].toLowerCase()}`} />;
 }
 
-export function JarvisPanel() {
+export function EqualizePanel() {
   const [orb, setOrb] = useState<OrbState>("idle");
   const [mode, setMode] = useState(voiceMode());
   const [heard, setHeard] = useState("");
   const [ask, setAsk] = useState("");
   const [reply, setReply] = useState("");
   const [busy, setBusy] = useState(false);
-  const [speak, setSpeak] = useState(() => localStorage.getItem("nyx.jarvis.speak") !== "0");
+  const [speak, setSpeak] = useState(() => localStorage.getItem("nyx.equalize.speak") !== "0");
   const [needs, setNeeds] = useState<Need[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [error, setError] = useState("");
@@ -122,7 +122,7 @@ export function JarvisPanel() {
   }), []);
 
   const load = useCallback(async () => {
-    const [n, s] = await Promise.all([api.get<{ items: Need[] }>("/api/jarvis/needs-you"), api.get<{ sessions: Session[] }>("/api/jarvis/sessions")]);
+    const [n, s] = await Promise.all([api.get<{ items: Need[] }>("/api/equalize/needs-you"), api.get<{ sessions: Session[] }>("/api/equalize/sessions")]);
     if (n.ok) setNeeds(n.data.items); else setError(n.error);
     if (s.ok) setSessions(s.data.sessions);
   }, []);
@@ -173,7 +173,7 @@ export function JarvisPanel() {
               {mode === "talk" ? "Stop Listening" : "Talk"}
             </button>
             <label className="jv-check">
-              <input type="checkbox" checked={speak} onChange={(e) => { setSpeak(e.target.checked); try { localStorage.setItem("nyx.jarvis.speak", e.target.checked ? "1" : "0"); } catch { /* not kept */ } }} />
+              <input type="checkbox" checked={speak} onChange={(e) => { setSpeak(e.target.checked); try { localStorage.setItem("nyx.equalize.speak", e.target.checked ? "1" : "0"); } catch { /* not kept */ } }} />
               Speak answers
             </label>
           </div>

@@ -58,9 +58,9 @@ def test_digest_routes_are_the_owner_s():
     import server
 
     remote = TestClient(server.app, client=("203.0.113.9", 50091))
-    assert remote.get("/api/jarvis/digest").status_code in (401, 403)
-    assert remote.put("/api/jarvis/digest", json={"city": "x"}).status_code in (401, 403)
-    assert remote.post("/api/jarvis/digest/run").status_code in (401, 403)
+    assert remote.get("/api/equalize/digest").status_code in (401, 403)
+    assert remote.put("/api/equalize/digest", json={"city": "x"}).status_code in (401, 403)
+    assert remote.post("/api/equalize/digest/run").status_code in (401, 403)
 
 
 def test_reading_the_offices_for_the_digest_writes_nothing(tmp_path, monkeypatch):

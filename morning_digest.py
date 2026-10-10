@@ -1,5 +1,5 @@
 """Morning Digest: one short briefing each day — what's on, what came in, the weather, the news you follow, the
-markets, and what Nyx's offices finished overnight. Spoken on the Jarvis page, and texted to the phone if wanted.
+markets, and what Nyx's offices finished overnight. Spoken on the equalize page, and texted to the phone if wanted.
 
 From OpenJarvis (Apache-2.0), which the owner pointed at on 2026-10-09: its ``morning_digest`` agent is "a daily
 spoken briefing from email, calendar, health, and news". This is Nyx's own version, built from what Nyx already has:
@@ -255,7 +255,7 @@ def build(conf: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
             skipped[name] = str(error)[:120] or type(error).__name__
     digest = {"at": time.time(), "facts": facts, "skipped": skipped,
               "text": _speak_words(facts) if facts else "Good morning. Nothing to report yet — connect a calendar or "
-                                                         "set a city in the Jarvis page's Morning Digest."}
+                                                         "set a city in the equalize page's Morning Digest."}
     data = settings()
     data["last"] = digest
     _write(data)
@@ -263,7 +263,7 @@ def build(conf: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
 
 
 def deliver(digest: Dict[str, Any]) -> None:
-    """Where a finished digest goes besides the Jarvis page: a toast, and the phone when both switches allow it."""
+    """Where a finished digest goes besides the equalize page: a toast, and the phone when both switches allow it."""
     try:
         from landscape_tools import tool_ui_notify
 

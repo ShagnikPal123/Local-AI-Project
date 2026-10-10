@@ -30,7 +30,7 @@ export type TabId =
   | "office"
   | "world"
   | "sketch"
-  | "jarvis"
+  | "equalize"
   | "design_research"
   | "computer"
   | "admin"
@@ -92,7 +92,7 @@ export const CORE_TABS: TabDef[] = [
   // UPDATE_IDEAS U2: draw, and Nyx draws with you — scan to improve, a bar for what Nyx should draw.
   { id: "sketch", label: "Create", icon: "ph-paint-brush", pinned: true, core: true },
   // From the Jarvis projects (2026-10-09): talk to Nyx, what needs you, Claude Code sessions, the morning digest.
-  { id: "jarvis", label: "Jarvis", icon: "ph-circles-three", pinned: true, core: true },
+  { id: "equalize", label: "Equalize", icon: "ph-circles-three", pinned: true, core: true },
   // The Design Masterplan's research log as a feature: study how sites look; Nyx designs with what it kept.
   { id: "design_research", label: "Design Research", icon: "ph-palette", pinned: true, core: true },
   // Update 1, U49: a sandboxed desktop of Nyx's own (Cua), and where it may work — never borrowing yours unasked.
