@@ -90,7 +90,7 @@ export async function speakText(text: string, options: { role?: string; voice?: 
   const url = await fetchAudio("/api/voice/tts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, role: options.role ?? "reply", voice: options.voice ?? "", rate: options.rate ?? "+0%" }),
+    body: JSON.stringify({ text, role: options.role ?? "reply", voice: options.voice ?? "", rate: options.rate ?? "+0%", session: "voice" }),
   });
   queue.push({ url, label: text.slice(0, 80), spoken: text });
   void playNext();

@@ -40,15 +40,21 @@ class TTSRequest(BaseModel):
     rate: str = "+0%"
     pitch: str = "+0Hz"
     engine: str = ""
+    #: The voice conversation this belongs to; equalize keeps the assistant's name to one introduction per session.
+    session: str = "default"
 
 
 @router.post("/api/voice/tts")
 def voice_tts(body: TTSRequest, _user=RequireChat) -> FileResponse:
     """Synthesize and return the audio (mp3 for neural voices, wav for Windows voices)."""
     import tts
+    import equalize_voice
 
+    # A spoken reply says the assistant's own name at most once per session (equalize). A voice sample, which has
+    # no role, is read exactly as written so the owner hears the voice, not an edited line.
+    spoken = equalize_voice.clean(body.text, body.session or "default") if body.role == "reply" else body.text
     try:
-        result = tts.synthesize(body.text, voice_id=body.voice, rate=body.rate, pitch=body.pitch,
+        result = tts.synthesize(spoken, voice_id=body.voice, rate=body.rate, pitch=body.pitch,
                                 engine=body.engine, role=body.role)
     except tts.TTSError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
