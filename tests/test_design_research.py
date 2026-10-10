@@ -89,3 +89,10 @@ def test_routes_are_the_owner_s():
     assert remote.post("/api/design-research", json={"url": "https://a.test"}).status_code in (401, 403)
     assert remote.post("/api/design-research/dr-x/masterplan").status_code in (401, 403)
     assert remote.delete("/api/design-research/dr-x").status_code in (401, 403)
+
+
+def test_light_or_dark_comes_from_the_page_background_not_the_text_colour():
+    light = dr.measure("<p>x</p>", "body{background:#ffffff;color:#111111} h1{color:#111111} p{color:#111111} a{color:#111}")
+    assert light["theme"] == "light"
+    assert dr.measure("", "a{color:#000}")["theme"] == "unknown"
+    assert dr.measure("", "p{font-family:inherit} h1{font-family:'Söhne',sans-serif}")["fonts"] == ["Söhne"]

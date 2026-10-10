@@ -42,6 +42,9 @@ _RADIUS = re.compile(r"border-radius\s*:\s*([0-9.]+(?:px|rem|em|%))", re.I)
 _SIZE = re.compile(r"font-size\s*:\s*([0-9.]+(?:px|rem|em))", re.I)
 _SPACE = re.compile(r"(?:padding|margin|gap)\s*:\s*([0-9.]+(?:px|rem|em))", re.I)
 _VAR = re.compile(r"(--[a-zA-Z0-9-]{2,40})\s*:\s*([^;}{]{1,60})")
+_PAGE_BG = re.compile(r"(?:^|[}\s,])(?:body|html|:root)\b[^{]*\{[^}]*?background(?:-color)?\s*:\s*"
+                      r"(#[0-9a-fA-F]{3,6}\b|rgba?\([^)]*\))", re.I)
+_NOT_FONTS = {"inherit", "initial", "unset", "revert", "sans-serif", "serif", "monospace", "system-ui", "cursive"}
 _LOCK = threading.RLock()
 
 
@@ -76,14 +79,22 @@ def measure(html: str, css: str) -> Dict[str, Any]:
     fonts = Counter()
     for stack in _FONT.findall(text):
         first = stack.split(",")[0].strip().strip("'\"")
-        if first and not first.startswith("var(") and len(first) < 40:
+        if first and not first.startswith("var(") and len(first) < 40 and first.lower() not in _NOT_FONTS:
             fonts[first] += 1
     variables = {}
     for name, value in _VAR.findall(text)[:400]:
         if name not in variables:
             variables[name] = value.strip()
     top_colours = [c for c, _n in colours.most_common(10)]
-    background = next((c for c in top_colours if _luminance(c) < 0.2 or _luminance(c) > 0.9), "")
+    # Dark or light from the page's own background (body / html / :root), not from its most-used colours: a light
+    # site's commonest colour is often its dark text.
+    background = ""
+    page_rule = _PAGE_BG.search(text)
+    if page_rule:
+        value = page_rule.group(1)
+        rgb = _RGB.match(value)
+        background = "#%02x%02x%02x" % tuple(int(x) for x in rgb.groups()) if rgb else (
+            _norm_hex(value) if _HEX.match(value) else "")
     return {
         "colours": top_colours,
         "fonts": [f for f, _n in fonts.most_common(4)],
