@@ -77,6 +77,8 @@ HOSTED_BLOCKED_PREFIXES = (
     "/api/world",
     # The owner's WhatsApp line reaches their own phone and is tied to their own PC.
     "/api/whatsapp",
+    # The Jarvis page reads the owner's Claude Code sessions and everything waiting on them on this PC.
+    "/api/jarvis",
     # Project Null N92/N103/N104: the always-listening microphone that acts on this PC, Nyx's own
     # questions and mistakes, and the money it is allowed to work with.
     "/api/proto-voice",
