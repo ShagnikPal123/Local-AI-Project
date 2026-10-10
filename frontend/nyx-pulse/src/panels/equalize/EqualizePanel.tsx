@@ -8,7 +8,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { api } from "../../api";
 import { onVoice, setVoiceMode, voiceMode, onVoiceMode } from "../../voice/voiceBus";
-import { speakText } from "../../voice/voicePlayer";
+import { stopSpeaking } from "../../voice/voicePlayer";
+import { useSpeakingText } from "../../voice/voiceEngine";
+import { useTurns } from "../../hooks/useTurns";
+import { useActiveTalk } from "../../components/chat/ActiveTalk";
+import { useStore } from "../../state/store";
+import { turnsStore } from "../../state/turnStore";
 import { DigestCard } from "./DigestCard";
 import "./equalize.css";
 
@@ -101,17 +106,44 @@ export function Orb({ state }: { state: OrbState }) {
   return <div ref={host} className="jv-orb" role="img" aria-label={`Nyx is ${STATE_WORDS[state].toLowerCase()}`} />;
 }
 
+/** The chat Equalize talks in: the one the owner was last in, so the conversation continues in the Chat tab. */
+function activeChat(): string {
+  try { return localStorage.getItem("nyx.chat.active") || "default"; } catch { return "default"; }
+}
+
 export function EqualizePanel() {
-  const [orb, setOrb] = useState<OrbState>("idle");
+  // Fixed 2026-10-10 (owner: "it simply doesn't work well"). Two real bugs: what you said on this tab went to the
+  // chat panel — which is not on screen here — so speech vanished or yanked you to Chat; and Ask used a slow,
+  // blocking /api/chat call that never streamed. Now both go through the chat's own live turns (useTurns) in your
+  // current chat, answers stream onto this page, and useActiveTalk speaks them sentence by sentence as they are written.
+  const chatId = activeChat();
+  const { runningTurn, send } = useTurns(chatId);
   const [mode, setMode] = useState(voiceMode());
   const [heard, setHeard] = useState("");
+  const [listening, setListening] = useState(false);
   const [ask, setAsk] = useState("");
-  const [reply, setReply] = useState("");
-  const [busy, setBusy] = useState(false);
   const [speak, setSpeak] = useState(() => localStorage.getItem("nyx.equalize.speak") !== "0");
   const [needs, setNeeds] = useState<Need[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [error, setError] = useState("");
+  const [log, setLog] = useState<{ you: string; turnId?: string }[]>([]);
+  const turns = useStore(turnsStore, (s) => s.turns);
+  const speakingNow = useSpeakingText();
+  const talkOn = mode !== "off";
+  useActiveTalk({ enabled: talkOn || speak, turn: runningTurn });
+
+  // The quickest model for spoken answers, as the chat picks it (local first, then a fast online one).
+  const [voiceProvider, setVoiceProvider] = useState("");
+  useEffect(() => {
+    let alive = true;
+    void api.get<{ service?: { router_status?: Record<string, boolean> } }>("/api/status").then((r) => {
+      if (!alive || !r.ok) return;
+      const router = r.data.service?.router_status ?? {};
+      setVoiceProvider(["identity0", "ollama", "groq", "nvidia", "gemini"].find((n) => router[`${n}_available`]) ?? "");
+    });
+    return () => { alive = false; };
+  }, []);
+
   // The desktop notch (notch.py): Ichos's voice as a pill on top of the screen, outside the browser.
   const [notchOn, setNotchOn] = useState(false);
   useEffect(() => { void api.get<{ running: boolean }>("/api/notch").then((r) => { if (r.ok) setNotchOn(r.data.running); }); }, []);
@@ -122,11 +154,44 @@ export function EqualizePanel() {
 
   useEffect(() => onVoiceMode(setMode), []);
   useEffect(() => onVoice((event) => {
-    if (event.type === "partial" || event.type === "final") { setHeard(event.text); setOrb("listening"); }
-    else if (event.type === "start") setOrb("listening");
-    else if (event.type === "stop") setOrb((s) => (s === "listening" ? "idle" : s));
-    else if (event.type === "speaking") setOrb(event.text ? "speaking" : "idle");
+    if (event.type === "partial" || event.type === "final") { setHeard(event.text); setListening(event.type === "partial"); }
+    else if (event.type === "start") setListening(true);
+    else if (event.type === "stop") setListening(false);
   }), []);
+
+  const say = useCallback(async (text: string, sessionId?: string, spoken = false) => {
+    const message = text.trim();
+    if (!message) return;
+    setError("");
+    setLog((l) => [...l.slice(-5), { you: message }]);
+    await send({ message, chatId, voice: spoken || speak, voiceSession: sessionId,
+                 provider: spoken ? voiceProvider || undefined : undefined });
+  }, [send, chatId, speak, voiceProvider]);
+
+  // What the one microphone heard arrives here while this page is open (the chat panel is not mounted).
+  useEffect(() => {
+    const onVoiceSend = (event: Event) => {
+      const detail = (event as CustomEvent<{ text?: string; sessionId?: string }>).detail ?? {};
+      if (detail.text) void say(detail.text, detail.sessionId, true);
+    };
+    window.addEventListener("nyx:voice-send", onVoiceSend);
+    return () => window.removeEventListener("nyx:voice-send", onVoiceSend);
+  }, [say]);
+
+  // Tie each thing you said to the turn that answered it, so the page shows the conversation.
+  const runningId = runningTurn?.turnId;
+  useEffect(() => {
+    if (!runningId) return;
+    // The first id is a local placeholder; the real one replaces it when the server answers, so follow it.
+    setLog((l) => {
+      const last = l[l.length - 1];
+      if (!last || (last.turnId && !last.turnId.startsWith("local-"))) return l;
+      return [...l.slice(0, -1), { ...last, turnId: runningId }];
+    });
+  }, [runningId]);
+
+  const busy = Boolean(runningTurn);
+  const orb: OrbState = speakingNow ? "speaking" : busy ? "thinking" : listening ? "listening" : "idle";
 
   const load = useCallback(async () => {
     const [n, s] = await Promise.all([api.get<{ items: Need[] }>("/api/equalize/needs-you"), api.get<{ sessions: Session[] }>("/api/equalize/sessions")]);
@@ -139,20 +204,10 @@ export function EqualizePanel() {
     return () => window.clearInterval(timer);
   }, [load]);
 
-  const send = async () => {
-    const text = ask.trim();
-    if (!text) return;
-    setBusy(true); setOrb("thinking"); setReply("");
-    const result = await api.post<{ reply: string }>("/api/chat", { message: text }, 180000);
-    setBusy(false);
-    if (!result.ok) { setReply(result.error); setOrb("idle"); return; }
-    setReply(result.data.reply);
+  const sendTyped = async () => {
+    const text = ask;
     setAsk("");
-    if (speak) {
-      setOrb("speaking");
-      try { await speakText(result.data.reply.slice(0, 900)); } catch { /* no voice: the text is on screen */ }
-    }
-    setOrb("idle");
+    await say(text);
   };
 
   const answer = async (need: Need, approve: boolean) => {
@@ -167,18 +222,19 @@ export function EqualizePanel() {
 
   return (
     <div className="jv">
-      <section className="jv-hero" aria-label="Talk to Nyx">
-        <Orb state={busy ? "thinking" : orb} />
+      <section className="jv-hero" aria-label="Talk to Ichos">
+        <Orb state={orb} />
         <div className="jv-hero__side">
-          <p className="jv-state" aria-live="polite">{STATE_WORDS[busy ? "thinking" : orb]}{heard && orb === "listening" ? ` — “${heard}”` : ""}</p>
-          <form className="jv-ask" onSubmit={(e) => { e.preventDefault(); void send(); }}>
-            <input value={ask} onChange={(e) => setAsk(e.target.value)} placeholder="Ask Nyx anything…" aria-label="Ask Nyx" />
-            <button className="btn btn-primary" disabled={busy || !ask.trim()}>{busy ? "Thinking…" : "Ask"}</button>
+          <p className="jv-state" aria-live="polite">{STATE_WORDS[orb]}{heard && listening ? ` — “${heard}”` : ""}</p>
+          <form className="jv-ask" onSubmit={(e) => { e.preventDefault(); void sendTyped(); }}>
+            <input value={ask} onChange={(e) => setAsk(e.target.value)} placeholder={talkOn ? "Talk, or type here…" : "Ask Ichos anything…"} aria-label="Ask Ichos" />
+            <button className="btn btn-primary" disabled={busy || !ask.trim()}>{busy ? "Answering…" : "Ask"}</button>
           </form>
           <div className="jv-row">
-            <button className="btn btn-secondary" onClick={() => setVoiceMode(mode === "talk" ? "off" : "talk")} aria-pressed={mode === "talk"}>
-              {mode === "talk" ? "Stop Listening" : "Talk"}
+            <button className={`btn ${talkOn ? "btn-primary" : "btn-secondary"}`} onClick={() => setVoiceMode(talkOn ? "off" : "talk")} aria-pressed={talkOn}>
+              {talkOn ? "Stop listening" : "Talk"}
             </button>
+            {speakingNow && <button className="btn btn-secondary" onClick={() => stopSpeaking()}>Stop speaking</button>}
             <label className="jv-check">
               <input type="checkbox" checked={speak} onChange={(e) => { setSpeak(e.target.checked); try { localStorage.setItem("nyx.equalize.speak", e.target.checked ? "1" : "0"); } catch { /* not kept */ } }} />
               Speak answers
@@ -188,7 +244,19 @@ export function EqualizePanel() {
               {notchOn ? "Hide the notch" : "Show the notch on screen"}
             </button>
           </div>
-          {reply && <div className="jv-reply">{reply}</div>}
+          {log.length > 0 && (
+            <ol className="jv-convo" aria-label="This conversation">
+              {log.map((entry, i) => {
+                const turn = entry.turnId ? turns[entry.turnId] : undefined;
+                return (
+                  <li key={i}>
+                    <p className="jv-you">{entry.you}</p>
+                    <p className="jv-reply">{turn?.answer || (turn ? turn.status || "Thinking…" : "Sending…")}</p>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
         </div>
       </section>
 
