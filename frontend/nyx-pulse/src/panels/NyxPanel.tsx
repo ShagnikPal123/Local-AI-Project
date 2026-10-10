@@ -74,19 +74,27 @@ function clusterForTool(name: string): number {
 
 const fmt = (n: number) => n.toLocaleString();
 
-export function NyxPanel({ onActivity, provider, onProvider, onOpenTab }: {
+/** The Second Brain as a window beside the chat (redesign 2026-10-10): the field and the core, no chat sheet over it. */
+export function SecondBrainWindow() {
+  return <NyxPanel windowed provider="" onProvider={() => {}} onOpenTab={(tab) => window.dispatchEvent(new CustomEvent("nyx:open-tab", { detail: { tab } }))} />;
+}
+
+export function NyxPanel({ onActivity, provider, onProvider, onOpenTab, windowed = false }: {
   onActivity?: (s: AvatarState) => void;
   provider: string;
   onProvider: (provider: string) => void;
   onOpenTab?: (tab: string) => void;
+  /** Shown as a chat window: always the brain, and the chat is the one beside it, not a sheet on top. */
+  windowed?: boolean;
 }) {
   const reduced = useReducedMotion();
   // Update 1, U48 — what the tab shows, chosen at its top: "chat" (chats down the left, like Claude) or "brain"
   // (the Second Brain with voice and the chat sheet, the main screen until now). Remembered.
-  const [layout, setLayout] = useState<"chat" | "brain">(() => {
+  const [layoutRaw, setLayout] = useState<"chat" | "brain">(() => {
     try { return localStorage.getItem("nyx.layout") === "brain" ? "brain" : "chat"; } catch { return "chat"; }
   });
-  useEffect(() => { try { localStorage.setItem("nyx.layout", layout); } catch { /* not kept */ } }, [layout]);
+  const layout = windowed ? "brain" : layoutRaw;
+  useEffect(() => { if (!windowed) try { localStorage.setItem("nyx.layout", layoutRaw); } catch { /* not kept */ } }, [layoutRaw, windowed]);
   const field = useRef<BrainFieldHandle>(null);
   const [summary, setSummary] = useState<BrainSummary | null>(null);
   const [core, setCore] = useState<CoreSummary | null>(null);
@@ -96,7 +104,7 @@ export function NyxPanel({ onActivity, provider, onProvider, onOpenTab }: {
   const [predicted, setPredicted] = useState<number[]>([]);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<{ memories: { id: number; text: string; source: string; index: number | null }[] } | null>(null);
-  const [chatOpen, setChatOpen] = useState(true);
+  const [chatOpen, setChatOpen] = useState(!windowed);
   // The chat sheet's width: drag its left edge or press Expand (Request G17). Remembered.
   const [sheetWidth, setSheetWidth] = useState(() => {
     try { return Number(localStorage.getItem("nyx.sheet.width")) || 440; } catch { return 440; }
@@ -275,7 +283,7 @@ export function NyxPanel({ onActivity, provider, onProvider, onOpenTab }: {
   useEffect(() => { try { localStorage.setItem("nyx.field.legend", legendOpen ? "1" : "0"); } catch { /* not kept */ } }, [legendOpen]);
   useEffect(() => { try { localStorage.setItem("nyx.field.status", statusOpen ? "1" : "0"); } catch { /* not kept */ } }, [statusOpen]);
 
-  const layoutBar = (
+  const layoutBar = windowed ? null : (
     <div className="nyx-tab__bar">
       <div className="segmented" role="group" aria-label="What the Nyx tab shows">
         <button type="button" aria-pressed={layout === "chat"} onClick={() => setLayout("chat")}>Chat</button>
@@ -446,7 +454,7 @@ export function NyxPanel({ onActivity, provider, onProvider, onOpenTab }: {
       )}
 
       {/* Chat + voice sheet */}
-      <aside className={`nyx-sheet glass${chatOpen ? "" : " is-closed"}`} aria-label="Chat with Nyx">
+      {!windowed && <aside className={`nyx-sheet glass${chatOpen ? "" : " is-closed"}`} aria-label="Chat with Nyx">
         <div
           className="nyx-sheet__grip"
           role="separator"
@@ -484,8 +492,8 @@ export function NyxPanel({ onActivity, provider, onProvider, onOpenTab }: {
           <button className="btn btn-secondary" onClick={() => setChatOpen(false)} aria-label="Hide chat" title="Hide chat — see the whole brain">Hide</button>
         </div>
         {chatOpen && <ChatPanel variant="sheet" onActivity={onActivity} provider={provider} onProvider={onProvider} onSent={onSent} />}
-      </aside>
-      {!chatOpen && (
+      </aside>}
+      {!chatOpen && !windowed && (
         <button className="nyx-sheet-open btn btn-plain" onClick={() => setChatOpen(true)}>Chat with Nyx</button>
       )}
     </div>

@@ -13,6 +13,7 @@ import { Icon } from "./Icon";
 import { SlashMenu, useSlashRows, commandsIn } from "./SlashMenu";
 import { usePasteFiles } from "../../files/fileIntake";
 import { ComposerLinks } from "./ComposerLinks";
+import "../windows/windows.css";
 
 const BUSY_LABELS: Record<BusyMode, { short: string; long: string }> = {
   queue: { short: "Queue", long: "Queue — send when this answer finishes" },
@@ -304,16 +305,15 @@ export function Composer({
             e.target.value = "";
           }}
         />
-        <button
-          className="btn btn-secondary"
-          onClick={() => fileRef.current?.click()}
+        <PlusMenu
           disabled={busy || disabled}
-          title="Attach images or files — Nyx can look at images and read documents"
-          style={{ flex: "none", padding: "8px 10px" }}
-          aria-label="Attach files"
-        >
-          <Icon name="file" size={15} />
-        </button>
+          onAttach={() => fileRef.current?.click()}
+          onSkill={() => { onChange("/"); textareaRef.current?.focus(); }}
+          onCourt={() => {
+            if (value.trim()) { onChange(`/court ${value.trim()}`); textareaRef.current?.focus(); }
+            else window.dispatchEvent(new CustomEvent("ichos:open-window", { detail: { kind: "court" } }));
+          }}
+        />
 
         <div className="composer-box">
         <ComposerLinks value={value} textareaRef={textareaRef} caret={caret} />
@@ -438,6 +438,54 @@ export function Composer({
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+/** The + beside the box (redesign 2026-10-10): attach, and the things the chat can do instead of tabs — share the
+ * screen, use a skill, put a question on trial, open a window (owner: "have screen share as a choice in there where
+ * you tell the AI you want to screen share or use a skill"). */
+function PlusMenu({ disabled, onAttach, onSkill, onCourt }: {
+  disabled?: boolean;
+  onAttach: () => void;
+  onSkill: () => void;
+  onCourt: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); };
+  }, [open]);
+  const win = (kind: string) => window.dispatchEvent(new CustomEvent("ichos:open-window", { detail: { kind } }));
+  const item = (glyph: string, label: string, hint: string, run: () => void) => (
+    <button type="button" role="menuitem" className="plus-menu__item" onClick={() => { setOpen(false); run(); }}>
+      <span className="plus-menu__glyph" aria-hidden="true">{glyph}</span>
+      <span>{label}<small>{hint}</small></span>
+    </button>
+  );
+  return (
+    <div className="plus-menu" ref={ref}>
+      <button type="button" className="btn btn-secondary plus-menu__button" aria-haspopup="menu" aria-expanded={open}
+        aria-label="Attach, share your screen, use a skill, or open a window" title="Attach, share screen, skills, windows"
+        disabled={disabled} onClick={() => setOpen((v) => !v)}>+</button>
+      {open && (
+        <div className="plus-menu__list" role="menu">
+          {item("⎘", "Attach files", "Images and documents", onAttach)}
+          {item("▣", "Share your screen", "Ichos looks and helps step by step", () => win("screen"))}
+          {item("/", "Use a skill", "Commands and skills Ichos knows", onSkill)}
+          {item("⚖", "Put it on trial", "Bots argue it before three judges", onCourt)}
+          <div className="plus-menu__title">Open a window</div>
+          {item("◆", "Game Studio", "Make or play a game", () => win("game"))}
+          {item("◎", "Second Brain", "Everything Ichos remembers", () => win("brain"))}
+          {item("▦", "Office & World", "Your offices of agents and their worlds", () => win("office"))}
+          {item("▭", "Ichos Computer", "Its own sandboxed desktop", () => win("computer"))}
+        </div>
+      )}
     </div>
   );
 }

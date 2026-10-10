@@ -1,0 +1,77 @@
+.court { display: flex; flex-direction: column; gap: 12px; padding: 16px; overflow-y: auto; height: 100%; }
+.court--empty { justify-content: center; }
+.court__empty { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+.court__empty h2 { margin: 0; font-size: 20px; line-height: 28px; font-weight: 600; }
+.court__empty p { margin: 0; color: var(--color-neutral-400); }
+.court__empty textarea { font: inherit; color: inherit; padding: 10px 12px; border-radius: var(--radius); border: 1px solid var(--color-divider); background: var(--color-surface-2); resize: vertical; }
+.court__error { color: var(--color-danger); margin: 0; }
+
+.court__head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.court__question { flex: 1; min-width: 200px; }
+.court__question h2 { margin: 0; font-size: 16px; line-height: 22px; font-weight: 600; }
+.court__status { font-size: 12px; padding: 2px 10px; border-radius: 999px; background: var(--color-surface-3); color: var(--color-neutral-400); }
+.court__status.is-verdict, .court__status.is-decided { color: #000; background: var(--color-accent); }
+.court__status.is-failed { color: var(--color-danger); }
+
+.court__room {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding: 20px 16px 24px;
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(165, 148, 255, 0.08), transparent 60%),
+    repeating-linear-gradient(90deg, transparent 0 39px, rgba(255, 255, 255, 0.025) 39px 40px),
+    var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-divider);
+}
+.court__bench { display: flex; justify-content: center; gap: 12px; padding-bottom: 16px; border-bottom: 2px solid rgba(255, 255, 255, 0.08); }
+.court__floor { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; }
+.court__seat, .court__table, .court__clerk {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-2);
+  box-shadow: inset 0 0 0 1px var(--color-divider);
+  text-align: center;
+  transition: box-shadow 200ms var(--ease-out);
+}
+.court__seat { width: 132px; }
+.court__table { width: 200px; box-shadow: inset 0 3px 0 var(--side, var(--color-accent)), inset 0 0 0 1px var(--color-divider); }
+.court__avatar { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; background: var(--color-surface-3); font-weight: 600; color: var(--side, var(--color-text)); }
+.court__name { font-size: 13px; font-weight: 600; }
+.court__stance { font-size: 12px; line-height: 16px; color: var(--color-neutral-400); }
+.court__vote { font-size: 12px; font-weight: 600; }
+.court__pick { font-size: 12px; min-height: 28px; }
+.court__crown { position: absolute; top: -10px; right: -6px; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--side, var(--color-accent)); color: #000; font-weight: 600; }
+.is-speaking { box-shadow: 0 0 0 2px var(--ai-edge), 0 0 24px var(--ai-aura), inset 0 0 0 1px var(--color-accent) !important; }
+.court__table.is-winner { box-shadow: 0 0 0 2px var(--side), inset 0 0 0 1px var(--side) !important; }
+.court__bubble {
+  align-self: center;
+  max-width: 560px;
+  padding: 10px 14px;
+  border-radius: var(--radius-lg);
+  background: var(--color-flyout);
+  box-shadow: var(--shadow-flyout), inset 3px 0 0 var(--side);
+  font-size: 13px;
+}
+.court__bubble p { margin: 4px 0 0; color: var(--color-neutral-300); line-height: 1.5; }
+.court__verdict { align-self: center; font-weight: 600; font-size: 15px; }
+
+.court__transcript { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.court__line { padding: 8px 12px; border-radius: var(--radius); background: var(--color-surface); box-shadow: inset 3px 0 0 var(--side); }
+.court__line.is-judge { background: var(--color-surface-2); }
+.court__line-who { font-size: 13px; font-weight: 600; }
+.court__line-who small { font-weight: 400; color: var(--color-neutral-600); margin-left: 6px; }
+.court__line p { margin: 4px 0 0; font-size: 13px; line-height: 1.5; color: var(--color-neutral-300); white-space: pre-wrap; }
+@media (prefers-reduced-motion: reduce) { .court__seat, .court__table { transition: none; } }
+.court__past { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.court__past h3 { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
+.court__past-item { display: flex; justify-content: space-between; gap: 12px; padding: 8px 12px; border-radius: var(--radius); text-align: left; background: var(--color-surface); box-shadow: inset 0 0 0 1px var(--color-divider); }
+.court__past-item:hover { background: var(--color-surface-3); }
+.court__past-item small { color: var(--color-neutral-600); white-space: nowrap; }

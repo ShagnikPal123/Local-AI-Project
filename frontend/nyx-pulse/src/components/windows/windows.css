@@ -1,0 +1,87 @@
+/* Chat home + its windows (redesign 2026-10-10). */
+.chat-shell { display: flex; height: 100%; min-height: 0; min-width: 0; position: relative; }
+.chat-shell.is-bottom { flex-direction: column; }
+.chat-shell.is-left { flex-direction: row-reverse; }
+.chat-shell__chat { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.chat-shell__chat > .chat-home { flex: 1; height: auto; min-height: 0; }
+.chat-shell.is-full .chat-shell__chat { display: none; }
+
+.chat-window {
+  position: relative;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--color-bg);
+}
+.chat-window.is-right { border-left: 1px solid var(--color-divider); }
+.chat-window.is-left { border-right: 1px solid var(--color-divider); }
+.chat-window.is-bottom { border-top: 1px solid var(--color-divider); }
+.chat-window.is-full { flex: 1; }
+
+.chat-window__grip { position: absolute; z-index: 3; background: transparent; }
+.chat-window.is-right .chat-window__grip { left: -3px; top: 0; bottom: 0; width: 6px; cursor: col-resize; }
+.chat-window.is-left .chat-window__grip { right: -3px; top: 0; bottom: 0; width: 6px; cursor: col-resize; }
+.chat-window.is-bottom .chat-window__grip { top: -3px; left: 0; right: 0; height: 6px; cursor: row-resize; }
+.chat-window__grip:hover, .chat-window__grip:focus-visible { background: var(--color-accent); }
+
+.chat-window__bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 4px 8px;
+  background: var(--color-nav);
+  box-shadow: inset 0 -1px 0 var(--color-divider);
+  flex: none;
+}
+.chat-window__tabs { display: flex; gap: 2px; overflow-x: auto; min-width: 0; flex: 1; }
+.chat-window__tab { display: inline-flex; align-items: center; border-radius: var(--radius); flex: none; }
+.chat-window__tab > button:first-child { height: 32px; padding: 0 4px 0 12px; font-size: 14px; color: var(--color-neutral-400); white-space: nowrap; }
+.chat-window__tab[data-active] { background: var(--color-surface-3); }
+.chat-window__tab[data-active] > button:first-child { color: var(--color-text); font-weight: 600; }
+.chat-window__tab-close { width: 28px; height: 28px; font-size: 12px; color: var(--color-neutral-600); }
+.chat-window__tab-close:hover { color: var(--color-text); }
+.chat-window__tools { display: flex; align-items: center; gap: 2px; flex: none; }
+.chat-window__menu-wrap { position: relative; }
+.chat-window__menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 40;
+  min-width: 180px;
+  padding: 4px;
+  border-radius: var(--radius-lg);
+  background: var(--color-flyout);
+  box-shadow: var(--shadow-flyout), inset 0 0 0 1px rgba(189, 189, 189, 0.12);
+}
+.chat-window__menu button { display: block; width: 100%; height: 36px; padding: 0 12px; text-align: left; border-radius: var(--radius); color: var(--color-neutral-400); }
+.chat-window__menu button:hover { background: var(--color-surface-3); color: var(--color-text); }
+.chat-window__menu button[aria-checked="true"] { color: var(--color-text); font-weight: 600; }
+.chat-window__body { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; }
+.chat-window__body > * { flex: 1; min-height: 0; }
+
+/* The composer's + menu (attach · share screen · use a skill · open a window). */
+.plus-menu { position: relative; flex: none; align-self: stretch; display: flex; }
+.plus-menu__button { width: 40px; padding: 0 !important; font-size: 18px; }
+.plus-menu__list {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 50;
+  width: 260px;
+  padding: 4px;
+  border-radius: var(--radius-lg);
+  background: var(--color-flyout);
+  box-shadow: var(--shadow-flyout), inset 0 0 0 1px rgba(189, 189, 189, 0.12);
+}
+.plus-menu__title { font-size: 12px; font-weight: 600; color: var(--color-neutral-600); padding: 8px 12px 4px; }
+.plus-menu__item { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 36px; padding: 6px 12px; text-align: left; border-radius: var(--radius); color: var(--color-neutral-300); }
+.plus-menu__item:hover, .plus-menu__item:focus-visible { background: var(--color-surface-3); color: var(--color-text); }
+.plus-menu__glyph { width: 18px; text-align: center; color: var(--color-neutral-400); }
+.plus-menu__item small { display: block; color: var(--color-neutral-600); font-size: 12px; }
+
+@media (max-width: 900px) {
+  .chat-shell:not(.is-bottom) .chat-window:not(.is-full) { position: absolute; inset: 0; width: 100% !important; z-index: 30; }
+}

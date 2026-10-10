@@ -47,7 +47,7 @@ import { VoiceTopBar } from "./components/voice/VoiceTopBar";
 // Every tab is its own chunk (2026-09-16). The shell used to import all of them up front,
 // three.js and the chart and code views included, so the first paint downloaded ~1.2 MB
 // before anything could show. Now only the open tab is fetched.
-const NyxPanel = lazy(() => import("./panels/NyxPanel").then((m) => ({ default: m.NyxPanel })));
+const ChatHome = lazy(() => import("./panels/ChatHome").then((m) => ({ default: m.ChatHome })));
 const LearnPanel = lazy(() => import("./panels/LearnPanel").then((m) => ({ default: m.LearnPanel })));
 const NotesPanel = lazy(() => import("./panels/notes/NotesPanel").then((m) => ({ default: m.NotesPanel })));
 const CodePanel = lazy(() => import("./panels/code/CodePanel").then((m) => ({ default: m.CodePanel })));
@@ -66,9 +66,8 @@ const ApplyPanel = lazy(() => import("./panels/apply/ApplyPanel").then((m) => ({
 const FreeWillPanel = lazy(() => import("./panels/freewill/FreeWillPanel").then((m) => ({ default: m.FreeWillPanel })));
 const KahunaPanel = lazy(() => import("./panels/kahuna/KahunaPanel").then((m) => ({ default: m.KahunaPanel })));
 const OwnComputerPanel = lazy(() => import("./panels/computer/OwnComputerPanel").then((m) => ({ default: m.OwnComputerPanel })));
-const OfficePanel = lazy(() => import("./panels/office/OfficePanel").then((m) => ({ default: m.OfficePanel })));
+const OfficeWorldPanel = lazy(() => import("./panels/OfficeWorldPanel").then((m) => ({ default: m.OfficeWorldPanel })));
 const EqualizePanel = lazy(() => import("./panels/equalize/EqualizePanel").then((m) => ({ default: m.EqualizePanel })));
-const WorldPanel = lazy(() => import("./panels/world/WorldPanel").then((m) => ({ default: m.WorldPanel })));
 const AdminPanel = lazy(() => import("./panels/AdminPanel").then((m) => ({ default: m.AdminPanel })));
 const StorePanel = lazy(() => import("./panels/StorePanel").then((m) => ({ default: m.StorePanel })));
 
@@ -387,9 +386,7 @@ export default function App() {
       <main style={{ flex: 1, minWidth: 0, minHeight: 0, background: "var(--color-bg)" }}>
         <TabBoundary key={active} name={tabs.find((t) => t.id === active)?.label ?? "This"}>
         <Suspense fallback={<div className="tab-loading" role="status"><span className="tab-loading__dot" />Opening…</div>}>
-        {active === "nyx" && (
-          <NyxPanel onActivity={onActivity} provider={provider} onProvider={setProvider} onOpenTab={(tab) => setActive(tab as TabId)} />
-        )}
+        {active === "nyx" && <ChatHome onActivity={onActivity} provider={provider} onProvider={setProvider} />}
         {active === "learn" && <LearnPanel />}
         {active === "notes" && <NotesPanel />}
         {active === "code" && <CodePanel />}
@@ -426,8 +423,7 @@ export default function App() {
         {active === "improve" && <ImprovePanel />}
         {active === "freewill" && <FreeWillPanel />}
         {active === "kahuna" && <KahunaPanel />}
-        {active === "office" && <OfficePanel />}
-        {active === "world" && <WorldPanel />}
+        {active === "office" && <OfficeWorldPanel />}
         {active === "equalize" && <EqualizePanel />}
         {active === "admin" && <AdminPanel />}
         </Suspense>

@@ -78,8 +78,8 @@ export const CORE_TABS: TabDef[] = [
   { id: "improve", label: "Improve", icon: "ph-arrows-clockwise", pinned: true, core: true },
   { id: "freewill", label: "Free Will", icon: "ph-sparkle", pinned: true, core: true },
   { id: "kahuna", label: "Big Kahuna", icon: "ph-crown-simple", pinned: true, core: true },
-  { id: "office", label: "Office Space", icon: "ph-buildings", pinned: true, core: true },
-  { id: "world", label: "World", icon: "ph-globe-hemisphere-west", pinned: true, core: true },
+  // Office Space + World (+ the court they share).
+  { id: "office", label: "Office & World", icon: "ph-buildings", pinned: true, core: true },
   { id: "equalize", label: "Equalize", icon: "ph-circles-three", pinned: true, core: true },
   // Ichos's own computer + Screen Share.
   { id: "computer", label: "Computer", icon: "ph-desktop-tower", pinned: true, core: true },
@@ -99,6 +99,8 @@ export const REDIRECTS: Record<string, Redirect> = {
   chat: { kind: "hub", tab: "nyx", section: "" },
   strands: { kind: "hub", tab: "nyx", section: "" },
   games: { kind: "window", window: "game" },
+  world: { kind: "hub", tab: "office", section: "world" },
+  court: { kind: "hub", tab: "office", section: "court" },
   sketch: { kind: "hub", tab: "nyx", section: "" },
   absorb: { kind: "hub", tab: "research", section: "absorb" },
   apply: { kind: "hub", tab: "research", section: "apply" },
@@ -121,7 +123,8 @@ export const LEGACY_LABELS: { id: string; label: string }[] = [
   { id: "models", label: "Models" }, { id: "keys", label: "Keys & Models" }, { id: "store", label: "Add capability" },
   { id: "settings", label: "Settings" }, { id: "dashboard", label: "Dashboard" }, { id: "power", label: "Power" },
   { id: "work", label: "Sessions & Memory" }, { id: "design_research", label: "Design Research" },
-  { id: "computer", label: "Nyx's Computer" }, { id: "nyx", label: "Nyx" }, { id: "nyx", label: "Second Brain" },
+  { id: "computer", label: "Nyx's Computer" }, { id: "world", label: "World" }, { id: "office", label: "Office Space" },
+  { id: "court", label: "Court" }, { id: "nyx", label: "Nyx" }, { id: "nyx", label: "Second Brain" },
 ];
 
 export type ShellLayout = "rail" | "strip";

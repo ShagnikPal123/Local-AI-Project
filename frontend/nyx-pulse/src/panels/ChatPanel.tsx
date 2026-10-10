@@ -905,6 +905,7 @@ export function ChatPanel({
           else setAgentSheet(args);
           break;
         case "tab.open": window.dispatchEvent(new CustomEvent("nyx:open-tab", { detail: { tab: args } })); break;
+        case "window.game": window.dispatchEvent(new CustomEvent("ichos:open-window", { detail: { kind: "game" } })); break;
         case "context.compact": window.dispatchEvent(new CustomEvent("nyx:context-compact", { detail: { focus: args } })); break;
         case "skill.create": openSkillCreator(args); break;
         case "diagram.open": void drawDiagram(args); break;

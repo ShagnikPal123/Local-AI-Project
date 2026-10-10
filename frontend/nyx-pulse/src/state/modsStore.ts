@@ -167,6 +167,11 @@ export function startMods(): () => void {
       applyTheme(event.theme as Record<string, unknown>, themeDefaults);
     } else if (event.type === "ui.open_tab" && typeof event.tab_id === "string") {
       window.dispatchEvent(new CustomEvent("nyx:open-tab", { detail: { tab: event.tab_id } }));
+    } else if (event.type === "ui.open_window" && typeof event.kind === "string") {
+      // Nyx opened a window beside the chat (ui_open_window, court_case): show the chat, then the window.
+      window.dispatchEvent(new CustomEvent("nyx:open-tab", { detail: { tab: "nyx" } }));
+      const detail = { kind: event.kind, title: event.title, props: event.props };
+      window.setTimeout(() => window.dispatchEvent(new CustomEvent("ichos:open-window", { detail })), 50);
     } else if (event.type === "tabs.changed") {
       window.dispatchEvent(new CustomEvent("nyx:tabs-changed"));
     }
