@@ -8,6 +8,8 @@
 import { createContext, useContext, useState } from "react";
 import type { ReactNode } from "react";
 import { requestEngineStart } from "../engine";
+import { IchosOrb } from "./orbs/IchosOrb";
+import { orbStateFor } from "./orbs/orbState";
 
 /** Inside a merged tab (HubPanel) the hub already shows the title, so a page drops its own. */
 export const HubContext = createContext(false);
@@ -39,8 +41,9 @@ export function PanelShell({ title, subtitle, actions, children }: {
 
 export function Loading({ what = "Loading" }: { what?: string }) {
   return (
-    <div style={{ color: "var(--color-neutral-500)", fontSize: 13, animation: "nyxpulse 1.4s ease-in-out infinite" }}>
-      {what}…
+    <div className="orb-loading" role="status">
+      <IchosOrb state={orbStateFor(what, "breathing")} size={20} decorative />
+      <span>{what}…</span>
     </div>
   );
 }

@@ -9,6 +9,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { MessageListProps } from "./types";
 import { MessageBubble } from "./MessageBubble";
+import { OrbHero } from "../orbs/OrbHero";
 
 const SUGGESTIONS = [
   "What can you do on this computer?",
@@ -45,23 +46,13 @@ export function MessageList({ messages, onAction, emptyState }: MessageListProps
   if (messages.length === 0) {
     return (
       <div ref={scrollRef} style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "8px 2px" }}>
-        <div style={{ color: "var(--color-neutral-500)", fontSize: 13, lineHeight: 1.7, marginBottom: 12 }}>
-          Ask anything. Simple questions take a fast path automatically; anything needing tools, fresh
-          data, or code runs the full pipeline — you will see the steps as they happen. Agents are
-          created right here in the chat whenever a task needs one.
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-start" }}>
-          {suggestions.map((suggestion) => (
-            <button
-              key={suggestion}
-              className="btn btn-secondary"
-              style={{ fontSize: 13, textAlign: "left" }}
-              onClick={() => emptyState?.onSuggestion(suggestion)}
-            >
-              {suggestion}
-            </button>
-          ))}
-        </div>
+        <OrbHero
+          intro={"Simple questions take a fast path; anything needing tools, fresh data or code runs the full "
+            + "pipeline, and the orb shows which kind of work is happening. Agents are made right here in the "
+            + "chat whenever a task needs one."}
+          suggestions={suggestions}
+          onSuggestion={(s) => emptyState?.onSuggestion(s)}
+        />
       </div>
     );
   }

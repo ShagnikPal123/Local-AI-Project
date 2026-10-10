@@ -12,12 +12,13 @@ import { api } from "../../api";
 import { Markdown } from "./Markdown";
 import { copyToClipboard } from "./hooks";
 import { formatDuration, safeImageSrc } from "./format";
-import { AgentDisc, Spinner } from "./AgentDisc";
+import { AgentDisc } from "./AgentDisc";
 import { Icon } from "./Icon";
 import { onSpeakingChange, speakText, stopSpeaking } from "../../voice/voicePlayer";
 import { Linkified } from "./linkify";
 import { Handoff } from "../agents/Handoff";
 import { MODE_LABELS, type ChatMode } from "./ModeSlider";
+import { IchosOrb, orbStateFor } from "../orbs";
 
 const cardStyle: React.CSSProperties = {
   background: "var(--color-surface)",
@@ -144,7 +145,7 @@ function ToolStepRow({ step }: { step: NonNullable<ChatMessageView["turn"]>["ste
     <li style={{ listStyle: "none", padding: "5px 0", boxShadow: "inset 0 -1px 0 var(--color-divider)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
         {step.status === "running" ? (
-          <Spinner />
+          <IchosOrb state={orbStateFor(step.label, "working")} size={16} decorative />
         ) : (
           <Icon name={step.status === "error" ? "close" : "check"} size={13} />
         )}
@@ -270,16 +271,22 @@ export function MessageBubble({ message, onAction, isLatest = false }: MessageBu
           borderLeft: message.role === "error" ? "3px solid var(--color-danger)" : undefined,
         }}
       >
-        {/* Live status while the turn runs: never a bare spinner. */}
-        {streaming && turn?.status && (
-          <div
-            aria-live="polite"
-            style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--color-neutral-400)", marginBottom: 6 }}
-          >
-            <Spinner />
-            <span>{turn.status}</span>
-          </div>
-        )}
+        {/* Live status while the turn runs: a thought-orb whose shape says the
+            kind of work (the running tool's, else the status line's), never a bare spinner. */}
+        {streaming && (() => {
+          const running = steps.filter((s) => s.status === "running").at(-1);
+          const writing = Boolean(turn?.answer) && !running;
+          const orb = writing ? "composing" : orbStateFor(running?.label ?? turn?.status);
+          const big = !turn?.answer && steps.length === 0;
+          const text = running ? running.label : turn?.status || (writing ? "Writing the answer" : "Thinking");
+          return (
+            <div className="orb-status" data-big={big} aria-live="polite">
+              <IchosOrb state={orb} size={big ? 40 : 20} decorative />
+              <span className="orb-status__text">{text}</span>
+              <span className="orb-status__verb">{orb}</span>
+            </div>
+          );
+        })()}
 
         {/* The slider was on Auto: which mode it picked for this message, and why (Update 1, U6). */}
         {turn?.chatModeAuto && turn.chatMode && (

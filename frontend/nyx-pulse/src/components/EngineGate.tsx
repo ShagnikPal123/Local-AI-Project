@@ -12,6 +12,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { NyxAvatar } from "./NyxAvatar";
+import { IchosOrb } from "./orbs/IchosOrb";
 import { requestEngineStart, waitForEngine } from "../engine";
 
 type Phase = "off" | "starting" | "slow" | "on";
@@ -101,7 +102,7 @@ export function EngineGate({ onOnline, stopped }: {
             disabled={busy}
             autoFocus
           >
-            {busy ? <span className="engine-gate__spinner" aria-hidden="true" /> : null}
+            {busy ? <IchosOrb state="connecting" size={18} decorative /> : null}
             {busy ? "Starting…" : "Turn on Nyx"}
           </button>
         )}

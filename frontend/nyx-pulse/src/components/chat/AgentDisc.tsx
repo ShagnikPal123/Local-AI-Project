@@ -10,6 +10,7 @@
 import type { CSSProperties } from "react";
 import { safeColor } from "./format";
 import { Icon } from "./Icon";
+import { IchosOrb } from "../orbs/IchosOrb";
 
 export type AgentStatus = "idle" | "working" | "blocked" | "error" | "done";
 
@@ -54,7 +55,8 @@ export function AgentDisc({ name, emoji, color, status = "idle", size = "md", la
   );
 }
 
-/** Small inline spinner; the accessible text lives next to it. */
+/** Small inline busy mark — a "working" thought-orb; the accessible text lives next to it. */
 export function Spinner({ className }: { className?: string }) {
-  return <span className={className ? `nyx-spinner ${className}` : "nyx-spinner"} aria-hidden="true" />;
+  const xs = className?.includes("nyx-spinner--xs");
+  return <IchosOrb state="working" size={xs ? 12 : 16} decorative className={className ? `nyx-spinner ${className}` : "nyx-spinner"} />;
 }

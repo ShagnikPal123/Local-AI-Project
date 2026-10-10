@@ -14,6 +14,8 @@
 // Importing it makes Vite emit the file into /assets with a content hash, which
 // the existing mount already serves.
 import ichnosArt from "../assets/ichnos.png";
+import { IchosOrb } from "./orbs/IchosOrb";
+import type { OrbState } from "./orbs/orbState";
 
 export type AvatarState = "idle" | "thinking" | "coding" | "listening" | "error";
 
@@ -23,6 +25,13 @@ const STATE_COLOR: Record<AvatarState, string> = {
   coding: "var(--color-ok)",
   listening: "var(--color-accent-2)",
   error: "var(--color-danger)",
+};
+
+/** While busy, a thought-orb turns behind the character; its shape is the kind of work. */
+const STATE_ORB: Partial<Record<AvatarState, OrbState>> = {
+  thinking: "weaving",
+  coding: "working",
+  listening: "listening",
 };
 
 interface Props {
@@ -52,7 +61,16 @@ export function NyxAvatar({ state = "idle", size = 30, title, showSparks }: Prop
     >
       <span className="nyx-avatar__halo" aria-hidden="true" />
       <img className="nyx-avatar__art" src={ichnosArt} alt="" width={size} height={size} draggable={false} />
-      {busy && <span className="nyx-avatar__orbit" aria-hidden="true" />}
+      {busy && STATE_ORB[state] && (
+        <IchosOrb
+          className="nyx-avatar__orb"
+          state={STATE_ORB[state]}
+          size={Math.round(size * 1.7)}
+          tone={state === "coding" ? "ok" : "accent"}
+          glow={false}
+          decorative
+        />
+      )}
       {sparks && (
         <span className="nyx-avatar__sparks" aria-hidden="true">
           <i style={{ left: "6%", top: "22%", animationDelay: "0s" }} />

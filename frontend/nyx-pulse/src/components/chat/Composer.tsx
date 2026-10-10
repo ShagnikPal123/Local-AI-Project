@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../../api";
 import type { BusyMode, ComposerProps, PendingAttachment } from "./types";
 import { Icon } from "./Icon";
+import { IchosOrb } from "../orbs/IchosOrb";
 import { SlashMenu, useSlashRows, commandsIn } from "./SlashMenu";
 import { usePasteFiles } from "../../files/fileIntake";
 import { ComposerLinks } from "./ComposerLinks";
@@ -373,9 +374,13 @@ export function Composer({
             title={listening ? "Listening — click to stop" : "Speak instead of typing"}
             style={{ flex: "none", padding: "8px 10px", alignSelf: "stretch" }}
           >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-              <rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
-            </svg>
+            {listening ? (
+              <IchosOrb state="listening" size={18} decorative />
+            ) : (
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                <rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+              </svg>
+            )}
           </button>
         )}
 
