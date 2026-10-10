@@ -13,11 +13,25 @@ from config import SETTINGS
 from providers.base import Provider, ProviderError
 
 
+def _default_ctx() -> int:
+    """Sized to the GPU (owner, 2026-10-10: "context seems to fill up too fast, add more"): 64k tokens on a 12 GB+
+    card, 48k on 8 GB+, else 32k. Read from the cached device profile — never a slow hardware probe at import."""
+    try:
+        import json
+        from pathlib import Path
+
+        vram = float(json.loads((Path(__file__).resolve().parent.parent / "device_profile.json")
+                                .read_text(encoding="utf-8")).get("vram_gb") or 0)
+    except Exception:  # noqa: BLE001
+        vram = 0.0
+    return 65536 if vram >= 12 else 49152 if vram >= 8 else 32768
+
+
 def _num_ctx() -> int:
     try:
-        return max(2048, min(262144, int(os.getenv("OLLAMA_NUM_CTX", "32768"))))
+        return max(2048, min(262144, int(os.getenv("OLLAMA_NUM_CTX", "") or _default_ctx())))
     except ValueError:
-        return 32768
+        return _default_ctx()
 
 
 #: Context window asked of every local model. Ollama's default here is 4096 tokens, but Nyx's own
