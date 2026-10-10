@@ -277,7 +277,14 @@ export default function App() {
       const all = [...tabs.map((t) => ({ id: t.id as string, label: t.label })), ...userTabs.map((t) => ({ id: t.id, label: t.label || t.id }))];
       const hit = all.find((t) => t.id === wanted || t.label.toLowerCase() === wanted)
         ?? all.find((t) => wanted && (t.label.toLowerCase().startsWith(wanted) || t.id.startsWith(wanted)));
-      if (hit) setActive(hit.id as TabId);
+      if (hit) { setActive(hit.id as TabId); return; }
+      // A tab made a moment ago (Create's Make It a Tab, Apply) is not in the list yet: read it again, then open.
+      void api.get<{ tabs: TabSpec[] }>("/api/tabs").then((result) => {
+        if (!result.ok) return;
+        setUserTabs(result.data.tabs);
+        const fresh = result.data.tabs.find((t) => t.id === wanted || (t.label || "").toLowerCase() === wanted);
+        if (fresh) setActive(fresh.id as TabId);
+      });
     };
     window.addEventListener("nyx:open-tab", onOpen);
     return () => window.removeEventListener("nyx:open-tab", onOpen);
