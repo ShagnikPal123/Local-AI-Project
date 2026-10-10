@@ -71,6 +71,7 @@ const FreeWillPanel = lazy(() => import("./panels/freewill/FreeWillPanel").then(
 const KahunaPanel = lazy(() => import("./panels/kahuna/KahunaPanel").then((m) => ({ default: m.KahunaPanel })));
 const OwnComputerPanel = lazy(() => import("./panels/computer/OwnComputerPanel").then((m) => ({ default: m.OwnComputerPanel })));
 const OfficePanel = lazy(() => import("./panels/office/OfficePanel").then((m) => ({ default: m.OfficePanel })));
+const JarvisPanel = lazy(() => import("./panels/jarvis/JarvisPanel").then((m) => ({ default: m.JarvisPanel })));
 const SketchPanel = lazy(() => import("./panels/sketch/SketchPanel").then((m) => ({ default: m.SketchPanel })));
 const WorldPanel = lazy(() => import("./panels/world/WorldPanel").then((m) => ({ default: m.WorldPanel })));
 const AdminPanel = lazy(() => import("./panels/AdminPanel").then((m) => ({ default: m.AdminPanel })));
@@ -426,6 +427,7 @@ export default function App() {
         {active === "office" && <OfficePanel />}
         {active === "world" && <WorldPanel />}
         {active === "sketch" && <SketchPanel />}
+        {active === "jarvis" && <JarvisPanel />}
         {active === "computer" && <OwnComputerPanel />}
         {active === "admin" && <AdminPanel />}
         {active === "settings" && <SettingsPanel />}
