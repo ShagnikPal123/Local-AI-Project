@@ -215,6 +215,9 @@ class ToolRegistry:
                 guard = getattr(ctx, "guard", None) if ctx is not None else None
                 if guard is not None:
                     guard(name, tool.category)  # the turn's own gate: Free Will's deny-by-default list (freewill.py)
+                import taint_gate
+
+                taint_gate.check(ctx, name, tool.category, label)  # outside content read this turn → risky acts ask
             except PermissionDenied as denied:
                 ok = False
                 result = str(denied)
@@ -236,6 +239,12 @@ class ToolRegistry:
             )
         if ok and result.lstrip().lower().startswith(("error", "blocked:")):
             ok = False
+        try:
+            import taint_gate
+
+            taint_gate.note(ctx, name, tool.category, label, ok)
+        except Exception:  # noqa: BLE001 - noting never costs the result
+            pass
 
         if ctx is not None:
             ctx.emit(

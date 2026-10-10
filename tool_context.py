@@ -57,6 +57,9 @@ class ToolContext:
     guard: Optional[Callable[[str, str], None]] = None
     #: In Swarm mode (chat_modes, swarm.py): how many agents this turn may dispatch at once. 0 = the usual limits.
     swarm: int = 0
+    #: Set when this turn read outside content (a web page, an email, a download) — what it was, in words. Risky
+    #: actions later in the turn ask the owner first (taint_gate.py).
+    tainted_by: str = ""
 
     def emit(self, event_type: str, **payload: Any) -> None:
         if self.sink is None:

@@ -113,3 +113,22 @@ def skills_github_import(body: Dict[str, Any], _owner_user=Depends(_owner)) -> D
         return {"added": skill_import.import_skills(str(body.get("url") or ""), [str(p) for p in body.get("paths") or []])}
     except skill_import.SkillImportError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+# --- safety: the taint gate (taint_gate.py; from ethanplusai/jarvis's design) ---------------------------------------
+
+
+@router.get("/api/safety/taint-gate")
+def taint_gate_state(_owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import taint_gate
+
+    return {"enabled": taint_gate.enabled(), "acting": sorted(taint_gate.ACTING_CATEGORIES),
+            "sources": sorted(taint_gate.SOURCE_CATEGORIES)}
+
+
+@router.put("/api/safety/taint-gate")
+def taint_gate_save(body: Dict[str, Any], _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import taint_gate
+
+    taint_gate.set_enabled(bool((body or {}).get("enabled", True)))
+    return taint_gate_state(_owner_user)

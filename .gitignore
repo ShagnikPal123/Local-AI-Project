@@ -193,6 +193,7 @@ google_granted.json
 own_computer.json
 view_mode.json
 digest.json
+taint_gate.json
 model_roles_auto_undo.json
 connectors/connections.json
 connectors/microsoft.json
