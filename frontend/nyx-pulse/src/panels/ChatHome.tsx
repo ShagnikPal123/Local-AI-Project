@@ -11,6 +11,9 @@ import { api } from "../api";
 import type { AvatarState } from "../components/NyxAvatar";
 import { ChatWindowPane, openChatWindow, useChatWindows } from "../components/windows/ChatWindows";
 import { ChatPanel } from "./ChatPanel";
+import { lazy, Suspense } from "react";
+import { voiceMode, onVoiceMode } from "../voice/voiceBus";
+const VoiceStage = lazy(() => import("../components/voice/VoiceStage").then((m) => ({ default: m.VoiceStage })));
 
 export function ChatHome({ onActivity, provider, onProvider }: {
   onActivity?: (s: AvatarState) => void;
@@ -28,10 +31,14 @@ export function ChatHome({ onActivity, provider, onProvider }: {
     return () => { alive = false; };
   }, []);
 
+  // The voice band (Equalize's orb) loads only when voice is on — it brings three.js with it.
+  const [voiceOn, setVoiceOn] = useState(voiceMode() !== "off");
+  useEffect(() => onVoiceMode((mode) => setVoiceOn(mode !== "off")), []);
   const hasWindow = w.open.length > 0;
   return (
     <div ref={shell} className={`chat-shell${hasWindow ? ` is-${w.dock}` : ""}`}>
       <div className="chat-shell__chat">
+        {voiceOn && <Suspense fallback={null}><VoiceStage /></Suspense>}
         <ChatPanel
           variant="home"
           onActivity={onActivity}

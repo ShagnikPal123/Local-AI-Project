@@ -43,6 +43,7 @@ import { FileDropOverlay } from "./files/FileDropOverlay";
 import { VoiceListener } from "./voice/VoiceListener";
 import { ProtoVoiceDock } from "./components/voice/ProtoVoiceDock";
 import { VoiceTopBar } from "./components/voice/VoiceTopBar";
+import { NotchBridge } from "./components/voice/notchBridge";
 
 // Every tab is its own chunk (2026-09-16). The shell used to import all of them up front,
 // three.js and the chart and code views included, so the first paint downloaded ~1.2 MB
@@ -445,6 +446,7 @@ export default function App() {
       <FileDropOverlay />
       <VoiceListener />
       <ProtoVoiceDock />
+      <NotchBridge />
 
       {settings.open && <SettingsWindow initial={settings.page} onClose={() => setSettings({ open: false })} />}
 

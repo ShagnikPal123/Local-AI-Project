@@ -12,11 +12,11 @@ import { speakText } from "../../voice/voicePlayer";
 import { DigestCard } from "./DigestCard";
 import "./equalize.css";
 
-type OrbState = "idle" | "listening" | "thinking" | "speaking";
+export type OrbState = "idle" | "listening" | "thinking" | "speaking";
 interface Need { kind: "approval" | "trade" | "claude"; id: string; title: string; detail: string; where: string; since: number }
 interface Session { id: string; project: string; cwd: string; title: string; last: number; state: string; why: string }
 
-const STATE_WORDS: Record<OrbState, string> = { idle: "Ready", listening: "Listening", thinking: "Thinking", speaking: "Speaking" };
+export const STATE_WORDS: Record<OrbState, string> = { idle: "Ready", listening: "Listening", thinking: "Thinking", speaking: "Speaking" };
 const SESSION_WORDS: Record<string, string> = { needs_you: "Needs you", working: "Working", your_turn: "Your turn", idle: "Idle" };
 
 function ago(seconds: number): string {
@@ -28,7 +28,7 @@ function ago(seconds: number): string {
 }
 
 /** A sphere of points that breathes when idle, ripples while listening, swirls while thinking and pulses with speech. */
-function Orb({ state }: { state: OrbState }) {
+export function Orb({ state }: { state: OrbState }) {
   const host = useRef<HTMLDivElement>(null);
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -112,6 +112,13 @@ export function EqualizePanel() {
   const [needs, setNeeds] = useState<Need[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [error, setError] = useState("");
+  // The desktop notch (notch.py): Ichos's voice as a pill on top of the screen, outside the browser.
+  const [notchOn, setNotchOn] = useState(false);
+  useEffect(() => { void api.get<{ running: boolean }>("/api/notch").then((r) => { if (r.ok) setNotchOn(r.data.running); }); }, []);
+  const toggleNotch = async () => {
+    const r = await api.post<{ running: boolean }>(notchOn ? "/api/notch/stop" : "/api/notch/start", {});
+    if (r.ok) setNotchOn(!notchOn); else setError(r.error);
+  };
 
   useEffect(() => onVoiceMode(setMode), []);
   useEffect(() => onVoice((event) => {
@@ -176,6 +183,10 @@ export function EqualizePanel() {
               <input type="checkbox" checked={speak} onChange={(e) => { setSpeak(e.target.checked); try { localStorage.setItem("nyx.equalize.speak", e.target.checked ? "1" : "0"); } catch { /* not kept */ } }} />
               Speak answers
             </label>
+            <button className="btn btn-secondary" onClick={() => void toggleNotch()} aria-pressed={notchOn}
+              title="A pill at the top of your screen that shows when Ichos listens, thinks and speaks — even with Ichos behind other apps">
+              {notchOn ? "Hide the notch" : "Show the notch on screen"}
+            </button>
           </div>
           {reply && <div className="jv-reply">{reply}</div>}
         </div>

@@ -1,0 +1,15 @@
+.voice-stage {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 16px;
+  flex: none;
+  background: radial-gradient(ellipse at 10% 50%, var(--ai-aura), transparent 60%), var(--color-nav);
+  box-shadow: inset 0 -1px 0 var(--color-divider);
+}
+.voice-stage__orb { width: 96px; height: 96px; flex: none; overflow: hidden; display: grid; place-items: center; }
+.voice-stage__orb .jv-orb { width: 96px; height: 96px; }
+.voice-stage__orb canvas { width: 96px !important; height: 96px !important; }
+.voice-stage__words { flex: 1; min-width: 0; }
+.voice-stage__state { margin: 0; font-size: 16px; font-weight: 600; }
+.voice-stage__heard { margin: 2px 0 0; color: var(--color-neutral-400); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
