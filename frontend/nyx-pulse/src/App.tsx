@@ -45,6 +45,8 @@ import { ProtoVoiceDock } from "./components/voice/ProtoVoiceDock";
 import { VoiceTopBar } from "./components/voice/VoiceTopBar";
 import { NotchBridge } from "./components/voice/notchBridge";
 import { ParticleField } from "./style/ParticleField";
+import { useStyle } from "./style/styleMix";
+import { StudioRail } from "./components/studio/StudioRail";
 
 // Every tab is its own chunk (2026-09-16). The shell used to import all of them up front,
 // three.js and the chart and code views included, so the first paint downloaded ~1.2 MB
@@ -259,6 +261,13 @@ export default function App() {
 
   // Presentation only — the server enforces the real boundary on every request.
   const tabs = visibleTabs(user?.role);
+  // Studio Glass (owner, 2026-10-10): icon rail on the left instead of the tab strip, panels float over the backdrop.
+  const studio = useStyle("studio");
+  const who = user
+    ? user.role === "owner"
+      ? { name: "Shagnik", role: "Owner" }
+      : { name: user.email.split("@")[0].replace(/[._-]+/g, " ").replace(/^\w/, (c) => c.toUpperCase()), role: user.role }
+    : undefined;
 
   // "/tab learn", "Create a skill instead": open a tab by id or by its label.
   useEffect(() => {
@@ -324,13 +333,26 @@ export default function App() {
   }
 
   return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <div className="app-shell" style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <BackgroundLayer />
       <ParticleField />
       {/* Listens for the sounds you taught it when you are away or offline (N86). */}
       <ClapListener />
       {/* Voice is on (its name, a clap, or Talk): what you are saying and that it is listening (Update 1, U26). */}
       <VoiceTopBar />
+      <div className="app-body">
+      {studio && (
+        <StudioRail
+          tabs={tabs}
+          userTabs={userTabs}
+          active={active}
+          avatar={avatar}
+          onSelect={(id) => setActive(id as TabId)}
+          onNewTab={() => setFinderOpen(true)}
+          onSettings={() => setSettings({ open: true })}
+        />
+      )}
+      <div className="app-col">
       <header className="shell-bar">
         <div className="shell-brand">
           <NyxAvatar state={avatar} size={28} />
@@ -378,18 +400,21 @@ export default function App() {
         </div>
       </header>
 
-      <TopTabs
-        tabs={tabs}
-        userTabs={userTabs}
-        active={active}
-        onSelect={(id) => setActive(id as TabId)}
-        onNewTab={() => setFinderOpen(true)}
-      />
+      {!studio && (
+        <TopTabs
+          tabs={tabs}
+          userTabs={userTabs}
+          active={active}
+          onSelect={(id) => setActive(id as TabId)}
+          onNewTab={() => setFinderOpen(true)}
+        />
+      )}
 
       <main style={{ flex: 1, minWidth: 0, minHeight: 0, background: "var(--color-bg)" }}>
         <TabBoundary key={active} name={tabs.find((t) => t.id === active)?.label ?? "This"}>
         <Suspense fallback={<div className="tab-loading" role="status"><span className="tab-loading__dot" />Opening…</div>}>
-        {active === "nyx" && <ChatHome onActivity={onActivity} provider={provider} onProvider={setProvider} />}
+        {active === "nyx" && <ChatHome onActivity={onActivity} provider={provider} onProvider={setProvider} who={who}
+          onSearch={() => setFinderOpen(true)} onStatus={() => setSettings({ open: true, page: "status" })} />}
         {active === "learn" && <LearnPanel />}
         {active === "notes" && <NotesPanel />}
         {active === "code" && <CodePanel />}
@@ -441,6 +466,8 @@ export default function App() {
           />
         )}
       </main>
+      </div>
+      </div>
 
       {offlineNow && <EngineGate onOnline={engineCameBack} />}
       <ComputerBanner />

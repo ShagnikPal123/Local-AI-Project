@@ -22,7 +22,8 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      "/api": "http://127.0.0.1:8000",
+      // NYX_API lets a session point a dev server at its own scratch engine instead of the owner's on 8000.
+      "/api": process.env.NYX_API ?? "http://127.0.0.1:8000",
     },
   },
 });

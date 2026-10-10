@@ -1,0 +1,271 @@
+/* Studio Glass (owner, 2026-10-10: "use this design … make the AI look similar with our own touches").
+   The reference: rounded glass panels floating with gaps over a warm, blurred room; an icon rail on the left with an
+   orange active tile; a greeting with a search pill and a bell; light stat cards with small charts; a right column
+   with a profile, a month calendar and a schedule. Our touches: Ichos's orb as the logo, the vitals are the brain's
+   own numbers, the neon/kinetic layers still mix in, and any background picture the owner set shows through.
+   Everything here is gated by `studio` in <html data-style>, except the two neutral layout wrappers. */
+
+/* --- Layout wrappers (always on; identical to the old column layout without studio) ---------------------------- */
+.app-body { flex: 1; display: flex; min-height: 0; min-width: 0; }
+.app-col { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+
+/* --- Tokens ------------------------------------------------------------------------------------------------------ */
+:root[data-style~="studio"] {
+  --studio-orange: #ff6b1f;
+  --studio-rose: #f0457a;
+  --studio-green: #2fbf6b;
+  --studio-blue: #4f7cff;
+  --studio-glass: rgba(34, 27, 25, 0.58);
+  --studio-glass-edge: rgba(255, 236, 220, 0.12);
+  --studio-gap: 14px;
+  --studio-r: 28px;
+
+  --color-accent: #ff7a2e;
+  --color-accent-2: #ff9a5c;
+  --color-accent-300: #ffc9a6;
+  --color-accent-400: #ff9a5c;
+  --color-accent-500: #ff7a2e;
+  --color-accent-700: #c9531a;
+  --color-accent-900: #3d2216;
+  --color-link: #ffa46b;
+  --color-link-bg: rgba(255, 122, 46, 0.16);
+  --color-on-accent: #ffffff;
+
+  --color-bg: #16110f;
+  --color-nav: rgba(22, 17, 15, 0.6);
+  --color-surface: rgba(48, 39, 36, 0.55);
+  --color-surface-2: rgba(60, 49, 45, 0.6);
+  --color-surface-3: rgba(80, 64, 58, 0.66);
+  --color-flyout: #241c19;
+  --color-divider: rgba(255, 236, 220, 0.09);
+  --radius-lg: 18px;
+  --radius-xl: 28px;
+}
+
+/* --- The room behind everything (warm lamp light, soft wood and shadow) ------------------------------------------ */
+:root[data-style~="studio"] body,
+:root[data-style~="studio"] #root {
+  background:
+    radial-gradient(36vw 55vh at 14% 26%, rgba(255, 168, 88, 0.34), transparent 62%),
+    radial-gradient(28vw 36vh at 86% 14%, rgba(255, 216, 168, 0.2), transparent 60%),
+    radial-gradient(46vw 46vh at 72% 96%, rgba(140, 82, 46, 0.42), transparent 66%),
+    radial-gradient(30vw 40vh at 40% 70%, rgba(90, 60, 44, 0.35), transparent 70%),
+    linear-gradient(160deg, #3b2b23 0%, #1c1411 46%, #2a1e18 100%);
+  background-attachment: fixed;
+}
+
+/* --- Floating panels --------------------------------------------------------------------------------------------- */
+:root[data-style~="studio"] .app-body { padding: var(--studio-gap); gap: var(--studio-gap); }
+:root[data-style~="studio"] .app-col { gap: var(--studio-gap); }
+
+:root[data-style~="studio"] .app-col > main {
+  background: var(--studio-glass) !important;
+  border-radius: var(--studio-r);
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px var(--studio-glass-edge), 0 24px 60px rgba(0, 0, 0, 0.35);
+  -webkit-backdrop-filter: blur(26px) saturate(1.25);
+  backdrop-filter: blur(26px) saturate(1.25);
+}
+/* Chat home draws its own two panels, so the outer one steps back. */
+:root[data-style~="studio"] .app-col > main:has(.chat-shell) {
+  background: transparent !important;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border-radius: 0;
+  overflow: visible;
+}
+
+/* Top bar: a slim glass strip; the brand moves to the rail. */
+:root[data-style~="studio"] .shell-bar {
+  background: var(--studio-glass) !important;
+  border-radius: 20px;
+  box-shadow: inset 0 0 0 1px var(--studio-glass-edge) !important;
+  min-height: 44px;
+  -webkit-backdrop-filter: blur(22px);
+  backdrop-filter: blur(22px);
+}
+:root[data-style~="studio"] .shell-brand { display: none !important; }
+
+/* --- Icon rail ------------------------------------------------------------------------------------------------------ */
+.studio-rail {
+  width: 64px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 0;
+  border-radius: 32px;
+  background: rgba(24, 19, 17, 0.62);
+  box-shadow: inset 0 0 0 1px var(--studio-glass-edge), 0 20px 50px rgba(0, 0, 0, 0.35);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+}
+.studio-rail__logo { display: grid; place-items: center; height: 40px; }
+.studio-rail__list {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: safe center;
+  gap: 6px;
+  overflow-y: auto;
+  overflow-x: visible;
+  scrollbar-width: none;
+  padding: 4px 0;
+}
+.studio-rail__list::-webkit-scrollbar { display: none; }
+.studio-rail__item {
+  position: relative;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  color: rgba(255, 236, 222, 0.62);
+  transition: background 160ms, color 160ms, transform 160ms;
+}
+.studio-rail__item:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+.studio-rail__item:active { transform: scale(0.94); }
+.studio-rail__item[aria-selected="true"] {
+  color: #fff;
+  background: linear-gradient(160deg, #ff8a3d, var(--studio-orange));
+  box-shadow: 0 8px 22px rgba(255, 107, 31, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+.studio-rail__letter { font-weight: 700; font-size: 15px; }
+.studio-rail__sep { width: 24px; height: 1px; background: var(--studio-glass-edge); margin: 4px 0; flex: none; }
+.studio-rail__foot { display: flex; flex-direction: column; gap: 6px; padding: 6px; border-radius: 26px; background: rgba(0, 0, 0, 0.25); }
+/* Tooltip: the reference's dark pill to the right of the icon (placed by StudioRail). */
+.studio-rail { position: relative; z-index: 5; }
+.studio-rail__tip {
+  position: absolute;
+  left: calc(100% + 8px);
+  transform: translateY(-50%);
+  white-space: nowrap;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(14, 11, 10, 0.94);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  z-index: 100;
+}
+
+/* --- Chat home: two panels ----------------------------------------------------------------------------------------- */
+:root[data-style~="studio"] .chat-shell { gap: var(--studio-gap); }
+:root[data-style~="studio"] .chat-shell__row { gap: var(--studio-gap); }
+.studio-main, .studio-side {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--studio-r);
+  overflow: hidden;
+  background: var(--studio-glass);
+  box-shadow: inset 0 0 0 1px var(--studio-glass-edge), 0 24px 60px rgba(0, 0, 0, 0.35);
+  -webkit-backdrop-filter: blur(26px) saturate(1.25);
+  backdrop-filter: blur(26px) saturate(1.25);
+}
+.studio-main { flex: 1; min-width: 0; }
+.studio-main > .chat-home { flex: 1; min-height: 0; height: auto; background: transparent !important; }
+.studio-side { width: 312px; flex: none; overflow-y: auto; }
+.studio-side > .activity { width: auto; flex: 1; border-left: none; background: transparent; min-height: 240px; }
+:root[data-style~="studio"] .chat-window { border-radius: var(--studio-r); overflow: hidden; }
+
+/* --- Greeting + vitals --------------------------------------------------------------------------------------------- */
+.studio-head { padding: 20px 24px 6px; flex: none; }
+.studio-head__top { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.studio-head__hello { margin: 0; font-size: 22px; line-height: 30px; font-weight: 500; color: #fff; }
+.studio-head__hello b { font-weight: 700; }
+.studio-head__sub { margin: 2px 0 0; font-size: 13px; color: rgba(255, 236, 222, 0.6); }
+.studio-head__tools { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.studio-search {
+  display: inline-flex; align-items: center; gap: 8px; height: 38px; width: 280px; max-width: 42vw; padding: 0 8px 0 14px;
+  border-radius: 999px; background: rgba(0, 0, 0, 0.32); box-shadow: inset 0 0 0 1px var(--studio-glass-edge);
+  color: rgba(255, 236, 222, 0.6); font-size: 13px; text-align: left;
+}
+.studio-search span { flex: 1; }
+.studio-search kbd { font: inherit; font-size: 11px; padding: 2px 6px; border-radius: 6px; background: rgba(255, 255, 255, 0.08); }
+.studio-search:hover { color: #fff; }
+.studio-bell, .studio-fold {
+  position: relative; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 999px;
+  background: rgba(0, 0, 0, 0.32); box-shadow: inset 0 0 0 1px var(--studio-glass-edge); color: rgba(255, 236, 222, 0.8);
+}
+.studio-bell:hover, .studio-fold:hover { color: #fff; background: rgba(255, 255, 255, 0.1); }
+.studio-bell__dot { position: absolute; top: 9px; right: 10px; width: 7px; height: 7px; border-radius: 50%; background: var(--studio-orange); box-shadow: 0 0 0 2px rgba(20, 15, 13, 0.9); }
+
+.studio-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+.studio-stat {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "head head" "num chart" "unit chart";
+  align-items: end;
+  column-gap: 8px;
+  padding: 12px 14px;
+  border-radius: 20px;
+  color: #1c1a1f;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+.studio-stat header { grid-area: head; display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.studio-stat header span { font-size: 13px; font-weight: 600; }
+.studio-stat header i {
+  font-style: normal; font-size: 11px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%;
+  color: var(--k); background: color-mix(in srgb, var(--k) 16%, white);
+}
+.studio-stat strong { grid-area: num; font-size: 22px; line-height: 1.1; font-weight: 700; color: var(--k); font-variant-numeric: tabular-nums; }
+.studio-stat small { grid-area: unit; font-size: 12px; color: #6b6670; }
+.studio-stat__chart { grid-area: chart; width: 64px; height: 30px; color: #1c1a1f; }
+
+/* --- Right column cards ------------------------------------------------------------------------------------------- */
+.studio-side__cards { display: flex; flex-direction: column; gap: 12px; padding: 16px 16px 4px; flex: none; }
+.studio-profile { display: flex; align-items: center; gap: 12px; text-align: left; padding: 4px; border-radius: 16px; }
+.studio-profile:hover { background: rgba(255, 255, 255, 0.06); }
+.studio-profile__avatar {
+  width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; color: #fff;
+  background: linear-gradient(150deg, #ff9a5c, var(--studio-orange) 55%, #a594ff); box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.18);
+}
+.studio-profile__who { display: flex; flex-direction: column; }
+.studio-profile__who b { color: #fff; font-size: 15px; }
+.studio-profile__who small { color: rgba(255, 236, 222, 0.55); font-size: 12px; }
+.studio-facts { display: grid; grid-template-columns: repeat(3, 1fr); border-radius: 18px; background: rgba(255, 255, 255, 0.06); box-shadow: inset 0 0 0 1px var(--studio-glass-edge); }
+.studio-facts span { display: flex; flex-direction: column; align-items: center; padding: 10px 4px; }
+.studio-facts span + span { box-shadow: inset 1px 0 0 var(--studio-glass-edge); }
+.studio-facts b { color: #fff; font-size: 15px; font-variant-numeric: tabular-nums; }
+.studio-facts small { color: rgba(255, 236, 222, 0.55); font-size: 11px; }
+
+.studio-cal { padding: 12px; border-radius: 20px; background: rgba(255, 255, 255, 0.06); box-shadow: inset 0 0 0 1px var(--studio-glass-edge); }
+.studio-cal__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.studio-cal__head b { color: #fff; font-size: 14px; }
+.studio-cal__head button { width: 24px; height: 24px; border-radius: 50%; color: #fff; background: rgba(255, 255, 255, 0.1); margin-left: 4px; }
+.studio-cal__head button:hover { background: rgba(255, 255, 255, 0.2); }
+.studio-cal__grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }
+.studio-cal__dow { font-size: 11px; color: rgba(255, 236, 222, 0.5); padding: 2px 0 4px; }
+.studio-cal__day { font-size: 12px; line-height: 28px; height: 28px; border-radius: 50%; color: rgba(255, 244, 236, 0.86); font-variant-numeric: tabular-nums; }
+.studio-cal__day.is-today { color: #fff; font-weight: 700; background: var(--studio-orange); box-shadow: 0 4px 14px rgba(255, 107, 31, 0.5); }
+
+/* --- Smaller screens ---------------------------------------------------------------------------------------------- */
+/* Like the plain activity list, the right column becomes a panel over the chat below 1100 px (close it from its ×). */
+@media (max-width: 1100px) {
+  .studio-stat { grid-template-areas: "head" "num" "unit"; grid-template-columns: 1fr; }
+  .studio-stat__chart { display: none; }
+  .studio-side { position: absolute; right: 0; top: 0; bottom: 0; z-index: 25; width: 300px; background: rgba(30, 24, 22, 0.94); }
+  .studio-side > .activity { position: static; box-shadow: none; }
+}
+@media (max-width: 760px) {
+  :root[data-style~="studio"] .app-body { padding: 8px; gap: 8px; }
+  .studio-rail { width: 52px; border-radius: 26px; }
+  .studio-rail__item { width: 38px; height: 38px; }
+  .studio-side { display: none; }
+  .studio-head { padding: 14px 14px 4px; }
+  .studio-search { width: auto; }
+  .studio-search span, .studio-search kbd { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .studio-rail__item { transition: none; } }
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-style~="studio"] { --studio-glass: #221b19; }
+}

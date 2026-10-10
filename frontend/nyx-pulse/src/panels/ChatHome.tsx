@@ -14,13 +14,22 @@ import { ActivityRail } from "../components/activity/ActivityRail";
 import { ChatPanel } from "./ChatPanel";
 import { lazy, Suspense } from "react";
 import { voiceMode, onVoiceMode } from "../voice/voiceBus";
+import { useStyle } from "../style/styleMix";
+import { StudioHeader } from "../components/studio/StudioHeader";
+import { StudioSide } from "../components/studio/StudioSide";
 const VoiceStage = lazy(() => import("../components/voice/VoiceStage").then((m) => ({ default: m.VoiceStage })));
 
-export function ChatHome({ onActivity, provider, onProvider }: {
+export function ChatHome({ onActivity, provider, onProvider, who, onSearch, onStatus }: {
   onActivity?: (s: AvatarState) => void;
   provider: string;
   onProvider: (provider: string) => void;
+  /** Studio Glass greeting and profile card (the signed-in person; the owner when nobody signed in). */
+  who?: { name: string; role: string };
+  onSearch?: () => void;
+  onStatus?: () => void;
 }) {
+  const studio = useStyle("studio");
+  const person = who ?? { name: "Shagnik", role: "Owner" };
   const w = useChatWindows();
   const shell = useRef<HTMLDivElement>(null);
   const [brain, setBrain] = useState<{ memories: number; today: number } | null>(null);
@@ -67,16 +76,37 @@ export function ChatHome({ onActivity, provider, onProvider }: {
       <div className="chat-shell__chat">
         {voiceOn && <Suspense fallback={null}><VoiceStage /></Suspense>}
         <div className="chat-shell__row">
-        <ChatPanel
-          variant="home"
-          onActivity={onActivity}
-          provider={provider}
-          onProvider={onProvider}
-          brain={brain}
-          onOpenBrain={() => openChatWindow("brain")}
-        />
-        {showRail ? <ActivityRail onClose={() => { if (railFits) setRailOn(false); setPeek(false); }} />
-          : <button type="button" className="activity-tab" onClick={() => { setRailOn(true); setPeek(true); }}>Activity</button>}
+        {(() => {
+          const chat = (
+            <ChatPanel
+              variant="home"
+              onActivity={onActivity}
+              provider={provider}
+              onProvider={onProvider}
+              brain={brain}
+              onOpenBrain={() => openChatWindow("brain")}
+            />
+          );
+          const rail = showRail ? <ActivityRail onClose={() => { if (railFits) setRailOn(false); setPeek(false); }} />
+            : <button type="button" className="activity-tab" onClick={() => { setRailOn(true); setPeek(true); }}>Activity</button>;
+          if (!studio) return <>{chat}{rail}</>;
+          // Studio Glass (owner, 2026-10-10): greeting + vitals over the chat in one glass panel; profile, calendar
+          // and the activity list ("Scheduled" in the reference) in a second panel on the right.
+          return (
+            <>
+              <div className="studio-main">
+                <StudioHeader name={person.name} onSearch={() => onSearch?.()} onBell={() => onStatus?.()} />
+                {chat}
+              </div>
+              {showRail ? (
+                <aside className="studio-side">
+                  <StudioSide name={person.name} role={person.role} memories={brain?.memories} today={brain?.today} onProfile={() => onStatus?.()} />
+                  {rail}
+                </aside>
+              ) : rail}
+            </>
+          );
+        })()}
         </div>
       </div>
       {hasWindow && <ChatWindowPane w={w} containerRef={shell} />}

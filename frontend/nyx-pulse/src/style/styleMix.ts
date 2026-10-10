@@ -6,7 +6,10 @@
  * its own in Settings › Appearance. Kept in this browser (it is a look, not data) and applied before the first paint.
  */
 
+import { useEffect, useState } from "react";
+
 export const STYLES = [
+  { id: "studio", label: "Studio Glass", hint: "Floating glass panels over a warm backdrop, orange accent, icon rail, dashboard home" },
   { id: "particles", label: "Particles", hint: "A slow field of points behind everything" },
   { id: "liquid", label: "Liquid morph", hint: "Soft blobs that change shape behind headers" },
   { id: "holo", label: "Holographic", hint: "A shifting sheen on primary buttons and the active tab" },
@@ -32,6 +35,8 @@ export const STYLES = [
 export type StyleId = (typeof STYLES)[number]["id"];
 
 export const PRESETS: { id: string; label: string; styles: StyleId[]; hint: string }[] = [
+  // Owner, 2026-10-10: "make the AI look similar" to a glassy dashboard reference, with our own touches — the default.
+  { id: "studio-glass", label: "Studio Glass", hint: "Floating glass panels, orange accent, icon rail, dashboard home", styles: ["studio", "glass", "neon", "kinetic", "splitflap"] },
   { id: "signature", label: "Signature", hint: "Mesh, glass, neon, holographic, particles, moving type", styles: ["mesh", "glass", "neon", "holo", "particles", "kinetic", "splitflap", "liquid"] },
   { id: "holo-glass", label: "Holo Glass", hint: "See-through and shimmering", styles: ["holo", "glass", "mesh", "particles", "neon"] },
   { id: "blueprint-deco", label: "Blueprint Deco", hint: "Drafting grid with gold deco lines", styles: ["blueprint", "deco", "wireframe", "kinetic", "splitflap"] },
@@ -42,11 +47,22 @@ export const PRESETS: { id: string; label: string; styles: StyleId[]; hint: stri
 ];
 
 const KEY = "ichos.style.mix";
+// Studio Glass arrived after mixes were already saved; it is added to a saved mix once, then left to the owner.
+const STUDIO_SEEN = "ichos.style.studio-seen";
 
 export function currentMix(): StyleId[] {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw !== null) return JSON.parse(raw).filter((s: string) => STYLES.some((x) => x.id === s));
+    if (raw !== null) {
+      const saved: StyleId[] = JSON.parse(raw).filter((s: string) => STYLES.some((x) => x.id === s));
+      if (localStorage.getItem(STUDIO_SEEN) === null) {
+        localStorage.setItem(STUDIO_SEEN, "1");
+        if (!saved.includes("studio")) saved.unshift("studio");
+        localStorage.setItem(KEY, JSON.stringify(saved));
+      }
+      return saved;
+    }
+    localStorage.setItem(STUDIO_SEEN, "1");
   } catch { /* fall through */ }
   return PRESETS[0].styles;
 }
@@ -61,6 +77,13 @@ export function onMix(listener: (mix: StyleId[]) => void): () => void {
   const handler = (event: Event) => listener((event as CustomEvent<StyleId[]>).detail);
   window.addEventListener("ichos:style-mix", handler);
   return () => window.removeEventListener("ichos:style-mix", handler);
+}
+
+/** True while the given style is in the mix; follows Settings › Appearance live. */
+export function useStyle(id: StyleId): boolean {
+  const [on, setOn] = useState(() => currentMix().includes(id));
+  useEffect(() => onMix((mix) => setOn(mix.includes(id))), [id]);
+  return on;
 }
 
 /** Called once before React renders, so the chosen look is there on the first frame. */

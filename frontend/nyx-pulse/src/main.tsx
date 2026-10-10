@@ -5,6 +5,7 @@ import "./index.css";
 import "./nyx.css";
 import "./shell.css";
 import "./style/styles.css";
+import "./style/studio.css";
 import { bootMix } from "./style/styleMix";
 
 bootMix();
