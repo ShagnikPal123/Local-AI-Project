@@ -18,7 +18,7 @@ CORE_TABS = {
     # their new home in the app (frontend src/tabs.ts REDIRECTS), so they stay listed for the model to use.
     "nyx": "Chat", "build": "Build", "research": "Research Lab", "learn": "Learn", "notes": "Notes",
     "code": "Code", "agents": "Agents", "collab": "Collab", "trading": "Trading", "improve": "Improve",
-    "freewill": "Free Will", "kahuna": "Big Kahuna", "office": "Office Space", "world": "World",
+    "freewill": "Free Will", "kahuna": "Big Kahuna", "office": "Office & World", "world": "World",
     "equalize": "Equalize", "computer": "Computer", "connectors": "Connections", "admin": "Admin",
     "screen": "Screen Share", "absorb": "Data Absorption", "apply": "Apply", "subagents": "Sub-agents",
     "models": "Models", "keys": "Keys & Models", "store": "Add capability", "settings": "Settings",
