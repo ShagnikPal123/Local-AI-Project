@@ -195,10 +195,14 @@ def _nyx(_conf: Dict[str, Any]) -> List[str]:
     since = time.time() - 86400
     lines = []
     for item in library.tree().get("offices", [])[:30]:
-        try:
-            office = office_engine.ENGINE.open(item["id"], found=False)
-        except Exception:  # noqa: BLE001
-            continue
+        # An office already open in the engine is read from memory (it may have news not yet saved); any other is
+        # read from its file. Never ENGINE.open: that would keep it in memory and save idle offices back to disk.
+        office = office_engine.ENGINE.opened(item["id"])
+        if office is None:
+            try:
+                office = library.load(item["id"])
+            except Exception:  # noqa: BLE001
+                continue
         for output in office.outputs:
             if output.ts >= since:
                 lines.append(f"Office {office.name} delivered: {output.title[:80]} ({output.status})")

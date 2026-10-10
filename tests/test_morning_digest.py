@@ -61,3 +61,24 @@ def test_digest_routes_are_the_owner_s():
     assert remote.get("/api/jarvis/digest").status_code in (401, 403)
     assert remote.put("/api/jarvis/digest", json={"city": "x"}).status_code in (401, 403)
     assert remote.post("/api/jarvis/digest/run").status_code in (401, 403)
+
+
+def test_reading_the_offices_for_the_digest_writes_nothing(tmp_path, monkeypatch):
+    from office import engine as office_engine
+    from office import library
+    from office.state import Output
+
+    library.use_root(tmp_path / "offices")
+    try:
+        office, _ = library.create_office("Night shift")
+        loaded = library.load(office.id)
+        loaded.add_output(Output(id="o1", title="Report on prices", text="…"))
+        library.save(loaded)
+        saves = []
+        monkeypatch.setattr(library, "save", lambda *a, **k: saves.append(a))
+        office_engine.ENGINE.reset_for_tests()
+        lines = md._nyx({})
+        assert any("Report on prices" in line for line in lines)
+        assert saves == [] and office_engine.ENGINE.opened(office.id) is None
+    finally:
+        library.use_root(None)
