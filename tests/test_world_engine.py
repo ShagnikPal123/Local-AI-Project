@@ -211,7 +211,8 @@ def test_a_world_runs_its_governments_projects_through_the_office_until_the_goal
     assert snap["world"]["tech_points"] > 0 and snap["world"]["game_days"] > 0
 
     assert not focus.status()["held"] and not focus.pinned(), "the machine is handed back"
-    assert engine.running_world() == ""
+    # The status turns "complete" a moment before the run thread ends; under a loaded machine that moment shows.
+    assert _wait(lambda: engine.running_world() == "", 15)
     raw = store.read_file(store.path_of(world_id))
     assert raw["st"] == "complete" and len(raw["P"]) == 2
 
