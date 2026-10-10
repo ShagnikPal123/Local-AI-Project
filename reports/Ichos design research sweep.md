@@ -113,3 +113,21 @@ Most of DESIGN.md, DESIGN_FIX_PLAN.md and WINDOWS_IN_CHAT_PLAN.md hold up: chat 
 The sweep moves Ichos's design question from layout to behaviour. Panes, popouts, notches and presets are commodity features now, and dockview supplies most of them. What remains hard, and where users have punished products, is *change*: layouts that reset or resize themselves, redesigns that keep moving the controls, and consent cards that quietly widen permissions. Ichos's real design system is therefore two sets of tokens. The visible set should come straight from Windows 11 so the app reads as native for free. The behavioural set is a matching vocabulary for agent grants, attention states, checkpoints and routine approvals, and each of those deserves the same rigour as a colour token: named, versioned, tested and reversible.
 
 Two findings were surprising and should change near-term work. The accessibility target in DESIGN.md is already missed by its own proposed value, so the Phase 0 token pass should start from computed contrast rather than chosen hex values. And the owner's own environment shapes the defaults: the obvious notch hotkey already belongs to Claude Desktop, and the wake-word vendor most tutorials point to stopped offering a free tier this summer. A local-first assistant has to be designed around the machine it actually runs on.
+
+## Follow-up verification (2026-10-10, second pass)
+
+- **WinUI tokens confirmed at source.** All values in the token table match Microsoft's
+  `microsoft-ui-xaml/controls/dev/CommonStyles/Common_themeresources_any.xaml` dark dictionary exactly. One correction:
+  native dark mode fills accent buttons with `SystemAccentColorLight2` and black text (`TextOnAccentFillColorPrimary
+  #000000`), and accent text uses Light3. The brand[70]-with-white-text pairing above is Fluent *web*, not native
+  Windows; `docs/DESIGN.md` now uses the native rule.
+- **dockview v8 licence changed the plan.** Keyboard docking, spatial navigation, auto-hide, dock-to-edge and layout
+  undo are now in the paid `dockview-enterprise` package. The free package keeps floating, popouts, serialisation,
+  context menus and accessible tabs (tested live: roving tabindex, ARIA, live regions), but its resize sashes are not
+  keyboard-operable. Ichos builds those four pieces itself on the free API (`WINDOWS_IN_CHAT_PLAN.md`).
+- **Google Cloud agent designer** (viewed read-only): a node canvas of agent cards joined by dashed connectors with
+  zoom/fit and a canvas ↔ preview toggle — a template for the Minds/Office hierarchy. App builder is a one-box
+  "define your app" flow with an *Add agents* chip and outcome-named sample cards — a template for "design your own tab".
+- **Composer cross-check** in running React clones of Claude, ChatGPT, Gemini, Grok and Perplexity: 3–4 controls,
+  32–36 px buttons, 16 px input, no shadow, radius 16–32, 640–768 px wide — consistent with the five-control finding.
+- Not reached: big-AGI and HuggingChat chat (sign-in walls; no accounts created).

@@ -31,6 +31,15 @@ voice routines, sub-agent permissions). Equalize tab work is on hold while this 
 | **Higgsfield** (`ref-higgsfield-live`) | bg `#0F1113`, text `#F7F7F8`, surfaces `#14151A`/`#1C1E20`, dim `#898A8B`, accent acid-lime `#D1FE17` (+ magenta "TOP" tag); Inter body, **Space Grotesk 56/700 uppercase** display; radii 8/12/16/24. Video-first cards; every result has *Recreate*. | Output-first cards and "do it again". **Not** the palette: near-black + one acid accent is a known templated look (apple-design craft lens). |
 | **Google Cloud Agent Platform** (`ref-gcp-*`) | Overview = welcome + Ask box + 3 cards (Guides · Build · Production) + model list + nav grouped **Build / Scale / Govern / Optimize**. Agent Studio = prompt-first card with **Models / Agents** segmented toggle inside, a **6-step tip tour** (1/6 Next) on first use; Studio nav: New, Agents, App builder, Gallery, Settings. Gallery = media-type filter chips + sections with "View all" + one-line evocative example cards. Tokens: Google Sans / Google Sans Flex / Roboto; 14/400 body, 22/500 section, 36/400 hero; text `#E8EAED`, link `#8AB4F8`; radii 4/8/12/20/24/pill. | Group "what my AIs are doing" by verb (Build / Run / Govern / Improve) — use for the **Minds** page. Context tips instead of one onboarding flow. Gallery of example prompts per window kind. |
 
+### Follow-up checks (2026-10-10, second pass)
+| Source | Seen | Take |
+|---|---|---|
+| **GCP Agent designer** (`ref-gcp-agent-designer-canvas`; the owner's own "Ai creation Bot", opened to view only, nothing edited) | Dotted-grid canvas; agent = card with coloured header strip (root blue, sub-agents purple), description, tool badges at the foot; **dashed curved connectors** parent → children; zoom (fit, +, −) bottom-left; floating chat button top-left; header: back, avatar, name, *Preview* badge, version ▾, segmented **canvas / preview** toggle. | Template for the **Minds** hierarchy view and the Office org chart: same card + connector + fit/zoom; a Canvas ↔ Live toggle. |
+| **GCP App builder** (`ref-gcp-app-builder`) | "Let's build something amazing!" + one "Define your app here" box (+ / mic) + **Add agents** chip + 8 sample-app cards (icon tile, title, one-line outcome). | Exactly §6's "design your own tab" entry: box + *Add minds* chip + sample cards whose text names the outcome, not the layout. |
+| **HuggingChat** (login wall after the welcome card; nothing sent) | bg `#0A0A0A`, composer `#1A1A1A` r 12, 16 px text; six action chips under the box ("Make my website", "Plan a trip"…); welcome card explains auto-routing ("Omni picks the best model"). | A one-time card that explains Auto routing in one sentence. |
+| **assistant-ui live clones** (Claude, ChatGPT, Gemini, Grok, Perplexity — community React reproductions, not the real apps) | Composers measured: **3–4 controls**, buttons 32–36 px, model pill 53–111 px, 16 px text, **no shadow**, radius 16 / 24 / 28 / 32, width 640–768 px; Claude clone: 0.67 px border `#3D3A35` on `#1F1E1B`, padding 12/14/10, 5 chips under. Artifacts demo: output runs in a **sandboxed iframe, scripts on, no parent access**. Generative-UI demo: the model composes UI **from a component vocabulary the app ships** — nothing is code-generated. | Composer cap confirmed; Ichos composer: 640–768 px wide, 16 px input text (body stays 14), 36 px buttons, no shadow. Code/HTML windows = sandboxed iframe. §6 "specs, never code" is the same idea as their `present` tool. |
+| big-AGI, HuggingChat chat | Login required — not entered (no accounts created). | — |
+
 **The common spine:** *one sidebar, one composer, everything else summoned.* Features are things the chat opens
 beside itself, not tabs you travel to. The sweep confirms this is now the standard layout (Claude Code Desktop,
 Cursor, VS Code, Copilot on Windows all ship dockable / pop-out panes) — so layout won't set Ichos apart; native
@@ -78,16 +87,25 @@ perceived contrast). Contrast figures computed on `#202020`.
 | `--ichos-text-disabled` | `rgba(255,255,255,.365)` | TextFillColorDisabled | 3.3:1 (exempt) |
 | `--ichos-fill-control` / `-hover` / `-pressed` | white @ .059 / .082 / .031 | ControlFillColor* | — |
 | `--ichos-stroke-control` / `-divider` / `-strong` | white @ .07 / .082 / .545 | ControlStroke / Divider / StrongStroke | — |
-| `--ichos-text-accent` | `#479EF5` (placeholder) | Fluent brand[100] | 5.8:1 |
-| `--ichos-fill-accent` / `-hover` / `-pressed` | `#115EA3` / `#0F6CBD` / `#0C3B5E` | brand[70]/[80]/[40] | white 6.7:1 |
+| `--ichos-text-accent` | accent **Light3** (default-blue placeholder `#479EF5`) | AccentTextFillColorPrimary = SystemAccentColorLight3 | ≥ 4.5:1 required |
+| `--ichos-fill-accent` (+ `-secondary` at 90 %) | accent **Light2** | AccentFillColorDefault = SystemAccentColorLight2 | — |
+| `--ichos-text-on-accent` | `#000000` | TextOnAccentFillColorPrimary | ≥ 4.5:1 on Light2 required |
 | `--ichos-status-critical` / `-success` / `-caution` | `#FF99A4` / `#6CCB5F` / `#FCE100` | SystemFillColor* | — |
 | `--ichos-bg-scrim` | `rgba(0,0,0,.30)` | SmokeFillColorDefault | — |
 | `--ichos-ai-aura` / `-border` / `-skeleton` | accent @ 10 % / light-accent 36 % → accent / accent @ 30 % | Carbon g100 AI tokens | — |
 | zone ramp (masterplan) | unchanged | usage meters only | — |
 
-Accent rule: light step for accent **text/strokes**, mid step for **filled** buttons with white text (Fluent
-brand[100]/[70], M3 tone 80/30). The blue is a placeholder until the owner picks; keep the step structure and
-re-check contrast. Old `--text-dim #a0a0ab` measured **6.0:1** on surface-2 — use `text-secondary` instead.
+**Verified 2026-10-10 against Microsoft's own `microsoft-ui-xaml/controls/dev/CommonStyles/Common_themeresources_any.xaml`
+(Default = dark dictionary):** every surface, text, fill, stroke, status, smoke and focus value above matches exactly
+(e.g. `TextFillColorSecondary #C5FFFFFF` = 77.3 %, `ControlFillColorDefault #0FFFFFFF` = 5.9 %, `LayerFillColorDefault
+#4C3A3A3A`, `FocusStrokeColorOuter #FFFFFF` / `Inner #B3000000`). Microsoft spells the fourth surface
+`SolidBackgroundFillColorQuarternary` (`#2C2C2C`).
+
+Accent rule (**corrected by that file**): native Windows 11 dark mode fills primary buttons with a **light** accent
+step (Light2) and puts **black** text on it; accent text/links use Light3. (The sweep report's Fluent-web
+"brand[70] fill + white text" is the *web* convention, not the native one — use the native one.) Accent steps derive
+from one owner-chosen base colour; check text-on-accent ≥ 4.5:1 for whatever they pick. Old `--text-dim #a0a0ab`
+measured **6.0:1** on surface-2 — use `text-secondary` instead.
 
 **Type — Segoe UI Variable, Windows ramp as published:** Caption 12/16 · Body 14/20 · Body Strong 14/20 600 · Body
 Large 18/24 · Subtitle 20/28 · Title 28/36 · Title Large 40/52 · Display 68/92. Weights 400 and 600 only. **Floor
@@ -267,6 +285,11 @@ the running app with a screenshot into `design/images/`? 9. Layout survives relo
 | GitHub AI UIs | Open WebUI, LobeChat (+ `DESIGN.md`/`DESIGN.dark.md` tokens), LibreChat, Jan, Cherry Studio, big-AGI, AnythingLLM, HuggingFace chat-ui, assistant-ui, Vercel AI Elements, dockview, boring.notch | READMEs/docs, not run |
 | Deep-research sweep (6 tracks, ~460 sourced links) | AI chat products (Gemini, Copilot, Grok, Le Chat, Meta AI, Poe, Pi, DeepSeek, Qwen, Kimi, Notion AI, Dia, Siri…); agent/coding tools (Cursor, Windsurf, Copilot agent, Zed, Warp, Junie, Devin, Codex, Claude Code, Replit, Lovable, Bolt, v0, Manus, Operator/Atlas, Jules…); creative tools (Midjourney, Krea, Runway, Pika, Luma, Ideogram, Leonardo, Recraft, Firefly, Canva, Figma Make, Framer, Spline, Meshy, Suno, ElevenLabs, Freepik, Kling, Sora, Flow, tldraw…); design systems (Fluent 2/WinUI, Material 3, Carbon + Carbon for AI, Primer, Geist, Radix, shadcn, Atlassian/Rovo, SLDS, Polaris) and AI guidelines (HAX, PAIR, Shape of AI, NN/g); docking (VS Code, JetBrains, Blender, Obsidian, Snap Layouts, 7 React libraries) and notch/launchers (Dynamic Island, NotchNook, Alcove, PowerToys, Raycast, ChatGPT/Claude/Gemini desktop); voice (Alexa, Google Home, Siri Shortcuts, Bixby, Home Assistant, Voice Access, Talon, ChatGPT/Gemini/Copilot voice, Hume, openWakeWord, Picovoice, Vosk) | web pages and docs via search/fetch; some product details from third-party guides (flagged in the notes) |
 
-**Known limits:** WinUI values read from the WPF UI port (only `TextFillColorPrimary` confirmed on Microsoft's page);
-dockview keyboard/ARIA support unconfirmed; Vosk phrase-list API unverified; GitHub apps not run; several consumer-product
-details come from third-party guides.
+**Closed in the second pass:** WinUI values verified against Microsoft's source file; dockview v8 tested live (see
+`WINDOWS_IN_CHAT_PLAN.md` research updates); GCP agent designer and App builder viewed; five chat layouts measured in
+running React clones.
+
+**Still open:** Vosk phrase-list API unverified; the real Claude/ChatGPT/Gemini apps were measured only through
+community clones (signed-in apps not driven); big-AGI and HuggingChat need accounts; several consumer-product details
+come from third-party guides; the default Windows accent's Light2/Light3 hex values were not read (they come from the
+user's system accent at runtime).
