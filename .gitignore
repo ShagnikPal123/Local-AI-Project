@@ -194,6 +194,9 @@ own_computer.json
 view_mode.json
 digest.json
 taint_gate.json
+
+# Design research notes (design_research.py): the owner's library of studied designs.
+/design_research/
 model_roles_auto_undo.json
 connectors/connections.json
 connectors/microsoft.json

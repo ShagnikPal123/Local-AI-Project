@@ -33,6 +33,7 @@ TOOL_MODULES: List[Tuple[str, str]] = [
     ("whatsapp_link", "register_whatsapp_tools"),
     ("site_preview", "register_preview_tools"),
     ("morning_digest", "register_digest_tools"),
+    ("design_research", "register_research_tools"),
     ("email_client", "register_email_tools"),
     ("tts", "register_voice_tools"),
     ("improve_tools", "register_improve_tools"),

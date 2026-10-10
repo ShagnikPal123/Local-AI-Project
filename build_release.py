@@ -67,6 +67,8 @@ EXCLUDE = [
     "previews/*",
     # The owner's drawings.
     "sketches/*",
+    # The owner's design research notes.
+    "design_research/*",
     # Update 1 runtime state: Google grants per address, connector connections, where Nyx may work, the swarm size.
     "google_granted.json", "own_computer.json", "swarm.json", "model_roles_auto_undo.json", "view_mode.json", "digest.json", "taint_gate.json",
     "connectors/connections.json", "connectors/microsoft.json", "connectors/custom.json",

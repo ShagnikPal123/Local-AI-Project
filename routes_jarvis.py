@@ -132,3 +132,44 @@ def taint_gate_save(body: Dict[str, Any], _owner_user=Depends(_owner)) -> Dict[s
 
     taint_gate.set_enabled(bool((body or {}).get("enabled", True)))
     return taint_gate_state(_owner_user)
+
+
+# --- design research (design_research.py; the DESIGN_MASTERPLAN research log as a Nyx feature) ----------------------
+
+
+@router.get("/api/design-research")
+def design_research_list(_owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import design_research
+
+    return {"entries": design_research.entries(), "masterplan": design_research.masterplan_path().is_file()}
+
+
+@router.post("/api/design-research")
+def design_research_study(body: Dict[str, Any], _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import design_research
+    from fastapi import HTTPException
+
+    try:
+        return {"entry": design_research.study(str(body.get("url") or ""), str(body.get("name") or ""),
+                                               str(body.get("focus") or ""))}
+    except design_research.ResearchError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+@router.delete("/api/design-research/{entry_id}")
+def design_research_remove(entry_id: str, _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import design_research
+
+    return {"removed": design_research.remove(entry_id)}
+
+
+@router.post("/api/design-research/{entry_id}/masterplan")
+def design_research_to_masterplan(entry_id: str, _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    """Append the entry to the owner's DESIGN_MASTERPLAN.md, where Claude sessions read it."""
+    import design_research
+    from fastapi import HTTPException
+
+    try:
+        return design_research.add_to_masterplan(entry_id)
+    except design_research.ResearchError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error

@@ -329,6 +329,16 @@ def _model_brief(request: str, context: str) -> Dict[str, Any]:
     return {}
 
 
+def _studied(request: str) -> List[Dict[str, Any]]:
+    """Design research the owner collected (design_research.py) that bears on this request. Never raises."""
+    try:
+        import design_research
+
+        return design_research.relevant(request)
+    except Exception:  # noqa: BLE001
+        return []
+
+
 def _context_for(request: str, tab_id: Optional[str], sources: Optional[Sequence[Dict[str, Any]]],
                  research: bool) -> Dict[str, Any]:
     profile = taste()
@@ -340,6 +350,7 @@ def _context_for(request: str, tab_id: Optional[str], sources: Optional[Sequence
         "other_tabs": other_tabs(exclude=tab_id),
         "apple": apple_guidance(request),
         "references": _research(request) if research else [],
+        "studied": _studied(request),
         "given": [{"kind": str(s.get("kind", "note")), "value": str(s.get("value", ""))[:300],
                    "label": str(s.get("label", ""))[:80]} for s in (sources or [])][:10],
     }
@@ -369,6 +380,13 @@ def _as_text(gathered: Dict[str, Any]) -> str:
         lines.append("\nApple's guidance that bears on this:")
         for page in gathered["apple"]:
             lines.append(f"- {page['topic']}: {page['text'][:400]}")
+    if gathered.get("studied"):
+        lines.append("\nDesign research the owner collected (borrow the principles, never copy a site):")
+        for entry in gathered["studied"]:
+            t = entry.get("tokens") or {}
+            lines.append(f"- {entry.get('name')}: {entry.get('good') or ''} Principles: "
+                         f"{'; '.join(entry.get('principles') or [])}. Tokens: colours {', '.join((t.get('colours') or [])[:5])}, "
+                         f"fonts {', '.join(t.get('fonts') or [])}, radii {', '.join(t.get('radii') or [])}.")
     if gathered["references"]:
         lines.append("\nReferences found on the web: " + "; ".join(
             f"{r.get('title', '')} {r.get('url', '')}".strip() for r in gathered["references"][:4]))
