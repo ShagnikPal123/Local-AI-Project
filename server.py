@@ -2848,6 +2848,10 @@ def _resume_background_work() -> None:
 
         # The owner's phone line reconnects by itself, but only on the PC it was paired with.
         whatsapp_link.start_in_background()
+        import morning_digest
+
+        # The daily briefing's clock; it does nothing until the owner turns the schedule on.
+        morning_digest.start_in_background()
     except Exception:  # pragma: no cover - the phone line must never stop the API
         logging.getLogger("nyx.server").warning("WhatsApp link did not start", exc_info=True)
 

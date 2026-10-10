@@ -59,3 +59,32 @@ def needs_you() -> List[Dict[str, Any]]:
 @router.get("/api/jarvis/needs-you")
 def jarvis_needs_you(_owner_user=Depends(_owner)) -> Dict[str, Any]:
     return {"items": needs_you()}
+
+
+# --- Morning Digest (morning_digest.py) ----------------------------------------------------------------------------
+
+
+@router.get("/api/jarvis/digest")
+def digest_state(_owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import morning_digest
+
+    return morning_digest.settings()
+
+
+@router.put("/api/jarvis/digest")
+def digest_save(body: Dict[str, Any], _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import morning_digest
+    from fastapi import HTTPException
+
+    try:
+        return morning_digest.save(body or {})
+    except morning_digest.DigestError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+@router.post("/api/jarvis/digest/run")
+def digest_run(_owner_user=Depends(_owner)) -> Dict[str, Any]:
+    """Make today's digest now (it may take a few seconds: several sources and one short model call)."""
+    import morning_digest
+
+    return morning_digest.build()
