@@ -125,6 +125,23 @@ function ViewSection() {
   );
 }
 
+/** Safety (taint_gate.py): after a turn reads outside content, risky actions in it ask first. */
+function SafetySection() {
+  const [on, setOn] = useState<boolean | null>(null);
+  useEffect(() => { void api.get<{ enabled: boolean }>("/api/safety/taint-gate").then((r) => { if (r.ok) setOn(r.data.enabled); }); }, []);
+  if (on === null) return null;
+  const save = async (next: boolean) => {
+    const r = await api.put<{ enabled: boolean }>("/api/safety/taint-gate", { enabled: next });
+    if (r.ok) setOn(r.data.enabled);
+  };
+  return (
+    <Section title="Safety" hint="A web page or email can carry text written to steer an assistant. With this on, once a turn has read outside content, the shell, running code, deleting files, using the screen, system power, sending email and trading wait for your approval in that turn.">
+      <Choice selected={on} label="Ask before risky actions after reading the web or email" description="Recommended. Research, reports and answers are not slowed down." onSelect={() => void save(true)} />
+      <Choice selected={!on} label="Don't ask" description="Risky actions follow only your normal permission settings." onSelect={() => void save(false)} />
+    </Section>
+  );
+}
+
 function EngineSection() {
   const [status, setStatus] = useState<EngineStatus | null>(null);
   const [busy, setBusy] = useState<"" | "autostart" | "restart" | "stop">("");
@@ -281,6 +298,8 @@ export function SettingsPanel() {
         <EngineSection />
 
         <ViewSection />
+
+        <SafetySection />
 
         <IntelligenceSettings />
 
