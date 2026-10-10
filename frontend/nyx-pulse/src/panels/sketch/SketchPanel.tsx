@@ -8,7 +8,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
-import { api } from "../../api";
+import { api, uploadFile } from "../../api";
 import "./sketch.css";
 
 const W = 1000;
@@ -78,7 +78,7 @@ export function SketchPanel() {
   const [tool, setTool] = useState<"pen" | "eraser">("pen");
   const [paper, setPaper] = useState("#ffffff");
   const [ask, setAsk] = useState("");
-  const [busy, setBusy] = useState<"" | "draw" | "scan" | "render" | "save">("");
+  const [busy, setBusy] = useState<"" | "draw" | "scan" | "render" | "save" | "tab">("");
   const [note, setNote] = useState("");
   const [scanned, setScanned] = useState<{ sees: string; suggestions: string[]; model: string } | null>(null);
   const [picture, setPicture] = useState<{ image: string; model: string } | null>(null);
@@ -180,6 +180,29 @@ export function SketchPanel() {
     if (r.ok) void loadSaved();
   };
 
+  /** The drawing becomes a tab of its own: the picture (uploaded, so it goes through the file checks) and notes. */
+  const makeTab = async () => {
+    setBusy("tab"); setNote("");
+    const blob = await new Promise<Blob | null>((done) => {
+      if (canvas.current) canvas.current.toBlob(done, "image/png"); else done(null);
+    });
+    if (!blob) { setBusy(""); setNote("Nothing to put in a tab yet."); return; }
+    const name = ask.trim().slice(0, 40) || "My drawing";
+    const upload = await uploadFile(new File([blob], `${name.replace(/[^a-z0-9]+/gi, "-") || "drawing"}.png`, { type: "image/png" }));
+    if (!upload.ok) { setBusy(""); setNote(upload.error); return; }
+    const tab = await api.post<{ tab: { id: string } }>("/api/tabs", {
+      label: name, icon: "ph-image", description: "Made from a drawing in Create.",
+      blocks: [
+        { type: "image", title: name, config: { src: `/api/uploads/${upload.data.id}`, caption: scanned?.sees ?? "", fit: "contain", layout: { span: 2 } } },
+        { type: "notes", title: "Notes" },
+      ],
+      theme: { columns: 3 },
+    });
+    setBusy("");
+    if (!tab.ok) { setNote(tab.error); return; }
+    window.dispatchEvent(new CustomEvent("nyx:open-tab", { detail: { tab: tab.data.tab.id } }));
+  };
+
   const open = async (id: string) => {
     const r = await api.get<{ image: string }>(`/api/sketch/saved/${id}`);
     if (!r.ok) { setNote(r.error); return; }
@@ -229,6 +252,7 @@ export function SketchPanel() {
         <button className="sk-tool" disabled={!redo.length} onClick={() => { setLayers((l) => [...l, redo[0]]); setRedo((r) => r.slice(1)); }}>Redo</button>
         <button className="sk-tool" disabled={!layers.length && !base} onClick={() => { setLayers([]); setRedo([]); setScanned(null); setBase(null); }}>Clear</button>
         <button className="sk-tool" disabled={busy === "save"} onClick={() => void save()}>Save</button>
+        <button className="sk-tool" disabled={!!busy} onClick={() => void makeTab()}>{busy === "tab" ? "Making…" : "Make It a Tab"}</button>
         <a className="sk-tool" href="#" onClick={(e) => { e.currentTarget.href = snapshot(); }} download="drawing.png">Download PNG</a>
       </div>
 
