@@ -48,7 +48,7 @@
 .notes__result { border-radius: 14px; background: #0e0e13; box-shadow: inset 0 0 0 1px rgba(165, 148, 255, 0.35); max-height: 45%; display: flex; flex-direction: column; min-height: 120px; }
 .notes__result-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 10px 12px; box-shadow: inset 0 -1px 0 var(--color-divider); }
 .notes__result-head b { margin-right: 4px; }
-.notes__result-model { margin-right: auto; font-size: 11.5px; color: #a1a1aa; }
+.notes__result-model { margin-right: auto; font-size: 12px; color: #a1a1aa; }
 .notes__result-body { overflow-y: auto; padding: 10px 14px; font-size: 14px; line-height: 1.6; }
 .notes__body, .notes__preview {
   flex: 1; min-height: 240px; width: 100%; padding: 14px 16px; border: 0; border-radius: 14px; font: inherit; font-size: 15px; line-height: 1.65;
@@ -70,7 +70,7 @@
 .notes__study-item > button:first-child:hover { background: #1d1d26; }
 .notes__study-item b { font-size: 14px; color: #f5f5f7; }
 .notes__study-item span { font-size: 12px; color: #a1a1aa; }
-.notes__study-remove { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border-radius: 50%; font-size: 11px; color: #a1a1aa; }
+.notes__study-remove { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border-radius: 50%; font-size: 12px; color: #a1a1aa; }
 .notes__study-remove:hover { color: #fff; background: #2c2c34; }
 
 .focus-timer { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 12px; background: #15151c; }
@@ -157,7 +157,7 @@
 .slides__section { display: grid; gap: 1px; text-align: left; padding: 6px 10px; border: none; border-radius: 10px;
   font: inherit; font-size: 12.5px; color: var(--color-text); background: var(--color-surface-2, #15151c);
   box-shadow: inset 0 0 0 1px var(--color-divider); cursor: pointer; }
-.slides__section span { font-size: 11px; color: var(--color-neutral-500); }
+.slides__section span { font-size: 12px; color: var(--color-neutral-500); }
 .slides__section.is-chosen { box-shadow: inset 0 0 0 2px var(--color-accent); }
 .slides__list { display: flex; flex-wrap: wrap; gap: 5px; max-height: 190px; overflow-y: auto; }
 .slides__slide { display: flex; align-items: baseline; gap: 6px; max-width: 230px; padding: 4px 9px; border: none;

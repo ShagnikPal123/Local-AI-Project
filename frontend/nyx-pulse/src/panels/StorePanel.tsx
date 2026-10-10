@@ -49,17 +49,17 @@ function SkillCard({ skill, onToggle, onRemove, highlighted }: {
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <span style={{ fontSize: 13, fontWeight: 600 }}>{skill.name}</span>
         {skill.source !== "builtin" && (
-          <span style={{ fontSize: 11, textTransform: "uppercase", color: "var(--color-accent-2)" }}>
+          <span style={{ fontSize: 12, textTransform: "uppercase", color: "var(--color-accent-2)" }}>
             {skill.source === "conversation" ? "from conversation" : skill.source}
           </span>
         )}
         {highlighted && (
-          <span style={{ fontSize: 11, textTransform: "uppercase", color: "var(--color-accent)" }}>
+          <span style={{ fontSize: 12, textTransform: "uppercase", color: "var(--color-accent)" }}>
             would attach
           </span>
         )}
         <span style={{
-          marginLeft: "auto", fontSize: 11, fontFamily: "var(--font-mono)",
+          marginLeft: "auto", fontSize: 12, fontFamily: "var(--font-mono)",
           color: "var(--color-neutral-600)",
         }}>
           {skill.uses} uses
@@ -73,14 +73,14 @@ function SkillCard({ skill, onToggle, onRemove, highlighted }: {
       <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 7 }}>
         {skill.triggers.slice(0, 8).map((t) => (
           <span key={t} style={{
-            fontSize: 11, fontFamily: "var(--font-mono)", padding: "1px 5px",
+            fontSize: 12, fontFamily: "var(--font-mono)", padding: "1px 5px",
             borderRadius: 3, background: "var(--color-nav)", color: "var(--color-neutral-500)",
           }}>
             {t}
           </span>
         ))}
         {skill.triggers.length > 8 && (
-          <span style={{ fontSize: 11, color: "var(--color-neutral-700)" }}>
+          <span style={{ fontSize: 12, color: "var(--color-neutral-700)" }}>
             +{skill.triggers.length - 8}
           </span>
         )}
@@ -97,16 +97,16 @@ function SkillCard({ skill, onToggle, onRemove, highlighted }: {
 
       <div style={{ display: "flex", gap: 10, marginTop: 9 }}>
         <button className="btn" onClick={() => setOpen((v) => !v)}
-          style={{ fontSize: 11, color: "var(--color-neutral-500)", padding: 0 }}>
+          style={{ fontSize: 12, color: "var(--color-neutral-500)", padding: 0 }}>
           {open ? "hide instructions" : "show instructions"}
         </button>
         <button className="btn" onClick={onToggle}
-          style={{ fontSize: 11, color: "var(--color-neutral-500)", padding: 0 }}>
+          style={{ fontSize: 12, color: "var(--color-neutral-500)", padding: 0 }}>
           {skill.enabled ? "disable" : "enable"}
         </button>
         {skill.source !== "builtin" && (
           <button className="btn" onClick={onRemove}
-            style={{ fontSize: 11, color: "var(--color-danger)", padding: 0 }}>
+            style={{ fontSize: 12, color: "var(--color-danger)", padding: 0 }}>
             delete
           </button>
         )}

@@ -89,7 +89,7 @@ export function PowerPanel() {
               <div style={{ fontSize: 20, fontWeight: 600, color: "var(--color-accent)" }}>
                 up to {ceiling.max_agents}
               </div>
-              <div style={{ fontSize: 11, color: "var(--color-neutral-500)" }}>
+              <div style={{ fontSize: 12, color: "var(--color-neutral-500)" }}>
                 helpers at once
               </div>
             </div>
@@ -100,7 +100,7 @@ export function PowerPanel() {
               }}>
                 {ceiling.allow_local_models ? "yes" : "no"}
               </div>
-              <div style={{ fontSize: 11, color: "var(--color-neutral-500)" }}>local models</div>
+              <div style={{ fontSize: 12, color: "var(--color-neutral-500)" }}>local models</div>
             </div>
           </div>
           {ceiling.capped_reason && (
@@ -137,20 +137,20 @@ export function PowerPanel() {
                   <span style={{ fontSize: 13, fontWeight: active ? 600 : 400 }}>{mode.label}</span>
                   {mode.recommended && (
                     <span style={{
-                      fontSize: 11, letterSpacing: ".06em", textTransform: "uppercase",
+                      fontSize: 12, letterSpacing: ".06em", textTransform: "uppercase",
                       color: "var(--color-accent)",
                     }}>
                       recommended
                     </span>
                   )}
                   {!mode.sustainable && (
-                    <span style={{ fontSize: 11, textTransform: "uppercase", color: "var(--color-warn)" }}>
+                    <span style={{ fontSize: 12, textTransform: "uppercase", color: "var(--color-warn)" }}>
                       not advised here
                     </span>
                   )}
                   {mode.workers !== null && (
                     <span style={{
-                      marginLeft: "auto", fontSize: 11, fontFamily: "var(--font-mono)",
+                      marginLeft: "auto", fontSize: 12, fontFamily: "var(--font-mono)",
                       color: "var(--color-neutral-500)",
                     }}>
                       {mode.workers} workers

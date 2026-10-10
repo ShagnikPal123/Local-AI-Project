@@ -106,10 +106,10 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: (user: AccountUser | n
           {busy ? "Signing in…" : "Sign in"}
         </button>
       </form>
-      <div style={{ marginTop: 16, fontSize: 11, color: "var(--color-neutral-600)", lineHeight: 1.6 }}>
+      <div style={{ marginTop: 16, fontSize: 12, color: "var(--color-neutral-600)", lineHeight: 1.6 }}>
         No account yet? Claim the owner account from the project folder:
         <div style={{
-          fontFamily: "var(--font-mono)", fontSize: 11, background: "var(--color-nav)",
+          fontFamily: "var(--font-mono)", fontSize: 12, background: "var(--color-nav)",
           padding: "6px 8px", borderRadius: 6, marginTop: 6,
         }}>
           python admin_setup.py claim you@example.com
@@ -189,7 +189,7 @@ export function JoinScreen({ invite, onJoined }: {
           {busy ? "Creating account…" : "Create account"}
         </button>
       </form>
-      <div style={{ marginTop: 14, fontSize: 11, color: "var(--color-neutral-600)", lineHeight: 1.6 }}>
+      <div style={{ marginTop: 14, fontSize: 12, color: "var(--color-neutral-600)", lineHeight: 1.6 }}>
         This invite works once. Your password is stored only as a salted hash.
       </div>
     </Shell>

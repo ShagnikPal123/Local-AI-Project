@@ -205,7 +205,7 @@ function Widget({ title, children, onRemove }: {
         <span className="label">{title}</span>
         {onRemove && (
           <button className="btn" onClick={onRemove}
-            style={{ marginLeft: "auto", fontSize: 11, color: "var(--color-neutral-600)", padding: 0 }}>
+            style={{ marginLeft: "auto", fontSize: 12, color: "var(--color-neutral-600)", padding: 0 }}>
             remove
           </button>
         )}
@@ -254,14 +254,14 @@ function renderWidget(widget: WidgetDef, data: WidgetData): React.ReactNode {
           <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
             <span>{a.name}</span>
             <span style={{
-              fontFamily: "var(--font-mono)", fontSize: 11,
+              fontFamily: "var(--font-mono)", fontSize: 12,
               color: a.status === "working" ? "var(--color-accent)" : "var(--color-neutral-600)",
             }}>
               {a.status}
             </span>
           </div>
           {a.current_step && (
-            <div style={{ fontSize: 11, color: "var(--color-neutral-600)" }}>-&gt; {a.current_step}</div>
+            <div style={{ fontSize: 12, color: "var(--color-neutral-600)" }}>-&gt; {a.current_step}</div>
           )}
         </div>
       ));
@@ -271,7 +271,7 @@ function renderWidget(widget: WidgetDef, data: WidgetData): React.ReactNode {
         return <div style={{ fontSize: 12, color: "var(--color-neutral-500)" }}>Nothing logged yet.</div>;
       }
       return (
-        <div style={{ maxHeight: 180, overflowY: "auto", fontFamily: "var(--font-mono)", fontSize: 11 }}>
+        <div style={{ maxHeight: 180, overflowY: "auto", fontFamily: "var(--font-mono)", fontSize: 12 }}>
           {events.map((e, i) => (
             <div key={i} style={{ display: "flex", gap: 6, padding: "2px 0", lineHeight: 1.5 }}>
               <span style={{ color: "var(--color-neutral-700)" }}>{e.time}</span>
@@ -676,7 +676,7 @@ export function StrandsPanel({ state, onActivity }: {
             <div
               style={{
                 position: "absolute", bottom: 10, left: 10, display: "flex", flexWrap: "wrap",
-                alignItems: "center", gap: 10, fontSize: 11, color: "var(--color-neutral-500)",
+                alignItems: "center", gap: 10, fontSize: 12, color: "var(--color-neutral-500)",
                 pointerEvents: "none",
               }}
             >
@@ -714,10 +714,10 @@ export function StrandsPanel({ state, onActivity }: {
             <div className="card" style={{ borderLeft: `3px solid ${kindColor(selected.kind)}` }}>
               <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 5 }}>
                 <span style={{ fontSize: 13, fontWeight: 600 }}>{selected.label}</span>
-                <span style={{ fontSize: 11, textTransform: "uppercase", color: kindColor(selected.kind) }}>
+                <span style={{ fontSize: 12, textTransform: "uppercase", color: kindColor(selected.kind) }}>
                   {selected.kind}
                 </span>
-                <button className="btn" style={{ marginLeft: "auto", fontSize: 11, color: "var(--color-neutral-500)" }}
+                <button className="btn" style={{ marginLeft: "auto", fontSize: 12, color: "var(--color-neutral-500)" }}
                   onClick={() => setSelected(null)}>close</button>
               </div>
               <div style={{ fontSize: 12, color: "var(--color-neutral-400)", lineHeight: 1.6 }}>
@@ -732,7 +732,7 @@ export function StrandsPanel({ state, onActivity }: {
               <span className="label">Voice</span>
               <span
                 style={{
-                  marginLeft: "auto", fontSize: 11, color: SOURCE_TONE[source],
+                  marginLeft: "auto", fontSize: 12, color: SOURCE_TONE[source],
                   display: "inline-flex", alignItems: "center", gap: 6,
                 }}
               >
@@ -753,20 +753,20 @@ export function StrandsPanel({ state, onActivity }: {
             </div>
 
             {micDenied && (
-              <div style={{ fontSize: 11, color: "var(--color-warn)", marginTop: 8 }}>
+              <div style={{ fontSize: 12, color: "var(--color-warn)", marginTop: 8 }}>
                 The browser refused microphone access, so the meter stays on the synthesised
                 source rather than faking a trace.
               </div>
             )}
 
-            <div style={{ fontSize: 11, color: "var(--color-neutral-600)", lineHeight: 1.6, marginTop: 10 }}>
+            <div style={{ fontSize: 12, color: "var(--color-neutral-600)", lineHeight: 1.6, marginTop: 10 }}>
               {micOn
                 ? "Every bar is one frequency bin from your microphone, live."
                 : "With the microphone off, the bars and the field are a synthesised envelope built from request timing and reply length. It is motion, not measured audio."}
             </div>
 
             {voiceStatus && (
-              <div style={{ fontSize: 11, color: "var(--color-neutral-600)", lineHeight: 1.6, marginTop: 6 }}>
+              <div style={{ fontSize: 12, color: "var(--color-neutral-600)", lineHeight: 1.6, marginTop: 6 }}>
                 Backend voice engine: microphone {voiceStatus.mic ? voiceStatus.mic : "not detected"} ·{" "}
                 {voiceStatus.voices.length} speech voice{voiceStatus.voices.length === 1 ? "" : "s"}
                 {voiceStatus.voice ? ` (${voiceStatus.voice})` : ""} ·{" "}
@@ -805,7 +805,7 @@ export function StrandsPanel({ state, onActivity }: {
                   >
                     {turn.text}
                     {turn.provider && (
-                      <div style={{ marginTop: 6, fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--color-neutral-600)" }}>
+                      <div style={{ marginTop: 6, fontSize: 12, fontFamily: "var(--font-mono)", color: "var(--color-neutral-600)" }}>
                         {turn.provider}
                       </div>
                     )}
@@ -849,11 +849,11 @@ export function StrandsPanel({ state, onActivity }: {
           <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
               <span className="label">Widgets</span>
-              <button className="btn" style={{ marginLeft: "auto", fontSize: 11, color: "var(--color-neutral-500)" }}
+              <button className="btn" style={{ marginLeft: "auto", fontSize: 12, color: "var(--color-neutral-500)" }}
                 onClick={() => setAdding((v) => !v)}>
                 {adding ? "cancel" : "+ add"}
               </button>
-              <button className="btn" style={{ fontSize: 11, color: "var(--color-neutral-600)" }}
+              <button className="btn" style={{ fontSize: 12, color: "var(--color-neutral-600)" }}
                 onClick={() => void resetWidgets()}>reset</button>
             </div>
 
@@ -871,7 +871,7 @@ export function StrandsPanel({ state, onActivity }: {
                         <span style={{ color: "var(--color-neutral-600)", fontWeight: 400 }}> · asks for a target</span>
                       )}
                     </div>
-                    <div style={{ color: "var(--color-neutral-500)", fontSize: 11, lineHeight: 1.5 }}>
+                    <div style={{ color: "var(--color-neutral-500)", fontSize: 12, lineHeight: 1.5 }}>
                       {a.description}
                     </div>
                   </button>

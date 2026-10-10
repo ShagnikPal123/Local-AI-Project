@@ -20,7 +20,7 @@
 .has-custom-bg .rs { background: rgba(0, 0, 0, 0.6); }
 
 .rs h1, .rs h2, .rs h3 { margin: 0; font-family: var(--font-heading); letter-spacing: -0.01em; }
-.rs-label { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-neutral-600); }
+.rs-label { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-neutral-600); }
 .rs-hint { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--color-neutral-500); }
 .rs-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .rs :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
@@ -98,7 +98,7 @@
 .rs-item__text { display: grid; gap: 3px; min-width: 0; }
 .rs-item__q { font-size: 13.5px; font-weight: 500; line-height: 1.35; color: var(--color-text); display: -webkit-box; -webkit-line-clamp: 2;
   -webkit-box-orient: vertical; overflow: hidden; }
-.rs-item__meta { font-size: 11.5px; color: var(--color-neutral-500); }
+.rs-item__meta { font-size: 12px; color: var(--color-neutral-500); }
 .rs-item__x { position: absolute; top: 7px; right: 6px; display: inline-grid; place-items: center; min-width: 26px; height: 26px; padding: 0 6px;
   border-radius: 7px; font-size: 12px; color: var(--color-neutral-600); opacity: 0; transition: opacity 120ms ease; }
 .rs-list__row:hover .rs-item__x, .rs-item__x:focus-visible, .rs-item__x.is-armed { opacity: 1; }
@@ -163,7 +163,7 @@
 .rs-menu__list button { display: grid; gap: 1px; width: 100%; padding: 7px 10px; border-radius: 8px; text-align: left; }
 .rs-menu__list button:hover, .rs-menu__list button:focus-visible { background: var(--color-surface-3); outline: none; }
 .rs-menu__list b { font-size: 13px; font-weight: 500; }
-.rs-menu__list span { font-size: 11.5px; color: var(--color-neutral-500); }
+.rs-menu__list span { font-size: 12px; color: var(--color-neutral-500); }
 
 /* live */
 .rs-live { display: grid; gap: 12px; padding: 16px 18px; border-radius: 16px; background: var(--color-surface);
@@ -194,7 +194,7 @@
 .rs-log { list-style: none; margin: 0; padding: 10px 0 0; display: grid; gap: 4px; box-shadow: inset 0 1px 0 var(--color-divider); }
 .rs-log li { display: flex; gap: 12px; font-size: 12.5px; line-height: 1.45; color: var(--color-neutral-400); }
 .rs-log li:first-child { color: var(--color-text); }
-.rs-log time { flex: none; font-family: var(--font-mono); font-size: 11.5px; color: var(--color-neutral-600); font-variant-numeric: tabular-nums; padding-top: 1px; }
+.rs-log time { flex: none; font-family: var(--font-mono); font-size: 12px; color: var(--color-neutral-600); font-variant-numeric: tabular-nums; padding-top: 1px; }
 .rs-log span { min-width: 0; overflow-wrap: anywhere; }
 
 .rs-panes { justify-self: start; }
@@ -251,7 +251,7 @@
   font-size: 12.5px; color: var(--color-text); background: var(--color-surface-3); }
 .rs-card__body { display: grid; gap: 6px; min-width: 0; justify-items: start; }
 .rs-card__tags { display: flex; flex-wrap: wrap; gap: 5px; }
-.rs-tag { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; min-height: 20px; border-radius: 6px; font-size: 11.5px;
+.rs-tag { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; min-height: 20px; border-radius: 6px; font-size: 12px;
   color: var(--color-neutral-400); background: var(--color-surface-2); }
 .rs-tag .nyx-icon { width: 12px; height: 12px; }
 .rs-tag--paper { color: #d6ceff; background: rgba(165, 148, 255, 0.14); }
@@ -280,7 +280,7 @@ a.rs-card__title:hover { color: var(--color-accent-300); }
 .rs-claim p { margin: 0; font-size: 14px; line-height: 1.55; color: var(--color-neutral-200); }
 .rs-claim__src { display: flex; gap: 4px; font-family: var(--font-mono); font-size: 12px; }
 .rs-claim__src a { color: var(--color-link); }
-.rs-conf { min-width: 60px; padding: 1px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; text-transform: capitalize; text-align: center;
+.rs-conf { min-width: 60px; padding: 1px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; text-transform: capitalize; text-align: center;
   color: var(--color-neutral-400); background: var(--color-surface-2); }
 .rs-conf--high { color: #a8f0bb; background: rgba(48, 209, 88, 0.12); }
 .rs-conf--low { color: #ffe58f; background: rgba(255, 214, 10, 0.1); }

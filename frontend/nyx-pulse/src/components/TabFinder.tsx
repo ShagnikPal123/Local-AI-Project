@@ -151,11 +151,11 @@ export function TabFinder({ onOpen, onCreated, onClose }: {
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontSize: 13 }}>{hit.label}</span>
-                  <span style={{ fontSize: 11, textTransform: "uppercase", color: "var(--color-neutral-600)" }}>
+                  <span style={{ fontSize: 12, textTransform: "uppercase", color: "var(--color-neutral-600)" }}>
                     {hit.source}
                   </span>
                 </div>
-                <div style={{ fontSize: 11, color: "var(--color-neutral-600)", marginTop: 2 }}>
+                <div style={{ fontSize: 12, color: "var(--color-neutral-600)", marginTop: 2 }}>
                   matched: {hit.matched.join(", ")}
                 </div>
               </button>
@@ -194,7 +194,7 @@ export function TabFinder({ onOpen, onCreated, onClose }: {
                 placeholder="Budget"
                 style={field}
               />
-              <div style={{ fontSize: 11, color: "var(--color-neutral-600)", marginTop: 4 }}>
+              <div style={{ fontSize: 12, color: "var(--color-neutral-600)", marginTop: 4 }}>
                 What it is called in the tab bar. {MAX_LABEL - name.length} characters left.
               </div>
             </div>
@@ -215,7 +215,7 @@ export function TabFinder({ onOpen, onCreated, onClose }: {
                 placeholder="Track monthly spending against a target, with a running list of one-off costs and a note for next month."
                 style={{ ...field, resize: "vertical", lineHeight: 1.6 }}
               />
-              <div style={{ fontSize: 11, color: "var(--color-neutral-600)", marginTop: 4, lineHeight: 1.5 }}>
+              <div style={{ fontSize: 12, color: "var(--color-neutral-600)", marginTop: 4, lineHeight: 1.5 }}>
                 This is the brief the agent designs from, and it is what tab search matches on
                 later. The more concrete it is, the better the layout.
               </div>
@@ -232,7 +232,7 @@ export function TabFinder({ onOpen, onCreated, onClose }: {
               >
                 Back
               </button>
-              <span style={{ fontSize: 11, color: "var(--color-neutral-600)", marginLeft: "auto" }}>
+              <span style={{ fontSize: 12, color: "var(--color-neutral-600)", marginLeft: "auto" }}>
                 Ctrl+Enter to create
               </span>
             </div>

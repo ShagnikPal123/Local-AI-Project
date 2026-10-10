@@ -102,7 +102,7 @@ export function WorkPanel() {
               )}
               {knowledge.file && (
                 <div style={{
-                  fontSize: 11, color: "var(--color-neutral-600)",
+                  fontSize: 12, color: "var(--color-neutral-600)",
                   fontFamily: "var(--font-mono)", marginTop: 4,
                 }}>
                   {String(knowledge.file)}

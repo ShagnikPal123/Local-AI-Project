@@ -30,7 +30,7 @@ const cardStyle: React.CSSProperties = {
 
 const metaStyle: React.CSSProperties = {
   marginTop: 8,
-  fontSize: 11,
+  fontSize: 12,
   color: "var(--color-neutral-600)",
   fontFamily: "var(--font-mono)",
 };
@@ -149,7 +149,7 @@ function ToolStepRow({ step }: { step: NonNullable<ChatMessageView["turn"]>["ste
           <Icon name={step.status === "error" ? "close" : "check"} size={13} />
         )}
         <span style={{ flex: 1, minWidth: 0 }}>{step.label}</span>
-        {step.agent && <span style={{ fontSize: 11, color: "var(--color-neutral-600)" }}>via {step.agent}</span>}
+        {step.agent && <span style={{ fontSize: 12, color: "var(--color-neutral-600)" }}>via {step.agent}</span>}
         {step.ms !== undefined && (
           <span style={{ fontFamily: "var(--font-mono)", color: "var(--color-neutral-600)" }}>
             {formatDuration(step.ms)}
@@ -194,7 +194,7 @@ function AgentRow({ agent }: { agent: NonNullable<ChatMessageView["turn"]>["agen
           <span style={{ fontWeight: 600 }}>{agent.name}</span>
           {agent.created && (
             <span style={{
-              fontSize: 11, marginLeft: 6, color: "var(--color-accent)",
+              fontSize: 12, marginLeft: 6, color: "var(--color-accent)",
               border: "1px solid var(--color-accent)", borderRadius: 4, padding: "0 4px",
             }}>
               new
@@ -242,7 +242,7 @@ export function MessageBubble({ message, onAction, isLatest = false }: MessageBu
           {message.attachments && message.attachments.length > 0 && (
             <div style={{ marginTop: 6, display: "flex", gap: 6, flexWrap: "wrap" }}>
               {message.attachments.map((a) => (
-                <span key={a.id} style={{ fontSize: 11, color: "var(--color-neutral-500)" }}>
+                <span key={a.id} style={{ fontSize: 12, color: "var(--color-neutral-500)" }}>
                   {a.kind === "image" ? "🖼" : "📄"} {a.name}
                 </span>
               ))}
@@ -355,12 +355,12 @@ export function MessageBubble({ message, onAction, isLatest = false }: MessageBu
         {(skillsUsed.length > 0 || skillsCreated.length > 0) && (
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
             {skillsUsed.map((skill) => (
-              <span key={skill.id} style={{ fontSize: 11, padding: "2px 8px", borderRadius: 999, boxShadow: "inset 0 0 0 1px var(--color-divider)", color: "var(--color-neutral-400)" }}>
+              <span key={skill.id} style={{ fontSize: 12, padding: "2px 8px", borderRadius: 999, boxShadow: "inset 0 0 0 1px var(--color-divider)", color: "var(--color-neutral-400)" }}>
                 ⚡ {skill.name}
               </span>
             ))}
             {skillsCreated.map((skill) => (
-              <span key={skill.id} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, padding: "2px 8px", borderRadius: 999, boxShadow: "inset 0 0 0 1px var(--color-accent)", color: "var(--color-accent)" }}>
+              <span key={skill.id} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, padding: "2px 8px", borderRadius: 999, boxShadow: "inset 0 0 0 1px var(--color-accent)", color: "var(--color-accent)" }}>
                 built “{skill.name}” for this
                 <button
                   onClick={() => onAction({ type: "keepSkill", skillId: skill.id })}
@@ -447,7 +447,7 @@ export function MessageBubble({ message, onAction, isLatest = false }: MessageBu
         )}
 
         {turn?.cached && (
-          <div style={{ fontSize: 11, color: "var(--color-neutral-600)", marginTop: 6 }}>
+          <div style={{ fontSize: 12, color: "var(--color-neutral-600)", marginTop: 6 }}>
             Answered from cache{typeof turn.cached.similarity === "number" ? ` (${Math.round(turn.cached.similarity * 100)}% match)` : ""}.{" "}
             <button
               onClick={() => onAction({ type: "refreshCached", messageId: message.id })}
@@ -459,7 +459,7 @@ export function MessageBubble({ message, onAction, isLatest = false }: MessageBu
         )}
 
         {learningNotes.map((note, i) => (
-          <div key={i} style={{ fontSize: 11, color: "var(--color-neutral-600)", marginTop: 6 }}>🧠 {note}</div>
+          <div key={i} style={{ fontSize: 12, color: "var(--color-neutral-600)", marginTop: 6 }}>🧠 {note}</div>
         ))}
 
         {(turn?.provider || turn?.elapsedMs !== undefined || message.provider) && (

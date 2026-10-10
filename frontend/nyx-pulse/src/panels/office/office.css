@@ -81,7 +81,7 @@
 .ofc-top__actions { margin-left: auto; display: flex; gap: 8px; }
 .ofc-pill {
   display: inline-flex; align-items: center; gap: 6px; min-height: 24px; padding: 2px 10px; border-radius: 999px;
-  font-size: 11.5px; color: var(--color-neutral-300); box-shadow: inset 0 0 0 1px var(--color-divider-strong);
+  font-size: 12px; color: var(--color-neutral-300); box-shadow: inset 0 0 0 1px var(--color-divider-strong);
   text-transform: capitalize;
 }
 .ofc-pill i { width: 6px; height: 6px; border-radius: 50%; background: var(--color-neutral-600); }
@@ -104,7 +104,7 @@
 .ofc-floor.is-dragging { cursor: grabbing; }
 .ofc-floor__svg { display: block; width: 100%; height: 100%; touch-action: none; }
 .ofc-floor__tools { position: absolute; right: 12px; bottom: 12px; display: flex; gap: 6px; align-items: center; }
-.ofc-floor__zoom { font-size: 11px; color: var(--color-neutral-600); min-width: 38px; text-align: right; }
+.ofc-floor__zoom { font-size: 12px; color: var(--color-neutral-600); min-width: 38px; text-align: right; }
 
 .ofc-room__floor {
   fill: color-mix(in srgb, var(--room) 7%, var(--color-surface));
@@ -148,7 +148,7 @@
 .ofc-bar__empty { margin: 4px 2px; font-size: 12px; color: var(--color-neutral-600); }
 .ofc-bar__kinds { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; min-width: 0; max-width: 100%;
   max-height: 76px; overflow-y: auto; }
-.ofc-bar__label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-neutral-600); }
+.ofc-bar__label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-neutral-600); }
 
 .ofc-box {
   flex: 0 0 auto; min-width: 136px; max-width: 200px; text-align: left; display: grid; gap: 3px;
@@ -162,21 +162,21 @@
 .ofc-box.is-open { outline: 1px dashed color-mix(in srgb, var(--room) 60%, transparent); outline-offset: 2px; }
 .ofc-box.is-paused { opacity: 0.6; }
 .ofc-box__name { font: 600 12.5px/1.2 var(--font-heading); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ofc-box__meta { font-size: 11px; color: var(--color-neutral-400); }
+.ofc-box__meta { font-size: 12px; color: var(--color-neutral-400); }
 .ofc-box__live { color: var(--ofc-live); font-style: normal; }
 .ofc-box__bar { display: block; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
 .ofc-box__bar span { display: block; height: 100%; background: var(--room); transition: width 400ms var(--ease-out); }
-.ofc-box__tasks { font-size: 10.5px; color: var(--color-neutral-600); }
+.ofc-box__tasks { font-size: 12px; color: var(--color-neutral-600); }
 
 .ofc-kind {
   display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border: 0; border-radius: 999px;
-  font-size: 11.5px; color: var(--color-neutral-300); background: var(--color-surface);
+  font-size: 12px; color: var(--color-neutral-300); background: var(--color-surface);
   box-shadow: inset 0 0 0 1px var(--color-divider); cursor: pointer;
 }
 .ofc-kind:hover { background: var(--color-surface-2); color: var(--color-text); }
 .ofc-kind.is-picked { box-shadow: inset 0 0 0 1.5px var(--kind); color: var(--color-text); }
 .ofc-kind__glyph { width: 15px; height: 15px; display: grid; place-items: center; border-radius: 50%;
-  background: var(--kind); color: #0b0b10; font-size: 9px; font-weight: 700; }
+  background: var(--kind); color: #0b0b10; font-size: 12px; font-weight: 700; }
 .ofc-kind__count { color: var(--color-neutral-600); }
 
 /* --- the drawer, the card ---------------------------------------------------------------------- */
@@ -194,7 +194,7 @@
 .ofc-drawer__head p { margin: 2px 0 0; font-size: 12px; color: var(--color-neutral-500); }
 .ofc-drawer__head .ofc-x, .ofc-card > header .ofc-x { margin-left: auto; }
 .ofc-drawer__controls { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-.ofc-drawer__stat { font-size: 11.5px; color: var(--color-neutral-500); margin-left: auto; }
+.ofc-drawer__stat { font-size: 12px; color: var(--color-neutral-500); margin-left: auto; }
 .ofc-drawer__manager { margin: 0; font-size: 12px; color: var(--color-neutral-400); }
 .ofc-drawer__notes { margin: 0; font-size: 12px; color: var(--color-neutral-500); }
 .ofc-drawer__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
@@ -204,10 +204,10 @@
 .ofc-row--empty { color: var(--color-neutral-600); font-size: 12px; }
 .ofc-row__pick { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; cursor: pointer; }
 .ofc-row__head { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; color: #0b0b10;
-  font-size: 10px; font-weight: 700; flex: none; }
+  font-size: 12px; font-weight: 700; flex: none; }
 .ofc-row__body { min-width: 0; display: grid; }
 .ofc-row__name { font-size: 12.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ofc-row__meta { font-size: 11px; color: var(--color-neutral-500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ofc-row__meta { font-size: 12px; color: var(--color-neutral-500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ofc-row.is-working .ofc-row__meta { color: var(--ofc-live); }
 .ofc-row__actions { display: flex; gap: 2px; flex: none; }
 
@@ -239,7 +239,7 @@
 .ofc-chat--target { height: 34vh; min-height: 210px; max-height: 80vh; }
 .ofc-chat__head { display: flex; gap: 8px; align-items: baseline; padding: 10px 12px 6px; }
 .ofc-chat__head h2 { margin: 0; font: 600 13px var(--font-heading); }
-.ofc-chat__sub { font-size: 11.5px; color: var(--color-neutral-600); }
+.ofc-chat__sub { font-size: 12px; color: var(--color-neutral-600); }
 /* Says "this box can be resized" — the handle itself is the CSS grip in the bottom-right corner. */
 .ofc-chat__grip { margin-left: auto; width: 14px; height: 14px; border-radius: 4px; cursor: ns-resize;
   background:
@@ -250,25 +250,25 @@
 .ofc-chat__empty p { margin: 0; }
 
 .ofc-phases { display: flex; gap: 4px; list-style: none; margin: 0; padding: 4px 12px 8px; flex-wrap: wrap; }
-.ofc-phases li { font-size: 10.5px; padding: 2px 8px; border-radius: 999px; color: var(--color-neutral-600);
+.ofc-phases li { font-size: 12px; padding: 2px 8px; border-radius: 999px; color: var(--color-neutral-600);
   box-shadow: inset 0 0 0 1px var(--color-divider); }
 .ofc-phases li.is-done { color: var(--color-neutral-400); }
 .ofc-phases li.is-now { color: var(--color-on-accent); background: var(--color-accent); box-shadow: none; }
 
 .ofc-msg { display: grid; gap: 4px; font-size: 13px; line-height: 1.5; }
-.ofc-msg header { display: flex; gap: 8px; align-items: baseline; font-size: 11.5px; color: var(--color-neutral-500); }
+.ofc-msg header { display: flex; gap: 8px; align-items: baseline; font-size: 12px; color: var(--color-neutral-500); }
 .ofc-msg header b { color: var(--color-neutral-300); font-weight: 600; }
-.ofc-msg header time { margin-left: auto; color: var(--color-neutral-700); font-size: 10.5px; }
+.ofc-msg header time { margin-left: auto; color: var(--color-neutral-700); font-size: 12px; }
 .ofc-msg__plain { margin: 0; white-space: pre-wrap; }
 .ofc-msg__to { color: var(--color-accent-300); }
 .ofc-msg.is-owner { padding-left: 8px; box-shadow: inset 2px 0 0 var(--color-accent); }
 .ofc-msg--small { font-size: 12.5px; }
 
 .ofc-aim { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding: 0 12px 6px; }
-.ofc-aim__who { font-size: 11.5px; color: var(--color-accent-300); }
+.ofc-aim__who { font-size: 12px; color: var(--color-accent-300); }
 .ofc-aim__who.is-empty { color: var(--color-neutral-600); }
 .ofc-chip { display: inline-flex; gap: 6px; align-items: center; padding: 2px 8px; border: 0; border-radius: 999px;
-  font-size: 11.5px; color: var(--color-text); cursor: pointer;
+  font-size: 12px; color: var(--color-text); cursor: pointer;
   background: color-mix(in srgb, var(--chip, var(--color-accent)) 20%, var(--color-surface-2));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chip, var(--color-accent)) 45%, transparent); }
 .ofc-chip:hover { background: color-mix(in srgb, var(--chip, var(--color-accent)) 32%, var(--color-surface-2)); }
@@ -290,9 +290,9 @@
 .ofc-hiring ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .ofc-hiring li { font-size: 12px; display: grid; gap: 2px; }
 .ofc-hiring li b { color: var(--color-text); }
-.ofc-tag { font-style: normal; font-size: 10px; padding: 1px 6px; border-radius: 999px; margin-left: 6px;
+.ofc-tag { font-style: normal; font-size: 12px; padding: 1px 6px; border-radius: 999px; margin-left: 6px;
   color: var(--color-accent-300); box-shadow: inset 0 0 0 1px var(--color-divider-strong); }
-.ofc-verdict { float: right; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; }
+.ofc-verdict { float: right; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
 .ofc-verdict.is-approved { color: var(--ofc-live); }
 .ofc-verdict.is-denied { color: var(--ofc-risk); }
 .ofc-verdict.is-reuse { color: var(--ofc-warn); }
@@ -312,12 +312,12 @@
 .ofc-tree__row { display: flex; align-items: center; gap: 2px; border-radius: 8px; }
 .ofc-tree__row:hover { background: var(--color-surface-2); }
 .ofc-tree__row.is-current { background: color-mix(in srgb, var(--color-accent) 16%, transparent); }
-.ofc-tree__twist { border: 0; background: none; color: var(--color-neutral-600); cursor: pointer; font-size: 10px; padding: 2px; }
+.ofc-tree__twist { border: 0; background: none; color: var(--color-neutral-600); cursor: pointer; font-size: 12px; padding: 2px; }
 .ofc-tree__name { flex: 1; text-align: left; border: 0; background: none; color: var(--color-neutral-300);
   font-size: 12.5px; padding: 4px 2px; cursor: pointer; display: flex; gap: 6px; align-items: center; min-width: 0; }
 .ofc-tree__name:hover { color: var(--color-text); }
 .ofc-tree__icon { font-size: 12px; }
-.ofc-tree__tag { font-style: normal; font-size: 10px; color: var(--color-accent-300); }
+.ofc-tree__tag { font-style: normal; font-size: 12px; color: var(--color-accent-300); }
 .ofc-files { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: 12px; }
 .ofc-files li { display: flex; gap: 8px; align-items: baseline; justify-content: space-between; }
 .ofc-filepeek { position: absolute; inset: 12px; z-index: 6; display: flex; flex-direction: column; gap: 8px;
@@ -356,10 +356,10 @@
 .ofc-cardlet.is-running { box-shadow: inset 0 0 0 1.5px var(--ofc-live); }
 .ofc-cardlet__icon { font-size: 18px; }
 .ofc-cardlet__name { font: 600 13.5px var(--font-heading); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ofc-cardlet__meta { font-size: 11.5px; }
-.ofc-cardlet__summary { font-size: 11.5px; color: var(--color-neutral-500); display: -webkit-box;
+.ofc-cardlet__meta { font-size: 12px; }
+.ofc-cardlet__summary { font-size: 12px; color: var(--color-neutral-500); display: -webkit-box;
   -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.ofc-cardlet__live { font-size: 10.5px; color: var(--ofc-live); }
+.ofc-cardlet__live { font-size: 12px; color: var(--ofc-live); }
 .ofc-rename { font: 600 13.5px var(--font-heading); color: var(--color-text); background: var(--color-surface-2);
   border: 0; border-radius: 6px; padding: 2px 6px; box-shadow: inset 0 0 0 1px var(--color-divider-strong); }
 .ofc-empty { grid-column: 1 / -1; display: grid; gap: 10px; justify-items: start; padding: 22px; border-radius: var(--radius-lg);
@@ -406,8 +406,8 @@
 .ofc-out.is-done { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ofc-live) 45%, var(--color-divider)); }
 .ofc-out header { display: flex; gap: 8px; align-items: baseline; font-size: 12.5px; }
 .ofc-out header b { color: var(--color-text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ofc-out header time { margin-left: auto; flex: 0 0 auto; font-size: 10.5px; color: var(--color-neutral-600); }
-.ofc-out__status { flex: 0 0 auto; font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+.ofc-out header time { margin-left: auto; flex: 0 0 auto; font-size: 12px; color: var(--color-neutral-600); }
+.ofc-out__status { flex: 0 0 auto; font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
   padding: 1px 7px; border-radius: 999px; color: var(--color-neutral-400); box-shadow: inset 0 0 0 1px var(--color-divider-strong); }
 .ofc-out__status.is-done { color: var(--ofc-live); box-shadow: inset 0 0 0 1px var(--ofc-live); }
 .ofc-out__status.is-partial { color: var(--ofc-warn); box-shadow: inset 0 0 0 1px var(--ofc-warn); }
@@ -415,7 +415,7 @@
 .ofc-out__text { font-size: 13px; line-height: 1.5; max-height: 320px; overflow-y: auto; overflow-wrap: anywhere; }
 .ofc-out__links { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .ofc-out__links a { text-decoration: none; }
-.ofc-out__copy { justify-self: end; font-size: 11.5px; }
+.ofc-out__copy { justify-self: end; font-size: 12px; }
 .ofc-file { position: absolute; inset: 8px; z-index: 3; display: grid; grid-template-rows: auto 1fr; border-radius: 12px;
   background: var(--color-surface); box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55), inset 0 0 0 1px var(--color-divider-strong); }
 .ofc-file header { display: flex; gap: 10px; align-items: center; padding: 8px 10px 8px 12px; font-size: 12.5px;

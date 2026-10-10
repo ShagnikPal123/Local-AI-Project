@@ -45,7 +45,7 @@ export function Toasts({ items, onDismiss }: ToastsProps) {
                 onClick={toast.action.onClick}
                 style={{
                   display: "block", background: "none", border: "none", padding: 0,
-                  cursor: "pointer", font: "inherit", fontSize: 11, marginTop: 3,
+                  cursor: "pointer", font: "inherit", fontSize: 12, marginTop: 3,
                   color: "var(--color-accent)", textDecoration: "underline",
                 }}
               >
@@ -56,7 +56,7 @@ export function Toasts({ items, onDismiss }: ToastsProps) {
           <button
             onClick={() => onDismiss(toast.id)}
             aria-label="Dismiss"
-            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-neutral-600)", font: "inherit", fontSize: 11, padding: 0 }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-neutral-600)", font: "inherit", fontSize: 12, padding: 0 }}
           >
             ✕
           </button>

@@ -63,7 +63,7 @@
   color: var(--color-text); box-shadow: inset 0 0 0 1px var(--color-divider); cursor: pointer; text-align: left; }
 .ss-source .nyx-icon { color: var(--color-neutral-400); flex: none; }
 .ss-source span { display: grid; gap: 2px; font-size: 13px; }
-.ss-source small { color: var(--color-neutral-500); font-size: 11.5px; }
+.ss-source small { color: var(--color-neutral-500); font-size: 12px; }
 .ss-source.is-on, .ss-window.is-on { box-shadow: inset 0 0 0 2px var(--color-accent); }
 .ss-search input { width: 100%; min-height: 34px; padding: 6px 12px; border-radius: 9px; border: 0; background: var(--color-surface-2);
   color: var(--color-text); box-shadow: inset 0 0 0 1px var(--color-divider); font: inherit; font-size: 13px; }
@@ -73,7 +73,7 @@
 .ss-window:hover:not(:disabled) { background: var(--color-surface-2); }
 .ss-window:disabled { opacity: 0.5; cursor: default; }
 .ss-window__title { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ss-window small { color: var(--color-neutral-500); font-size: 11.5px; }
+.ss-window small { color: var(--color-neutral-500); font-size: 12px; }
 .ss-rules { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--color-neutral-400); font-size: 12.5px; line-height: 1.45; }
 .ss-who { display: grid; gap: 10px; font-size: 13px; }
 .ss-who p { margin: 0; line-height: 1.5; }

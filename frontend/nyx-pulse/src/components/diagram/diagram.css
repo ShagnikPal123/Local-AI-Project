@@ -39,7 +39,7 @@
 .dg-size input { width: 80px; accent-color: var(--color-accent); }
 
 .dg-choices { display: flex; gap: 8px; overflow-x: auto; padding: 10px 16px; border-bottom: 1px solid var(--color-divider); }
-.dg-choices button { display: grid; gap: 4px; width: 132px; flex: none; text-align: left; font-size: 11.5px; color: var(--color-neutral-400);
+.dg-choices button { display: grid; gap: 4px; width: 132px; flex: none; text-align: left; font-size: 12px; color: var(--color-neutral-400);
   border-radius: 8px; padding: 4px; }
 .dg-choices button[aria-selected="true"] { box-shadow: inset 0 0 0 1.5px var(--color-accent); color: var(--color-text); }
 .dg-choices img { width: 100%; height: 76px; object-fit: cover; border-radius: 6px; background: #000; }
@@ -60,7 +60,7 @@
 .dg-edge.is-dashed.is-live { stroke-dasharray: 6 5; stroke-dashoffset: 0; animation: dg-fade 0.9s var(--ease-out) both; }
 @keyframes dg-draw { to { stroke-dashoffset: 0; } }
 @keyframes dg-fade { from { opacity: 0; } to { opacity: 0.85; } }
-.dg-edge__label { font-size: 11px; fill: var(--color-neutral-400); paint-order: stroke; stroke: #0b0b10; stroke-width: 4px;
+.dg-edge__label { font-size: 12px; fill: var(--color-neutral-400); paint-order: stroke; stroke: #0b0b10; stroke-width: 4px;
   stroke-linejoin: round; }
 .dg-group-head { font: 600 11px var(--font-mono); letter-spacing: 0.08em; }
 .dg-node__label { font: 600 14px var(--font-body); fill: var(--color-text); }

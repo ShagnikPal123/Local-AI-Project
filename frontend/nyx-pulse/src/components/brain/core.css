@@ -24,9 +24,9 @@
   background: linear-gradient(180deg, rgba(22, 38, 82, 0.46), rgba(8, 14, 34, 0.62));
   box-shadow: inset 0 0 0 1px rgba(140, 190, 255, 0.16), inset 0 1px 0 rgba(200, 225, 255, 0.08), 0 18px 50px rgba(0, 0, 18, 0.45);
   backdrop-filter: blur(16px) saturate(1.3); -webkit-backdrop-filter: blur(16px) saturate(1.3); }
-.core__caption { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-family: var(--font-mono); font-size: 10.5px;
+.core__caption { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-family: var(--font-mono); font-size: 12px;
   letter-spacing: 0.14em; text-transform: uppercase; color: #a9bee8; }
-.core__caption > span { margin-left: auto; letter-spacing: 0.06em; color: #8ea4d2; text-transform: none; font-size: 11px; }
+.core__caption > span { margin-left: auto; letter-spacing: 0.06em; color: #8ea4d2; text-transform: none; font-size: 12px; }
 .core__dot { width: 6px; height: 6px; border-radius: 50%; background: #7cc4ff; box-shadow: 0 0 8px #7cc4ff; }
 .core__dot.is-live { background: #7ee2a0; box-shadow: 0 0 10px #7ee2a0; animation: coreblink 1.2s infinite; }
 
@@ -63,10 +63,10 @@
 .core__badge.is-market { background: linear-gradient(135deg, #ffd28a, #ff9f43); }
 .core__api-name { display: grid; min-width: 0; }
 .core__api-name b { display: flex; gap: 6px; align-items: center; font-size: 12.5px; font-weight: 600; color: #eaf2ff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.core__api-name > span { font-size: 11px; color: #8ea4d2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.core__api-name > span { font-size: 12px; color: #8ea4d2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .core__api-num { display: grid; justify-items: end; gap: 2px; font-family: var(--font-mono); }
 .core__api-num b { font-size: 12.5px; color: #fff; }
-.core__api-num > span { font-size: 10.5px; color: #8ea4d2; }
+.core__api-num > span { font-size: 12px; color: #8ea4d2; }
 .core__spark { width: 56px; height: 18px; }
 .core__spark polyline { stroke: #7cc4ff; }
 .core__spark.is-warn polyline { stroke: #ffb36b; }
@@ -84,7 +84,7 @@
 .core__make input:focus-visible, .core__project select:focus-visible { outline: 2px solid #7cc4ff; outline-offset: 1px; }
 .core__make-actions { display: flex; justify-content: space-between; align-items: center; }
 .core__filter { display: flex; gap: 4px; margin-bottom: 6px; }
-.core__filter button { height: 22px; padding: 0 9px; border-radius: 999px; border: 0; font: inherit; font-size: 11px; cursor: pointer; color: #a9bee8;
+.core__filter button { height: 22px; padding: 0 9px; border-radius: 999px; border: 0; font: inherit; font-size: 12px; cursor: pointer; color: #a9bee8;
   background: rgba(140, 190, 255, 0.08); }
 .core__filter button[aria-pressed="true"] { color: #061022; background: #9ad4ff; }
 .core__agentlist { max-height: 34vh; overflow-y: auto; scrollbar-width: thin; }
@@ -92,19 +92,19 @@
 .core__agent:hover, .core__agent:focus-within { background: rgba(140, 190, 255, 0.08); }
 .core__agent:active { cursor: grabbing; }
 .core__agent.is-working .core__emoji { box-shadow: 0 0 0 1.5px #7ee2a0, 0 0 12px rgba(126, 226, 160, 0.5); }
-.core__grip { font-size: 10px; letter-spacing: -2px; color: #5f739e; }
+.core__grip { font-size: 12px; letter-spacing: -2px; color: #5f739e; }
 .core__agent-main { display: flex; gap: 8px; align-items: center; min-width: 0; padding: 2px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: 8px; }
 .core__agent-main:focus-visible { outline: 2px solid #7cc4ff; }
 .core__emoji { display: grid; place-items: center; width: 26px; height: 26px; flex: none; border-radius: 8px; font-size: 14px; background: rgba(4, 10, 26, 0.7); }
-.core__tag { font-style: normal; font-size: 9.5px; font-weight: 600; letter-spacing: 0.04em; padding: 1px 5px; border-radius: 999px; color: #061022; background: #b8a8ff; }
-.core__run { height: 24px; padding: 0 10px; border-radius: 999px; border: 0; font: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer;
+.core__tag { font-style: normal; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; padding: 1px 5px; border-radius: 999px; color: #061022; background: #b8a8ff; }
+.core__run { height: 24px; padding: 0 10px; border-radius: 999px; border: 0; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
   color: #eaf2ff; background: rgba(124, 196, 255, 0.16); box-shadow: inset 0 0 0 1px rgba(124, 196, 255, 0.35); opacity: 0.85; }
 .core__run:hover, .core__run:focus-visible { opacity: 1; color: #061022; background: #9ad4ff; outline: none; }
 
 .core__proc { display: grid; gap: 4px; padding: 4px; }
 .core__proc-main { display: flex; gap: 8px; align-items: center; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; min-width: 0; }
 .core__proc-main .core__api-name { flex: 1; }
-.core__proc-time { font-family: var(--font-mono); font-size: 10.5px; color: #8ea4d2; }
+.core__proc-time { font-family: var(--font-mono); font-size: 12px; color: #8ea4d2; }
 .core__progress { display: block; height: 3px; border-radius: 2px; background: rgba(140, 190, 255, 0.14); overflow: hidden; }
 .core__progress i { display: block; height: 100%; background: linear-gradient(90deg, #5f8dff, #9ad4ff); transition: width 500ms ease; }
 .core__progress.is-indeterminate i { width: 30%; animation: coreslide 1.6s ease-in-out infinite; }
@@ -113,7 +113,7 @@
 /* U31: always-on loops fold under the jobs, so the list reads as "what is working" first. */
 .core__procs { max-height: 42vh; overflow-y: auto; }
 .core__services { margin-top: 8px; padding-top: 6px; box-shadow: inset 0 1px 0 rgba(140, 190, 255, 0.12); }
-.core__services summary { cursor: pointer; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase;
+.core__services summary { cursor: pointer; font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
   color: #8ea4d2; padding: 2px 4px; border-radius: 6px; }
 .core__services summary:hover { color: #eaf2ff; }
 .core__services summary:focus-visible { outline: 2px solid #7cc4ff; }
@@ -141,7 +141,7 @@
 .core__wave span { display: block; width: 3px; border-radius: 2px; height: calc(4px + var(--h) * 6px); background: linear-gradient(180deg, #d5ecff, #6fa8ff);
   opacity: 0.55; transition: height 300ms ease; }
 .core__wave.is-active span { height: calc(6px + var(--h) * 28px); opacity: 0.95; animation: corewave 900ms ease-in-out infinite alternate; }
-.core__status { justify-self: center; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.2em; color: #8ea4d2; text-align: center;
+.core__status { justify-self: center; font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.2em; color: #8ea4d2; text-align: center;
   pointer-events: auto; text-shadow: 0 0 12px rgba(0, 0, 0, 0.8); }
 
 @keyframes corewave { from { transform: scaleY(0.35); } to { transform: scaleY(1); } }

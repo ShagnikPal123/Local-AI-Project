@@ -10,7 +10,7 @@
 .handoff summary span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .handoff__body { margin: 0; padding: 2px 10px 10px 26px; max-height: 320px; overflow: auto; white-space: pre-wrap;
   overflow-wrap: anywhere; font: inherit; font-size: 12.5px; line-height: 1.5; color: var(--color-neutral-300, #d1d1d6); }
-.handoff__label { display: block; margin: 6px 0 2px; font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase;
+.handoff__label { display: block; margin: 6px 0 2px; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase;
   color: var(--color-neutral-600); }
 @media (prefers-reduced-motion: reduce) { .handoff summary::before { transition: none; } }
 .handoff__waiting { margin: 0; font-size: 12px; color: var(--color-neutral-500); }

@@ -79,7 +79,7 @@ export function DashboardPanel() {
             </>
           )}
           {hw.status_summary && (
-            <div style={{ marginTop: 8, fontSize: 11, color: "var(--color-neutral-600)", fontFamily: "var(--font-mono)" }}>
+            <div style={{ marginTop: 8, fontSize: 12, color: "var(--color-neutral-600)", fontFamily: "var(--font-mono)" }}>
               {hw.status_summary}
             </div>
           )}

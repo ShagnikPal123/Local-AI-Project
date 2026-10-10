@@ -18,7 +18,7 @@
 .kc-dot { width: 9px; height: 9px; border-radius: 50%; background: #ffb340; box-shadow: 0 0 0 4px rgba(255, 179, 64, 0.18); }
 .kc-title { flex: 1; display: flex; flex-direction: column; line-height: 1.2; }
 .kc-title b { font-size: 13.5px; }
-.kc-title span { font-size: 11px; color: #a1a1aa; letter-spacing: 0.06em; text-transform: uppercase; }
+.kc-title span { font-size: 12px; color: #a1a1aa; letter-spacing: 0.06em; text-transform: uppercase; }
 .kc-icon { width: 30px; height: 30px; border: 0; border-radius: 8px; background: transparent; color: #a1a1aa; cursor: pointer;
   display: grid; place-items: center; }
 .kc-icon:hover { background: rgba(255, 255, 255, 0.06); color: #f5f5f7; }
@@ -37,7 +37,7 @@
   background: rgba(255, 255, 255, 0.06); }
 .kc-send { width: 34px; border: 0; border-radius: 10px; background: #ffb340; color: #1a1206; cursor: pointer; display: grid; place-items: center; }
 .kc-send:disabled { opacity: 0.4; cursor: default; }
-.kc-off { border: 0; background: none; color: #a1a1aa; font-size: 11.5px; padding: 0 0 10px; cursor: pointer; }
+.kc-off { border: 0; background: none; color: #a1a1aa; font-size: 12px; padding: 0 0 10px; cursor: pointer; }
 .kc-off:hover { color: #f5f5f7; }
 .kc button:focus-visible, .kc input:focus-visible, .kc-bar:focus-visible { outline: 2px solid #ffb340; outline-offset: 2px; }
 

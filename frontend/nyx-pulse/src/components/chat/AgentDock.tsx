@@ -41,7 +41,7 @@ function AgentRow({
         >
           {agent.name}
         </button>
-        <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--color-neutral-600)", flex: "none" }}>
+        <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--color-neutral-600)", flex: "none" }}>
           {STATUS_TEXT[agent.status]}
         </span>
         <button
@@ -57,18 +57,18 @@ function AgentRow({
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
           aria-label={open ? `Hide ${agent.name} details` : `Show ${agent.name} details`}
-          style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-neutral-600)", padding: "0 2px", font: "inherit", fontSize: 11 }}
+          style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-neutral-600)", padding: "0 2px", font: "inherit", fontSize: 12 }}
         >
           {open ? "▾" : "▸"}
         </button>
       </div>
       {agent.status === "working" && agent.step && (
-        <div style={{ fontSize: 11, color: "var(--color-neutral-500)", marginTop: 2, paddingLeft: 26 }}>
+        <div style={{ fontSize: 12, color: "var(--color-neutral-500)", marginTop: 2, paddingLeft: 26 }}>
           {agent.step}
         </div>
       )}
       {open && (
-        <div style={{ fontSize: 11, color: "var(--color-neutral-500)", lineHeight: 1.6, marginTop: 4, paddingLeft: 26 }}>
+        <div style={{ fontSize: 12, color: "var(--color-neutral-500)", lineHeight: 1.6, marginTop: 4, paddingLeft: 26 }}>
           {agent.goal && <div>{agent.goal}</div>}
           {agent.createdInChat && <div style={{ color: "var(--color-accent)" }}>created in chat</div>}
           <button
@@ -105,7 +105,7 @@ export function AgentDock({ agents, onOpenAgent, onAskAgent, collapsed, onToggle
           </button>
         )}
         {working.length > 0 && (
-          <span style={{ fontSize: 11, color: "var(--color-neutral-500)" }} aria-live="polite">
+          <span style={{ fontSize: 12, color: "var(--color-neutral-500)" }} aria-live="polite">
             {working.length} working…
           </span>
         )}
@@ -116,7 +116,7 @@ export function AgentDock({ agents, onOpenAgent, onAskAgent, collapsed, onToggle
   return (
     <div style={{ flex: "none", maxHeight: 220, overflowY: "auto", padding: "4px 8px" }}>
       <div style={{ display: "flex", alignItems: "center", marginBottom: 2 }}>
-        <span className="label" style={{ fontSize: 11 }}>Team</span>
+        <span className="label" style={{ fontSize: 12 }}>Team</span>
         {onOpenDetails && (
           <button className="team-details-btn" style={{ marginLeft: 8 }} onClick={onOpenDetails} aria-label="Team details: every agent's goal, purpose, model and consults">
             Details
@@ -134,7 +134,7 @@ export function AgentDock({ agents, onOpenAgent, onAskAgent, collapsed, onToggle
         )}
       </div>
       {agents.length === 0 ? (
-        <div style={{ fontSize: 11, color: "var(--color-neutral-600)", padding: "4px 0 8px" }}>
+        <div style={{ fontSize: 12, color: "var(--color-neutral-600)", padding: "4px 0 8px" }}>
           No agents yet — ask for something that needs a specialist and one joins here.
         </div>
       ) : (

@@ -102,7 +102,7 @@ export function ChatSidebar({ chats, activeId, onSelect, onNew, onRename, onDele
         + New chat
       </button>
       {chats.length === 0 && (
-        <div style={{ fontSize: 11, color: "var(--color-neutral-600)", padding: "4px 0" }}>
+        <div style={{ fontSize: 12, color: "var(--color-neutral-600)", padding: "4px 0" }}>
           Your conversations will appear here.
         </div>
       )}

@@ -62,7 +62,7 @@ function AttachmentChip({
   return (
     <span
       style={{
-        display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11,
+        display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12,
         padding: "3px 8px", borderRadius: 999, boxShadow: "inset 0 0 0 1px var(--color-divider)",
         maxWidth: 220,
       }}

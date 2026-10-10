@@ -162,19 +162,19 @@ function AgentRow({ agent, onDismiss, onProperties }: { agent: Agent; onDismiss:
         <span style={{ fontSize: 13, fontWeight: isMaster ? 600 : 400 }}>{agent.name}</span>
         {isMaster && (
           <span style={{
-            fontSize: 11, letterSpacing: ".06em", textTransform: "uppercase",
+            fontSize: 12, letterSpacing: ".06em", textTransform: "uppercase",
             color: "var(--color-accent)",
           }}>
             manages the team
           </span>
         )}
         {agent.personality_id && (
-          <span style={{ fontSize: 11, color: "var(--color-neutral-600)" }}>
+          <span style={{ fontSize: 12, color: "var(--color-neutral-600)" }}>
             {agent.personality_id}
           </span>
         )}
         <span style={{
-          marginLeft: "auto", fontSize: 11, fontFamily: "var(--font-mono)", color,
+          marginLeft: "auto", fontSize: 12, fontFamily: "var(--font-mono)", color,
         }}>
           {agent.status}
         </span>
@@ -182,7 +182,7 @@ function AgentRow({ agent, onDismiss, onProperties }: { agent: Agent; onDismiss:
           className="btn btn-secondary"
           onClick={() => onProperties(agent.name)}
           title={`Objective, model and tools for ${agent.name}`}
-          style={{ fontSize: 11, padding: "2px 9px" }}
+          style={{ fontSize: 12, padding: "2px 9px" }}
         >
           Properties
         </button>
@@ -192,7 +192,7 @@ function AgentRow({ agent, onDismiss, onProperties }: { agent: Agent; onDismiss:
           title={isMaster
             ? "The master cannot be dismissed while workers depend on it"
             : `Dismiss ${agent.name}`}
-          style={{ fontSize: 11, padding: "2px 9px", color: "var(--color-danger)" }}
+          style={{ fontSize: 12, padding: "2px 9px", color: "var(--color-danger)" }}
         >
           Dismiss
         </button>
@@ -212,7 +212,7 @@ function AgentRow({ agent, onDismiss, onProperties }: { agent: Agent; onDismiss:
       )}
 
       <div style={{
-        display: "flex", gap: 14, fontSize: 11,
+        display: "flex", gap: 14, fontSize: 12,
         color: "var(--color-neutral-600)", fontFamily: "var(--font-mono)",
       }}>
         <span>{agent.steps_completed} steps</span>
@@ -360,7 +360,7 @@ export function AgentsPanel() {
               <AgentRow key={a.agent_id} agent={a} onDismiss={(id) => void dismiss(id)} onProperties={setProperties} />
             ))
           )}
-          <div style={{ fontSize: 11, color: "var(--color-neutral-600)", marginTop: 8, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 12, color: "var(--color-neutral-600)", marginTop: 8, lineHeight: 1.5 }}>
             Four standing roles are seeded automatically, so the team is never empty. Dismissing
             one of those brings it back on the next refresh.
           </div>

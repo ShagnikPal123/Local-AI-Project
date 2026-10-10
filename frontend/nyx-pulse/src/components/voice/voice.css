@@ -37,7 +37,7 @@
 .proto__row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .proto__log { margin: 2px 0 0; padding-left: 16px; display: grid; gap: 2px; font-size: 12px;
   color: var(--color-neutral-500); }
-.proto__fine { margin: 2px 0 0; font-size: 11.5px; line-height: 1.5; color: var(--color-neutral-600); }
+.proto__fine { margin: 2px 0 0; font-size: 12px; line-height: 1.5; color: var(--color-neutral-600); }
 
 /* The consent card, shown once. */
 .proto--consent { padding: 20px 22px; display: grid; gap: 12px; width: min(720px, calc(100vw - 32px)); }
@@ -61,11 +61,11 @@
   box-shadow: 0 0 0 4px rgba(165, 148, 255, 0.18); animation: vbar-breathe 1.8s ease-in-out infinite; }
 .vbar.is-speaking .vbar__mic { background: #30d158; box-shadow: 0 0 0 4px rgba(48, 209, 88, 0.18); }
 .vbar.has-error .vbar__mic { background: #ff453a; animation: none; }
-.vbar__label { flex: 0 0 auto; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em;
+.vbar__label { flex: 0 0 auto; font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.12em;
   text-transform: uppercase; color: #a1a1aa; }
 .vbar__text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #8e8e96; }
 .vbar__text.is-live { color: #f5f5f7; }
-.vbar__ready { flex: 0 0 auto; font-size: 10.5px; padding: 1px 7px; border-radius: 999px; color: #30d158;
+.vbar__ready { flex: 0 0 auto; font-size: 12px; padding: 1px 7px; border-radius: 999px; color: #30d158;
   box-shadow: inset 0 0 0 1px rgba(48, 209, 88, 0.5); }
 .vbar__dots { flex: 0 0 auto; display: inline-flex; gap: 4px; align-items: flex-end; height: 14px; }
 .vbar__dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--color-accent, #a594ff);

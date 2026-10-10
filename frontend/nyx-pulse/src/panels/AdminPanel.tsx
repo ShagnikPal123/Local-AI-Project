@@ -60,12 +60,12 @@ function Diff({ before, after }: { before: string; after: string }) {
         { label: "after", text: after, tone: "var(--color-ok)" },
       ].map((side) => (
         <div key={side.label}>
-          <div style={{ fontSize: 11, textTransform: "uppercase", color: side.tone, marginBottom: 4 }}>
+          <div style={{ fontSize: 12, textTransform: "uppercase", color: side.tone, marginBottom: 4 }}>
             {side.label}
           </div>
           <pre style={{
             margin: 0, padding: "7px 9px", background: "var(--color-nav)", borderRadius: 6,
-            fontFamily: "var(--font-mono)", fontSize: 11, lineHeight: 1.5,
+            fontFamily: "var(--font-mono)", fontSize: 12, lineHeight: 1.5,
             color: "var(--color-neutral-400)", whiteSpace: "pre-wrap", wordBreak: "break-word",
             maxHeight: 160, overflowY: "auto",
           }}>
@@ -89,19 +89,19 @@ function ChangeCard({ change, busy, onAction }: {
     <div className="card" style={{ borderLeft: `3px solid ${color}` }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <span style={{ fontSize: 13, fontWeight: 600 }}>{change.title}</span>
-        <span style={{ fontSize: 11, textTransform: "uppercase", color }}>
+        <span style={{ fontSize: 12, textTransform: "uppercase", color }}>
           {change.status.replace("_", " ")}
         </span>
         {change.origin === "agent" && (
           <span style={{
-            fontSize: 11, textTransform: "uppercase", color: "var(--color-accent-2)",
+            fontSize: 12, textTransform: "uppercase", color: "var(--color-accent-2)",
             border: "1px solid var(--color-accent-700)", borderRadius: 4, padding: "1px 5px",
           }}>
             agent-authored
           </span>
         )}
         <span style={{
-          marginLeft: "auto", fontSize: 11, fontFamily: "var(--font-mono)",
+          marginLeft: "auto", fontSize: 12, fontFamily: "var(--font-mono)",
           color: "var(--color-neutral-600)",
         }}>
           {change.target}
@@ -114,7 +114,7 @@ function ChangeCard({ change, busy, onAction }: {
         </div>
       )}
 
-      <div style={{ fontSize: 11, color: "var(--color-neutral-600)", marginTop: 6 }}>
+      <div style={{ fontSize: 12, color: "var(--color-neutral-600)", marginTop: 6 }}>
         by {change.author}
         {change.reviewed_by && ` · reviewed by ${change.reviewed_by}`}
         {change.published_by && ` · published by ${change.published_by}`}
@@ -126,7 +126,7 @@ function ChangeCard({ change, busy, onAction }: {
           background: "var(--color-nav)", fontSize: 12, lineHeight: 1.6,
           color: "var(--color-neutral-400)",
         }}>
-          <div style={{ fontSize: 11, textTransform: "uppercase", color: "var(--color-accent)", marginBottom: 4 }}>
+          <div style={{ fontSize: 12, textTransform: "uppercase", color: "var(--color-accent)", marginBottom: 4 }}>
             AI review — notes only, not a decision
           </div>
           {change.ai_review}
@@ -134,7 +134,7 @@ function ChangeCard({ change, busy, onAction }: {
       )}
 
       <button className="btn" onClick={() => setOpen((v) => !v)}
-        style={{ fontSize: 11, color: "var(--color-neutral-500)", padding: "4px 0", marginTop: 6 }}>
+        style={{ fontSize: 12, color: "var(--color-neutral-500)", padding: "4px 0", marginTop: 6 }}>
         {open ? "hide diff" : "show diff"}
       </button>
       {open && <Diff before={change.previous_content} after={change.content} />}
@@ -253,7 +253,7 @@ export function AdminPanel() {
                 />
               </label>
             ))}
-            <div style={{ fontSize: 11, color: "var(--color-neutral-600)", marginBottom: 10, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 12, color: "var(--color-neutral-600)", marginBottom: 10, lineHeight: 1.5 }}>
               Targeting <code style={{ fontFamily: "var(--font-mono)" }}>base_ai</code> rewrites
               the core assistant and is owner-only.
             </div>

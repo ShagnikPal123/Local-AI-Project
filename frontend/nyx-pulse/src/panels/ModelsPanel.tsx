@@ -124,7 +124,7 @@ export function ModelsPanel() {
         <div className="card" style={{ borderLeft: "3px solid var(--color-accent)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
             <span style={{
-              fontSize: 11, fontWeight: 600, letterSpacing: ".08em", textTransform: "uppercase",
+              fontSize: 12, fontWeight: 600, letterSpacing: ".08em", textTransform: "uppercase",
               color: "var(--color-accent)", background: "var(--color-accent-900)",
               padding: "3px 8px", borderRadius: 4,
             }}>
@@ -176,7 +176,7 @@ export function ModelsPanel() {
                   fontSize: 13, fontFamily: "var(--font-mono)",
                 }}>
                   <span>{name}</span>
-                  {active && <span style={{ color: "var(--color-accent)", fontSize: 11 }}>active</span>}
+                  {active && <span style={{ color: "var(--color-accent)", fontSize: 12 }}>active</span>}
                 </div>
               );
             })

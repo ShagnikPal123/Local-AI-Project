@@ -53,7 +53,7 @@
 
 .ocp-actions { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 260px; overflow-y: auto; }
 .ocp-actions li { display: flex; gap: 12px; font-size: 12.5px; color: var(--color-neutral-300, #d1d1d6); }
-.ocp-actions time { flex: 0 0 auto; font-family: var(--font-mono); font-size: 11.5px; color: var(--color-neutral-600); }
+.ocp-actions time { flex: 0 0 auto; font-family: var(--font-mono); font-size: 12px; color: var(--color-neutral-600); }
 
 @media (max-width: 640px) {
   .ocp-head { flex-direction: column; }

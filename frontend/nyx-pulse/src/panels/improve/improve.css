@@ -31,7 +31,7 @@
   text-align: left; cursor: pointer; line-height: 1.4; }
 .review__title:hover, .review__title:focus-visible { color: var(--color-accent-300); }
 .review__meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.review__meta code { font-size: 11.5px; color: var(--color-neutral-400); }
+.review__meta code { font-size: 12px; color: var(--color-neutral-400); }
 .review__rec.is-approve { color: #7ee2a0; }
 .review__rec.is-deny { color: #ffb4ae; }
 .review__reasons { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--color-neutral-400); display: -webkit-box; -webkit-line-clamp: 2;
@@ -80,13 +80,13 @@
 .deep__opt { display: inline-flex; gap: 8px; align-items: center; }
 .deep__opt span { display: grid; }
 .deep__opt b { font-size: 12.5px; }
-.deep__opt em { font-style: normal; font-size: 11.5px; color: var(--color-neutral-600); }
+.deep__opt em { font-style: normal; font-size: 12px; color: var(--color-neutral-600); }
 .deep__start { margin-left: auto; }
 .deep__run { display: grid; gap: 8px; padding: 12px; border-radius: 12px; background: #0b0b10; box-shadow: inset 0 0 0 1px var(--color-divider); }
 .deep__runhead { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .deep__runhead b { flex: 1; font-size: 13.5px; }
 .deep__items--run li { grid-template-columns: minmax(0, 1fr) auto 110px; }
-.deep__items--run code { font-size: 11.5px; color: var(--color-neutral-400); }
+.deep__items--run code { font-size: 12px; color: var(--color-neutral-400); }
 .deep__state { font-size: 12px; text-align: right; color: var(--color-neutral-500); }
 .deep__state.is-working { color: var(--color-info); }
 .deep__state.is-applied { color: #7ee2a0; }

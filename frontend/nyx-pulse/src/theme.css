@@ -22,61 +22,72 @@
    ======================================================================== */
 
 :root {
-  --color-bg: #000000;
-  --color-nav: #07070a;
-  --color-surface: #0e0e13;
-  --color-surface-2: #15151c;
-  --color-surface-3: #1d1d26;
-  --color-text: #f5f5f7;
+  /* Redesign 2026-10-10 (docs/DESIGN.md §2): Windows 11 dark resources (WinUI Common_themeresources_any.xaml),
+     as solid equivalents over the #202020 base so every existing panel picks them up. The owner's lavender stays the
+     accent; native Windows dark mode puts black text on a light accent fill, which is what --color-on-accent does. */
+  --color-bg: #202020;            /* SolidBackgroundFillColorBase */
+  --color-nav: #1c1c1c;           /* SolidBackgroundFillColorSecondary — sidebar, bars */
+  --color-surface: #2b2b2b;       /* CardBackgroundFillColorDefault (5.1% white) */
+  --color-surface-2: #2d2d2d;     /* ControlFillColorDefault (5.9%) */
+  --color-surface-3: #323232;     /* ControlFillColorSecondary (8.2%) — hover */
+  --color-flyout: #2c2c2c;        /* SolidBackgroundFillColorQuarternary — menus, dialogs */
+  --color-text: #ffffff;          /* TextFillColorPrimary 16.3:1 */
   --color-accent: #a594ff;
   --color-accent-2: #bdb2ff;
-  /* Links: the blue end of the accent, so a pasted address reads as "this took". */
-  --color-link: #9aa8ff;
-  --color-link-bg: rgba(138, 156, 255, 0.18);
-  --color-divider: rgba(255, 255, 255, 0.1);
-  --color-divider-strong: rgba(255, 255, 255, 0.18);
-  --color-on-accent: #000000;
+  --color-link: #b9adff;
+  --color-link-bg: rgba(165, 148, 255, 0.16);
+  --color-divider: rgba(255, 255, 255, 0.082);        /* DividerStrokeColorDefault */
+  --color-divider-strong: rgba(255, 255, 255, 0.14);
+  --color-stroke-strong: rgba(255, 255, 255, 0.545);  /* ControlStrongStrokeColorDefault */
+  --color-on-accent: #000000;     /* TextOnAccentFillColorPrimary */
 
   --color-neutral-100: #ffffff;
-  --color-neutral-200: #e5e5ea;
-  --color-neutral-300: #d1d1d6;
-  --color-neutral-400: #c7c7cc;
-  --color-neutral-500: #a1a1aa;
-  --color-neutral-600: #8e8e96;
-  --color-neutral-700: #5a5a63; /* borders/disabled only, never text */
-  --color-neutral-800: #2c2c34;
-  --color-neutral-900: #1a1a21;
+  --color-neutral-200: #ebebeb;
+  --color-neutral-300: #dcdcdc;
+  --color-neutral-400: #cccccc;   /* TextFillColorSecondary 77% — 10.2:1 */
+  --color-neutral-500: #c5c5c5;
+  --color-neutral-600: #969696;   /* TextFillColorTertiary 53% — 5.5:1, meta only */
+  --color-neutral-700: #5d5d5d;   /* TextFillColorDisabled — borders/disabled only */
+  --color-neutral-800: #383838;
+  --color-neutral-900: #2a2a2a;
 
   --color-accent-300: #d6ceff;
   --color-accent-400: #bdb2ff;
   --color-accent-500: #a594ff;
-  --color-accent-700: #5b4fc0;
-  --color-accent-900: #1d1830;
+  --color-accent-700: #6b5fd0;
+  --color-accent-900: #2e2a45;
 
-  /* Apple dark system colours */
-  --color-ok: #30d158;
-  --color-warn: #ffd60a;
-  --color-danger: #ff453a;
-  --color-info: #64d2ff;
+  --color-ok: #6ccb5f;            /* SystemFillColorSuccess */
+  --color-warn: #fce100;          /* SystemFillColorCaution */
+  --color-danger: #ff99a4;        /* SystemFillColorCritical */
+  --color-info: #60cdff;
 
-  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", Inter, system-ui, sans-serif;
-  --font-heading: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI Variable Display", "Segoe UI", Inter, system-ui, sans-serif;
-  --font-mono: "SF Mono", ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+  /* AI presence (Carbon for AI, re-coloured): only on things an AI is doing right now. */
+  --ai-aura: rgba(165, 148, 255, 0.10);
+  --ai-edge: rgba(214, 206, 255, 0.36);
 
-  --radius: 10px;
-  --radius-lg: 16px;
-  --radius-xl: 22px;
+  --font-body: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, Inter, system-ui, sans-serif;
+  --font-heading: "Segoe UI Variable Display", "Segoe UI Variable Text", "Segoe UI", -apple-system, system-ui, sans-serif;
+  --font-mono: "Cascadia Mono", "Cascadia Code", ui-monospace, "JetBrains Mono", Consolas, monospace;
+
+  /* Windows 11 geometry: 4 controls, 8 cards/flyouts/dialogs, 12 composer. */
+  --radius: 4px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
   --den: 1;
 
-  /* Glass (functional layer only) */
-  --glass-fill: rgba(18, 18, 24, 0.62);
-  --glass-edge: rgba(255, 255, 255, 0.12);
-  --glass-blur: blur(28px) saturate(1.4);
+  --glass-fill: rgba(44, 44, 44, 0.86);
+  --glass-edge: rgba(255, 255, 255, 0.08);
+  --glass-blur: blur(30px) saturate(1.25);
 
-  /* The tactile, "clicky" feel: a lit top edge, a soft drop, a press that sinks */
-  --lift: inset 0 1px 0 rgba(255, 255, 255, 0.09), 0 1px 2px rgba(0, 0, 0, 0.6), 0 6px 18px rgba(0, 0, 0, 0.35);
-  --press: inset 0 2px 5px rgba(0, 0, 0, 0.55);
-  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Fluent two-layer shadows (dark): controls, cards, flyouts, dialogs. */
+  --lift: 0 1px 2px rgba(0, 0, 0, 0.28);
+  --shadow-card: 0 0 2px rgba(0, 0, 0, 0.24), 0 4px 8px rgba(0, 0, 0, 0.28);
+  --shadow-flyout: 0 0 8px rgba(0, 0, 0, 0.24), 0 14px 28px rgba(0, 0, 0, 0.28);
+  --shadow-dialog: 0 0 8px rgba(0, 0, 0, 0.24), 0 32px 64px rgba(0, 0, 0, 0.28);
+  --press: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+  --ease-out: cubic-bezier(0, 0, 0, 1);
+  --ease-in: cubic-bezier(1, 0, 1, 1);
 }
 
 * { box-sizing: border-box; }
@@ -88,7 +99,8 @@ html, body, #root {
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-body);
-  font-size: 15px;
+  font-size: 14px;
+  line-height: 1.43;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -116,12 +128,11 @@ button {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 30px;
-  padding: 6px 13px;
+  min-height: 32px;
+  padding: 5px 12px;
   border-radius: var(--radius);
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: -0.005em;
+  font-size: 14px;
+  font-weight: 400;
   white-space: nowrap;
   transition: background 140ms ease, color 140ms ease, box-shadow 140ms ease, transform 90ms var(--ease-out);
   user-select: none;
@@ -130,23 +141,24 @@ button {
 .btn:disabled { opacity: 0.45; cursor: default; }
 .btn-primary { background: var(--color-accent); color: var(--color-on-accent); box-shadow: var(--lift); }
 .btn-primary:hover:not(:disabled) { background: var(--color-accent-300); }
-.btn-secondary { background: var(--color-surface-2); color: var(--color-neutral-300); box-shadow: var(--lift); }
+.btn-secondary { background: var(--color-surface-2); color: var(--color-neutral-300); box-shadow: inset 0 0 0 1px var(--color-divider), var(--lift); }
 .btn-secondary:hover:not(:disabled) { background: var(--color-surface-3); color: var(--color-text); }
 .btn-plain { background: #fff; color: #000; box-shadow: var(--lift); }
+.btn-ghost { background: transparent; color: var(--color-neutral-400); }
+.btn-ghost:hover:not(:disabled) { background: var(--color-surface-3); color: var(--color-text); }
 .btn-plain:hover:not(:disabled) { background: #e5e5ea; }
 
 .card {
   background: var(--color-surface);
   border-radius: var(--radius-lg);
-  padding: 16px 18px;
-  box-shadow: inset 0 0 0 1px var(--color-divider), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  padding: 16px;
+  box-shadow: inset 0 0 0 1px var(--color-divider);
 }
 
 .label {
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--color-neutral-500);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-neutral-400);
 }
 
 .muted { color: var(--color-neutral-500); }
@@ -162,8 +174,8 @@ button {
 /* --- HUD: small monospace captions over the brain -------------------------------- */
 .hud-caption {
   font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.14em;
+  font-size: 12px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--color-neutral-500);
 }
@@ -176,8 +188,8 @@ button {
   height: 26px;
   flex: none;
   border-radius: 999px;
-  background: #3a3a42;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--color-stroke-strong);
   transition: background 180ms ease;
 }
 .switch::after {
@@ -188,14 +200,12 @@ button {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.45), 0 0 0 0.5px rgba(0, 0, 0, 0.2);
-  transition: transform 200ms var(--ease-out), width 120ms ease;
+  background: var(--color-neutral-400);
+  transform: scale(0.64);
+  transition: transform 200ms var(--ease-out);
 }
-.switch[aria-checked="true"] { background: var(--color-ok); }
-.switch[aria-checked="true"]::after { transform: translateX(16px); }
-.switch:active::after { width: 26px; }
-.switch[aria-checked="true"]:active::after { transform: translateX(12px); }
+.switch[aria-checked="true"] { background: var(--color-accent); box-shadow: none; }
+.switch[aria-checked="true"]::after { transform: translateX(16px) scale(0.64); background: #000; }
 .switch:disabled { opacity: 0.45; }
 
 /* --- Slider ------------------------------------------------------------------------- */
@@ -232,19 +242,19 @@ input[type="range"].slider::-moz-range-thumb { width: 22px; height: 22px; border
   display: inline-flex;
   padding: 2px;
   gap: 2px;
-  border-radius: 9px;
-  background: #1c1c22;
+  border-radius: var(--radius-lg);
+  background: var(--color-nav);
   box-shadow: inset 0 0 0 1px var(--color-divider);
 }
 .segmented button {
-  min-height: 26px;
+  min-height: 28px;
   padding: 3px 12px;
-  border-radius: 7px;
-  font-size: 12.5px;
+  border-radius: 6px;
+  font-size: 13px;
   color: var(--color-neutral-500);
   transition: background 150ms ease, color 150ms ease;
 }
-.segmented button[aria-pressed="true"] { background: #3a3a44; color: var(--color-text); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08); }
+.segmented button[aria-pressed="true"] { background: var(--color-surface-3); color: var(--color-text); box-shadow: inset 0 0 0 1px var(--color-divider), var(--lift); }
 .segmented button:hover:not([aria-pressed="true"]) { color: var(--color-text); }
 
 /* --- Chip ---------------------------------------------------------------------------- */
@@ -263,8 +273,15 @@ input[type="range"].slider::-moz-range-thumb { width: 22px; height: 22px; border
 .chip[aria-pressed="true"] { background: var(--color-accent-900); color: var(--color-accent-300); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 45%, transparent); }
 
 /* --- Accessibility answers -------------------------------------------------------------- */
+/* Windows focus visual: 2 px white outer over 1 px 70% black inner — the accent means selection only. */
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 1px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.7);
+}
+
 @media (prefers-reduced-transparency: reduce) {
-  .glass { background: #101016; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .glass { background: var(--color-flyout); -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
 @media (prefers-contrast: more) {
   :root {

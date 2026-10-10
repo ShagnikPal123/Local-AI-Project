@@ -12,7 +12,7 @@
 .t-head__right select, .t-field input, .t-field select, .t-inline input {
   min-height: 32px; padding: 5px 9px; border: 0; border-radius: 9px; font: inherit; font-size: 13.5px; color: #f5f5f7; background: #15151c; box-shadow: inset 0 0 0 1px var(--color-divider);
 }
-.t-mode { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; padding: 4px 9px; border-radius: 999px; color: #c7c7cc; background: #1d1d26; }
+.t-mode { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.1em; padding: 4px 9px; border-radius: 999px; color: #c7c7cc; background: #1d1d26; }
 .t-mode.is-live { color: #000; background: var(--color-warn); font-weight: 700; }
 .t-halt { background: #3a1417; color: #ffb4ae; box-shadow: inset 0 0 0 1px rgba(255, 69, 58, 0.5); }
 .t-halt:hover { background: var(--color-danger); color: #fff; }
@@ -35,7 +35,7 @@
 .t-when__state { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; font-size: 13.5px; }
 .t-dot { width: 8px; height: 8px; border-radius: 50%; background: #48484f; align-self: center; }
 .t-dot.is-on { background: #30d158; box-shadow: 0 0 0 3px rgba(48, 209, 88, 0.18); }
-.t-tag { font-size: 11.5px; color: #9fe8c8; padding: 3px 9px; border-radius: 999px; background: rgba(48, 209, 88, 0.12); }
+.t-tag { font-size: 12px; color: #9fe8c8; padding: 3px 9px; border-radius: 999px; background: rgba(48, 209, 88, 0.12); }
 
 .t-practice__stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
 .t-practice__stats > div { display: grid; gap: 2px; align-content: start; }
@@ -82,7 +82,7 @@
 .t-spark__now { fill: var(--color-accent); stroke: #0e0e13; stroke-width: 2; }
 .t-link { color: var(--color-accent); font-weight: 600; padding: 2px 0; }
 .t-link:hover { text-decoration: underline; }
-.t-x { width: 26px; height: 26px; border-radius: 50%; color: #8e8e96; font-size: 11px; }
+.t-x { width: 26px; height: 26px; border-radius: 50%; color: #8e8e96; font-size: 12px; }
 .t-x:hover { color: #fff; background: #2c2c34; }
 .t-signal { min-height: 26px; padding: 3px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 600; white-space: nowrap; color: #f5f5f7; background: #1d1d26; box-shadow: inset 0 0 0 1px var(--color-divider-strong); }
 .t-signal.is-buy { box-shadow: inset 0 0 0 1px rgba(48, 209, 88, 0.6); }
@@ -135,7 +135,7 @@
 .t-chip:focus-within { outline: 2px solid var(--color-accent, #0a84ff); outline-offset: 2px; }
 .t-adaptive__values { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin: 0; }
 .t-adaptive__values div { padding: 8px 10px; border-radius: 10px; background: #111118; }
-.t-adaptive__values dt { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #a1a1aa; }
+.t-adaptive__values dt { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #a1a1aa; }
 .t-adaptive__values dd { margin: 2px 0 0; font-size: 16px; font-variant-numeric: tabular-nums; color: #f5f5f7; }
 .t-adaptive__list { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 13px; }
 .t-adaptive__actions { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -144,7 +144,7 @@
 .t-desk__rows { display: grid; gap: 6px; overflow-x: auto; }
 .t-desk__row { display: grid; grid-template-columns: minmax(150px, 1.2fr) minmax(140px, 1fr) minmax(120px, 0.9fr) minmax(150px, 1fr) minmax(130px, 1fr) auto;
   gap: 10px; align-items: center; min-width: 760px; padding: 6px 8px; border-radius: 10px; background: rgba(255, 255, 255, 0.025); font-size: 13px; }
-.t-desk__row--head { background: none; color: #8e8e93; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; }
+.t-desk__row--head { background: none; color: #8e8e93; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
 .t-desk__row.is-off { opacity: 0.55; }
 .t-desk__row select, .t-desk__input { width: 100%; font: inherit; color: var(--color-text); background: var(--color-surface-2, #16161d);
   border: 0; border-radius: 8px; padding: 4px 6px; box-shadow: inset 0 0 0 1px var(--color-divider); }

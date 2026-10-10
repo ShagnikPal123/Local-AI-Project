@@ -80,7 +80,7 @@ function Choice({ selected, label, description, badge, onSelect }: {
         <span style={{ fontSize: 13, fontWeight: selected ? 600 : 400 }}>{label}</span>
         {badge && (
           <span style={{
-            fontSize: 11, letterSpacing: ".06em", textTransform: "uppercase",
+            fontSize: 12, letterSpacing: ".06em", textTransform: "uppercase",
             color: "var(--color-accent)",
           }}>
             {badge}
@@ -352,7 +352,7 @@ export function SettingsPanel() {
                   onSelect={() => void choosePersonality(p.id)}
                 />
               ))}
-              <div style={{ fontSize: 11, color: "var(--color-neutral-600)", marginTop: 8, lineHeight: 1.6 }}>
+              <div style={{ fontSize: 12, color: "var(--color-neutral-600)", marginTop: 8, lineHeight: 1.6 }}>
                 Applies to every conversation on this engine, immediately. Persisting it
                 per account, the second personality axis (how the agent <em>behaves</em>, not
                 just how it sounds), and per-sub-agent personalities are still to build —

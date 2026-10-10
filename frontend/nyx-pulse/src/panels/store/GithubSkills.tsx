@@ -58,7 +58,7 @@ export function GithubSkills({ onAdded }: { onAdded: () => void }) {
             <label key={s.path} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13, lineHeight: 1.45 }}>
               <input type="checkbox" checked={picked.has(s.path)} onChange={() => toggle(s.path)} disabled={s.too_big} style={{ marginTop: 3 }} />
               <span>
-                <b>{s.name}</b> <a href={s.url} target="_blank" rel="noreferrer" style={{ fontSize: 11.5 }}>view</a>
+                <b>{s.name}</b> <a href={s.url} target="_blank" rel="noreferrer" style={{ fontSize: 12 }}>view</a>
                 <span style={{ display: "block", color: "var(--color-neutral-500)" }}>{s.description}</span>
                 {s.warnings.length > 0 && <span style={{ display: "block", color: "var(--color-warn)" }}>⚠ {s.warnings.join("; ")} — read it before adding.</span>}
                 {s.too_big && <span style={{ display: "block", color: "var(--color-warn)" }}>Too long to import (over 60 KB).</span>}

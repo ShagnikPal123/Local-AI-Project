@@ -142,7 +142,7 @@ function AddProviderForm({ snapshot, onDone, onCancel }: {
         placeholder="Model id (optional)"
         style={fieldStyle}
       />
-      <div style={{ fontSize: 11, color: "var(--color-neutral-600)", lineHeight: 1.5, marginBottom: 9 }}>
+      <div style={{ fontSize: 12, color: "var(--color-neutral-600)", lineHeight: 1.5, marginBottom: 9 }}>
         The key is sent once and stored by the backend. It is never sent back — this
         panel only ever sees its last four characters.
       </div>
@@ -223,15 +223,15 @@ export function ProviderPicker({ value, onChange, compact }: {
           <option value={ADD}>+ Add a provider…</option>
         </select>
         {snapshot === null && (
-          <span style={{ fontSize: 11, color: "var(--color-neutral-600)" }}>loading…</span>
+          <span style={{ fontSize: 12, color: "var(--color-neutral-600)" }}>loading…</span>
         )}
         {snapshot?.mode === "offline" && (
-          <span style={{ fontSize: 11, color: "var(--color-warn)" }}>backend unreachable</span>
+          <span style={{ fontSize: 12, color: "var(--color-warn)" }}>backend unreachable</span>
         )}
       </div>
 
       {snapshot?.mode === "reduced" && !compact && (
-        <div style={{ fontSize: 11, color: "var(--color-neutral-600)", marginTop: 6, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 12, color: "var(--color-neutral-600)", marginTop: 6, lineHeight: 1.5 }}>
           {snapshot.note}
         </div>
       )}
@@ -357,7 +357,7 @@ export function ProviderManager() {
               <span style={{ fontSize: 13 }}>{p.label || p.name}</span>
               {p.free && (
                 <span style={{
-                  fontSize: 11, letterSpacing: ".06em", color: "var(--color-ok)",
+                  fontSize: 12, letterSpacing: ".06em", color: "var(--color-ok)",
                   border: "1px solid var(--color-divider)", borderRadius: 4, padding: "1px 5px",
                 }}>
                   FREE TIER
@@ -365,17 +365,17 @@ export function ProviderManager() {
               )}
               {own && (
                 <span style={{
-                  fontSize: 11, letterSpacing: ".06em", color: "var(--color-accent)",
+                  fontSize: 12, letterSpacing: ".06em", color: "var(--color-accent)",
                   border: "1px solid var(--color-accent)", borderRadius: 4, padding: "1px 5px",
                 }}>
                   MAIN BRAIN · NO KEY
                 </span>
               )}
               {p.preferred && (
-                <span style={{ fontSize: 11, color: "var(--color-accent)" }}>preferred</span>
+                <span style={{ fontSize: 12, color: "var(--color-accent)" }}>preferred</span>
               )}
               {p.last4 && (
-                <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--color-neutral-600)" }}>
+                <span style={{ fontSize: 12, fontFamily: "var(--font-mono)", color: "var(--color-neutral-600)" }}>
                   {maskKey(p.last4)}
                 </span>
               )}
@@ -396,7 +396,7 @@ export function ProviderManager() {
                   target="_blank"
                   rel="noreferrer"
                   title={`Get a key at ${p.signup_url}`}
-                  style={{ fontSize: 11, padding: "3px 9px", textDecoration: "none" }}
+                  style={{ fontSize: 12, padding: "3px 9px", textDecoration: "none" }}
                 >
                   Get a key↗
                 </a>
@@ -405,7 +405,7 @@ export function ProviderManager() {
                 <button
                   className="btn btn-secondary"
                   onClick={() => { setKeyFor(signingUp ? null : p.name); setKeyDraft(""); }}
-                  style={{ fontSize: 11, padding: "3px 9px" }}
+                  style={{ fontSize: 12, padding: "3px 9px" }}
                 >
                   {signingUp ? "Cancel" : p.configured ? "Replace key" : "Add key"}
                 </button>
@@ -416,7 +416,7 @@ export function ProviderManager() {
                     className="btn btn-secondary"
                     onClick={() => void test(p.name)}
                     disabled={testing === p.name}
-                    style={{ fontSize: 11, padding: "3px 9px" }}
+                    style={{ fontSize: 12, padding: "3px 9px" }}
                   >
                     {testing === p.name ? "Testing…" : "Test"}
                   </button>
@@ -424,7 +424,7 @@ export function ProviderManager() {
                     className="btn btn-secondary"
                     onClick={() => void removeKey(p.name)}
                     title="Forget the stored key(s) for this provider"
-                    style={{ fontSize: 11, padding: "3px 9px", color: "var(--color-danger)" }}
+                    style={{ fontSize: 12, padding: "3px 9px", color: "var(--color-danger)" }}
                   >
                     Remove
                   </button>
@@ -460,7 +460,7 @@ export function ProviderManager() {
             {result && (
               <div
                 style={{
-                  fontSize: 11,
+                  fontSize: 12,
                   marginTop: 5,
                   lineHeight: 1.5,
                   color: result.ok ? "var(--color-ok)" : "var(--color-danger)",
@@ -484,7 +484,7 @@ export function ProviderManager() {
               <div style={{ minWidth: 0 }}>
                 <div>{preset.label}</div>
                 {preset.notes && (
-                  <div style={{ fontSize: 11, color: "var(--color-neutral-600)", lineHeight: 1.5 }}>
+                  <div style={{ fontSize: 12, color: "var(--color-neutral-600)", lineHeight: 1.5 }}>
                     {preset.notes}
                   </div>
                 )}
@@ -495,14 +495,14 @@ export function ProviderManager() {
                   href={preset.signup_url}
                   target="_blank"
                   rel="noreferrer"
-                  style={{ marginLeft: "auto", fontSize: 11, padding: "3px 9px", textDecoration: "none", flex: "none" }}
+                  style={{ marginLeft: "auto", fontSize: 12, padding: "3px 9px", textDecoration: "none", flex: "none" }}
                 >
                   Get a key↗
                 </a>
               )}
             </div>
           ))}
-          <div style={{ fontSize: 11, color: "var(--color-neutral-600)", marginTop: 6, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 12, color: "var(--color-neutral-600)", marginTop: 6, lineHeight: 1.5 }}>
             After signing up, paste the key with “Add key” above — it is stored on this machine only.
           </div>
         </div>

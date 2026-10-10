@@ -46,7 +46,7 @@
 .chat-row.is-active .chat-row__select { color: var(--color-text); }
 
 .chat-row__status {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--color-neutral-500);
   flex: none;
   max-width: 90px;
@@ -185,7 +185,7 @@
 .chat-switcher__row[aria-selected="true"] .chat-switcher__name { font-weight: 600; }
 .chat-switcher__check { width: 12px; flex: none; color: var(--color-accent); font-size: 12px; }
 .chat-switcher__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.chat-switcher__meta { flex: none; display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: #a1a1aa; font-variant-numeric: tabular-nums; }
+.chat-switcher__meta { flex: none; display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: #a1a1aa; font-variant-numeric: tabular-nums; }
 .chat-switcher__empty { padding: 8px; font-size: 12.5px; color: #a1a1aa; }
 
 /* Delete a chat (Plan Null N3). There was no delete button anywhere in this chat, and
@@ -214,7 +214,7 @@
 .chat-switcher__deleted-head:hover { color: #f5f5f7; background: #1d1d26; }
 .chat-switcher__row.is-deleted { cursor: default; color: #a1a1aa; }
 .chat-switcher__inline {
-  flex: none; padding: 2px 7px; border-radius: 6px; font: inherit; font-size: 11.5px; color: var(--color-accent); background: none;
+  flex: none; padding: 2px 7px; border-radius: 6px; font: inherit; font-size: 12px; color: var(--color-accent); background: none;
 }
 .chat-switcher__inline:hover { background: #2c2c34; }
 .chat-switcher__inline.is-danger { color: var(--color-danger); }
@@ -234,7 +234,7 @@ select option, select optgroup { background-color: #15151c; color: #f5f5f7; }
 }
 .slash-menu__head { display: flex; align-items: baseline; gap: 10px; padding: 5px 8px 6px; font-size: 12px; color: #c7c7cc; }
 .slash-menu__head b { color: #f5f5f7; font-family: var(--font-mono); font-weight: 600; }
-.slash-menu__keys { margin-left: auto; font-size: 11px; color: #8e8e96; white-space: nowrap; }
+.slash-menu__keys { margin-left: auto; font-size: 12px; color: #8e8e96; white-space: nowrap; }
 .slash-menu__row {
   display: grid; grid-template-columns: minmax(84px, max-content) auto 1fr auto auto; align-items: center; column-gap: 10px;
   min-height: 34px; padding: 5px 8px; border-radius: 7px; cursor: pointer; font-size: 13px; color: #f5f5f7;
@@ -243,8 +243,8 @@ select option, select optgroup { background-color: #15151c; color: #f5f5f7; }
 .slash-menu__name { font-family: var(--font-mono); font-size: 12.5px; color: var(--color-accent-300); }
 .slash-menu__title { font-weight: 500; white-space: nowrap; }
 .slash-menu__desc { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: #a1a1aa; }
-.slash-menu__args { font-size: 11px; color: #c7c7cc; padding: 1px 7px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--color-divider-strong); white-space: nowrap; }
-.slash-menu__badge { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-accent-300); }
+.slash-menu__args { font-size: 12px; color: #c7c7cc; padding: 1px 7px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--color-divider-strong); white-space: nowrap; }
+.slash-menu__badge { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-accent-300); }
 @media (max-width: 520px) {
   .slash-menu__row { grid-template-columns: max-content 1fr; row-gap: 2px; }
   .slash-menu__desc { grid-column: 1 / -1; }
@@ -255,7 +255,7 @@ select option, select optgroup { background-color: #15151c; color: #f5f5f7; }
 .busy-send { position: relative; display: flex; align-self: stretch; }
 .busy-send__main { border-top-right-radius: 0; border-bottom-right-radius: 0; padding: 0 14px; gap: 5px; }
 .busy-send__more { border-top-left-radius: 0; border-bottom-left-radius: 0; padding: 0 8px; box-shadow: inset 1px 0 0 rgba(0, 0, 0, 0.25); }
-.busy-send__ai { font-size: 11px; opacity: 0.8; }
+.busy-send__ai { font-size: 12px; opacity: 0.8; }
 .busy-send__menu {
   position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 40; width: 320px; padding: 5px; border-radius: 12px; background: #15151c;
   box-shadow: inset 0 0 0 1px var(--color-divider-strong), 0 -12px 40px rgba(0, 0, 0, 0.6);
@@ -266,16 +266,16 @@ select option, select optgroup { background-color: #15151c; color: #f5f5f7; }
 .busy-send__item.is-picked { box-shadow: inset 2px 0 0 var(--color-accent); }
 
 .queued-list { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; flex: none; }
-.queued-list__label { font-size: 11.5px; color: #a1a1aa; }
+.queued-list__label { font-size: 12px; color: #a1a1aa; }
 .queued-list__item { max-width: 100%; color: #f5f5f7; }
-.queued-list__item button { color: #a1a1aa; font-size: 11px; padding: 0 2px; min-height: 20px; }
+.queued-list__item button { color: #a1a1aa; font-size: 12px; padding: 0 2px; min-height: 20px; }
 .queued-list__item button:hover { color: #fff; }
 
 /* --- Usage-limit bar (Request G6): only when the provider reports a limit --- */
 .usage-bar { display: grid; gap: 4px; flex: none; padding: 2px 2px 0; }
-.usage-bar__text { display: flex; gap: 8px; align-items: baseline; font-size: 11.5px; color: #c7c7cc; }
+.usage-bar__text { display: flex; gap: 8px; align-items: baseline; font-size: 12px; color: #c7c7cc; }
 .usage-bar__text b, .usage-bar__meta b { color: #f5f5f7; font-weight: 600; }
-.usage-bar__meta { margin-left: auto; font-size: 11px; color: #a1a1aa; }
+.usage-bar__meta { margin-left: auto; font-size: 12px; color: #a1a1aa; }
 .usage-bar > .usage-bar__meta { margin-left: 0; }
 .usage-bar__track { height: 4px; border-radius: 2px; background: #2c2c34; overflow: hidden; }
 .usage-bar__fill { height: 100%; border-radius: 2px; background: var(--color-ok); transition: width 300ms var(--ease-out); }
@@ -291,16 +291,16 @@ select option, select optgroup { background-color: #15151c; color: #f5f5f7; }
 .sources { margin-top: 10px; }
 .sources__toggle { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; }
 .sources__count { color: var(--color-neutral-500); font-weight: 400; }
-.sources__peek { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-neutral-500); font-weight: 400; font-size: 11.5px; margin-left: 4px; }
+.sources__peek { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-neutral-500); font-weight: 400; font-size: 12px; margin-left: 4px; }
 .sources__list { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; }
 .sources__link { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 6px 10px; border-radius: 10px; text-decoration: none;
   background: #121218; box-shadow: inset 0 0 0 1px var(--color-divider); }
 .sources__link:hover { background: #1a1a22; }
 .sources__link:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
-.sources__badge { flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; font-size: 11.5px; font-weight: 600; color: #d9d4ff; background: rgba(165, 148, 255, 0.16); }
+.sources__badge { flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; font-size: 12px; font-weight: 600; color: #d9d4ff; background: rgba(165, 148, 255, 0.16); }
 .sources__text { display: grid; min-width: 0; }
 .sources__title { font-size: 13px; color: #f5f5f7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sources__domain { font-size: 11.5px; color: #a1a1aa; }
+.sources__domain { font-size: 12px; color: #a1a1aa; }
 .nyx-md__imglink { display: inline-block; max-width: 100%; }
 
 /* Request H10: graph and Python boxes. Grid #26262E, ticks #A1A1AA on #0E0E13 (7.6:1). */
@@ -310,7 +310,7 @@ select option, select optgroup { background-color: #15151c; color: #f5f5f7; }
 .chart-box__title { fill: #f5f5f7; font-size: 14px; font-weight: 600; }
 .chart-box__grid { stroke: #26262e; stroke-width: 1; }
 .chart-box__zero { stroke: #5a5a63; stroke-width: 1; }
-.chart-box__tick { fill: #a1a1aa; font-size: 11px; font-family: var(--font-mono); }
+.chart-box__tick { fill: #a1a1aa; font-size: 12px; font-family: var(--font-mono); }
 .chart-box__axis { fill: #c7c7cc; font-size: 12px; }
 .chart-box__legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-top: 4px; font-size: 12.5px; color: #d1d1d6; }
 .chart-box__key { display: inline-flex; align-items: center; gap: 6px; }
@@ -322,12 +322,12 @@ select option, select optgroup { background-color: #15151c; color: #f5f5f7; }
 .py-box { margin: 10px 0; border-radius: 12px; overflow: hidden; background: #0a0a0e; box-shadow: inset 0 0 0 1px rgba(76, 201, 240, 0.35); }
 .py-box__bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 6px 10px; background: #10141a; box-shadow: inset 0 -1px 0 var(--color-divider); }
 .py-box__lang { font-size: 12px; font-weight: 600; color: #7fd8f5; }
-.py-box__meta { font-size: 11.5px; color: #a1a1aa; }
+.py-box__meta { font-size: 12px; color: #a1a1aa; }
 .py-box__actions { margin-left: auto; display: inline-flex; flex-wrap: wrap; gap: 10px; }
 .py-box__pre { margin: 0; border-radius: 0; }
 .py-box__editor { display: block; width: 100%; padding: 10px 12px; border: 0; resize: vertical; font-family: var(--font-mono); font-size: 13px; line-height: 1.55; tab-size: 4; color: #e5e5ea; background: #07070a; outline: none; }
 .py-box__editor:focus-visible { box-shadow: inset 0 0 0 2px var(--color-accent); }
-.py-box__note { margin: 0; padding: 6px 10px 8px; font-size: 11.5px; color: #8e8e96; }
+.py-box__note { margin: 0; padding: 6px 10px 8px; font-size: 12px; color: #8e8e96; }
 
 /* A chat that belongs to a sub-agent (owner request, 2026-09-15). #D9D4FF on #191430 = 11.6:1. */
 .chat-owner { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 8px 6px; padding: 6px 10px; border-radius: 10px;
@@ -344,20 +344,20 @@ select option, select optgroup { background-color: #15151c; color: #f5f5f7; }
   background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .context-bar__toggle:hover { background: rgba(255, 255, 255, 0.04); }
 .context-bar__toggle:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
-.context-bar__label { font-size: 11.5px; color: #a1a1aa; flex: none; }
+.context-bar__label { font-size: 12px; color: #a1a1aa; flex: none; }
 .context-bar__track { position: relative; flex: 1; min-width: 60px; max-width: 220px; height: 4px; border-radius: 2px; background: #2c2c34; overflow: visible; }
 .context-bar__fill { position: absolute; inset: 0 auto 0 0; border-radius: 2px; background: #64d2ff; transition: width 400ms var(--ease-out); }
 .context-bar.is-warn .context-bar__fill { background: #ffd60a; }
 .context-bar.is-full .context-bar__fill { background: #ff453a; }
 .context-bar__tick { position: absolute; top: -2px; width: 1px; height: 8px; background: #5a5a63; }
-.context-bar__value { flex: none; font-size: 11.5px; color: #d1d1d6; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.context-bar__value { flex: none; font-size: 12px; color: #d1d1d6; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .context-bar__of { color: #a1a1aa; }
 .context-bar__state { font-weight: 600; color: #ffd60a; }
 .context-bar.is-full .context-bar__state { color: #ff7a70; }
 .context-bar__compact { min-height: 28px; padding: 0 12px; font-size: 12px; }
-.context-bar__busy { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: #d1d1d6; white-space: nowrap; }
+.context-bar__busy { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #d1d1d6; white-space: nowrap; }
 .context-bar__spinner { width: 12px; height: 12px; border-radius: 50%; border: 2px solid #3a3a44; border-top-color: #64d2ff; animation: ctxspin 800ms linear infinite; }
-.context-bar__note { margin: 0; padding: 0 4px; display: flex; gap: 8px; align-items: baseline; font-size: 11.5px; color: #7ee2a0; }
+.context-bar__note { margin: 0; padding: 0 4px; display: flex; gap: 8px; align-items: baseline; font-size: 12px; color: #7ee2a0; }
 .context-bar__note.is-warn { color: #ffb4ae; }
 .context-bar__panel { display: grid; gap: 10px; margin: 2px 2px 6px; padding: 12px; border-radius: 12px; background: #121218;
   box-shadow: inset 0 0 0 1px var(--color-divider); }
@@ -423,7 +423,7 @@ select option, select optgroup { background-color: #15151c; color: #f5f5f7; }
 .composer-link { background: var(--color-link-bg); color: transparent; border-radius: 4px;
   box-shadow: 0 1px 0 0 var(--color-link) inset, 0 -1px 0 0 var(--color-link); padding-bottom: 1px; }
 .composer-link-chip { position: fixed; z-index: 2400; transform: translate(-2px, calc(-100% - 6px));
-  padding: 3px 9px; font-size: 11.5px; font-weight: 600; color: var(--color-on-accent);
+  padding: 3px 9px; font-size: 12px; font-weight: 600; color: var(--color-on-accent);
   background: var(--color-link); border: none; border-radius: 999px; cursor: pointer;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5); }
 .composer-link-chip:hover { background: var(--color-accent-2); }
@@ -462,7 +462,7 @@ select option, select optgroup { background-color: #15151c; color: #f5f5f7; }
 .mode-slider__swarm-note { color: var(--color-neutral-500); white-space: nowrap; }
 
 /* Auto said which mode it picked for this turn, and why. */
-.turn-mode { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 6px; font-size: 11.5px;
+.turn-mode { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 6px; font-size: 12px;
   color: var(--color-neutral-500); }
 .turn-mode b { color: var(--color-accent); font-weight: 600; }
 
@@ -480,7 +480,7 @@ select option, select optgroup { background-color: #15151c; color: #f5f5f7; }
 .q-card__option b { font-size: 13.5px; display: flex; align-items: center; gap: 8px; }
 .q-card__option span { font-size: 12.5px; color: var(--color-neutral-400); line-height: 1.5; }
 .q-card__option.is-chosen { box-shadow: inset 0 0 0 2px var(--color-accent); }
-.q-card__tag { font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+.q-card__tag { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
   padding: 2px 7px; border-radius: 999px; color: var(--color-on-accent); background: var(--color-accent); }
 .q-card__other { display: flex; flex-wrap: wrap; gap: 8px; }
 .q-card__other input { flex: 1 1 200px; min-height: 32px; padding: 6px 10px; border: none; border-radius: 10px;
@@ -495,7 +495,7 @@ select option, select optgroup { background-color: #15151c; color: #f5f5f7; }
 .plan-card h3 { margin: 0; font-size: 16px; letter-spacing: -0.01em; }
 .plan-card h4 { margin: 0 0 6px; font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
   color: var(--color-neutral-400); }
-.plan-card__tag { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+.plan-card__tag { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--color-accent-2, #b8a6ff); }
 .plan-card__time { font-size: 12px; color: var(--color-neutral-500); }
 .plan-card__spec { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
@@ -504,7 +504,7 @@ select option, select optgroup { background-color: #15151c; color: #f5f5f7; }
 .plan-card__steps { margin: 0; padding-left: 20px; display: grid; gap: 7px; font-size: 13.5px; }
 .plan-card__steps b { display: block; }
 .plan-card__steps span { display: block; font-size: 12.5px; color: var(--color-neutral-400); line-height: 1.5; }
-.plan-card__steps em { font-size: 11.5px; color: var(--color-neutral-500); font-style: normal; }
+.plan-card__steps em { font-size: 12px; color: var(--color-neutral-500); font-style: normal; }
 .plan-card__aside { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
 .plan-card__aside ul { margin: 0; padding-left: 16px; font-size: 12.5px; color: var(--color-neutral-400); display: grid; gap: 4px; }
 .plan-card__question { display: grid; gap: 7px; margin-bottom: 10px; }
@@ -531,7 +531,7 @@ select option, select optgroup { background-color: #15151c; color: #f5f5f7; }
 .work-checklist li.is-doing { color: var(--color-text); font-weight: 500; }
 .work-checklist li.is-doing .work-checklist__mark { color: var(--color-accent); }
 .work-checklist li.is-blocked .work-checklist__mark { color: #ff9f0a; }
-.work-checklist em { font-size: 11.5px; font-style: normal; color: var(--color-neutral-500); }
+.work-checklist em { font-size: 12px; font-style: normal; color: var(--color-neutral-500); }
 
 /* ---------------------------------------------------------------------------
    Voice (Project Null N90): the switch with its mode menu, and the two readings
@@ -554,7 +554,7 @@ select option, select optgroup { background-color: #15151c; color: #f5f5f7; }
 .talk__meter { flex: none; width: 46px; height: 4px; border-radius: 999px; background: var(--color-neutral-800);
   overflow: hidden; }
 .talk__meter-fill { display: block; height: 100%; background: var(--color-ok); transition: width 140ms linear; }
-.talk__ready { flex: none; font-size: 11px; font-weight: 600; color: #04110a; background: var(--color-ok);
+.talk__ready { flex: none; font-size: 12px; font-weight: 600; color: #04110a; background: var(--color-ok);
   padding: 2px 7px; border-radius: 999px; }
 @media (prefers-reduced-motion: reduce) { .talk__meter-fill { transition: none; } }
 
@@ -592,7 +592,7 @@ select option, select optgroup { background-color: #15151c; color: #f5f5f7; }
   color: var(--color-text); background: rgba(255, 255, 255, 0.04); box-shadow: inset 0 0 0 1px var(--color-divider); }
 .chat-rail__list { flex: 1; min-height: 0; overflow-y: auto; display: grid; gap: 10px; align-content: start; }
 .chat-rail__list ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
-.chat-rail__group { margin: 4px 8px 2px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+.chat-rail__group { margin: 4px 8px 2px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
   color: var(--color-neutral-600); }
 .chat-rail__empty { margin: 4px 8px; font-size: 12px; color: var(--color-neutral-500); }
 .chat-rail__item { position: relative; display: flex; align-items: center; gap: 4px; border-radius: 9px; }
@@ -602,7 +602,7 @@ select option, select optgroup { background-color: #15151c; color: #f5f5f7; }
   font: inherit; text-align: left; color: var(--color-neutral-300, #d1d1d6); cursor: pointer; }
 .chat-rail__item.is-active .chat-rail__open { color: var(--color-text); }
 .chat-rail__title { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.chat-rail__made { font-size: 11px; color: var(--color-accent-300, var(--color-accent)); white-space: nowrap; overflow: hidden;
+.chat-rail__made { font-size: 12px; color: var(--color-accent-300, var(--color-accent)); white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis; }
 .chat-rail__more { flex: 0 0 auto; width: 26px; height: 26px; margin-right: 4px; border: 0; border-radius: 7px; background: none;
   color: var(--color-neutral-500); cursor: pointer; opacity: 0; }
@@ -612,7 +612,7 @@ select option, select optgroup { background-color: #15151c; color: #f5f5f7; }
   border-radius: 12px; background: #15151c; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55), inset 0 0 0 1px var(--color-divider-strong, #3a3a44); }
 .chat-rail__menu button { display: grid; gap: 1px; padding: 7px 10px; border: 0; border-radius: 8px; background: none; font: inherit;
   font-size: 13px; text-align: left; color: #f5f5f7; cursor: pointer; }
-.chat-rail__menu button small { font-size: 11.5px; color: #a1a1aa; }
+.chat-rail__menu button small { font-size: 12px; color: #a1a1aa; }
 .chat-rail__menu button:hover, .chat-rail__menu button:focus-visible { background: rgba(255, 255, 255, 0.08); outline: none; }
 .chat-rail__menu button.is-risk { color: #ff6961; }
 .chat-rail__rename { flex: 1; min-width: 0; margin: 2px; padding: 5px 8px; border: 0; border-radius: 7px; font: inherit; font-size: 13px;
@@ -632,7 +632,7 @@ select option, select optgroup { background-color: #15151c; color: #f5f5f7; }
 .chat-rail__brain:hover { box-shadow: inset 0 0 0 1px var(--color-accent); }
 .chat-rail__brain-mark { font-size: 18px; color: var(--color-accent); }
 .chat-rail__brain b { display: block; font-size: 13px; }
-.chat-rail__brain small { font-size: 11.5px; color: var(--color-neutral-400); }
+.chat-rail__brain small { font-size: 12px; color: var(--color-neutral-400); }
 .chat-rail button:focus-visible, .chat-rail input:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
 
 @media (max-width: 760px) {

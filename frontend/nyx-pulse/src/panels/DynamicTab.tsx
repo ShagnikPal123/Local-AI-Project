@@ -83,7 +83,7 @@ function EditHistory({ edits, compact }: { edits: TabEditRecord[]; compact?: boo
           <div style={{ fontSize: compact ? 11 : 12, color: "var(--color-ok)", marginTop: 2 }}>
             {edit.summary}
           </div>
-          <div style={{ fontSize: 11, color: "var(--color-neutral-700)", marginTop: 2, fontFamily: "var(--font-mono)" }}>
+          <div style={{ fontSize: 12, color: "var(--color-neutral-700)", marginTop: 2, fontFamily: "var(--font-mono)" }}>
             {edit.source}
             {whenText(edit.at) && ` · ${whenText(edit.at)}`}
           </div>
@@ -128,7 +128,7 @@ function NotesBlock({ storageKey }: { storageKey: string }) {
           font: "inherit", fontSize: 13, lineHeight: 1.6,
         }}
       />
-      <div style={{ fontSize: 11, color: "var(--color-neutral-600)", marginTop: 5 }}>
+      <div style={{ fontSize: 12, color: "var(--color-neutral-600)", marginTop: 5 }}>
         Stored in this browser only — not synced across devices.
       </div>
     </>
@@ -164,7 +164,7 @@ function ChecklistBlock({ storageKey }: { storageKey: string }) {
             {item.text}
           </span>
           <button className="btn" onClick={() => setItems(items.filter((_, j) => j !== i))}
-            style={{ fontSize: 11, color: "var(--color-neutral-700)", padding: 0 }}>
+            style={{ fontSize: 12, color: "var(--color-neutral-700)", padding: 0 }}>
             ×
           </button>
         </div>
@@ -322,9 +322,9 @@ function TrackerBlock({ config, storageKey }: { config: Record<string, unknown>;
         </form>
       )}
       {entries.length > 0 && (
-        <div style={{ marginTop: 10, fontSize: 11, color: "var(--color-neutral-600)", lineHeight: 1.7 }}>
+        <div style={{ marginTop: 10, fontSize: 12, color: "var(--color-neutral-600)", lineHeight: 1.7 }}>
           Latest: {[...entries].slice(-4).reverse().map((entry) => `${entry.value === true ? "done" : entry.value}${unit && typeof entry.value === "number" ? ` ${unit}` : ""}`).join(" · ")}
-          <button className="btn" onClick={() => setEntries([])} style={{ marginLeft: 8, padding: 0, fontSize: 11, color: "var(--color-neutral-600)" }}>clear</button>
+          <button className="btn" onClick={() => setEntries([])} style={{ marginLeft: 8, padding: 0, fontSize: 12, color: "var(--color-neutral-600)" }}>clear</button>
         </div>
       )}
     </div>
@@ -346,7 +346,7 @@ function AskNyx({ prompt, label = "Ask Nyx" }: { prompt: string; label?: string 
   return (
     <div style={{ marginTop: 9 }}>
       <button className="btn btn-secondary" onClick={() => void run()} disabled={!prompt || busy}>{busy ? "Nyx is working…" : label}</button>
-      {!prompt && <span style={{ marginLeft: 8, fontSize: 11, color: "var(--color-neutral-600)" }}>Add an AI prompt when creating this block.</span>}
+      {!prompt && <span style={{ marginLeft: 8, fontSize: 12, color: "var(--color-neutral-600)" }}>Add an AI prompt when creating this block.</span>}
       {reply && <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--color-divider)", fontSize: 12, whiteSpace: "pre-wrap", lineHeight: 1.55 }}>{reply}</div>}
     </div>
   );
@@ -386,7 +386,7 @@ function TimerBlock({ config, storageKey }: { config: Record<string, unknown>; s
           {timer.running ? "Pause" : "Start"}
         </button>
         <button className="btn" onClick={reset} style={{ color: "var(--color-neutral-500)" }}>Reset</button>
-        <span style={{ alignSelf: "center", fontSize: 11, color: "var(--color-neutral-600)", textTransform: "capitalize" }}>{mode}</span>
+        <span style={{ alignSelf: "center", fontSize: 12, color: "var(--color-neutral-600)", textTransform: "capitalize" }}>{mode}</span>
       </div>
       {timer.finished && (
         <div style={{ marginTop: 10, fontSize: 12, color: "var(--color-ok)" }}>
@@ -424,7 +424,7 @@ function AiTaskBlock({ config }: { config: Record<string, unknown> }) {
   return (
     <div>
       <div style={{ fontSize: 13, lineHeight: 1.55, color: "var(--color-neutral-400)" }}>{prompt || "Add a prompt to tell Nyx what this action should do."}</div>
-      {everyMinutes >= 5 && <div style={{ fontSize: 11, color: ready ? "var(--color-ok)" : "var(--color-neutral-600)", marginTop: 6 }}>{ready ? "Ready for your review." : `Ready every ${everyMinutes} minutes while this tab is open.`}</div>}
+      {everyMinutes >= 5 && <div style={{ fontSize: 12, color: ready ? "var(--color-ok)" : "var(--color-neutral-600)", marginTop: 6 }}>{ready ? "Ready for your review." : `Ready every ${everyMinutes} minutes while this tab is open.`}</div>}
       <button className="btn btn-secondary" onClick={() => void run()} disabled={!prompt || busy} style={{ marginTop: 9 }}>{busy ? "Nyx is working…" : ready ? "Run scheduled action" : "Run now"}</button>
       {reply && <div style={{ marginTop: 9, paddingTop: 9, borderTop: "1px solid var(--color-divider)", whiteSpace: "pre-wrap", fontSize: 12, lineHeight: 1.55 }}>{reply}</div>}
     </div>
@@ -477,7 +477,7 @@ function TicTacToe({ versusNyx = false }: { versusNyx?: boolean }) {
         {cells.map((cell, index) => <button key={index} onClick={() => move(index)} aria-label={`cell ${index + 1}${cell ? `, ${cell}` : ""}`} style={{ width: 42, height: 42, borderRadius: 8, background: "var(--color-nav)", color: cell === "X" ? "var(--color-accent)" : "var(--color-ok)", fontSize: 18, fontWeight: 700 }}>{cell}</button>)}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8, fontSize: 12, color: "var(--color-neutral-500)" }}>
-        <span>{status}</span><button className="btn" onClick={() => { setCells(Array(9).fill(null)); setThinking(false); }} style={{ padding: 0, fontSize: 11, color: "var(--color-neutral-600)" }}>new game</button>
+        <span>{status}</span><button className="btn" onClick={() => { setCells(Array(9).fill(null)); setThinking(false); }} style={{ padding: 0, fontSize: 12, color: "var(--color-neutral-600)" }}>new game</button>
       </div>
     </div>
   );
@@ -509,7 +509,7 @@ function ConnectFour() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 27px)", gap: 3, padding: 5, width: "fit-content", background: "#273b84", borderRadius: 9 }}>
         {grid.flatMap((row, rowIndex) => row.map((cell, column) => <button key={`${rowIndex}-${column}`} onClick={() => drop(column)} aria-label={`column ${column + 1}`} style={{ width: 27, height: 27, padding: 0, borderRadius: "50%", background: cell === "X" ? "#ea6d67" : cell === "O" ? "#f3d15f" : "#e9eef8", border: 0 }} />))}
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8, fontSize: 12, color: "var(--color-neutral-500)" }}><span>{status}</span><button className="btn" onClick={() => { setGrid(empty()); setThinking(false); }} style={{ padding: 0, fontSize: 11, color: "var(--color-neutral-600)" }}>new game</button></div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8, fontSize: 12, color: "var(--color-neutral-500)" }}><span>{status}</span><button className="btn" onClick={() => { setGrid(empty()); setThinking(false); }} style={{ padding: 0, fontSize: 12, color: "var(--color-neutral-600)" }}>new game</button></div>
     </div>
   );
 }
@@ -562,7 +562,7 @@ function MemoryGame() {
           return <button key={index} onClick={() => reveal(index)} aria-label={visible ? card : "hidden card"} style={{ width: 39, height: 39, padding: 0, borderRadius: 8, background: visible ? "var(--color-nav)" : "var(--color-accent)", color: "var(--color-text)", fontSize: 16 }}>{visible ? card : "?"}</button>;
         })}
       </div>
-      <div style={{ display: "flex", gap: 9, marginTop: 8, fontSize: 12, color: "var(--color-neutral-500)" }}><span>{complete ? "You found every pair." : `${matched.length / 2} of ${cards.length / 2} pairs`}</span><button className="btn" onClick={() => { setCards(fresh()); setFlipped([]); setMatched([]); }} style={{ padding: 0, fontSize: 11, color: "var(--color-neutral-600)" }}>new game</button></div>
+      <div style={{ display: "flex", gap: 9, marginTop: 8, fontSize: 12, color: "var(--color-neutral-500)" }}><span>{complete ? "You found every pair." : `${matched.length / 2} of ${cards.length / 2} pairs`}</span><button className="btn" onClick={() => { setCards(fresh()); setFlipped([]); setMatched([]); }} style={{ padding: 0, fontSize: 12, color: "var(--color-neutral-600)" }}>new game</button></div>
     </div>
   );
 }
@@ -614,7 +614,7 @@ function SnakeGame() {
         {([ [0, -1, "↑"], [-1, 0, "←"], [0, 1, "↓"], [1, 0, "→"] ] as Array<[number, number, string]>).map(([x, y, label]) => <button className="btn" key={label} onClick={() => change([x, y])} style={{ padding: "2px 7px" }}>{label}</button>)}
         <button className="btn" onClick={reset} style={{ padding: "2px 7px", color: "var(--color-neutral-600)" }}>{state.dead ? "Try again" : "Reset"}</button>
       </div>
-      <div style={{ marginTop: 6, fontSize: 11, color: state.dead ? "var(--color-danger)" : "var(--color-neutral-600)" }}>{state.dead ? `Game over · score ${state.snake.length - 2}` : `Score ${state.snake.length - 2}`}</div>
+      <div style={{ marginTop: 6, fontSize: 12, color: state.dead ? "var(--color-danger)" : "var(--color-neutral-600)" }}>{state.dead ? `Game over · score ${state.snake.length - 2}` : `Score ${state.snake.length - 2}`}</div>
     </div>
   );
 }
@@ -798,7 +798,7 @@ function EditPanel({ spec, onChanged, onClose }: {
       <div style={{ display: "flex", alignItems: "center", marginBottom: 10 }}>
         <span className="label">Edit this tab</span>
         <button className="btn" onClick={onClose}
-          style={{ marginLeft: "auto", fontSize: 11, color: "var(--color-neutral-600)", padding: 0 }}>
+          style={{ marginLeft: "auto", fontSize: 12, color: "var(--color-neutral-600)", padding: 0 }}>
           close
         </button>
       </div>
@@ -825,7 +825,7 @@ function EditPanel({ spec, onChanged, onClose }: {
         {busy && (
           <div style={{ marginTop: 8 }} aria-live="polite">
             <div className="nyx-progress"><span /></div>
-            <div style={{ fontSize: 11, color: "var(--color-neutral-600)", marginTop: 5, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 12, color: "var(--color-neutral-600)", marginTop: 5, lineHeight: 1.5 }}>
               Simple changes apply instantly. Anything with a title, a list of items, or
               several parts is sent to the model, which takes a few seconds.
             </div>
@@ -870,14 +870,14 @@ function EditPanel({ spec, onChanged, onClose }: {
         <div style={{ marginTop: 14 }}>
           <div className="label" style={{ marginBottom: 6 }}>Applied</div>
           {history.map((h, i) => (
-            <div key={i} style={{ fontSize: 11, color: "var(--color-neutral-600)", padding: "2px 0" }}>
+            <div key={i} style={{ fontSize: 12, color: "var(--color-neutral-600)", padding: "2px 0" }}>
               {h.text}
               <span style={{ color: h.by === "local" ? "var(--color-ok)" : "var(--color-accent)" }}>
                 {" "}· {h.by}
               </span>
             </div>
           ))}
-          <div style={{ fontSize: 11, color: "var(--color-neutral-700)", marginTop: 6, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 12, color: "var(--color-neutral-700)", marginTop: 6, lineHeight: 1.5 }}>
             "local" means it was read without a model call — instant, and works offline.
           </div>
         </div>
@@ -950,7 +950,7 @@ export function DynamicTab({ spec, onChanged, onDelete }: {
           <div className="dyn-grid" style={{ display: "grid", gap: 14,
             gridTemplateColumns: `repeat(${Math.max(1, Math.min(4, Number(spec.theme?.columns) || 1))}, minmax(0, 1fr))` }}>
             {spec.connectors.length > 0 && (
-              <div style={{ fontSize: 11, color: "var(--color-neutral-600)", gridColumn: "1 / -1" }}>
+              <div style={{ fontSize: 12, color: "var(--color-neutral-600)", gridColumn: "1 / -1" }}>
                 Uses: {spec.connectors.join(", ")}
               </div>
             )}
