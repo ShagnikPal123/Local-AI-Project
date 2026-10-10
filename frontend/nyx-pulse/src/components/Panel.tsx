@@ -5,37 +5,34 @@
  * behaviour the easy one.
  */
 
-import { useState } from "react";
+import { createContext, useContext, useState } from "react";
 import type { ReactNode } from "react";
 import { requestEngineStart } from "../engine";
 
+/** Inside a merged tab (HubPanel) the hub already shows the title, so a page drops its own. */
+export const HubContext = createContext(false);
+
+/** The page skeleton every tab paints first (docs/DESIGN.md §1.3): a real heading, one line of purpose, actions
+ * on the right, then the body. Inside a merged tab only the purpose line and the actions remain. */
 export function PanelShell({ title, subtitle, actions, children }: {
   title: string;
   subtitle?: string;
   actions?: ReactNode;
   children: ReactNode;
 }) {
+  const inHub = useContext(HubContext);
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          padding: "14px 18px",
-          flex: "none",
-          boxShadow: "inset 0 -1px 0 var(--color-divider)",
-        }}
-      >
-        <div>
-          <div style={{ fontFamily: "var(--font-heading)", fontSize: 15, fontWeight: 500 }}>{title}</div>
-          {subtitle && (
-            <div style={{ fontSize: 12, color: "var(--color-neutral-500)", marginTop: 2 }}>{subtitle}</div>
-          )}
-        </div>
-        {actions && <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>{actions}</div>}
-      </div>
-      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 18 }}>{children}</div>
+    <div className="page-shell">
+      {(!inHub || subtitle || actions) && (
+        <header className={`page-shell__head${inHub ? " is-slim" : ""}`}>
+          <div className="page-shell__titles">
+            {!inHub && <h1 className="page-shell__title">{title}</h1>}
+            {subtitle && <p className="page-shell__purpose">{subtitle}</p>}
+          </div>
+          {actions && <div className="page-shell__actions">{actions}</div>}
+        </header>
+      )}
+      <div className="page-shell__body">{children}</div>
     </div>
   );
 }

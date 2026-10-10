@@ -1,0 +1,139 @@
+/* The redesigned shell (2026-10-10, docs/DESIGN.md §3): top bar, tab strip, page skeleton, merged tabs. Loaded
+   after nyx.css/index.css so it wins over the older shell rules it replaces. */
+
+/* --- Top bar ---------------------------------------------------------------------------------------- */
+.shell-bar {
+  display: flex !important;
+  align-items: center;
+  gap: 12px !important;
+  min-height: 48px;
+  padding: 0 12px 0 16px !important;
+  background: var(--color-nav) !important;
+  box-shadow: inset 0 -1px 0 var(--color-divider) !important;
+  flex: none;
+}
+.shell-brand__name { font-family: var(--font-heading) !important; font-weight: 600 !important; font-size: 14px !important; letter-spacing: 0.02em !important; }
+.shell-brand__by { font-size: 12px !important; letter-spacing: 0 !important; text-transform: none !important; color: var(--color-neutral-600) !important; }
+.shell-host { min-height: 28px; border-radius: 999px; font-size: 12px; }
+.shell-actions { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.shell-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: var(--radius);
+  color: var(--color-neutral-400);
+  font-size: 14px;
+}
+.shell-icon-btn:hover { background: var(--color-surface-3); color: var(--color-text); }
+.shell-icon-btn[aria-expanded="true"], .shell-icon-btn[aria-pressed="true"] { background: var(--color-surface-3); color: var(--color-text); }
+.shell-icon-btn svg { flex: none; }
+.shell-sep { width: 1px; height: 20px; background: var(--color-divider); margin: 0 4px; }
+
+/* --- Tab strip ------------------------------------------------------------------------------------- */
+.top-tabs { display: flex; align-items: stretch; background: var(--color-nav); box-shadow: inset 0 -1px 0 var(--color-divider); flex: none; position: relative; z-index: 20; }
+.top-tabs__scroll { display: flex; align-items: center; gap: 2px; padding: 4px 8px; overflow-x: auto; overflow-y: hidden; min-width: 0; flex: 1; }
+.top-tabs__tab {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--radius);
+  white-space: nowrap;
+  font-size: 14px;
+  color: var(--color-neutral-400);
+}
+.top-tabs__tab:hover { background: var(--color-surface-3); color: var(--color-text); }
+.top-tabs__tab[aria-selected="true"] { background: var(--color-surface-3); color: var(--color-text); font-weight: 600; }
+.top-tabs__tab[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--color-accent);
+}
+.top-tabs__divider { width: 1px; height: 20px; margin: 0 6px; background: var(--color-divider); flex: none; }
+.top-tabs__group { font-size: 12px; color: var(--color-neutral-600); padding: 0 6px; white-space: nowrap; flex: none; }
+.top-tabs__more { flex: none; display: flex; align-items: center; padding: 0 8px; box-shadow: inset 1px 0 0 var(--color-divider); }
+.top-tabs__menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 8px;
+  width: 260px;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 4px;
+  z-index: 30;
+  border-radius: var(--radius-lg);
+  background: var(--color-flyout);
+  box-shadow: var(--shadow-flyout), inset 0 0 0 1px rgba(189, 189, 189, 0.12);
+}
+.top-tabs__menu-title { font-size: 12px; font-weight: 600; color: var(--color-neutral-600); padding: 8px 12px 4px; }
+.top-tabs__menu-item { display: block; width: 100%; text-align: left; padding: 0 12px; height: 36px; border-radius: var(--radius); font-size: 14px; color: var(--color-neutral-400); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.top-tabs__menu-item:hover, .top-tabs__menu-item[aria-current="true"] { background: var(--color-surface-3); color: var(--color-text); }
+
+/* --- Page skeleton (PanelShell) -------------------------------------------------------------------- */
+.page-shell { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.page-shell__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px 24px 12px;
+  flex: none;
+}
+.page-shell__head.is-slim { padding: 12px 24px 4px; }
+.page-shell__titles { min-width: 0; }
+.page-shell__title { margin: 0; font-family: var(--font-heading); font-size: 20px; line-height: 28px; font-weight: 600; }
+.page-shell__purpose { margin: 2px 0 0; font-size: 14px; line-height: 20px; color: var(--color-neutral-400); }
+.page-shell__actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.page-shell__body { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 24px 24px; }
+
+/* --- Merged tabs (HubPanel) ------------------------------------------------------------------------ */
+.hub { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.hub__head { display: flex; flex-direction: column; gap: 12px; padding: 20px 24px 0; flex: none; box-shadow: inset 0 -1px 0 var(--color-divider); }
+.hub__title { margin: 0; font-family: var(--font-heading); font-size: 28px; line-height: 36px; font-weight: 600; }
+.hub__purpose { margin: 2px 0 0; color: var(--color-neutral-400); }
+.hub__pivot { display: flex; gap: 4px; overflow-x: auto; }
+.hub__pivot-item {
+  position: relative;
+  height: 40px;
+  padding: 0 12px;
+  white-space: nowrap;
+  font-size: 14px;
+  color: var(--color-neutral-400);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.hub__pivot-item:hover { color: var(--color-text); background: var(--color-surface-3); }
+.hub__pivot-item[aria-selected="true"] { color: var(--color-text); font-weight: 600; }
+.hub__pivot-item[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--color-accent);
+}
+.hub__body { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+.hub__body > * { flex: 1; min-height: 0; }
+
+.tab-loading { color: var(--color-neutral-400) !important; background: var(--color-bg) !important; font-size: 14px !important; }
+
+@media (max-width: 760px) {
+  .shell-brand__by, .shell-host__label { display: none !important; }
+  .page-shell__head { padding: 16px 16px 8px; flex-wrap: wrap; }
+  .page-shell__body { padding: 8px 16px 16px; }
+  .hub__head { padding: 16px 16px 0; }
+  .hub__title { font-size: 20px; line-height: 28px; }
+}
+@media (prefers-reduced-motion: reduce) { .top-tabs__tab, .hub__pivot-item { transition: none; } }

@@ -62,7 +62,9 @@ def test_the_brief_reads_the_owners_own_words_about_looks():
 
 def test_the_app_tokens_come_from_the_real_stylesheet():
     tokens = design_sense.app_tokens()
-    assert tokens.get("color-bg") == "#000000", "the owner asked for black; a brief must know that"
+    # Redesign 2026-10-10 (docs/DESIGN.md §2): Windows 11 dark base. Was #000000 (Request F) until the owner asked
+    # to forget the old design and follow the design document.
+    assert tokens.get("color-bg") == "#202020", "a brief must know the real app background"
     assert any(name.startswith("color-accent") for name in tokens)
 
 

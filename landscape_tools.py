@@ -14,10 +14,16 @@ from typing import Any, Dict, List, Optional
 
 #: Built-in tabs the assistant can open by name.
 CORE_TABS = {
-    "chat": "Chat", "strands": "Strands", "dashboard": "Dashboard", "system": "System",
-    "computer": "Computer", "work": "Sessions & Memory", "models": "Models", "agents": "Agents",
-    "connectors": "Connectors", "store": "Skills", "power": "Power", "permissions": "Permissions",
-    "admin": "Admin", "settings": "Settings", "developer": "Developer", "access": "Beta & Dev access",
+    # Redesign 2026-10-10: merged tabs. Old ids (screen, store, dashboard, power, work, settings, games…) still open
+    # their new home in the app (frontend src/tabs.ts REDIRECTS), so they stay listed for the model to use.
+    "nyx": "Chat", "build": "Build", "research": "Research Lab", "learn": "Learn", "notes": "Notes",
+    "code": "Code", "agents": "Agents", "collab": "Collab", "trading": "Trading", "improve": "Improve",
+    "freewill": "Free Will", "kahuna": "Big Kahuna", "office": "Office Space", "world": "World",
+    "equalize": "Equalize", "computer": "Computer", "connectors": "Connections", "admin": "Admin",
+    "screen": "Screen Share", "absorb": "Data Absorption", "apply": "Apply", "subagents": "Sub-agents",
+    "models": "Models", "keys": "Keys & Models", "store": "Add capability", "settings": "Settings",
+    "dashboard": "Dashboard", "power": "Power", "work": "Sessions & Memory", "design_research": "Design Research",
+    "games": "Game Studio",
 }
 
 

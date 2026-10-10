@@ -23,7 +23,9 @@ import {
 } from "./api";
 import { JoinScreen, LoginScreen } from "./components/AuthScreen";
 import { NyxAvatar, type AvatarState } from "./components/NyxAvatar";
-import { visibleTabs, type ShellLayout, type TabId } from "./tabs";
+import { REDIRECTS, visibleTabs, type TabId } from "./tabs";
+import { HubPanel, openSection } from "./components/HubPanel";
+import { SettingsWindow, type SettingsPage } from "./components/settings/SettingsWindow";
 import { QuitButton } from "./components/QuitButton";
 import { AccountsButton } from "./components/accounts/AccountsButton";
 import { BuildPanel } from "./panels/BuildPanel";
@@ -52,17 +54,11 @@ const CodePanel = lazy(() => import("./panels/code/CodePanel").then((m) => ({ de
 const SubAgentsPanel = lazy(() => import("./panels/SubAgentsPanel").then((m) => ({ default: m.SubAgentsPanel })));
 const CollabPanel = lazy(() => import("./panels/CollabPanel").then((m) => ({ default: m.CollabPanel })));
 const TradingPanel = lazy(() => import("./panels/trading/TradingPanel").then((m) => ({ default: m.TradingPanel })));
-const GameStudioPanel = lazy(() => import("./panels/game/GameStudioPanel").then((m) => ({ default: m.GameStudioPanel })));
 const ResearchPanel = lazy(() => import("./panels/research/ResearchPanel").then((m) => ({ default: m.ResearchPanel })));
-const DashboardPanel = lazy(() => import("./panels/DashboardPanel").then((m) => ({ default: m.DashboardPanel })));
 const ModelsPanel = lazy(() => import("./panels/ModelsPanel").then((m) => ({ default: m.ModelsPanel })));
 const KeysPanel = lazy(() => import("./panels/KeysPanel").then((m) => ({ default: m.KeysPanel })));
-const SettingsPanel = lazy(() => import("./panels/SettingsPanel").then((m) => ({ default: m.SettingsPanel })));
 const ConnectorsPanel = lazy(() => import("./panels/ConnectorsPanel").then((m) => ({ default: m.ConnectorsPanel })));
-const WorkPanel = lazy(() => import("./panels/WorkPanel").then((m) => ({ default: m.WorkPanel })));
 const AgentsPanel = lazy(() => import("./panels/AgentsPanel").then((m) => ({ default: m.AgentsPanel })));
-const StrandsPanel = lazy(() => import("./panels/StrandsPanel").then((m) => ({ default: m.StrandsPanel })));
-const PowerPanel = lazy(() => import("./panels/PowerPanel").then((m) => ({ default: m.PowerPanel })));
 const ImprovePanel = lazy(() => import("./panels/ImprovePanel").then((m) => ({ default: m.ImprovePanel })));
 const AbsorbPanel = lazy(() => import("./panels/absorb/AbsorbPanel").then((m) => ({ default: m.AbsorbPanel })));
 const ScreenSharePanel = lazy(() => import("./panels/screen/ScreenSharePanel").then((m) => ({ default: m.ScreenSharePanel })));
@@ -71,27 +67,36 @@ const FreeWillPanel = lazy(() => import("./panels/freewill/FreeWillPanel").then(
 const KahunaPanel = lazy(() => import("./panels/kahuna/KahunaPanel").then((m) => ({ default: m.KahunaPanel })));
 const OwnComputerPanel = lazy(() => import("./panels/computer/OwnComputerPanel").then((m) => ({ default: m.OwnComputerPanel })));
 const OfficePanel = lazy(() => import("./panels/office/OfficePanel").then((m) => ({ default: m.OfficePanel })));
-const DesignResearchPanel = lazy(() => import("./panels/design/DesignResearchPanel").then((m) => ({ default: m.DesignResearchPanel })));
 const EqualizePanel = lazy(() => import("./panels/equalize/EqualizePanel").then((m) => ({ default: m.EqualizePanel })));
-const SketchPanel = lazy(() => import("./panels/sketch/SketchPanel").then((m) => ({ default: m.SketchPanel })));
 const WorldPanel = lazy(() => import("./panels/world/WorldPanel").then((m) => ({ default: m.WorldPanel })));
 const AdminPanel = lazy(() => import("./panels/AdminPanel").then((m) => ({ default: m.AdminPanel })));
 const StorePanel = lazy(() => import("./panels/StorePanel").then((m) => ({ default: m.StorePanel })));
 
-const LAYOUT_KEY = "nyx.layout";
 const PROVIDER_KEY = "nyx.chat.provider";
 
 export default function App() {
   const [active, setActiveRaw] = useState<TabId>("nyx");
-  // Chat and the brain live together now; old links to either land on the Nyx tab.
-  const setActive = useCallback((tab: TabId) => setActiveRaw(tab === "chat" ? "nyx" : tab), []);
-  const [layout, setLayout] = useState<ShellLayout>(() => {
-    try {
-      return (localStorage.getItem(LAYOUT_KEY) as ShellLayout) || "rail";
-    } catch {
-      return "rail";
+  // Settings is a window now, opened from the gear in the top bar (redesign 2026-10-10).
+  const [settings, setSettings] = useState<{ open: boolean; page?: SettingsPage }>({ open: false });
+  // Tabs that were merged or removed land in their new home: a section of a merged tab, a Settings page, or a
+  // window in the chat (src/tabs.ts REDIRECTS).
+  const setActive = useCallback((tab: TabId) => {
+    const moved = REDIRECTS[tab];
+    if (!moved) { setActiveRaw(tab); return; }
+    if (moved.kind === "settings") { setSettings({ open: true, page: moved.page }); return; }
+    if (moved.kind === "window") {
+      setActiveRaw("nyx");
+      window.setTimeout(() => window.dispatchEvent(new CustomEvent("ichos:open-window", { detail: { kind: moved.window } })), 0);
+      return;
     }
-  });
+    if (moved.section) openSection(moved.tab, moved.section);
+    setActiveRaw(moved.tab);
+  }, []);
+  useEffect(() => {
+    const onOpen = (event: Event) => setSettings({ open: true, page: (event as CustomEvent<{ page?: SettingsPage }>).detail?.page });
+    window.addEventListener("ichos:open-settings", onOpen);
+    return () => window.removeEventListener("ichos:open-settings", onOpen);
+  }, []);
   const [avatar, setAvatar] = useState<AvatarState>("idle");
   const [online, setOnline] = useState<boolean | null>(null);
 
@@ -107,14 +112,6 @@ export default function App() {
       return "";
     }
   });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(LAYOUT_KEY, layout);
-    } catch {
-      /* private browsing — layout simply will not persist */
-    }
-  }, [layout]);
 
   // A 401 anywhere means the session died — most often a backend restart, since
   // sessions are in-memory by design. Drop straight back to the login screen.
@@ -222,16 +219,8 @@ export default function App() {
     events.forEach((name) => window.addEventListener(name, ping, { passive: true }));
     return () => events.forEach((name) => window.removeEventListener(name, ping));
   }, []);
-  const [nextTab, setNextTab] = useState<{ tab: string; confidence: number } | null>(null);
-  useEffect(() => {
-    let alive = true;
-    void api.post("/api/presence", { tab: active }).then(() =>
-      api.get<{ next_tab: { tab: string; confidence: number } | null }>("/api/predict").then((result) => {
-        if (alive && result.ok) setNextTab(result.data.next_tab);
-      }),
-    );
-    return () => { alive = false; };
-  }, [active]);
+  // The tab still teaches presence (quiet work while away); the "Next:" guess button is gone (owner, 2026-10-10).
+  useEffect(() => { void api.post("/api/presence", { tab: active }); }, [active]);
 
   // User-defined tabs (ROADMAP CC). Loaded from the server and appended to the
   // shipped set, so someone's own tabs sit alongside the built-in ones.
@@ -351,37 +340,31 @@ export default function App() {
 
         <button
           className="shell-host"
-          onClick={() => setActive("settings")}
-          title={online ? "Nyx's engine is running on this computer — engine settings" : "Nyx's engine is off"}
+          onClick={() => setSettings({ open: true, page: "status" })}
+          title={online ? "The engine is running on this computer — open its status" : "The engine is off"}
         >
           <span className="shell-host__dot" style={{ background: hostTone, boxShadow: `0 0 8px ${hostTone}` }} />
-          {hostLabel}
+          <span className="shell-host__label">{hostLabel}</span>
         </button>
 
-        {nextTab && nextTab.tab !== active && nextTab.confidence >= 0.4 && tabs.some((t) => t.id === nextTab.tab) && (
-          <button className="shell-host" onClick={() => setActive(nextTab.tab as TabId)}
-            title={`You usually go here next (${Math.round(nextTab.confidence * 100)}% of the time)`}>
-            Next: {tabs.find((t) => t.id === nextTab.tab)?.label} →
+        <div className="shell-actions">
+          <button
+            type="button"
+            className="shell-icon-btn"
+            onClick={() => setSettings({ open: true })}
+            aria-expanded={settings.open}
+            aria-haspopup="dialog"
+            title="Settings — status, power, sessions & memory and more"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+            Settings
           </button>
-        )}
-
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-          <div className="segmented" title="How much room each tab takes in the bar">
-            {(["rail", "strip"] as ShellLayout[]).map((l) => (
-              <button key={l} onClick={() => setLayout(l)} aria-pressed={layout === l}>
-                {l === "rail" ? "Comfortable" : "Compact"}
-              </button>
-            ))}
-          </div>
-          <button className="btn btn-primary" onClick={() => setActive("store")}>
-            + Add capability
-          </button>
+          <span className="shell-sep" aria-hidden="true" />
           {user && (
-            <button
-              className="btn btn-secondary"
-              onClick={() => void signOut()}
-              title={`Signed in as ${user.email} (${user.role})`}
-            >
+            <button className="shell-icon-btn" onClick={() => void signOut()} title={`Signed in as ${user.email} (${user.role})`}>
               {user.role === "owner" ? "Owner" : user.role} · Sign out
             </button>
           )}
@@ -397,7 +380,6 @@ export default function App() {
         tabs={tabs}
         userTabs={userTabs}
         active={active}
-        density={layout}
         onSelect={(id) => setActive(id as TabId)}
         onNewTab={() => setFinderOpen(true)}
       />
@@ -411,35 +393,43 @@ export default function App() {
         {active === "learn" && <LearnPanel />}
         {active === "notes" && <NotesPanel />}
         {active === "code" && <CodePanel />}
-        {active === "subagents" && <SubAgentsPanel />}
         {active === "collab" && <CollabPanel />}
         {active === "trading" && <TradingPanel />}
         {active === "build" && <BuildPanel />}
-        {active === "games" && <GameStudioPanel />}
-        {active === "research" && <ResearchPanel />}
-        {active === "strands" && <StrandsPanel state={avatar} onActivity={onActivity} />}
-        {active === "dashboard" && <DashboardPanel />}
-        {active === "work" && <WorkPanel />}
-        {active === "models" && <ModelsPanel />}
-        {active === "keys" && <KeysPanel />}
-        {active === "agents" && <AgentsPanel />}
-        {active === "connectors" && <ConnectorsPanel />}
-        {active === "store" && <StorePanel />}
-        {active === "power" && <PowerPanel />}
+        {active === "research" && (
+          <HubPanel id="research" title="Research Lab" sections={[
+            { id: "research", label: "Research", purpose: "Deep research on any question, with sources you can check.", render: () => <ResearchPanel /> },
+            { id: "absorb", label: "Absorb", purpose: "Ichos studies documents and keeps what you approve.", render: () => <AbsorbPanel /> },
+            { id: "apply", label: "Apply", purpose: "Describe a change to Ichos itself; each step applies only when you press it.", render: () => <ApplyPanel /> },
+          ]} />
+        )}
+        {active === "agents" && (
+          <HubPanel id="agents" title="Agents" sections={[
+            { id: "agents", label: "Team", purpose: "Every agent Ichos can call, how they connect, and what each is for.", render: () => <AgentsPanel /> },
+            { id: "subagents", label: "Sub-agents", purpose: "Your own helpers: make one, give it a job, run it.", render: () => <SubAgentsPanel /> },
+          ]} />
+        )}
+        {active === "computer" && (
+          <HubPanel id="computer" title="Computer" sections={[
+            { id: "computer", label: "Ichos Computer", purpose: "A sandboxed desktop of Ichos's own — it works there, never on yours unasked.", render: () => <OwnComputerPanel /> },
+            { id: "screen", label: "Screen Share", purpose: "Share a screen or a window; Ichos helps one approved step at a time.", render: () => <ScreenSharePanel /> },
+          ]} />
+        )}
+        {active === "connectors" && (
+          <HubPanel id="connectors" title="Connections" sections={[
+            { id: "connectors", label: "Connectors", purpose: "Accounts and services Ichos can use for you.", render: () => <ConnectorsPanel /> },
+            { id: "keys", label: "Keys & models", purpose: "API keys, and which model does which job.", render: () => <KeysPanel /> },
+            { id: "models", label: "Models", purpose: "Every model Ichos can reach, local and online.", render: () => <ModelsPanel /> },
+            { id: "store", label: "Add capability", purpose: "Skills, tools and connectors you can add.", render: () => <StorePanel /> },
+          ]} />
+        )}
         {active === "improve" && <ImprovePanel />}
-        {active === "absorb" && <AbsorbPanel />}
-        {active === "screen" && <ScreenSharePanel />}
-        {active === "apply" && <ApplyPanel />}
         {active === "freewill" && <FreeWillPanel />}
         {active === "kahuna" && <KahunaPanel />}
         {active === "office" && <OfficePanel />}
         {active === "world" && <WorldPanel />}
-        {active === "sketch" && <SketchPanel />}
         {active === "equalize" && <EqualizePanel />}
-        {active === "design_research" && <DesignResearchPanel />}
-        {active === "computer" && <OwnComputerPanel />}
         {active === "admin" && <AdminPanel />}
-        {active === "settings" && <SettingsPanel />}
         </Suspense>
         </TabBoundary>
         {activeUserTab && (
@@ -459,6 +449,8 @@ export default function App() {
       <FileDropOverlay />
       <VoiceListener />
       <ProtoVoiceDock />
+
+      {settings.open && <SettingsWindow initial={settings.page} onClose={() => setSettings({ open: false })} />}
 
       {finderOpen && (
         <TabFinder

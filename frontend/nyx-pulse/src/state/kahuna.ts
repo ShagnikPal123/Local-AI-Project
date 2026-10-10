@@ -5,7 +5,7 @@
  */
 
 import { api } from "../api";
-import { CORE_TABS } from "../tabs";
+import { CORE_TABS, LEGACY_LABELS } from "../tabs";
 
 type Listener = (on: boolean) => void;
 
@@ -60,7 +60,7 @@ export interface KahunaAction {
 
 export interface KahunaIntent { text: string; final: boolean; actions: KahunaAction[]; handled: boolean }
 
-const TAB_NAMES = CORE_TABS.map((t) => ({ id: t.id as string, label: t.label }));
+const TAB_NAMES = [...CORE_TABS.map((t) => ({ id: t.id as string, label: t.label })), ...LEGACY_LABELS];
 
 /** What the owner is saying, read as actions (the server knows which places are safe to open). */
 export async function readIntent(text: string, final: boolean): Promise<KahunaIntent | null> {

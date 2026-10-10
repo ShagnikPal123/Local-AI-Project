@@ -1533,7 +1533,6 @@ def revoke_capability(request: RevokeCapabilityRequest, user=RequireMachineContr
 
 # Tabs that ship with the app, for fuzzy search to match against.
 SHIPPED_TABS = [
-    {"id": "strands", "label": "Strands"},
     {"id": "chat", "label": "Chat"},
     {"id": "dashboard", "label": "Dashboard"},
     {"id": "work", "label": "Sessions and Memory"},

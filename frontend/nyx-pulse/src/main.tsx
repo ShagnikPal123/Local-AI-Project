@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
 import "./nyx.css";
+import "./shell.css";
 import { registerShellCache } from "./engine";
 
 // A rebuild — an update, Apply or Improve — replaces the hashed chunks while this page is open. The next tab

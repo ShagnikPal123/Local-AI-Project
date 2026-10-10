@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import { ErrorState, Loading, PanelShell } from "../components/Panel";
+import { ErrorState, Loading } from "../components/Panel";
 import { engine, type EngineStatus } from "../engine";
 import { VoicesSection } from "./VoicesSection";
 import { ClapPanel } from "../components/clap/ClapPanel";
@@ -233,7 +233,10 @@ function EngineSection() {
   );
 }
 
-export function SettingsPanel() {
+/** The Settings window's groups (redesign 2026-10-10): each shows only its own sections. */
+export type SettingsGroup = "general" | "intelligence" | "voice" | "appearance" | "storage";
+
+export function SettingsPanel({ group = "general" }: { group?: SettingsGroup }) {
   const [speed, setSpeed] = useState<SpeedResponse | null>(null);
   const [personalities, setPersonalities] = useState<Personality[]>([]);
   const [activePersonality, setActivePersonality] = useState<string>("");
@@ -287,110 +290,84 @@ export function SettingsPanel() {
     }
   }
 
-  if (error && !speed) return <PanelShell title="Settings"><ErrorState error={error} /></PanelShell>;
-  if (!speed) return <PanelShell title="Settings"><Loading what="Reading settings" /></PanelShell>;
+  if (error && !speed) return <ErrorState error={error} />;
+  if (!speed) return <Loading what="Reading settings" />;
 
   return (
-    <PanelShell title="Settings" subtitle="Auto is the default — these are expert overrides">
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div className="settings-group">
         {error && <ErrorState error={error} />}
 
-        <EngineSection />
-
-        <ViewSection />
-
-        <SafetySection />
-
-        <IntelligenceSettings />
-
-        <Section
-          title="Mods"
-          hint="Your lasting changes to Nyx, one per wish. Ask Nyx for one in chat; pause or remove it here and what it changed is undone."
-        >
-          <ModsSection />
-        </Section>
-
-        <Section
-          title="Response speed"
-          hint="Auto decides per turn. The other two are useful when you know what you want, and each costs something."
-        >
-          {speed.modes.map((m) => (
-            <Choice
-              key={m.id}
-              selected={speed.mode === m.id}
-              label={m.label}
-              description={m.description}
-              badge={m.id === "auto" ? "recommended" : undefined}
-              onSelect={() => void chooseSpeed(m.id)}
-            />
-          ))}
-        </Section>
-
-        <Section
-          title="Personality"
-          hint="Changes how replies sound. It does not change what the agent can do, and it never overrides correctness."
-        >
-          {personalities.length === 0 ? (
-            <div style={{ fontSize: 12, color: "var(--color-neutral-500)" }}>
-              No personality presets available.
-            </div>
-          ) : (
-            <>
+        {group === "general" && <>
+          <EngineSection />
+          <ViewSection />
+          <SafetySection />
+          <Section
+            title="Response speed"
+            hint="Auto decides per turn. The other two are useful when you know what you want, and each costs something."
+          >
+            {speed.modes.map((m) => (
               <Choice
-                selected={activePersonality === ""}
-                label="Default"
-                description="Concise and direct. No styling applied."
-                badge="recommended"
-                onSelect={() => void choosePersonality("")}
+                key={m.id}
+                selected={speed.mode === m.id}
+                label={m.label}
+                description={m.description}
+                badge={m.id === "auto" ? "recommended" : undefined}
+                onSelect={() => void chooseSpeed(m.id)}
               />
-              {personalities.map((p) => (
+            ))}
+          </Section>
+        </>}
+
+        {group === "intelligence" && <>
+          <IntelligenceSettings />
+          <Section
+            title="Personality"
+            hint="Changes how replies sound. It does not change what the agent can do, and it never overrides correctness."
+          >
+            {personalities.length === 0 ? (
+              <div style={{ fontSize: 12, color: "var(--color-neutral-500)" }}>No personality presets available.</div>
+            ) : (
+              <>
                 <Choice
-                  key={p.id}
-                  selected={activePersonality === p.id}
-                  label={p.display_name}
-                  description={p.description}
-                  onSelect={() => void choosePersonality(p.id)}
+                  selected={activePersonality === ""}
+                  label="Default"
+                  description="Concise and direct. No styling applied."
+                  badge="recommended"
+                  onSelect={() => void choosePersonality("")}
                 />
-              ))}
-              <div style={{ fontSize: 12, color: "var(--color-neutral-600)", marginTop: 8, lineHeight: 1.6 }}>
-                Applies to every conversation on this engine, immediately. Persisting it
-                per account, the second personality axis (how the agent <em>behaves</em>, not
-                just how it sounds), and per-sub-agent personalities are still to build —
-                roadmap Z2, Z3.
-              </div>
-            </>
-          )}
-        </Section>
+                {personalities.map((p) => (
+                  <Choice
+                    key={p.id}
+                    selected={activePersonality === p.id}
+                    label={p.display_name}
+                    description={p.description}
+                    onSelect={() => void choosePersonality(p.id)}
+                  />
+                ))}
+              </>
+            )}
+          </Section>
+          <Section
+            title="Mods"
+            hint="Your lasting changes to Nyx, one per wish. Ask Nyx for one in chat; pause or remove it here and what it changed is undone."
+          >
+            <ModsSection />
+          </Section>
+        </>}
 
-        <Section title="Background">
-          <BackgroundsSection />
-        </Section>
+        {group === "voice" && <>
+          <Section title="Voices"><VoicesSection /></Section>
+          <Section title="Clap" hint="Sounds Nyx answers to when you are away, offline, or using the background voice.">
+            <ClapPanel />
+          </Section>
+        </>}
 
-        <Section title="Voices">
-          <VoicesSection />
-        </Section>
+        {group === "appearance" && <>
+          <Section title="Background"><BackgroundsSection /></Section>
+          <Section title="Content"><ContentModeSection /></Section>
+        </>}
 
-        <Section title="Clap" hint="Sounds Nyx answers to when you are away, offline, or using the background voice.">
-          <ClapPanel />
-        </Section>
-
-        <Section title="Storage">
-          <StorageSection />
-        </Section>
-
-        <Section title="Content">
-          <ContentModeSection />
-        </Section>
-
-        <Section title="Not built yet">
-          <div style={{ fontSize: 12, color: "var(--color-neutral-500)", lineHeight: 1.7 }}>
-            Account management and beta invites are backend-only for now — use{" "}
-            <code style={{ fontFamily: "var(--font-mono)" }}>admin_setup.py</code> from the
-            project folder. Training modes (roadmap Y), permission grants for machine control
-            (V), and the skills library (U) have no UI yet.
-          </div>
-        </Section>
+        {group === "storage" && <Section title="Storage"><StorageSection /></Section>}
       </div>
-    </PanelShell>
   );
 }
