@@ -186,6 +186,17 @@ BUILTIN_SKILLS: List[Dict[str, Any]] = [
             "rather than picking one silently. Give the date of the information."
         ),
     },
+    {
+        # Owner, 2026-10-10: "a skill called court and when active it makes a diagram of a court in the chat and we
+        # can see how bots behave and fight on the question or questions I asked" (court.py).
+        "name": "Court",
+        "description": "Put a question on trial: agents argue it in rounds before three judges, drawn as a courtroom beside the chat.",
+        "instructions": "When this skill is attached, do not answer the question yourself. Call court_case with the "
+                        "owner's question (several questions: one per line; inside an office or world pass origin). "
+                        "Then reply in one or two sentences that the court is in session and the verdict will appear "
+                        "in the Court window, where the owner can also pick a winner.",
+        "triggers": ["court", "trial", "put it on trial", "judge this", "judges", "argue it out", "fight it out", "debate this"],
+    },
 ]
 
 

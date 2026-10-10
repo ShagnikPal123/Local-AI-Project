@@ -54,6 +54,9 @@ TOOLS: List[ToolSpec] = [
              "Ask for another agent. Say why, and whether the office will keep needing it."),
     ToolSpec("recall", '{"query": "..."}', "Ask the office what it already knows about this."),
     ToolSpec("note", '{"text": "..."}', "Keep one fact or decision in the office's memory for future sessions."),
+    ToolSpec("court", '{"question": "..."}',
+             "When the team disagrees on a decision that matters, put it before the court: counsel argue each side and "
+             "three judges vote. The owner watches it; use it rarely (it costs about a dozen model calls)."),
 ]
 
 
@@ -232,6 +235,18 @@ class Toolbox:
         entry = memory.add(self.office.id, str(text or ""), kind="note", by=self.agent.name,
                            job_id=getattr(self.task, "job_id", ""))
         return "Kept in the office's memory." if entry else "Nothing to keep."
+
+    def court(self, question: str = "", **_extra: Any) -> str:
+        """The shared court (court.py), opened from an office — or a world, which runs on its office."""
+        import court as court_engine
+
+        origin = "world" if str(getattr(self.office, "name", "")).lower().startswith("world") else "office"
+        try:
+            case = court_engine.start(str(question or ""), origin=origin, origin_id=str(getattr(self.office, "id", "")))
+        except ValueError as error:
+            return f"The court did not open: {error}"
+        return (f"Court case {case['id']} is open; the judges' verdict will be in the court. Carry on with other work "
+                "and check back with recall later, or decide yourself if it is urgent.")
 
     # --- dispatch ------------------------------------------------------------
 

@@ -39,6 +39,8 @@ TOOL_MODULES: List[Tuple[str, str]] = [
     ("improve_tools", "register_improve_tools"),
     ("intelligence_tools", "register_intelligence_tools"),
     ("chat_tools", "register_chat_tools"),
+    ("court", "register_court_tools"),
+    ("office_world_tools", "register_office_world_tools"),
     ("chat_modes", "register_chat_mode_tools"),
     ("design_sense", "register_design_tools"),
     ("backgrounds", "register_background_tools"),
