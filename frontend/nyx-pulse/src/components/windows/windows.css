@@ -85,3 +85,6 @@
 @media (max-width: 900px) {
   .chat-shell:not(.is-bottom) .chat-window:not(.is-full) { position: absolute; inset: 0; width: 100% !important; z-index: 30; }
 }
+
+.chat-shell__row { flex: 1; min-height: 0; display: flex; position: relative; }
+.chat-shell__row > .chat-home { flex: 1; min-width: 0; height: auto; }

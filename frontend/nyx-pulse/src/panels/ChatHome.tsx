@@ -9,7 +9,8 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import type { AvatarState } from "../components/NyxAvatar";
-import { ChatWindowPane, openChatWindow, useChatWindows } from "../components/windows/ChatWindows";
+import { ChatWindowPane, DRAG_TYPE, openChatWindow, readDrag, useChatWindows } from "../components/windows/ChatWindows";
+import { ActivityRail } from "../components/activity/ActivityRail";
 import { ChatPanel } from "./ChatPanel";
 import { lazy, Suspense } from "react";
 import { voiceMode, onVoiceMode } from "../voice/voiceBus";
@@ -35,10 +36,37 @@ export function ChatHome({ onActivity, provider, onProvider }: {
   const [voiceOn, setVoiceOn] = useState(voiceMode() !== "off");
   useEffect(() => onVoiceMode((mode) => setVoiceOn(mode !== "off")), []);
   const hasWindow = w.open.length > 0;
+  // What Ichos touched, on the right (owner: "show more like files used, code accessed, things done"). Remembered.
+  const [railOn, setRailOn] = useState(() => { try { return localStorage.getItem("ichos.activity") !== "0"; } catch { return true; } });
+  useEffect(() => { try { localStorage.setItem("ichos.activity", railOn ? "1" : "0"); } catch { /* not kept */ } }, [railOn]);
+  // Room check: with a window open on a narrow screen the activity list steps aside (its tab stays) so the chat
+  // keeps a readable width; it comes back by itself when there is room.
+  const [width, setWidth] = useState(1600);
+  useEffect(() => {
+    const el = shell.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => setWidth(el.clientWidth));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  const railFits = !hasWindow || width >= 1240;
+  const [peek, setPeek] = useState(false);
+  const showRail = railOn && (railFits || peek);
+  // Dragging something openable with no window open yet: show where to drop it.
+  const [dragging, setDragging] = useState(false);
   return (
-    <div ref={shell} className={`chat-shell${hasWindow ? ` is-${w.dock}` : ""}`}>
+    <div ref={shell} className={`chat-shell${hasWindow ? ` is-${w.dock}` : ""}`}
+      onDragEnter={(e) => { if (!hasWindow && e.dataTransfer.types.includes(DRAG_TYPE)) setDragging(true); }}
+      onDragEnd={() => setDragging(false)}>
+      {dragging && (
+        <div className="drop-hint" onDragOver={(e) => e.preventDefault()} onDragLeave={() => setDragging(false)}
+          onDrop={(e) => { const item = readDrag(e); setDragging(false); if (item) { e.preventDefault(); openChatWindow(item.kind, item.title, item.props); } }}>
+          Drop to open beside the chat
+        </div>
+      )}
       <div className="chat-shell__chat">
         {voiceOn && <Suspense fallback={null}><VoiceStage /></Suspense>}
+        <div className="chat-shell__row">
         <ChatPanel
           variant="home"
           onActivity={onActivity}
@@ -47,6 +75,9 @@ export function ChatHome({ onActivity, provider, onProvider }: {
           brain={brain}
           onOpenBrain={() => openChatWindow("brain")}
         />
+        {showRail ? <ActivityRail onClose={() => { if (railFits) setRailOn(false); setPeek(false); }} />
+          : <button type="button" className="activity-tab" onClick={() => { setRailOn(true); setPeek(true); }}>Activity</button>}
+        </div>
       </div>
       {hasWindow && <ChatWindowPane w={w} containerRef={shell} />}
     </div>

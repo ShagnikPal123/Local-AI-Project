@@ -1,0 +1,26 @@
+.wb { display: flex; flex-direction: column; gap: 10px; padding: 14px; min-height: 0; height: 100%; }
+.wb__bar { display: flex; gap: 8px; }
+.wb__bar input, .wb__legend input {
+  flex: 1; min-width: 0; font: inherit; color: inherit; padding: 8px 14px; border-radius: 999px;
+  border: 1px solid var(--color-divider); background: var(--color-surface-2);
+}
+.wb__error { margin: 0; color: var(--color-danger); }
+.wb__muted { margin: 0; color: var(--color-neutral-600); }
+.wb__meta { display: flex; justify-content: space-between; gap: 12px; padding: 0 4px 8px; color: var(--color-neutral-400); }
+.wb__file { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.wb__text { flex: 1; margin: 0; overflow: auto; padding: 14px 16px; border-radius: var(--radius-lg); background: var(--color-surface); font: 13px/1.55 var(--font-mono); white-space: pre-wrap; word-break: break-word; }
+.wb__image { max-width: 100%; max-height: 70vh; object-fit: contain; border-radius: var(--radius-lg); align-self: center; }
+.wb__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; overflow: auto; }
+.wb__row { display: grid; gap: 2px; width: 100%; text-align: left; padding: 10px 14px; border-radius: var(--radius-lg); background: var(--color-surface); box-shadow: inset 3px 0 0 transparent; }
+.wb__row:hover { background: var(--color-surface-3); }
+.wb__row.is-unread { box-shadow: inset 3px 0 0 var(--pop-coral); }
+.wb__row span, .wb__row small { color: var(--color-neutral-600); font-size: 12px; }
+.wb__mail h3 { margin: 8px 0 2px; }
+.wb__legend { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.wb__legend form { flex: 1; min-width: 180px; display: flex; }
+.wb__chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px 4px 12px; border-radius: 999px; background: var(--color-surface-2); box-shadow: inset 0 0 0 1px var(--c); color: var(--c); font: 13px var(--font-mono); }
+.wb__chip button { width: 22px; height: 22px; border-radius: 999px; color: var(--color-neutral-400); }
+.wb__canvas { flex: 1; min-height: 240px; width: 100%; border-radius: var(--radius-lg); background: var(--color-surface); cursor: crosshair; }
+.wb__tools { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.wb__sep { width: 1px; height: 20px; background: var(--color-divider); margin: 0 4px; }
+.wb__exact { margin: 0; padding: 10px 14px; border-radius: var(--radius-lg); background: var(--color-accent-900); font-family: var(--font-mono); }

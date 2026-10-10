@@ -4,6 +4,10 @@ import App from "./App";
 import "./index.css";
 import "./nyx.css";
 import "./shell.css";
+import "./style/styles.css";
+import { bootMix } from "./style/styleMix";
+
+bootMix();
 import { registerShellCache } from "./engine";
 
 // A rebuild — an update, Apply or Improve — replaces the hashed chunks while this page is open. The next tab

@@ -484,6 +484,10 @@ function PlusMenu({ disabled, onAttach, onSkill, onCourt }: {
           {item("◎", "Second Brain", "Everything Ichos remembers", () => win("brain"))}
           {item("▦", "Office & World", "Your offices of agents and their worlds", () => win("office"))}
           {item("▭", "Ichos Computer", "Its own sandboxed desktop", () => win("computer"))}
+          {item("✉", "Mail", "Your inbox, beside the chat", () => win("email"))}
+          {item("✆", "Texts", "WhatsApp with your phone", () => win("whatsapp"))}
+          {item("∿", "Graph", "Plot functions, then derive or solve", () => win("graph"))}
+          {item("▤", "A file", "Open any file from this PC", () => win("file"))}
         </div>
       )}
     </div>

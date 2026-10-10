@@ -1,0 +1,188 @@
+/* The twenty style layers (style/styleMix.ts). Each is gated by a word in <html data-style>, so they combine freely.
+   Effects stay behind content or on edges — text is never put on a busy texture — and every moving one stops under
+   prefers-reduced-motion. Colours come from the --pop-* palette so any mix still reads as Ichos. */
+
+/* --- Gradient mesh ------------------------------------------------------------------------------- */
+:root[data-style~="mesh"] body,
+:root[data-style~="mesh"] #root {
+  background:
+    radial-gradient(60vw 50vh at 8% 0%, rgba(165, 148, 255, 0.16), transparent 60%),
+    radial-gradient(50vw 45vh at 100% 10%, rgba(95, 212, 244, 0.11), transparent 60%),
+    radial-gradient(55vw 55vh at 85% 100%, rgba(243, 155, 214, 0.10), transparent 60%),
+    radial-gradient(45vw 40vh at 0% 100%, rgba(111, 227, 180, 0.08), transparent 60%),
+    var(--color-bg);
+  background-attachment: fixed;
+}
+:root[data-style~="mesh"] main { background: transparent !important; }
+
+/* --- Glassmorphism ------------------------------------------------------------------------------- */
+:root[data-style~="glass"] {
+  --color-surface: rgba(30, 33, 46, 0.62);
+  --color-surface-2: rgba(36, 40, 56, 0.66);
+  --color-nav: rgba(14, 15, 21, 0.72);
+}
+:root[data-style~="glass"] :is(.card, .chat-window__bar, .top-tabs, .shell-bar, .settings-nav, .plus-menu__list, .top-tabs__menu, .court__room) {
+  -webkit-backdrop-filter: blur(18px) saturate(1.3);
+  backdrop-filter: blur(18px) saturate(1.3);
+}
+:root[data-style~="glass"] .card { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.07); }
+
+/* --- Neon glow ----------------------------------------------------------------------------------- */
+:root[data-style~="neon"] :is(.top-tabs__tab, .hub__pivot-item)[aria-selected="true"]::after { box-shadow: 0 0 12px var(--pop-violet), 0 0 3px var(--pop-violet); }
+:root[data-style~="neon"] .btn-primary { box-shadow: 0 0 18px rgba(165, 148, 255, 0.35), var(--lift); }
+:root[data-style~="neon"] .is-speaking, :root[data-style~="neon"] .activity-item.is-running { box-shadow: 0 0 0 1px var(--pop-violet), 0 0 22px rgba(165, 148, 255, 0.45) !important; }
+:root[data-style~="neon"] .shell-host__dot { filter: drop-shadow(0 0 6px currentColor); }
+
+/* --- Holographic --------------------------------------------------------------------------------- */
+:root[data-style~="holo"] .btn-primary,
+:root[data-style~="holo"] .top-tabs__tab[aria-selected="true"] {
+  background-image: linear-gradient(115deg, rgba(255, 255, 255, 0) 30%, rgba(255, 255, 255, 0.28) 45%, rgba(95, 212, 244, 0.22) 52%, rgba(243, 155, 214, 0.2) 58%, rgba(255, 255, 255, 0) 70%);
+  background-size: 260% 100%;
+  animation: holo-sheen 6s ease-in-out infinite;
+}
+@keyframes holo-sheen { 0%, 100% { background-position: 120% 0; } 50% { background-position: -20% 0; } }
+
+/* --- Kinetic type -------------------------------------------------------------------------------- */
+:root[data-style~="kinetic"] :is(.hub__title, .page-shell__title, .settings-page__title, .court__empty h2) {
+  background: linear-gradient(90deg, var(--color-text) 0%, var(--pop-violet) 40%, var(--pop-cyan) 60%, var(--color-text) 100%);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: kinetic-in 700ms var(--ease-out) both, kinetic-flow 9s linear infinite 700ms;
+}
+@keyframes kinetic-in { from { letter-spacing: 0.18em; opacity: 0; transform: translateY(6px); } to { letter-spacing: normal; opacity: 1; transform: none; } }
+@keyframes kinetic-flow { from { background-position: 0% 0; } to { background-position: 300% 0; } }
+
+/* --- Split-flap (numbers flip when they change: <FlipNumber>) ------------------------------------ */
+:root[data-style~="splitflap"] .flip-digit { display: inline-block; padding: 0 2px; margin: 0 1px; border-radius: 4px; background: linear-gradient(var(--color-surface-3) 50%, var(--color-surface-2) 50%); box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.5); }
+:root[data-style~="splitflap"] .flip-digit.is-new { animation: flap 380ms var(--ease-out); }
+@keyframes flap { 0% { transform: rotateX(90deg); } 100% { transform: rotateX(0); } }
+
+/* --- Liquid morph -------------------------------------------------------------------------------- */
+:root[data-style~="liquid"] :is(.hub__head, .page-shell__head:not(.is-slim), .settings-page__head) { position: relative; isolation: isolate; }
+:root[data-style~="liquid"] :is(.hub__head, .settings-page__head)::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  right: 6%;
+  top: -40px;
+  width: 260px;
+  height: 160px;
+  background: linear-gradient(135deg, rgba(165, 148, 255, 0.28), rgba(95, 212, 244, 0.18));
+  filter: blur(28px);
+  border-radius: 42% 58% 63% 37% / 41% 44% 56% 59%;
+  animation: liquid 14s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+@keyframes liquid {
+  0% { border-radius: 42% 58% 63% 37% / 41% 44% 56% 59%; transform: translate(0, 0) rotate(0deg); }
+  50% { border-radius: 63% 37% 38% 62% / 55% 61% 39% 45%; transform: translate(-30px, 10px) rotate(20deg); }
+  100% { border-radius: 36% 64% 52% 48% / 62% 38% 62% 38%; transform: translate(20px, -6px) rotate(-12deg); }
+}
+
+/* --- Particles: drawn by <ParticleField> (canvas), styled here --------------------------------------- */
+.particle-field { position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.55; }
+:root:not([data-style~="particles"]) .particle-field { display: none; }
+
+/* --- Wireframe 3D -------------------------------------------------------------------------------- */
+:root[data-style~="wireframe"] .card { background: transparent; box-shadow: inset 0 0 0 1px rgba(143, 180, 255, 0.35); }
+:root[data-style~="wireframe"] :is(.chat-window__body, .court__room)::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 40%;
+  pointer-events: none;
+  background-image: linear-gradient(rgba(143, 180, 255, 0.14) 1px, transparent 1px), linear-gradient(90deg, rgba(143, 180, 255, 0.14) 1px, transparent 1px);
+  background-size: 36px 36px;
+  transform: perspective(400px) rotateX(60deg);
+  transform-origin: bottom;
+  mask-image: linear-gradient(to top, black, transparent);
+}
+:root[data-style~="wireframe"] :is(.chat-window__body, .court__room) { position: relative; }
+
+/* --- Isometric ----------------------------------------------------------------------------------- */
+:root[data-style~="isometric"] .hub__head { background-image:
+  linear-gradient(30deg, transparent 47%, rgba(143, 180, 255, 0.12) 48% 52%, transparent 53%),
+  linear-gradient(150deg, transparent 47%, rgba(143, 180, 255, 0.12) 48% 52%, transparent 53%);
+  background-size: 48px 28px; background-position: right top; background-repeat: repeat-x; }
+
+/* --- Clay 3D ------------------------------------------------------------------------------------- */
+:root[data-style~="clay"] { --radius: 14px; --radius-lg: 22px; --radius-xl: 28px; }
+:root[data-style~="clay"] .card { box-shadow: 8px 10px 22px rgba(0, 0, 0, 0.45), inset 2px 2px 3px rgba(255, 255, 255, 0.08), inset -3px -4px 8px rgba(0, 0, 0, 0.35); }
+:root[data-style~="clay"] .btn { box-shadow: 3px 4px 10px rgba(0, 0, 0, 0.45), inset 1px 1px 2px rgba(255, 255, 255, 0.18), inset -2px -3px 5px rgba(0, 0, 0, 0.3); }
+
+/* --- ASCII art ----------------------------------------------------------------------------------- */
+:root[data-style~="ascii"] :is(.hub__title, .page-shell__title, .settings-page__title) { font-family: var(--font-mono); letter-spacing: 0.02em; }
+:root[data-style~="ascii"] :is(.hub__title, .settings-page__title)::before { content: "┌─ "; color: var(--pop-mint); }
+:root[data-style~="ascii"] :is(.hub__title, .settings-page__title)::after { content: " ─┐"; color: var(--pop-mint); }
+
+/* --- Neo-brutalism ------------------------------------------------------------------------------- */
+:root[data-style~="brutal"] { --radius: 6px; --radius-lg: 8px; }
+:root[data-style~="brutal"] .card { box-shadow: 0 0 0 2px #0a0a0f, 5px 5px 0 #0a0a0f, inset 0 0 0 1px rgba(255, 255, 255, 0.12); }
+:root[data-style~="brutal"] .btn { box-shadow: 0 0 0 2px #0a0a0f, 3px 3px 0 #0a0a0f; }
+:root[data-style~="brutal"] .btn-primary { background: var(--pop-amber); }
+
+/* --- Comic book ---------------------------------------------------------------------------------- */
+:root[data-style~="comic"] :is(.hub__title, .page-shell__title, .settings-page__title) { font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; text-shadow: 2px 2px 0 #0a0a0f; -webkit-text-stroke: 0.6px #0a0a0f; }
+:root[data-style~="comic"] .court__bubble, :root[data-style~="comic"] .card { border-radius: 18px 18px 18px 4px; }
+
+/* --- Halftone ------------------------------------------------------------------------------------ */
+:root[data-style~="halftone"] :is(.card, .hub__head) { background-image: radial-gradient(rgba(255, 255, 255, 0.06) 1.2px, transparent 1.4px); background-size: 7px 7px; }
+
+/* --- Retro VHS ----------------------------------------------------------------------------------- */
+:root[data-style~="vhs"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 999;
+  background: repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 3px);
+  mix-blend-mode: overlay;
+}
+:root[data-style~="vhs"] :is(.hub__title, .page-shell__title, .settings-page__title) { text-shadow: -1.5px 0 rgba(255, 90, 120, 0.55), 1.5px 0 rgba(95, 212, 244, 0.55); }
+
+/* --- Bauhaus ------------------------------------------------------------------------------------- */
+:root[data-style~="bauhaus"] .hub__head { background:
+  radial-gradient(circle at calc(100% - 70px) 34px, #e94f37 0 18px, transparent 19px),
+  linear-gradient(#f6c344, #f6c344) calc(100% - 132px) 16px / 34px 34px no-repeat,
+  linear-gradient(45deg, transparent 50%, #3d6ee0 50%) calc(100% - 26px) 14px / 36px 36px no-repeat; }
+
+/* --- Pixel art ----------------------------------------------------------------------------------- */
+:root[data-style~="pixel"] { --radius: 0px; --radius-lg: 0px; --radius-xl: 2px; }
+:root[data-style~="pixel"] .card { box-shadow: 4px 0 0 0 var(--color-neutral-800), -4px 0 0 0 var(--color-neutral-800), 0 4px 0 0 var(--color-neutral-800), 0 -4px 0 0 var(--color-neutral-800); }
+:root[data-style~="pixel"] :is(.hub__title, .page-shell__title) { font-family: var(--font-mono); text-shadow: 3px 3px 0 var(--color-accent-700); }
+:root[data-style~="pixel"] canvas { image-rendering: pixelated; }
+
+/* --- Blueprint ----------------------------------------------------------------------------------- */
+:root[data-style~="blueprint"] :is(.chat-window__body, .court__room, .settings-page__body) {
+  background-color: #0f1a2e;
+  background-image:
+    linear-gradient(rgba(143, 180, 255, 0.16) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(143, 180, 255, 0.16) 1px, transparent 1px),
+    linear-gradient(rgba(143, 180, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(143, 180, 255, 0.07) 1px, transparent 1px);
+  background-size: 80px 80px, 80px 80px, 16px 16px, 16px 16px;
+}
+
+/* --- Art deco ------------------------------------------------------------------------------------ */
+:root[data-style~="deco"] .card { box-shadow: inset 0 0 0 1px rgba(232, 197, 120, 0.4), inset 0 0 0 4px var(--color-surface), inset 0 0 0 5px rgba(232, 197, 120, 0.22); }
+:root[data-style~="deco"] .hub__head { box-shadow: inset 0 -1px 0 rgba(232, 197, 120, 0.5), inset 0 -4px 0 var(--color-bg), inset 0 -5px 0 rgba(232, 197, 120, 0.25); }
+:root[data-style~="deco"] :is(.hub__title, .settings-page__title)::after { content: " ◆"; color: #e8c578; font-size: 0.6em; vertical-align: middle; }
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-style] * { animation: none !important; }
+  .particle-field { display: none; }
+}
+
+/* --- The mixer itself (Settings › Appearance) ---------------------------------------------------- */
+.style-mix { display: flex; flex-direction: column; gap: 16px; }
+.style-mix__presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
+.style-mix__preset { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 12px 14px; border-radius: var(--radius-lg); background: var(--color-surface-2); box-shadow: inset 0 0 0 1px var(--color-divider); }
+.style-mix__preset small { color: var(--color-neutral-600); font-size: 12px; }
+.style-mix__preset[aria-checked="true"] { box-shadow: inset 0 0 0 2px var(--pop-violet); background: var(--color-accent-900); }
+.style-mix__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; }
+.style-mix__style { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border-radius: var(--radius); cursor: pointer; }
+.style-mix__style:hover { background: var(--color-surface-3); }
+.style-mix__style input { accent-color: var(--pop-violet); margin-top: 3px; }
+.style-mix__style small { display: block; color: var(--color-neutral-600); font-size: 12px; }

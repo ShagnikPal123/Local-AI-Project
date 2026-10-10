@@ -44,6 +44,7 @@ import { VoiceListener } from "./voice/VoiceListener";
 import { ProtoVoiceDock } from "./components/voice/ProtoVoiceDock";
 import { VoiceTopBar } from "./components/voice/VoiceTopBar";
 import { NotchBridge } from "./components/voice/notchBridge";
+import { ParticleField } from "./style/ParticleField";
 
 // Every tab is its own chunk (2026-09-16). The shell used to import all of them up front,
 // three.js and the chart and code views included, so the first paint downloaded ~1.2 MB
@@ -325,6 +326,7 @@ export default function App() {
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <BackgroundLayer />
+      <ParticleField />
       {/* Listens for the sounds you taught it when you are away or offline (N86). */}
       <ClapListener />
       {/* Voice is on (its name, a clap, or Talk): what you are saying and that it is listening (Update 1, U26). */}

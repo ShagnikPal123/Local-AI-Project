@@ -13,7 +13,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState, type Componen
 import { HubContext } from "../Panel";
 import "./windows.css";
 
-export type WindowKind = "game" | "brain" | "screen" | "computer" | "office" | "world" | "court";
+export type WindowKind = "game" | "brain" | "screen" | "computer" | "office" | "world" | "court" | "file" | "email" | "whatsapp" | "graph";
 export type Dock = "right" | "left" | "bottom" | "full";
 
 interface KindDef { title: string; purpose: string; component: LazyExoticComponent<ComponentType<Record<string, unknown>>> }
@@ -28,6 +28,10 @@ export const WINDOW_KINDS: Record<WindowKind, KindDef> = {
   computer: { title: "Ichos Computer", purpose: "Ichos's own sandboxed desktop", component: lazyNamed(() => import("../../panels/computer/OwnComputerPanel"), "OwnComputerPanel") },
   office: { title: "Office & World", purpose: "Your offices of agents and the worlds they grow", component: lazyNamed(() => import("../../panels/OfficeWorldPanel"), "OfficeWorldPanel") },
   world: { title: "World", purpose: "An office grown into a planet", component: lazyNamed(() => import("../../panels/world/WorldPanel"), "WorldPanel") },
+  file: { title: "File", purpose: "A file Ichos read or wrote", component: lazyNamed(() => import("./WorkbenchWindows"), "FileWindow") },
+  email: { title: "Mail", purpose: "Your inbox", component: lazyNamed(() => import("./WorkbenchWindows"), "EmailWindow") },
+  whatsapp: { title: "WhatsApp", purpose: "Texts with your phone", component: lazyNamed(() => import("../../panels/connectors/WhatsAppLine"), "WhatsAppLine") },
+  graph: { title: "Graph", purpose: "Functions you can zoom and pan", component: lazyNamed(() => import("./WorkbenchWindows"), "GraphWindow") },
   court: { title: "Court", purpose: "Agents argue your question before a judge", component: lazyNamed(() => import("../court/CourtWindow"), "CourtWindow") },
 };
 
@@ -48,6 +52,17 @@ const load = (): { open: OpenWindow[]; active: string; dock: Dock; size: number 
   } catch { /* nothing kept */ }
   return { open: [], active: "", dock: "right", size: 0.5 };
 };
+
+/** Things that can be dragged onto the window pane (activity items, mail, files): what to open. */
+export const DRAG_TYPE = "application/x-ichos-open";
+export interface DragOpen { kind: WindowKind; title?: string; props?: Record<string, unknown> }
+export function readDrag(e: React.DragEvent): DragOpen | null {
+  try {
+    const raw = e.dataTransfer.getData(DRAG_TYPE);
+    const item = raw ? JSON.parse(raw) : null;
+    return item && item.kind in WINDOW_KINDS ? item : null;
+  } catch { return null; }
+}
 
 /** Open a window beside the chat from anywhere. */
 export function openChatWindow(kind: WindowKind, title?: string, props?: Record<string, unknown>): void {
@@ -124,6 +139,8 @@ export function ChatWindowPane({ w, containerRef }: { w: Windows; containerRef: 
 
   return (
     <aside
+      onDragOver={(e) => { if (e.dataTransfer.types.includes(DRAG_TYPE)) e.preventDefault(); }}
+      onDrop={(e) => { const item = readDrag(e); if (item) { e.preventDefault(); openChatWindow(item.kind, item.title, item.props); } }}
       className={`chat-window is-${w.dock}`}
       style={w.dock === "full" ? undefined : { [vertical ? "height" : "width"]: `${Math.round(w.size * 100)}%` }}
       aria-label={`${current.title} window`}

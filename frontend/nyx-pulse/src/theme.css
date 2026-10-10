@@ -22,16 +22,18 @@
    ======================================================================== */
 
 :root {
-  /* Redesign 2026-10-10 (docs/DESIGN.md §2): Windows 11 dark resources (WinUI Common_themeresources_any.xaml),
+  /* Redesign v3 2026-10-10 (owner: rounder boxes; colours that pop but not too bright): an ink base with a hint of
+     indigo instead of flat grey, rounder geometry (10/16/24), and a category palette. Structure still from
+     docs/DESIGN.md §2 (Windows 11 dark resources) (WinUI Common_themeresources_any.xaml),
      as solid equivalents over the #202020 base so every existing panel picks them up. The owner's lavender stays the
      accent; native Windows dark mode puts black text on a light accent fill, which is what --color-on-accent does. */
-  --color-bg: #202020;            /* SolidBackgroundFillColorBase */
-  --color-nav: #1c1c1c;           /* SolidBackgroundFillColorSecondary — sidebar, bars */
-  --color-surface: #2b2b2b;       /* CardBackgroundFillColorDefault (5.1% white) */
-  --color-surface-2: #2d2d2d;     /* ControlFillColorDefault (5.9%) */
-  --color-surface-3: #323232;     /* ControlFillColorSecondary (8.2%) — hover */
-  --color-flyout: #2c2c2c;        /* SolidBackgroundFillColorQuarternary — menus, dialogs */
-  --color-text: #ffffff;          /* TextFillColorPrimary 16.3:1 */
+  --color-bg: #121319;            /* SolidBackgroundFillColorBase */
+  --color-nav: #0e0f15;           /* SolidBackgroundFillColorSecondary — sidebar, bars */
+  --color-surface: #1a1c25;       /* CardBackgroundFillColorDefault (5.1% white) */
+  --color-surface-2: #20232f;     /* ControlFillColorDefault (5.9%) */
+  --color-surface-3: #2a2e3e;     /* ControlFillColorSecondary (8.2%) — hover */
+  --color-flyout: #1d202b;        /* SolidBackgroundFillColorQuarternary — menus, dialogs */
+  --color-text: #f3f4fa;          /* TextFillColorPrimary 16.3:1 */
   --color-accent: #a594ff;
   --color-accent-2: #bdb2ff;
   --color-link: #b9adff;
@@ -44,23 +46,34 @@
   --color-neutral-100: #ffffff;
   --color-neutral-200: #ebebeb;
   --color-neutral-300: #dcdcdc;
-  --color-neutral-400: #cccccc;   /* TextFillColorSecondary 77% — 10.2:1 */
-  --color-neutral-500: #c5c5c5;
-  --color-neutral-600: #969696;   /* TextFillColorTertiary 53% — 5.5:1, meta only */
-  --color-neutral-700: #5d5d5d;   /* TextFillColorDisabled — borders/disabled only */
-  --color-neutral-800: #383838;
-  --color-neutral-900: #2a2a2a;
+  --color-neutral-400: #c3c6d6;   /* TextFillColorSecondary 77% — 10.2:1 */
+  --color-neutral-500: #b9bccd;
+  --color-neutral-600: #8c90a6;   /* TextFillColorTertiary 53% — 5.5:1, meta only */
+  --color-neutral-700: #565a70;   /* TextFillColorDisabled — borders/disabled only */
+  --color-neutral-800: #33364a;
+  --color-neutral-900: #252838;
 
   --color-accent-300: #d6ceff;
   --color-accent-400: #bdb2ff;
   --color-accent-500: #a594ff;
   --color-accent-700: #6b5fd0;
-  --color-accent-900: #2e2a45;
+  --color-accent-900: #2b2650;
 
-  --color-ok: #6ccb5f;            /* SystemFillColorSuccess */
-  --color-warn: #fce100;          /* SystemFillColorCaution */
-  --color-danger: #ff99a4;        /* SystemFillColorCritical */
-  --color-info: #60cdff;
+  --color-ok: #6fe3b4;            /* SystemFillColorSuccess */
+  --color-warn: #ffc46b;          /* SystemFillColorCaution */
+  --color-danger: #ff8a8a;        /* SystemFillColorCritical */
+  --color-info: #5fd4f4;
+
+  /* Category colours (redesign v3, owner: "colors that pop while staying not too bright"): ~75% lightness,
+     moderate chroma — vivid on the ink base, never glaring. One colour per kind of thing Ichos touches. */
+  --pop-violet: #a594ff;   /* Ichos itself, chat, AI */
+  --pop-cyan: #5fd4f4;     /* web, links */
+  --pop-mint: #6fe3b4;     /* code */
+  --pop-amber: #ffc46b;    /* files, documents */
+  --pop-coral: #ff8a8a;    /* email */
+  --pop-pink: #f39bd6;     /* docs, notes, creative */
+  --pop-lime: #b8e46a;     /* messages, WhatsApp */
+  --pop-sky: #8fb4ff;      /* agents, system */
 
   /* AI presence (Carbon for AI, re-coloured): only on things an AI is doing right now. */
   --ai-aura: rgba(165, 148, 255, 0.10);
@@ -71,12 +84,12 @@
   --font-mono: "Cascadia Mono", "Cascadia Code", ui-monospace, "JetBrains Mono", Consolas, monospace;
 
   /* Windows 11 geometry: 4 controls, 8 cards/flyouts/dialogs, 12 composer. */
-  --radius: 4px;
-  --radius-lg: 8px;
-  --radius-xl: 12px;
+  --radius: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
   --den: 1;
 
-  --glass-fill: rgba(44, 44, 44, 0.86);
+  --glass-fill: rgba(26, 28, 37, 0.72);
   --glass-edge: rgba(255, 255, 255, 0.08);
   --glass-blur: blur(30px) saturate(1.25);
 
