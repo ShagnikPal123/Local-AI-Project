@@ -28,6 +28,7 @@ const GLYPHS: Record<string, string> = {
   connectors: "M9 15l6-6M10 6l1-1a4.2 4.2 0 0 1 6 6l-1 1M14 18l-1 1a4.2 4.2 0 0 1-6-6l1-1",
   office: "M3 21h18M5 21V5l7-2v18M19 21V9l-7-2M9 9h.01M9 13h.01M9 17h.01",
   equalize: "M4 10v4M8 6v12M12 3v18M16 7v10M20 10v4",
+  predict: "M12 3a7 7 0 0 1 7 7c0 2.6-1.4 4.8-3.5 6H8.5A7 7 0 0 1 12 3zM8 19h8M9.5 21h5M10 9a2 2 0 0 1 2-2",
   admin: "M12 3l8 3v6c0 4.6-3.4 8.5-8 9-4.6-.5-8-4.4-8-9V6l8-3z",
 };
 

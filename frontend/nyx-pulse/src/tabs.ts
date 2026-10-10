@@ -31,6 +31,7 @@ export type TabId =
   | "world"
   | "sketch"
   | "equalize"
+  | "predict"
   | "design_research"
   | "computer"
   | "admin"
@@ -81,6 +82,8 @@ export const CORE_TABS: TabDef[] = [
   // Office Space + World (+ the court they share).
   { id: "office", label: "Office & World", icon: "ph-buildings", pinned: true, core: true },
   { id: "equalize", label: "Equalize", icon: "ph-circles-three", pinned: true, core: true },
+  // A swarm of simulated people forecasts anything (predict.py; the MiroFish idea, owner 2026-10-10).
+  { id: "predict", label: "Predict", icon: "ph-crystal-ball", pinned: true, core: true },
   // Ichos's own computer + Screen Share.
   { id: "computer", label: "Computer", icon: "ph-desktop-tower", pinned: true, core: true },
   // Connectors + Keys & Models + Models + Add capability.

@@ -70,6 +70,7 @@ const ApplyPanel = lazy(() => import("./panels/apply/ApplyPanel").then((m) => ({
 const FreeWillPanel = lazy(() => import("./panels/freewill/FreeWillPanel").then((m) => ({ default: m.FreeWillPanel })));
 const KahunaPanel = lazy(() => import("./panels/kahuna/KahunaPanel").then((m) => ({ default: m.KahunaPanel })));
 const OwnComputerPanel = lazy(() => import("./panels/computer/OwnComputerPanel").then((m) => ({ default: m.OwnComputerPanel })));
+const PredictPanel = lazy(() => import("./panels/predict/PredictPanel").then((m) => ({ default: m.PredictPanel })));
 const OfficeWorldPanel = lazy(() => import("./panels/OfficeWorldPanel").then((m) => ({ default: m.OfficeWorldPanel })));
 const EqualizePanel = lazy(() => import("./panels/equalize/EqualizePanel").then((m) => ({ default: m.EqualizePanel })));
 const AdminPanel = lazy(() => import("./panels/AdminPanel").then((m) => ({ default: m.AdminPanel })));
@@ -452,6 +453,7 @@ export default function App() {
         {active === "freewill" && <FreeWillPanel />}
         {active === "kahuna" && <KahunaPanel />}
         {active === "office" && <OfficeWorldPanel />}
+        {active === "predict" && <PredictPanel />}
         {active === "equalize" && <EqualizePanel />}
         {active === "admin" && <AdminPanel />}
         </Suspense>
