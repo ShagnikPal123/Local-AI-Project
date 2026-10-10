@@ -126,10 +126,24 @@ def _title(head: List[Dict[str, Any]], tail: List[Dict[str, Any]]) -> str:
     return "Untitled session"
 
 
+_CACHE: Dict[str, Any] = {"at": 0.0, "rows": None}
+CACHE_SECONDS = 3.0
+
+
 def sessions(now: Optional[float] = None, base: Optional[Path] = None) -> List[Dict[str, Any]]:
-    """Recent sessions, those that need the owner first, then working, then by last activity."""
-    now = now or time.time()
-    folder = base or root()
+    """Recent sessions, those that need the owner first, then working, then by last activity.
+
+    The Jarvis page asks twice per poll (sessions, and "needs you"), so a live read is reused for a few seconds."""
+    if now is None and base is None:
+        if _CACHE["rows"] is not None and time.time() - _CACHE["at"] < CACHE_SECONDS:
+            return list(_CACHE["rows"])
+        rows = _read(time.time(), root())
+        _CACHE.update(at=time.time(), rows=rows)
+        return list(rows)
+    return _read(now or time.time(), base or root())
+
+
+def _read(now: float, folder: Path) -> List[Dict[str, Any]]:
     if not folder.is_dir():
         return []
     files = []
