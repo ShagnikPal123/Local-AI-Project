@@ -305,10 +305,11 @@ def tool_court_case(question: str, origin: str = "chat") -> str:
 
 def tool_open_window(kind: str, title: str = "") -> str:
     """Open a window beside the chat: game, brain, screen, computer, office, world."""
-    kinds = ("game", "brain", "screen", "computer", "office", "world")
+    kinds = ("game", "brain", "screen", "computer", "office", "world", "email", "whatsapp", "graph", "file")
     wanted = (kind or "").strip().lower()
     aliases = {"game studio": "game", "games": "game", "second brain": "brain", "memory": "brain",
-               "screen share": "screen", "share screen": "screen", "office space": "office"}
+               "screen share": "screen", "share screen": "screen", "office space": "office", "mail": "email",
+               "inbox": "email", "texts": "whatsapp", "messages": "whatsapp", "plot": "graph", "chart": "graph"}
     wanted = aliases.get(wanted, wanted)
     if wanted not in kinds:
         return f"Error: no window called {kind!r}. Choose one of: {', '.join(kinds)}."
@@ -338,10 +339,11 @@ def register_court_tools(registry: Any) -> None:
         name="ui_open_window",
         description="Open a window beside the chat: 'game' (Game Studio — make or play a game), 'brain' (the Second "
                     "Brain memory field), 'screen' (share a screen), 'computer' (Ichos's own computer), 'office' or "
-                    "'world' (offices of agents and their worlds). Use when the owner asks to make a game, see the "
-                    "brain, share their screen, or create/open an office or world.",
-        parameters=[ToolParam("kind", "string", "game, brain, screen, computer, office or world",
-                              enum_values=["game", "brain", "screen", "computer", "office", "world"]),
+                    "'world' (offices of agents and their worlds), 'email' (the inbox), 'whatsapp' (texts), 'graph' (an "
+                    "empty plotter — use plot_function for a specific function). Use when the owner asks to make a "
+                    "game, see the brain, share their screen, open mail or texts, or create/open an office or world.",
+        parameters=[ToolParam("kind", "string", "game, brain, screen, computer, office, world, email, whatsapp or graph",
+                              enum_values=["game", "brain", "screen", "computer", "office", "world", "email", "whatsapp", "graph"]),
                     ToolParam("title", "string", "Optional window title", required=False)],
         handler=tool_open_window, category="ui", label=lambda a: f"Opening {a.get('kind', '')}",
     )
