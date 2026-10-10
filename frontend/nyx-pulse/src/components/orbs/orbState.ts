@@ -23,8 +23,10 @@ const RULES: Array<[OrbState, RegExp]> = [
 
 /** The orb for a free-text status ("Searching the web…") or tool label. */
 export function orbStateFor(text: string | null | undefined, fallback: OrbState = "breathing"): OrbState {
-  if (!text) return fallback;
-  for (const [state, pattern] of RULES) if (pattern.test(text)) return state;
+  // Model ids ("ollama:nyx-absorbed:latest is thinking") name who, not what.
+  const what = text?.replace(/\S+:\S+/g, " ");
+  if (!what?.trim()) return fallback;
+  for (const [state, pattern] of RULES) if (pattern.test(what)) return state;
   return fallback;
 }
 

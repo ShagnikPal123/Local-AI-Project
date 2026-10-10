@@ -1,0 +1,187 @@
+/* Thought-orbs (thinking-orbs engine, Ichos colours). */
+
+.ichos-orb {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: var(--orb-size);
+  height: var(--orb-size);
+  vertical-align: middle;
+}
+.ichos-orb__canvas {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+/* The halo is a cheap CSS gradient, never a canvas filter. */
+.ichos-orb[data-glow="true"]::before {
+  content: "";
+  position: absolute;
+  inset: -22%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--orb-glow, var(--color-accent)) 26%, transparent), transparent 72%);
+  animation: ichos-orb-glow 4.8s ease-in-out infinite;
+  pointer-events: none;
+}
+.ichos-orb[data-tone="ok"] { --orb-glow: var(--color-ok); }
+.ichos-orb[data-tone="danger"] { --orb-glow: var(--color-danger); }
+.ichos-orb[data-tone="mono"] { --orb-glow: var(--color-neutral-600); }
+@keyframes ichos-orb-glow {
+  0%, 100% { opacity: 0.55; transform: scale(0.94); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ichos-orb[data-glow="true"]::before { animation: none; }
+}
+
+/* ---- Live status line in a running turn ---------------------------------- */
+.orb-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--color-neutral-400);
+}
+.orb-status__text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.orb-status__verb {
+  flex: none;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--color-accent-2);
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 28%, transparent);
+}
+/* Before the first word arrives the orb is the whole message. */
+.orb-status[data-big="true"] { gap: 14px; font-size: 13px; margin-bottom: 4px; }
+.orb-status[data-big="true"] .orb-status__text { white-space: normal; }
+
+/* ---- Inline loading line ------------------------------------------------- */
+.orb-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-neutral-500);
+  font-size: 13px;
+}
+
+/* ---- Empty chat: the orb gallery ----------------------------------------- */
+.orb-hero {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding: 28px 12px 18px;
+  text-align: center;
+}
+.orb-hero__stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 168px;
+  height: 168px;
+}
+.orb-hero__stage::after {
+  /* a faint orbit ring around the orb */
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  border: 1px dashed color-mix(in srgb, var(--color-accent) 22%, transparent);
+  animation: ichos-orb-spin 60s linear infinite;
+}
+@keyframes ichos-orb-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .orb-hero__stage::after { animation: none; } }
+.orb-hero__title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--color-neutral-100, #fff);
+}
+.orb-hero__caption {
+  min-height: 1.5em;
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-neutral-400);
+}
+.orb-hero__caption b { color: var(--color-accent-2); font-weight: 600; }
+.orb-hero__legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  max-width: 560px;
+}
+.orb-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 6px;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--color-neutral-400);
+  background: color-mix(in srgb, var(--color-surface) 70%, transparent);
+  box-shadow: inset 0 0 0 1px var(--color-divider);
+  cursor: pointer;
+  transition: color 120ms, box-shadow 120ms, background 120ms;
+}
+.orb-chip:hover { color: var(--color-neutral-100, #fff); }
+.orb-chip[aria-pressed="true"] {
+  color: var(--color-accent-2);
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 45%, transparent);
+}
+.orb-chip:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.orb-hero__intro {
+  max-width: 560px;
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-neutral-500);
+}
+.orb-suggestions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+  width: 100%;
+  max-width: 720px;
+  margin-top: 8px;
+}
+.orb-suggestion {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: left;
+  color: var(--color-neutral-300, var(--color-neutral-400));
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-divider);
+  cursor: pointer;
+  transition: box-shadow 140ms, transform 140ms;
+}
+.orb-suggestion:hover {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 50%, transparent);
+  transform: translateY(-1px);
+}
+.orb-suggestion:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .orb-suggestion:hover { transform: none; } }
+
+/* ---- Header avatar: an orb ring behind the character while busy ---------- */
+.nyx-avatar__orb {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  opacity: 0.95;
+}

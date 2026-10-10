@@ -13,6 +13,7 @@
     "@vitejs/plugin-react": "latest",
     "react": "latest",
     "react-dom": "latest",
+    "thinking-orbs": "0.3.1",
     "three": "^0.186.0",
     "three-bvh-csg": "^0.0.18",
     "three-mesh-bvh": "^0.9.15",
