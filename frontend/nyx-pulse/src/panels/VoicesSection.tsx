@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { onWorkspaceEvent } from "../state/workspaceEvents";
 import { speakText } from "../voice/voicePlayer";
+import { VoicePicker } from "../components/voice/VoicePicker";
 
 interface Voice { id: string; name: string; locale: string; gender: string; engine: string }
 
@@ -26,6 +27,7 @@ export function VoicesSection() {
   const [windowsVoices, setWindowsVoices] = useState<Voice[]>([]);
   const [locale, setLocale] = useState("en");
   const [message, setMessage] = useState("");
+  const [picking, setPicking] = useState("");
 
   const loadRoles = useCallback(async () => {
     const r = await api.get<{ roles: Record<string, string> }>("/api/voice/roles");
@@ -63,7 +65,7 @@ export function VoicesSection() {
   return (
     <div>
       <p style={{ fontSize: 12, color: "var(--color-neutral-500)", lineHeight: 1.6, margin: "0 0 8px" }}>
-        Neural voices need internet; Windows voices work offline. Press ▶ to hear one. You can also ask Nyx:
+        Neural voices need internet; Windows voices work offline. Press ▶ to hear a role's voice, or Change to hover through the voices and hear each one. You can also ask Nyx:
         “give the coder a British voice”.
       </p>
       <label className="keys-field" style={{ maxWidth: 220, marginBottom: 8 }}>
@@ -88,6 +90,14 @@ export function VoicesSection() {
             </select>
             <button className="btn btn-secondary btn-sm" type="button" aria-label={`Preview ${ROLE_LABELS[role] ?? role}`}
               onClick={() => void preview(role)}>▶</button>
+            <button className="btn btn-secondary btn-sm" type="button" aria-expanded={picking === role}
+              onClick={() => setPicking((p) => (p === role ? "" : role))}>{picking === role ? "Done" : "Change"}</button>
+            {picking === role && (
+              <div style={{ flexBasis: "100%" }}>
+                <VoicePicker voices={options} value={voice} label={`Voices for ${ROLE_LABELS[role] ?? role}`}
+                  onPick={(id) => void choose(role, id)} />
+              </div>
+            )}
           </div>
         ))}
       </div>
