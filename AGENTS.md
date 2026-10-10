@@ -130,6 +130,8 @@ Each has an enforcement point in code. Do not weaken them.
 | `overlay.py` | Published, install-wide changes + checkpoints |
 | `profiles.py` | Per-user layered customization |
 | `dynamic_tabs.py` / `widgets.py` / `skills.py` | The three declarative spec systems |
+| `taint_gate.py` | After a turn reads outside content, risky actions in it ask the owner (checked in `tools.call_tool`) |
+| `morning_digest.py` / `claude_sessions.py` | The Jarvis tab: daily briefing; Claude Code sessions by state |
 | `whatsapp_link.py` | The owner's WhatsApp line: pairing, the PC tie, phone turns behind a guard (helper in `whatsapp_worker/`) |
 | `site_preview.py` | Serving a built site or web game until stopped, and zipping it for download |
 | `sketch_studio.py` | The Create tab: drawing as checked shape data, scan, picture |
