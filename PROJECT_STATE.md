@@ -362,7 +362,7 @@ not started.
 
 ---
 
-### Session 4 — 2026-08-26 (loop, 10-min equalize)
+### Session 4 — 2026-08-26 (loop, 10-min cadence)
 
 **Front end shell built and building clean.** `frontend/nyx-pulse` now has the real
 workspace from the design handoff:

@@ -415,7 +415,7 @@ function AiTaskBlock({ config }: { config: Record<string, unknown> }) {
 
   useEffect(() => {
     if (everyMinutes < 5 || !prompt) return;
-    // A equalize makes the task ready; it never spends a user's model budget on
+    // A cadence makes the task ready; it never spends a user's model budget on
     // its own. The owner still chooses when the request is actually sent.
     const interval = window.setInterval(() => setReady(true), everyMinutes * 60_000);
     return () => window.clearInterval(interval);
