@@ -1,6 +1,7 @@
 .env
 .env.*
-!.env.example
+# .env.example files stay local (ship check, 2026-10-10)
+.env.example
 __pycache__/
 .pytest_cache/
 models/
