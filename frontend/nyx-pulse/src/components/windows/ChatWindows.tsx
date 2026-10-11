@@ -13,7 +13,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState, type Componen
 import { HubContext } from "../Panel";
 import "./windows.css";
 
-export type WindowKind = "game" | "brain" | "screen" | "computer" | "office" | "world" | "court" | "file" | "email" | "whatsapp" | "graph";
+export type WindowKind = "game" | "brain" | "screen" | "computer" | "office" | "world" | "court" | "file" | "email" | "whatsapp" | "graph" | "build" | "notes" | "quiz" | "s2c";
 export type Dock = "right" | "left" | "bottom" | "full";
 
 interface KindDef { title: string; purpose: string; component: LazyExoticComponent<ComponentType<Record<string, unknown>>> }
@@ -32,6 +32,10 @@ export const WINDOW_KINDS: Record<WindowKind, KindDef> = {
   email: { title: "Mail", purpose: "Your inbox", component: lazyNamed(() => import("./WorkbenchWindows"), "EmailWindow") },
   whatsapp: { title: "WhatsApp", purpose: "Texts with your phone", component: lazyNamed(() => import("../../panels/connectors/WhatsAppLine"), "WhatsAppLine") },
   graph: { title: "Graph", purpose: "Functions you can zoom and pan", component: lazyNamed(() => import("./WorkbenchWindows"), "GraphWindow") },
+  build: { title: "Build", purpose: "3D parts and assemblies", component: lazyNamed(() => import("../../panels/BuildPanel"), "BuildPanel") },
+  notes: { title: "Notes", purpose: "Your notes", component: lazyNamed(() => import("../../panels/notes/NotesPanel"), "NotesPanel") },
+  quiz: { title: "Quiz", purpose: "Questions and flashcards, timed", component: lazyNamed(() => import("./StudyWindows"), "QuizWindow") },
+  s2c: { title: "Screenshot → Code", purpose: "A UI image made into a page", component: lazyNamed(() => import("./StudyWindows"), "ScreenshotCodeWindow") },
   court: { title: "Court", purpose: "Agents argue your question before a judge", component: lazyNamed(() => import("../court/CourtWindow"), "CourtWindow") },
 };
 
@@ -82,7 +86,8 @@ export function useChatWindows() {
 
   useEffect(() => {
     const onOpen = (event: Event) => {
-      const detail = (event as CustomEvent<{ kind?: string; title?: string; props?: Record<string, unknown> }>).detail ?? {};
+      const detail = (event as CustomEvent<{ kind?: string; title?: string; props?: Record<string, unknown>; dock?: Dock }>).detail ?? {};
+      if (detail.dock && ["right", "left", "bottom", "full"].includes(detail.dock)) setDock(detail.dock);
       const kind = detail.kind as WindowKind;
       if (!kind || !(kind in WINDOW_KINDS)) return;
       setOpen((current) => {

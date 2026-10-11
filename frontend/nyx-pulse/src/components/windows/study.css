@@ -1,0 +1,40 @@
+.study { display: flex; flex-direction: column; gap: 12px; padding: 16px; min-height: 0; height: 100%; overflow-y: auto; }
+.study__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.study__head b { font-size: 16px; }
+.study__head select { font: inherit; color: inherit; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--color-divider); background: var(--color-surface-2); }
+.study__body { display: flex; flex-direction: column; gap: 12px; }
+.study__progress { height: 6px; border-radius: 999px; background: var(--color-surface-2); overflow: hidden; }
+.study__progress span { display: block; height: 100%; background: var(--color-accent); border-radius: 999px; transition: width 300ms var(--ease-out); }
+.study__count { margin: 0; color: var(--color-neutral-600); font-size: 13px; }
+.study__q { margin: 0; font-size: 18px; line-height: 26px; font-weight: 600; }
+.study__choices { display: grid; gap: 8px; }
+.study__choice { text-align: left; padding: 12px 16px; border-radius: 16px; background: var(--color-surface-2); box-shadow: inset 0 0 0 1px var(--color-divider); }
+.study__choice:hover:not(:disabled) { background: var(--color-surface-3); }
+.study__choice.is-right { box-shadow: inset 0 0 0 2px var(--color-ok); }
+.study__choice.is-wrong { box-shadow: inset 0 0 0 2px var(--color-danger); }
+.study__type { display: flex; gap: 8px; }
+.study__type input, .s2c__input textarea { flex: 1; min-width: 0; font: inherit; color: inherit; padding: 10px 14px; border-radius: 999px; border: 1px solid var(--color-divider); background: var(--color-surface-2); }
+.s2c__input textarea { border-radius: 16px; resize: vertical; }
+.study__feedback { padding: 12px 16px; border-radius: 16px; display: grid; gap: 8px; justify-items: start; }
+.study__feedback.is-right { background: color-mix(in srgb, var(--color-ok) 14%, transparent); }
+.study__feedback.is-wrong { background: color-mix(in srgb, var(--color-danger) 14%, transparent); }
+.study__feedback p { margin: 0; color: var(--color-neutral-300); }
+.study__log { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.study__log li { padding: 8px 12px; border-radius: 12px; background: var(--color-surface-2); font-size: 13px; }
+.study__log li.is-wrong { box-shadow: inset 3px 0 0 var(--color-danger); }
+.study__log li.is-right { box-shadow: inset 3px 0 0 var(--color-ok); }
+.study__log small { color: var(--color-neutral-600); margin-left: 6px; }
+.study__row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.study__card { position: relative; min-height: 220px; border-radius: 24px; perspective: 900px; background: none; }
+.study__face { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; border-radius: 24px; font-size: 18px; text-align: center;
+  background: var(--color-surface-2); box-shadow: inset 0 0 0 1px var(--color-divider); backface-visibility: hidden; transition: transform 420ms var(--ease-out); }
+.study__face--back { transform: rotateY(180deg); background: var(--color-accent-900); }
+.study__card.is-flipped .study__face { transform: rotateY(180deg); }
+.study__card.is-flipped .study__face--back { transform: rotateY(360deg); }
+.study__error { margin: 0; color: var(--color-danger); }
+.s2c__input { display: grid; gap: 8px; }
+.s2c__drop { display: grid; place-items: center; min-height: 120px; border-radius: 20px; border: 2px dashed var(--color-divider-strong); cursor: pointer; color: var(--color-neutral-400); overflow: hidden; }
+.s2c__drop img { max-width: 100%; max-height: 220px; object-fit: contain; }
+.s2c__frame { width: 100%; min-height: 420px; flex: 1; border: 0; border-radius: 16px; background: #fff; }
+.s2c__code { margin: 0; max-height: 420px; overflow: auto; padding: 14px; border-radius: 16px; background: var(--color-surface); font: 12px/1.5 var(--font-mono); white-space: pre-wrap; }
+@media (prefers-reduced-motion: reduce) { .study__face { transition: none; } }

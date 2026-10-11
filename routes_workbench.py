@@ -10,6 +10,7 @@ checked against a short list of known functions and variables.
 from __future__ import annotations
 
 import base64
+import json
 import math
 import mimetypes
 import re
@@ -245,6 +246,7 @@ def register_workbench_tools(registry: Any) -> None:
     from tools import ToolParam
 
     register_s2c_tool(registry)
+    register_quiz_tool(registry)
 
     registry.register(
         name="plot_function",
@@ -422,4 +424,82 @@ def register_s2c_tool(registry: Any) -> None:
                               required=False, enum_values=list(S2C_STACKS)),
                     ToolParam("notes", "string", "Anything the owner said about the design", required=False)],
         handler=tool_screenshot_to_code, category="general", label="Opening Screenshot to Code",
+    )
+
+
+# --- quizzes and flashcards (owner, 2026-10-10: "allow for the creation of quizzes similar to gemini so it opens on the
+# right as a bar the user can use and they can have flashcards, the AI analyses the time they take and answers") -----
+
+
+def build_quiz(topic: str, kind: str = "quiz", count: int = 8, notes: str = "", ask: Any = None) -> Dict[str, Any]:
+    topic = (topic or "").strip()
+    if not topic:
+        raise ValueError("Say what the quiz is about.")
+    kind = kind if kind in ("quiz", "flashcards", "both") else "quiz"
+    count = max(3, min(20, int(count or 8)))
+    prompt = (f"Make a study set about: {topic}\n{('Use this material: ' + notes[:6000]) if notes.strip() else ''}\n"
+              f"Reply with JSON only: {{\"title\": \"<short>\", \"questions\": [{{\"q\": \"…\", \"choices\": [\"…\", \"…\", "
+              f"\"…\", \"…\"], \"answer\": \"<exactly one of the choices>\", \"explain\": \"<one sentence>\"}}], "
+              f"\"cards\": [{{\"front\": \"…\", \"back\": \"…\"}}]}}. "
+              + ("Give " + str(count) + " multiple-choice questions, mixing easy and hard, and no cards. " if kind == "quiz" else "")
+              + ("Give " + str(count) + " flashcards and no questions. " if kind == "flashcards" else "")
+              + ("Give " + str(count) + " questions and " + str(count) + " flashcards. " if kind == "both" else "")
+              + "Facts must be correct; skip anything you are unsure of.")
+    if ask is None:
+        from agent_runtime import _router
+
+        reply, _provider = _router().chat([{"role": "user", "content": prompt}])
+    else:
+        reply = ask(prompt)
+    match = re.search(r"\{.*\}", reply or "", re.S)
+    try:
+        data = json.loads(match.group(0)) if match else {}
+    except ValueError:
+        data = {}
+    questions = []
+    for item in data.get("questions") or []:
+        if not isinstance(item, dict) or not item.get("q") or not item.get("answer"):
+            continue
+        choices = [str(c)[:200] for c in (item.get("choices") or [])][:6]
+        answer = str(item["answer"])[:200]
+        if choices and answer not in choices:
+            continue
+        questions.append({"q": str(item["q"])[:400], "choices": choices, "answer": answer,
+                          "explain": str(item.get("explain", ""))[:400]})
+    cards = [{"front": str(c.get("front", ""))[:300], "back": str(c.get("back", ""))[:400]}
+             for c in (data.get("cards") or []) if isinstance(c, dict) and c.get("front") and c.get("back")]
+    if not questions and not cards:
+        raise ValueError("The model did not return a usable quiz. Try a more specific topic.")
+    return {"title": str(data.get("title") or topic)[:80], "questions": questions[:count], "cards": cards[:count]}
+
+
+def tool_make_quiz(topic: str, kind: str = "quiz", count: int = 8, notes: str = "") -> str:
+    try:
+        quiz = build_quiz(topic, kind, count, notes)
+    except Exception as error:  # noqa: BLE001
+        return f"Error: {error}"
+    try:
+        from agent_events import publish_ui
+
+        publish_ui("ui.open_window", kind="quiz", title=quiz["title"], props=quiz)
+    except Exception:  # noqa: BLE001
+        pass
+    return (f"Opened '{quiz['title']}' as a bar on the right: {len(quiz['questions'])} questions, {len(quiz['cards'])} "
+            "flashcards. It times every answer; when the owner finishes it sends the results here — then analyse what "
+            "they know, what they guessed (fast but wrong, slow but right) and what to review. Do not list the questions in chat.")
+
+
+def register_quiz_tool(registry: Any) -> None:
+    from tools import ToolParam
+
+    registry.register(
+        name="make_quiz",
+        description="Make a quiz (multiple choice) and/or flashcards on a topic; they open as a bar on the right where "
+                    "the owner answers, timed. Use when the owner asks to be quizzed, tested, or wants flashcards.",
+        parameters=[ToolParam("topic", "string", "What to quiz on"),
+                    ToolParam("kind", "string", "quiz, flashcards or both", required=False,
+                              enum_values=["quiz", "flashcards", "both"]),
+                    ToolParam("count", "number", "How many (3-20)", required=False),
+                    ToolParam("notes", "string", "Material to quiz from (notes, a chapter), if any", required=False)],
+        handler=tool_make_quiz, category="general", label="Making a quiz",
     )

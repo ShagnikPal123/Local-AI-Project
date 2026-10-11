@@ -66,3 +66,16 @@ def test_screenshot_tool_opens_the_window(monkeypatch):
     monkeypatch.setattr(agent_events, "publish_ui", lambda type, **p: sent.append((type, p)))
     assert "Screenshot to Code" in wb.tool_screenshot_to_code("C:/x/shot.png")
     assert sent[-1][1]["kind"] == "s2c" and sent[-1][1]["props"]["path"] == "C:/x/shot.png"
+
+
+def test_quiz_keeps_only_well_formed_questions():
+    reply = ('{"title": "Cells", "questions": ['
+             '{"q": "Powerhouse?", "choices": ["Mitochondria", "Nucleus"], "answer": "Mitochondria", "explain": "ATP."},'
+             '{"q": "Bad", "choices": ["A", "B"], "answer": "C"},'
+             '{"q": "No answer"}], "cards": [{"front": "ATP", "back": "Energy currency"}, {"front": ""}]}')
+    quiz = wb.build_quiz("cell biology", "both", 5, ask=lambda p: reply)
+    assert quiz["title"] == "Cells" and len(quiz["questions"]) == 1 and len(quiz["cards"]) == 1
+    with pytest.raises(ValueError):
+        wb.build_quiz("x", ask=lambda p: "no json")
+    with pytest.raises(ValueError):
+        wb.build_quiz("  ", ask=lambda p: reply)

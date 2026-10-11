@@ -10,6 +10,7 @@
  * choice matters: it applies to the next message, not retroactively.
  */
 
+import { takeAbilitiesNote } from "../state/abilities";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   api,
@@ -515,7 +516,7 @@ export function ChatPanel({
       setDraft("");
       for (const attachment of pending) removeAttachment(attachment.localId);
       onSent?.(body);
-      await send({ message: body || "Please look at the attached file(s).", chatId: activeChatId, attachmentIds,
+      await send({ message: (body || "Please look at the attached file(s).") + takeAbilitiesNote(), chatId: activeChatId, attachmentIds,
                    provider: talkOn ? voiceProvider || provider : provider, voice: talkOn,
                    voiceSession, mode: modeOverride ?? chatMode });
     },

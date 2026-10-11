@@ -91,7 +91,7 @@ export default function App() {
     if (moved.kind === "settings") { setSettings({ open: true, page: moved.page }); return; }
     if (moved.kind === "window") {
       setActiveRaw("nyx");
-      window.setTimeout(() => window.dispatchEvent(new CustomEvent("ichos:open-window", { detail: { kind: moved.window } })), 0);
+      window.setTimeout(() => window.dispatchEvent(new CustomEvent("ichos:open-window", { detail: { kind: moved.window, dock: "full" } })), 0);
       return;
     }
     if (moved.section) openSection(moved.tab, moved.section);

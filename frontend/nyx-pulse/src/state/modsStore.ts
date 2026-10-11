@@ -9,6 +9,7 @@
  * for them before, so "make it teal" and "open my notes" were saved and never shown.
  */
 
+import { offerWindow } from "./abilities";
 import { api } from "../api";
 import { createStore, useStore } from "./store";
 import { onWorkspaceEvent } from "./workspaceEvents";
@@ -171,7 +172,10 @@ export function startMods(): () => void {
       // Nyx opened a window beside the chat (ui_open_window, court_case): show the chat, then the window.
       window.dispatchEvent(new CustomEvent("nyx:open-tab", { detail: { tab: "nyx" } }));
       const detail = { kind: event.kind, title: event.title, props: event.props };
-      window.setTimeout(() => window.dispatchEvent(new CustomEvent("ichos:open-window", { detail })), 50);
+      // Owner, 2026-10-10: a pane jumping open on the right "seems a bit odd" — what Ichos makes arrives as a rounded
+      // box above the message instead (double-click to open). A quiz is the exception: it opens as a bar on the right.
+      if (event.kind === "quiz") window.setTimeout(() => window.dispatchEvent(new CustomEvent("ichos:open-window", { detail: { ...detail, dock: "right" } })), 50);
+      else offerWindow(String(event.kind), typeof event.title === "string" ? event.title : undefined, event.props as Record<string, unknown> | undefined);
     } else if (event.type === "tabs.changed") {
       window.dispatchEvent(new CustomEvent("nyx:tabs-changed"));
     }

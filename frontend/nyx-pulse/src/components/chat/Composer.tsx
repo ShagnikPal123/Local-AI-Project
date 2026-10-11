@@ -15,6 +15,7 @@ import { SlashMenu, useSlashRows, commandsIn } from "./SlashMenu";
 import { usePasteFiles } from "../../files/fileIntake";
 import { ComposerLinks } from "./ComposerLinks";
 import "../windows/windows.css";
+import { ABILITIES, onBoxes, openBox, offerWindow, pickAbility, removeBox, type Box } from "../../state/abilities";
 
 const BUSY_LABELS: Record<BusyMode, { short: string; long: string }> = {
   queue: { short: "Queue", long: "Queue — send when this answer finishes" },
@@ -287,6 +288,8 @@ export function Composer({
         </div>
       )}
 
+      <AbilityBoxes />
+
       {attachments.length > 0 && (
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           {attachments.map((attachment) => (
@@ -306,14 +309,14 @@ export function Composer({
             e.target.value = "";
           }}
         />
-        <PlusMenu
+        <FilesMenu
           disabled={busy || disabled}
           onAttach={() => fileRef.current?.click()}
+        />
+        <AbilitiesMenu
+          disabled={busy || disabled}
           onSkill={() => { onChange("/"); textareaRef.current?.focus(); }}
-          onCourt={() => {
-            if (value.trim()) { onChange(`/court ${value.trim()}`); textareaRef.current?.focus(); }
-            else window.dispatchEvent(new CustomEvent("ichos:open-window", { detail: { kind: "court" } }));
-          }}
+          onAgent={() => { onChange(value ? `${value.replace(/\s+$/, "")} @` : "@"); textareaRef.current?.focus(); }}
         />
 
         <div className="composer-box">
@@ -447,15 +450,10 @@ export function Composer({
   );
 }
 
-/** The + beside the box (redesign 2026-10-10): attach, and the things the chat can do instead of tabs — share the
- * screen, use a skill, put a question on trial, open a window (owner: "have screen share as a choice in there where
- * you tell the AI you want to screen share or use a skill"). */
-function PlusMenu({ disabled, onAttach, onSkill, onCourt }: {
-  disabled?: boolean;
-  onAttach: () => void;
-  onSkill: () => void;
-  onCourt: () => void;
-}) {
+/** Two menus beside the box (owner, 2026-10-10: "a divide, 1 for files and similar things, the other for skills/agent
+ * calls with the ability for the other tabs you have now"). Files attach straight away; an ability becomes a rounded
+ * box above the message (state/abilities.ts) that tells Ichos it may use it — double-click a box to open it. */
+function useMenu() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -466,35 +464,80 @@ function PlusMenu({ disabled, onAttach, onSkill, onCourt }: {
     document.addEventListener("keydown", esc);
     return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); };
   }, [open]);
-  const win = (kind: string) => window.dispatchEvent(new CustomEvent("ichos:open-window", { detail: { kind } }));
-  const item = (glyph: string, label: string, hint: string, run: () => void) => (
-    <button type="button" role="menuitem" className="plus-menu__item" onClick={() => { setOpen(false); run(); }}>
+  return { open, setOpen, ref };
+}
+
+function MenuItem({ glyph, label, hint, onPick }: { glyph: string; label: string; hint: string; onPick: () => void }) {
+  return (
+    <button type="button" role="menuitem" className="plus-menu__item" onClick={onPick}>
       <span className="plus-menu__glyph" aria-hidden="true">{glyph}</span>
       <span>{label}<small>{hint}</small></span>
     </button>
   );
+}
+
+function FilesMenu({ disabled, onAttach }: { disabled?: boolean; onAttach: () => void }) {
+  const { open, setOpen, ref } = useMenu();
+  const win = (kind: string) => offerWindow(kind);
+  const pick = (run: () => void) => () => { setOpen(false); run(); };
   return (
     <div className="plus-menu" ref={ref}>
       <button type="button" className="btn btn-secondary plus-menu__button" aria-haspopup="menu" aria-expanded={open}
-        aria-label="Attach, share your screen, use a skill, or open a window" title="Attach, share screen, skills, windows"
-        disabled={disabled} onClick={() => setOpen((v) => !v)}>+</button>
+        aria-label="Add files, a screen or a file from this PC" title="Files" disabled={disabled} onClick={() => setOpen((v) => !v)}>+</button>
       {open && (
-        <div className="plus-menu__list" role="menu">
-          {item("⎘", "Attach files", "Images and documents", onAttach)}
-          {item("▣", "Share your screen", "Ichos looks and helps step by step", () => win("screen"))}
-          {item("/", "Use a skill", "Commands and skills Ichos knows", onSkill)}
-          {item("⚖", "Put it on trial", "Bots argue it before three judges", onCourt)}
-          <div className="plus-menu__title">Open a window</div>
-          {item("◆", "Game Studio", "Make or play a game", () => win("game"))}
-          {item("◎", "Second Brain", "Everything Ichos remembers", () => win("brain"))}
-          {item("▦", "Office & World", "Your offices of agents and their worlds", () => win("office"))}
-          {item("▭", "Ichos Computer", "Its own sandboxed desktop", () => win("computer"))}
-          {item("✉", "Mail", "Your inbox, beside the chat", () => win("email"))}
-          {item("✆", "Texts", "WhatsApp with your phone", () => win("whatsapp"))}
-          {item("∿", "Graph", "Plot functions, then derive or solve", () => win("graph"))}
-          {item("▤", "A file", "Open any file from this PC", () => win("file"))}
+        <div className="plus-menu__list" role="menu" aria-label="Files">
+          <div className="plus-menu__title">Files</div>
+          <MenuItem glyph="⎘" label="Attach files" hint="Images, documents, video" onPick={pick(onAttach)} />
+          <MenuItem glyph="▤" label="A file from this PC" hint="Open any file by its path" onPick={pick(() => win("file"))} />
+          <MenuItem glyph="▣" label="Share your screen" hint="Ichos looks and helps step by step" onPick={pick(() => win("screen"))} />
+          <MenuItem glyph="⌘" label="Screenshot → Code" hint="Turn a UI image into a page" onPick={pick(() => pickAbility("s2c"))} />
         </div>
       )}
+    </div>
+  );
+}
+
+function AbilitiesMenu({ disabled, onSkill, onAgent }: { disabled?: boolean; onSkill: () => void; onAgent: () => void }) {
+  const { open, setOpen, ref } = useMenu();
+  const pick = (run: () => void) => () => { setOpen(false); run(); };
+  return (
+    <div className="plus-menu" ref={ref}>
+      <button type="button" className="btn btn-secondary plus-menu__button" aria-haspopup="menu" aria-expanded={open}
+        aria-label="Skills, agents and abilities" title="Skills, agents and abilities" disabled={disabled} onClick={() => setOpen((v) => !v)}>✦</button>
+      {open && (
+        <div className="plus-menu__list plus-menu__list--wide" role="menu" aria-label="Abilities">
+          <div className="plus-menu__title">Skills and agents</div>
+          <MenuItem glyph="/" label="Use a skill" hint="Commands and skills Ichos knows" onPick={pick(onSkill)} />
+          <MenuItem glyph="@" label="Ask an agent" hint="Hand this to one of your agents" onPick={pick(onAgent)} />
+          <div className="plus-menu__title">Abilities — added as a box; double-click a box to open it</div>
+          <div className="plus-menu__grid">
+            {ABILITIES.filter((a) => a.id !== "s2c").map((a) => (
+              <MenuItem key={a.id} glyph={a.glyph} label={a.label} hint={a.hint} onPick={pick(() => pickAbility(a.id))} />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The rounded boxes: abilities you added and things Ichos made. Double-click opens one full size. */
+function AbilityBoxes() {
+  const [boxes, setBoxes] = useState<Box[]>([]);
+  useEffect(() => onBoxes(setBoxes), []);
+  if (!boxes.length) return null;
+  return (
+    <div className="ability-boxes" aria-label="Abilities in this chat">
+      {boxes.map((box) => (
+        <div key={box.key} className={`ability-box is-${box.kind}`} role="group" aria-label={box.label}
+          title={box.kind === "picked" ? "Ichos may use this in your next message · double-click to open" : "Ichos made this · double-click to open"}
+          onDoubleClick={() => openBox(box)}>
+          <span className="ability-box__glyph" aria-hidden="true">{box.glyph}</span>
+          <span className="ability-box__text"><b>{box.label}</b><small>{box.kind === "picked" ? "Added" : "Ready — double-click"}</small></span>
+          <button type="button" className="ability-box__open" onClick={() => openBox(box)} aria-label={`Open ${box.label}`}>Open</button>
+          <button type="button" className="ability-box__close" onClick={() => removeBox(box.key)} aria-label={`Remove ${box.label}`}>✕</button>
+        </div>
+      ))}
     </div>
   );
 }

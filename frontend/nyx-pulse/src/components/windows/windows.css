@@ -88,3 +88,24 @@
 
 .chat-shell__row { flex: 1; min-height: 0; display: flex; position: relative; }
 .chat-shell__row > .chat-home { flex: 1; min-width: 0; height: auto; }
+
+/* Abilities as rounded boxes above the message (state/abilities.ts). */
+.plus-menu + .plus-menu { margin-left: -2px; }
+.plus-menu__list--wide { width: 520px; max-height: 70vh; overflow-y: auto; }
+.plus-menu__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
+.ability-boxes { display: flex; flex-wrap: wrap; gap: 8px; }
+.ability-box {
+  display: inline-flex; align-items: center; gap: 10px; padding: 6px 6px 6px 8px; border-radius: 18px;
+  background: var(--color-surface-2); box-shadow: inset 0 0 0 1px var(--color-divider); cursor: default; user-select: none;
+  animation: box-in 260ms var(--ease-out) both;
+}
+.ability-box.is-offered { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--color-accent) 60%, transparent), 0 0 18px color-mix(in srgb, var(--color-accent) 18%, transparent); }
+.ability-box__glyph { width: 32px; height: 32px; border-radius: 12px; display: grid; place-items: center; font-weight: 700; color: var(--color-accent); background: color-mix(in srgb, var(--color-accent) 16%, transparent); }
+.ability-box__text { display: grid; line-height: 1.2; }
+.ability-box__text b { font-size: 13px; font-weight: 600; }
+.ability-box__text small { font-size: 12px; color: var(--color-neutral-600); }
+.ability-box__open { height: 28px; padding: 0 12px; border-radius: 999px; font-size: 12px; background: var(--color-surface-3); }
+.ability-box__close { width: 28px; height: 28px; border-radius: 999px; font-size: 12px; color: var(--color-neutral-600); }
+.ability-box__close:hover, .ability-box__open:hover { color: var(--color-text); }
+@keyframes box-in { from { opacity: 0; transform: scale(0.94) translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .ability-box { animation: none; } }

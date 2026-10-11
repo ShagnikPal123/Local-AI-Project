@@ -67,11 +67,9 @@ export function visibleTabs(role: string | undefined): TabDef[] {
 export const CORE_TABS: TabDef[] = [
   // Redesign 2026-10-10 (owner): chat is home, and Game Studio, drawing and the Second Brain open as windows inside it.
   { id: "nyx", label: "Chat", icon: "ph-chat-circle", pinned: true, core: true },
-  { id: "build", label: "Build", icon: "ph-cube", pinned: true, core: true },
   // Research + Data Absorption + Apply, one tab with three sections.
   { id: "research", label: "Research Lab", icon: "ph-magnifying-glass", pinned: true, core: true },
   { id: "learn", label: "Learn", icon: "ph-graduation-cap", pinned: true, core: true },
-  { id: "notes", label: "Notes", icon: "ph-note-pencil", pinned: true, core: true },
   { id: "code", label: "Code", icon: "ph-code", pinned: true, core: true },
   // Agents + Sub-agents.
   { id: "agents", label: "Agents", icon: "ph-tree-structure", pinned: true, core: true },
@@ -99,12 +97,15 @@ export const CORE_TABS: TabDef[] = [
 export type Redirect =
   | { kind: "hub"; tab: TabId; section: string }
   | { kind: "settings"; page: "general" | "status" | "power" | "memory" | "design" }
-  | { kind: "window"; window: "game" | "brain" | "screen" };
+  | { kind: "window"; window: "game" | "brain" | "screen" | "build" | "notes" };
 
 export const REDIRECTS: Record<string, Redirect> = {
   chat: { kind: "hub", tab: "nyx", section: "" },
   strands: { kind: "hub", tab: "nyx", section: "" },
   games: { kind: "window", window: "game" },
+  // Owner, 2026-10-10: Build and Notes live in the chat now (abilities in the composer); old links open them full size.
+  build: { kind: "window", window: "build" },
+  notes: { kind: "window", window: "notes" },
   world: { kind: "hub", tab: "office", section: "world" },
   court: { kind: "hub", tab: "office", section: "court" },
   sketch: { kind: "hub", tab: "nyx", section: "" },
