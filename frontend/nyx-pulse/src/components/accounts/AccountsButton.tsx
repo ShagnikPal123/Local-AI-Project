@@ -10,6 +10,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { api } from "../../api";
 import { waitForEngine } from "../../engine";
 import "./accounts.css";
@@ -137,7 +138,9 @@ function AccountsSheet({ listing, reload, onClose, onSwitching }: {
     else setNotice(result.ok ? "" : result.error);
   }
 
-  return (
+  // A portal: a glass header (backdrop-filter) would otherwise become the containing block of this fixed overlay
+  // and box it into the header strip, cutting the sheet off at the top of the screen (owner, 2026-10-10).
+  return createPortal(
     <div className="acct-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div ref={dialogRef} className="acct-sheet" role="dialog" aria-modal="true" aria-labelledby="acct-title" aria-describedby="acct-lede">
         <header className="acct-sheet__head">
@@ -211,7 +214,7 @@ function AccountsSheet({ listing, reload, onClose, onSwitching }: {
         </footer>
       </div>
     </div>
-  );
+  , document.body);
 }
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {

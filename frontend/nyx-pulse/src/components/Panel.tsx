@@ -42,7 +42,7 @@ export function PanelShell({ title, subtitle, actions, children }: {
 export function Loading({ what = "Loading" }: { what?: string }) {
   return (
     <div className="orb-loading" role="status">
-      <IchosOrb state={orbStateFor(what, "breathing")} size={20} decorative />
+      <IchosOrb state={orbStateFor(what, "breathing")} size={64} decorative />
       <span>{what}…</span>
     </div>
   );
