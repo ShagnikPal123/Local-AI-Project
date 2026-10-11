@@ -86,6 +86,13 @@ export function AbsorbPanel() {
           <span><span className={`ab-dot${runningNow ? " is-live" : live?.status === "paused" ? " is-warn" : ""}`} aria-hidden="true" />{statusText}</span>
           {live && <><span>docs <b>{counts.indexed ?? 0}</b></span><span>facts <b>{counts.facts ?? 0}</b></span><span>rows <b>{counts.rows ?? 0}</b></span></>}
           {overview && <span title="How much of your disk this tab uses — documents are never kept, only facts">store <b>{bytesLabel(overview.storage_bytes)}</b></span>}
+          {/* Always reachable (owner, 2026-10-10: "I can't end it when I need to"): stop the run from the top bar,
+              whatever view is open and however far down the page you are. */}
+          {live && (runningNow || live.status === "paused") && (
+            <button type="button" className="ab-btn is-danger ab-bar__stop" disabled={live.status === "stopping"} onClick={() => void stop()}>
+              {live.status === "stopping" ? "Stopping…" : "Stop & report"}
+            </button>
+          )}
         </div>
       </div>
 
