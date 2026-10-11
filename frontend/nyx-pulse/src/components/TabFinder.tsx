@@ -15,7 +15,9 @@
  * model's, without touching the Python.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
+import { CORE_TABS } from "../tabs";
 import { api } from "../api";
 import type { TabSpec } from "../panels/DynamicTab";
 
@@ -43,6 +45,20 @@ export function TabFinder({ onOpen, onCreated, onClose }: {
 
   // The create form is a separate step so the search box stays a search box.
   const [formOpen, setFormOpen] = useState(false);
+  // Every place you can go, listed before you type and filtered as you do (owner, 2026-10-10: "Add tab has issues and
+  // needs some work") — tabs, the tools that live in the chat now, and the Settings pages. ↑ ↓ Enter work.
+  const places = useMemo(() => [
+    ...CORE_TABS.filter((t) => !t.adminOnly).map((t) => ({ id: t.id as string, label: t.label, kind: "Tab" })),
+    { id: "build", label: "Build", kind: "In chat" }, { id: "notes", label: "Notes", kind: "In chat" },
+    { id: "games", label: "Game Studio", kind: "In chat" },
+    { id: "settings", label: "Settings", kind: "Settings" }, { id: "dashboard", label: "Status", kind: "Settings" },
+    { id: "power", label: "Power", kind: "Settings" }, { id: "work", label: "Sessions & memory", kind: "Settings" },
+    { id: "design_research", label: "Design research", kind: "Settings" },
+  ], []);
+  const wanted = query.trim().toLowerCase();
+  const local = places.filter((p) => !wanted || p.label.toLowerCase().includes(wanted) || p.id.includes(wanted)).slice(0, 12);
+  const [cursor, setCursor] = useState(0);
+  useEffect(() => { setCursor(0); }, [query]);
   const [name, setName] = useState("");
   const [purpose, setPurpose] = useState("");
 
@@ -111,31 +127,49 @@ export function TabFinder({ onOpen, onCreated, onClose }: {
     boxShadow: "inset 0 0 0 1px var(--color-divider)", font: "inherit", fontSize: 14,
   };
 
-  return (
+  // A portal: inside the glass layout a fixed overlay is boxed into its container and lands off-centre.
+  return createPortal(
     <div
       onClick={onClose}
       style={{
-        position: "fixed", inset: 0, background: "rgba(10,11,18,0.72)",
+        position: "fixed", inset: 0, background: "rgba(5,6,10,0.6)",
         display: "flex", alignItems: "flex-start", justifyContent: "center",
-        paddingTop: "12vh", zIndex: 50,
+        paddingTop: "12vh", zIndex: 220,
       }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         className="card"
-        style={{ width: "100%", maxWidth: 520, padding: 18, maxHeight: "76vh", overflowY: "auto" }}
+        style={{ width: "min(640px, calc(100vw - 32px))", padding: 16, maxHeight: "76vh", overflowY: "auto", borderRadius: 24 }}
       >
         <input
           autoFocus
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") onClose();
+            if (e.key === "ArrowDown") { e.preventDefault(); setCursor((c) => Math.min(local.length - 1, c + 1)); }
+            if (e.key === "ArrowUp") { e.preventDefault(); setCursor((c) => Math.max(0, c - 1)); }
+            if (e.key === "Enter" && !formOpen && local[cursor]) { e.preventDefault(); onOpen(local[cursor].id); onClose(); }
+          }}
+          aria-label="Find a place or describe a new tab"
           placeholder="Find a tab, or describe one to create…"
           style={{ ...field, fontSize: 15, padding: "11px 13px" }}
         />
 
         {error && (
           <div style={{ fontSize: 12, color: "var(--color-danger)", marginTop: 10 }}>{error}</div>
+        )}
+
+        {!formOpen && local.length > 0 && (
+          <div className="finder__places" role="listbox" aria-label="Go to">
+            {local.map((p, i) => (
+              <button key={`${p.kind}-${p.id}`} type="button" role="option" aria-selected={i === cursor}
+                className="finder__place" onMouseEnter={() => setCursor(i)} onClick={() => { onOpen(p.id); onClose(); }}>
+                <span>{p.label}</span><small>{p.kind}</small>
+              </button>
+            ))}
+          </div>
         )}
 
         {!formOpen && hits.length > 0 && (
@@ -247,5 +281,5 @@ export function TabFinder({ onOpen, onCreated, onClose }: {
         )}
       </div>
     </div>
-  );
+  , document.body);
 }
