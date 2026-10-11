@@ -311,3 +311,45 @@
   .ab-hl { forced-color-adjust: none; outline: 1px solid CanvasText; }
   .ab-thread { stroke: CanvasText; }
 }
+
+/* --- System look (owner, 2026-10-10: "in absorb … the design should be changed to system or the webpage and also the
+   stop and most things similar in the same position are not there or cut off") ------------------------------------
+   The terminal palette maps onto the app's tokens, labels and buttons drop the uppercase monospace for the app's own
+   type, corners round off like every other page, and the run controls (Pause, Stop & Report) stay pinned in view. */
+.absorb {
+  --ab-bg: transparent;
+  --ab-panel: var(--color-surface);
+  --ab-panel-2: var(--color-surface-2);
+  --ab-line: var(--color-divider);
+  --ab-line-strong: var(--color-divider-strong);
+  --ab-text: var(--color-text);
+  --ab-dim: var(--color-neutral-400);
+  --ab-faint: var(--color-neutral-600);
+  --ab-live: var(--color-accent);
+  gap: 12px;
+  padding: 0 0 12px;
+}
+.absorb .ab-label, .absorb .ab-bar__brand, .absorb .ab-nav button, .absorb .ab-btn, .absorb .ab-table th, .absorb .ab-chipsrc {
+  font-family: var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.absorb .ab-label { font-size: 13px; font-weight: 600; color: var(--color-neutral-400); }
+.absorb .ab-nav button { font-size: 14px; border-radius: 999px; padding: 6px 14px; }
+.absorb .ab-nav button[aria-pressed="true"], .absorb .ab-nav button[aria-selected="true"] { background: var(--color-surface-3); color: var(--color-text); }
+.absorb .ab-btn {
+  font-size: 14px; font-weight: 500; min-height: 36px; padding: 6px 16px; border-radius: 999px;
+  background: var(--color-surface-2); box-shadow: inset 0 0 0 1px var(--color-divider);
+}
+.absorb .ab-btn.is-primary { background: var(--color-accent); color: var(--color-on-accent); box-shadow: none; }
+.absorb .ab-btn.is-danger { background: color-mix(in srgb, var(--color-danger) 22%, transparent); color: var(--color-text); box-shadow: inset 0 0 0 1px var(--color-danger); }
+.absorb .ab-col { border-radius: var(--radius-lg); border-right: 0; margin: 0 4px; box-shadow: inset 0 0 0 1px var(--color-divider); }
+.absorb .ab-col__head { background: var(--color-surface); border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+.absorb .ab-btnrow {
+  position: sticky; top: 46px; z-index: 3; display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 0;
+  background: var(--color-surface);
+}
+.absorb :is(.ab-chipsrc, .ab-qitem, .ab-topic, .ab-cov__bar, .ab-lineprog__track) { border-radius: 999px; }
+.absorb .ab-hero h1 { font-size: 28px; line-height: 36px; }
+.absorb .ab-tags button, .absorb .ab-tags label { font-family: var(--font-body); text-transform: none; letter-spacing: 0; border-radius: 999px; font-size: 13px; padding: 6px 14px; }
+.absorb .ab-mode, .absorb [class*="ab-mode"] { border-radius: var(--radius-lg); }
