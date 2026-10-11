@@ -29,8 +29,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
 import { kahunaAllOn, readIntent, runAction } from "../state/kahuna";
 import { speakText, stopSpeaking } from "./voicePlayer";
-import { isEcho } from "./echoGuard";
-import { startVad, stopVad, vadRunning, vadState } from "./micVad";
+import { isEcho, quiet } from "./echoGuard";
+import { onVad, startVad, stopVad, vadRunning, vadState } from "./micVad";
 import { emitVoice, onVoice, speaking, type VoiceMode } from "./voiceBus";
 
 /** Fallback pause when the engine has not answered yet. */
@@ -39,6 +39,8 @@ const DEFAULT_WAIT_MS = 900;
 const MIN_WORDS = 2;
 /** How often the words so far may be sent to the thinking endpoint. */
 const THINK_EVERY_MS = 380;
+/** One word that may cut Nyx off on its own. */
+const STOP_WORDS = /^\s*(stop|wait|hold on|pause|quiet|shush|enough|no|cancel)\b/i;
 
 type Recognition = {
   continuous: boolean; interimResults: boolean; lang: string;
@@ -135,6 +137,8 @@ export function useVoiceEngine({ mode, busy, chatId, onSend, onCommand }: {
   const thinking = useRef(false);
   const pending = useRef("");
   const speakingNow = useRef(false);
+  const lastVadSpeech = useRef(0);
+  const utteranceStart = useRef(0);
   const intentTimer = useRef(0);
   const doneKeys = useRef(new Set<string>());
   const busyRef = useRef(busy);
@@ -150,6 +154,7 @@ export function useVoiceEngine({ mode, busy, chatId, onSend, onCommand }: {
 
   const newUtterance = useCallback(() => {
     utteranceId.current = `u${Date.now().toString(36)}`;
+    utteranceStart.current = Date.now() - 1500;          // the meter hears the first word before the recognizer does
     doneKeys.current.clear();
     setComplete(0);
     setReady(false);
@@ -289,18 +294,19 @@ export function useVoiceEngine({ mode, busy, chatId, onSend, onCommand }: {
         const fresh = `${finals}${interim}`.trim();
         if (!fresh) return;
 
-        // Nyx's own voice coming back through the microphone is never a message.
-        if (speakingNow.current && isEcho(fresh)) return;
+        // Nyx's own voice coming back through the microphone is never a message — while it plays, and for the
+        // tail after it stops (the recognizer reports a second or so late).
+        if (!quiet() && isEcho(fresh)) return;
         if (speakingNow.current) {
-          // Real words over the top: with the echo-cancelled microphone quiet,
-          // this is still the speaker, so wait for the words to stand on their own.
-          const vad = vadState();
-          if (!vadRunning() || vad.speaking || fresh.split(/\s+/).length >= 3) {
-            stopSpeaking();
-            emitVoice({ type: "bargein" });
-          } else {
-            return;
-          }
+          // Words over the top that are not an echo. Only a person on the echo-cancelled microphone stops Nyx:
+          // a mis-heard echo has no voice behind it there. Without that meter, it takes a real sentence.
+          const words = fresh.split(/\s+/).length;
+          const person = vadRunning()
+            ? (vadState().speaking || Date.now() - lastVadSpeech.current < 700) && (words >= 2 || STOP_WORDS.test(fresh))
+            : words >= 4;
+          if (!person) return;
+          stopSpeaking();
+          emitVoice({ type: "bargein" });
         }
 
         if (finals) finalText.current = `${finalText.current} ${finals}`.trim();
@@ -352,16 +358,21 @@ export function useVoiceEngine({ mode, busy, chatId, onSend, onCommand }: {
 
     // The pause itself: the microphone says when it went quiet, and the engine
     // says how long a pause has to be for *this* sentence.
+    // If the meter never heard this sentence (a quiet voice under its threshold), its silence means nothing, so
+    // the pause falls back to when the recognizer last heard a word.
+    const offVad = onVad((vad) => { if (vad.speaking) lastVadSpeech.current = Date.now(); });
     const check = window.setInterval(() => {
       if (!finalText.current && !interimText.current) return;
       if (busyRef.current && pending.current) return;
-      const quietFor = vadRunning() ? vadState().silenceMs : Date.now() - lastHeardAt.current;
       const heardFor = Date.now() - lastHeardAt.current;
+      const meterHeard = vadRunning() && lastVadSpeech.current >= utteranceStart.current;
+      const quietFor = meterHeard ? vadState().silenceMs : heardFor;
       if (quietFor >= waitMs.current && heardFor >= 350) void flush();
     }, 90);
 
     return () => {
       stopped = true;
+      offVad();
       window.clearInterval(check);
       window.clearTimeout(intentTimer.current);
       engine?.stop();

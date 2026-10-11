@@ -17,7 +17,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { stopSpeaking, speakText } from "../../voice/voicePlayer";
 import { useVoiceState, voiceSupported, useSpeakingText } from "../../voice/voiceEngine";
-import { setVoiceMode, type VoiceMode } from "../../voice/voiceBus";
+import { emitVoice, onVoice, setVoiceMode, type VoiceMode } from "../../voice/voiceBus";
 import type { AssistantTurn } from "./types";
 
 /** A step is spoken at most this often, and only a few times a turn. */
@@ -96,6 +96,11 @@ export function useActiveTalk({ enabled, turn }: {
   const spokenUpto = useRef(0);
   const spokenChars = useRef(0);
 
+  // Talked over (or "Quiet"): the rest of this answer stays on screen and is not read out.
+  useEffect(() => onVoice((event) => {
+    if (event.type === "bargein") spokenChars.current = SPEAK_LIMIT;
+  }), []);
+
   const say = useCallback((text: string, role: string) => {
     const plain = plainSpeech(text);
     if (!plain) return;
@@ -171,7 +176,7 @@ export function ActiveTalkBar({ state, onOff }: { state: ActiveTalkState; onOff:
         </span>
       )}
       {state.ready && !state.speaking && <span className="talk__ready">answer ready</span>}
-      {state.speaking && <button className="chat-inline" onClick={() => stopSpeaking()}>Quiet</button>}
+      {state.speaking && <button className="chat-inline" onClick={() => { stopSpeaking(); emitVoice({ type: "bargein" }); }}>Quiet</button>}
       <button className="chat-inline" onClick={onOff}>Turn off</button>
     </div>
   );
