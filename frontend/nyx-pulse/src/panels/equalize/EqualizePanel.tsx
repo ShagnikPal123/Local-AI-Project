@@ -4,8 +4,7 @@
  * can answer out loud; "Needs you" — every approval Nyx is waiting on, trades to approve, and Claude Code sessions
  * that stopped for the owner; and every recent Claude Code session on this PC by state. */
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import * as THREE from "three";
+import { useCallback, useEffect, useState } from "react";
 import { api } from "../../api";
 import { onVoice, setVoiceMode, voiceMode, onVoiceMode } from "../../voice/voiceBus";
 import { stopSpeaking } from "../../voice/voicePlayer";
@@ -14,6 +13,7 @@ import { useTurns } from "../../hooks/useTurns";
 import { useActiveTalk } from "../../components/chat/ActiveTalk";
 import { useStore } from "../../state/store";
 import { turnsStore } from "../../state/turnStore";
+import { VoiceFace } from "../../components/voice/VoiceFace";
 import { DigestCard } from "./DigestCard";
 import "./equalize.css";
 
@@ -32,78 +32,10 @@ function ago(seconds: number): string {
   return `${Math.round(s / 86400)} d ago`;
 }
 
-/** A sphere of points that breathes when idle, ripples while listening, swirls while thinking and pulses with speech. */
-export function Orb({ state }: { state: OrbState }) {
-  const host = useRef<HTMLDivElement>(null);
-  const stateRef = useRef(state);
-  stateRef.current = state;
-
-  useEffect(() => {
-    const el = host.current;
-    if (!el) return;
-    const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-    el.appendChild(renderer.domElement);
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-    camera.position.z = 3.2;
-    const count = 2400;
-    const base = new Float32Array(count * 3);
-    for (let i = 0; i < count; i++) {               // Fibonacci sphere: even spacing, no seams
-      const y = 1 - (i / (count - 1)) * 2;
-      const r = Math.sqrt(1 - y * y);
-      const t = i * Math.PI * (3 - Math.sqrt(5));
-      base.set([Math.cos(t) * r, y, Math.sin(t) * r], i * 3);
-    }
-    const positions = base.slice();
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    const material = new THREE.PointsMaterial({ size: 0.022, color: 0xa594ff, transparent: true, opacity: 0.9 });
-    const points = new THREE.Points(geometry, material);
-    scene.add(points);
-    const colours: Record<OrbState, THREE.Color> = {
-      idle: new THREE.Color(0xa594ff), listening: new THREE.Color(0x64d2ff),
-      thinking: new THREE.Color(0xffd60a), speaking: new THREE.Color(0x7bd3a8),
-    };
-    const resize = () => {
-      const size = Math.max(160, Math.min(el.clientWidth, 420));
-      renderer.setSize(size, size);
-    };
-    resize();
-    const observer = new ResizeObserver(resize);
-    observer.observe(el);
-    let frame = 0;
-    const start = performance.now();
-    const draw = () => {
-      const t = (performance.now() - start) / 1000;
-      const now = stateRef.current;
-      material.color.lerp(colours[now], 0.08);
-      const amp = now === "speaking" ? 0.12 + 0.06 * Math.sin(t * 9) : now === "listening" ? 0.07 : now === "thinking" ? 0.05 : 0.025;
-      for (let i = 0; i < count; i++) {
-        const x = base[i * 3], y = base[i * 3 + 1], z = base[i * 3 + 2];
-        const wave = Math.sin(t * (now === "listening" ? 5 : 1.6) + y * 6 + x * 3) * amp;
-        const k = 1 + wave;
-        positions[i * 3] = x * k; positions[i * 3 + 1] = y * k; positions[i * 3 + 2] = z * k;
-      }
-      geometry.attributes.position.needsUpdate = true;
-      points.rotation.y += now === "thinking" ? 0.02 : 0.004;
-      points.rotation.x = Math.sin(t * 0.3) * 0.15;
-      renderer.render(scene, camera);
-      if (!reduced) frame = requestAnimationFrame(draw);
-    };
-    draw();
-    return () => {
-      cancelAnimationFrame(frame);
-      observer.disconnect();
-      geometry.dispose();
-      material.dispose();
-      renderer.dispose();
-      renderer.domElement.remove();
-    };
-  }, []);
-
-  return <div ref={host} className="jv-orb" role="img" aria-label={`Nyx is ${STATE_WORDS[state].toLowerCase()}`} />;
+/** Equalize's face is the voice face (`VoiceFace`): a particle swarm that listens, Möbius strips that think, an
+ * equalizer globe that speaks. `drafting` shows the thinking it does while you are still talking. */
+export function Orb({ state, drafting = 0 }: { state: OrbState; drafting?: number }) {
+  return <div className="jv-orb"><VoiceFace state={state} drafting={drafting} /></div>;
 }
 
 /** The chat Equalize talks in: the one the owner was last in, so the conversation continues in the Chat tab. */
@@ -130,7 +62,7 @@ export function EqualizePanel() {
   const turns = useStore(turnsStore, (s) => s.turns);
   const speakingNow = useSpeakingText();
   const talkOn = mode !== "off";
-  useActiveTalk({ enabled: talkOn || speak, turn: runningTurn });
+  const talk = useActiveTalk({ enabled: talkOn || speak, turn: runningTurn });
 
   // The quickest model for spoken answers, as the chat picks it (local first, then a fast online one).
   const [voiceProvider, setVoiceProvider] = useState("");
@@ -191,7 +123,8 @@ export function EqualizePanel() {
   }, [runningId]);
 
   const busy = Boolean(runningTurn);
-  const orb: OrbState = speakingNow ? "speaking" : busy ? "thinking" : listening ? "listening" : "idle";
+  // Voice on means it is listening whenever it is not answering — between sentences too, not only mid-word.
+  const orb: OrbState = speakingNow ? "speaking" : busy ? "thinking" : listening || talkOn ? "listening" : "idle";
 
   const load = useCallback(async () => {
     const [n, s] = await Promise.all([api.get<{ items: Need[] }>("/api/equalize/needs-you"), api.get<{ sessions: Session[] }>("/api/equalize/sessions")]);
@@ -223,7 +156,7 @@ export function EqualizePanel() {
   return (
     <div className="jv">
       <section className="jv-hero" aria-label="Talk to Ichos">
-        <Orb state={orb} />
+        <Orb state={orb} drafting={talk.ready ? 1 : talk.complete} />
         <div className="jv-hero__side">
           <p className="jv-state" aria-live="polite">{STATE_WORDS[orb]}{heard && listening ? ` — “${heard}”` : ""}</p>
           <form className="jv-ask" onSubmit={(e) => { e.preventDefault(); void sendTyped(); }}>

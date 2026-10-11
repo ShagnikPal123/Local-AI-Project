@@ -1,0 +1,14 @@
+/* The voice face (VoiceFace.tsx): a square that fills its box; the glow behind it follows the state. */
+.voice-face { position: relative; width: 100%; height: 100%; aspect-ratio: 1; overflow: hidden; contain: size; }
+.voice-face::before {
+  content: ""; position: absolute; inset: 18%; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, var(--voice-glow, var(--color-accent)) 0%, transparent 70%);
+  opacity: 0.18; filter: blur(12px); transition: opacity 400ms ease, background 400ms ease;
+}
+.voice-face.is-listening { --voice-glow: #60cdff; }
+.voice-face.is-thinking { --voice-glow: #fce100; }
+.voice-face.is-speaking { --voice-glow: #6ccb5f; }
+.voice-face.is-speaking::before, .voice-face.is-thinking::before { opacity: 0.28; }
+.voice-face canvas { position: absolute; inset: 0; margin: auto; display: block; }
+.voice-face[data-fallback="1"]::before { opacity: 0.6; inset: 8%; }
+@media (prefers-reduced-motion: reduce) { .voice-face::before { transition: none; } }
