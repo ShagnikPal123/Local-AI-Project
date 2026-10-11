@@ -216,7 +216,7 @@ function Editor({ avatar, catalog, reload, onError, onCopy, onGone }: {
         <fieldset className="av-box">
           <legend>Main function &amp; personality</legend>
           <div className="av-chips" role="radiogroup" aria-label="Main function">
-            {Object.entries(catalog.main).map(([key, label]) => (
+            {Object.entries(catalog.main ?? {}).map(([key, label]) => (
               <button key={key} role="radio" aria-checked={draft.main === key} className={`av-chip${draft.main === key ? " is-on" : ""}`}
                 onClick={() => set("main", key)}>{label}</button>
             ))}
@@ -227,9 +227,9 @@ function Editor({ avatar, catalog, reload, onError, onCopy, onGone }: {
             <textarea rows={4} maxLength={1200} value={draft.does} onChange={(e) => set("does", e.target.value)}
               placeholder="In your words: what it should do, how, and when to bother you." />
           </label>
-          {Object.keys(catalog.personalities).length > 0 && <label className="av-field">Personality
+          {Object.keys(catalog.personalities ?? {}).length > 0 && <label className="av-field">Personality
             <select value={draft.personality} onChange={(e) => set("personality", e.target.value)}>
-              {Object.entries(catalog.personalities).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              {Object.entries(catalog.personalities ?? {}).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </label>}
           {draft.personality === "custom" && <textarea rows={2} maxLength={600} value={draft.personality_custom}
@@ -240,7 +240,7 @@ function Editor({ avatar, catalog, reload, onError, onCopy, onGone }: {
         <fieldset className="av-box">
           <legend>When it runs</legend>
           <div className="av-seg" role="radiogroup" aria-label="When it runs">
-            {Object.entries(catalog.schedules).map(([key, label]) => (
+            {Object.entries(catalog.schedules ?? {}).map(([key, label]) => (
               <button key={key} role="radio" aria-checked={s.mode === key} className={s.mode === key ? "is-on" : ""}
                 onClick={() => setSched({ mode: key })}>{label.split(" (")[0].replace(", around the clock", "")}</button>
             ))}
@@ -271,7 +271,7 @@ function Editor({ avatar, catalog, reload, onError, onCopy, onGone }: {
               onChange={(e) => set("max_runs_per_day", Number(e.target.value) || 1)} /> runs a day</label>
             <label>Model
               <select value={draft.model} onChange={(e) => set("model", e.target.value)}>
-                {Object.entries(catalog.models).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                {Object.entries(catalog.models ?? {}).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </label>
           </div>
@@ -281,7 +281,7 @@ function Editor({ avatar, catalog, reload, onError, onCopy, onGone }: {
       <fieldset className="av-box">
         <legend>Functions — what it may use</legend>
         <ul className="av-fns">
-          {Object.entries(catalog.functions).map(([key, f]) => {
+          {Object.entries(catalog.functions ?? {}).map(([key, f]) => {
             const rule = draft.functions[key];
             const on = Boolean(rule);
             return (
