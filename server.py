@@ -2679,7 +2679,7 @@ def _include_routers() -> Dict[str, str]:
                         "routes_absorb", "routes_local_models", "routes_diagram", "routes_screen", "routes_apply",
                         "routes_security", "routes_proto_voice", "routes_features", "routes_curiosity", "routes_finance_lab", "routes_voice_gestures",
                         "routes_design", "routes_accounts", "routes_swarm", "routes_own_computer", "routes_connectors",
-                        "routes_freewill", "routes_identity0", "routes_office", "routes_world", "routes_whatsapp", "routes_sketch", "routes_equalize", "routes_court", "routes_notch", "routes_workbench", "routes_predict"):
+                        "routes_freewill", "routes_identity0", "routes_office", "routes_world", "routes_whatsapp", "routes_sketch", "routes_equalize", "routes_court", "routes_notch", "routes_workbench", "routes_predict", "routes_avatars"):
         try:
             module = importlib.import_module(module_name)
         except ModuleNotFoundError as error:
@@ -2853,6 +2853,14 @@ def _resume_background_work() -> None:
         morning_digest.start_in_background()
     except Exception:  # pragma: no cover - the phone line must never stop the API
         logging.getLogger("nyx.server").warning("WhatsApp link did not start", exc_info=True)
+
+    try:
+        import avatars
+
+        # The avatars' clock; it does nothing until the owner switches an avatar on.
+        avatars.start_in_background()
+    except Exception:  # pragma: no cover
+        logging.getLogger("nyx.server").warning("avatar clock did not start", exc_info=True)
 
     try:
         from predictor import SCHEDULER

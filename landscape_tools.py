@@ -19,7 +19,7 @@ CORE_TABS = {
     "nyx": "Chat", "build": "Build", "research": "Research Lab", "learn": "Learn", "notes": "Notes",
     "code": "Code", "agents": "Agents", "collab": "Collab", "trading": "Trading", "improve": "Improve",
     "freewill": "Free Will", "kahuna": "Big Kahuna", "office": "Office & World", "world": "World",
-    "equalize": "Equalize", "computer": "Computer", "connectors": "Connections", "admin": "Admin",
+    "equalize": "Equalize", "avatars": "Avatars", "computer": "Computer", "connectors": "Connections", "admin": "Admin",
     "screen": "Screen Share", "absorb": "Data Absorption", "apply": "Apply", "subagents": "Sub-agents",
     "models": "Models", "keys": "Keys & Models", "store": "Add capability", "settings": "Settings",
     "dashboard": "Dashboard", "power": "Power", "work": "Sessions & Memory", "design_research": "Design Research",

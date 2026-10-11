@@ -21,6 +21,8 @@ auth.json
 auth.json
 chats.json
 memory.json
+# The owner's avatars: their routines, goals and what the avatars remember (avatars.py).
+avatars.json
 custom_personality.json
 speech_patterns.json
 overlay.json

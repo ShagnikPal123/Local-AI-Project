@@ -928,6 +928,46 @@ def test_whatsapp_routes_do_not_exist_on_a_hosted_build():
     assert "/api/whatsapp" in deploy_mode.HOSTED_BLOCKED_PREFIXES
 
 
+# --- Avatars (avatars.py): helpers that can be given the owner's computer, files and mail -------------------------
+
+OWNER_ONLY_AVATAR_ROUTES = [
+    ("get", "/api/avatars", None),
+    ("post", "/api/avatars", {"avatar": {"name": "Nova"}}),
+    ("post", "/api/avatars/restore", None),
+    ("post", "/api/avatars/team", {"avatars": ["orbit", "halo"], "task": "x"}),
+    ("get", "/api/avatars/orbit", None),
+    ("put", "/api/avatars/orbit", {"enabled": True}),
+    ("delete", "/api/avatars/orbit", None),
+    ("post", "/api/avatars/orbit/reset", None),
+    ("post", "/api/avatars/orbit/talk", {"text": "hi"}),
+    ("post", "/api/avatars/orbit/run", {"kind": "checkin"}),
+    ("post", "/api/avatars/orbit/goals", {"item": {"text": "x"}}),
+    ("delete", "/api/avatars/orbit/goals/g-1", None),
+]
+
+
+@pytest.mark.parametrize("method,path,body", OWNER_ONLY_AVATAR_ROUTES)
+def test_avatar_routes_refuse_anonymous_callers(client, store, method, path, body):
+    _claim(store)
+    call = getattr(client, method)
+    response = call(path, json=body) if body is not None else call(path)
+    assert response.status_code in (401, 403), f"{path} was reachable anonymously"
+
+
+@pytest.mark.parametrize("method,path,body", OWNER_ONLY_AVATAR_ROUTES)
+def test_a_beta_tester_cannot_reach_the_avatars(client, beta_token, method, path, body):
+    call = getattr(client, method)
+    response = (call(path, json=body, headers=_auth(beta_token)) if body is not None
+                else call(path, headers=_auth(beta_token)))
+    assert response.status_code == 403, f"beta tester reached {path}"
+
+
+def test_avatar_routes_do_not_exist_on_a_hosted_build():
+    import deploy_mode
+
+    assert "/api/avatars" in deploy_mode.HOSTED_BLOCKED_PREFIXES
+
+
 # Proto Voice (Project Null N92): the microphone that may act on the computer.
 OWNER_ONLY_PROTO_VOICE_ROUTES = [
     ("get", "/api/proto-voice", None),
