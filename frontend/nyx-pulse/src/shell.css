@@ -137,3 +137,13 @@
   .hub__title { font-size: 20px; line-height: 28px; }
 }
 @media (prefers-reduced-motion: reduce) { .top-tabs__tab, .hub__pivot-item { transition: none; } }
+
+/* Scrolling everywhere (owner, 2026-10-10: "make sure … everything that needs to be scrolled is available like
+   equalizer and avatars"). The studio layout clips <main>; pages that grow to their content (Equalize .jv, Avatars
+   .av, …) then had no scrollbar. Every page root and every merged-tab section now scrolls itself when it is taller
+   than the window; pages that already scroll inside (chat, page-shell bodies) are unaffected. */
+.app-col > main > :not(.chat-shell),
+main > :not(.chat-shell):not(.hub):only-child { height: 100%; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.app-col > main > .hub { overflow: hidden; }
+.hub__body > * { overflow-y: auto; }
+.chat-window__body > * { min-height: 0; }
