@@ -15,6 +15,7 @@ interface Lesson { id: string; name: string; steps: string[]; repeat: string; la
 interface Activity { at: number; kind: string; input: string; reply: string; ok: boolean; seconds: number }
 export interface Avatar {
   id: string; name: string; icon: string; main: string; main_custom: string; does: string; inspired_by: string;
+  personality: string; personality_custom: string;
   enabled: boolean; model: string; max_runs_per_day: number; schedule: Schedule; functions: Record<string, Rule>;
   goals: Goal[]; watches: Watch[]; lessons: Lesson[]; notes: string[];
   builtin: boolean; edited: boolean; busy: boolean; runs_today: number; last_tick: number; chat_id: string; activity: Activity[];
@@ -22,7 +23,7 @@ export interface Avatar {
 interface FunctionInfo { label: string; about: string; default: Rule; locked: boolean; always_ask: boolean }
 interface Catalog {
   functions: Record<string, FunctionInfo>; main: Record<string, string>; schedules: Record<string, string>;
-  models: Record<string, string>; repeats: string[];
+  models: Record<string, string>; repeats: string[]; personalities: Record<string, string>;
 }
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -201,7 +202,7 @@ function Editor({ avatar, catalog, reload, onError, onCopy, onGone }: {
 
       <div className="av-grid">
         <fieldset className="av-box">
-          <legend>Main function</legend>
+          <legend>Main function &amp; personality</legend>
           <div className="av-chips" role="radiogroup" aria-label="Main function">
             {Object.entries(catalog.main).map(([key, label]) => (
               <button key={key} role="radio" aria-checked={draft.main === key} className={`av-chip${draft.main === key ? " is-on" : ""}`}
@@ -214,6 +215,14 @@ function Editor({ avatar, catalog, reload, onError, onCopy, onGone }: {
             <textarea rows={4} maxLength={1200} value={draft.does} onChange={(e) => set("does", e.target.value)}
               placeholder="In your words: what it should do, how, and when to bother you." />
           </label>
+          <label className="av-field">Personality
+            <select value={draft.personality} onChange={(e) => set("personality", e.target.value)}>
+              {Object.entries(catalog.personalities).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </label>
+          {draft.personality === "custom" && <textarea rows={2} maxLength={600} value={draft.personality_custom}
+            onChange={(e) => set("personality_custom", e.target.value)} aria-label="Custom personality"
+            placeholder="How it should sound, e.g. calm, dry humour, short sentences, calls me boss" />}
         </fieldset>
 
         <fieldset className="av-box">
@@ -308,7 +317,8 @@ function Editor({ avatar, catalog, reload, onError, onCopy, onGone }: {
 
 /** The fields the Save button owns; lists (goals, watches, lessons, notes) save as you add them. */
 function core(a: Avatar) {
-  return { name: a.name, main: a.main, main_custom: a.main_custom, does: a.does, model: a.model,
+  return { name: a.name, main: a.main, main_custom: a.main_custom, does: a.does, personality: a.personality,
+    personality_custom: a.personality_custom, model: a.model,
     max_runs_per_day: a.max_runs_per_day, schedule: a.schedule, functions: a.functions };
 }
 

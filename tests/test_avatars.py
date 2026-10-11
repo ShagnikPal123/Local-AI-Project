@@ -145,3 +145,14 @@ def test_chat_tools(av):
     goal = av.get("lemma")["goals"][0]
     assert goal["steps"][0]["done"] and goal["progress"] == "Chapter 3"
     assert "Learn Rust" in av.note_for(av.get("lemma"))
+
+
+def test_every_avatar_has_a_personality_even_old_records(av):
+    assert av.get("lemma")["personality"] == "homework_helper"
+    made = av.create({"name": "Pulsar"})
+    assert made["personality"] == av.FALLBACK_PERSONALITY
+    custom = av.update(made["id"], {"personality": "custom", "personality_custom": "Dry wit, short sentences."})
+    assert "Dry wit" in av.note_for(custom)
+    cleared = av.update(made["id"], {"personality": "custom", "personality_custom": ""})
+    assert cleared["personality"] == av.FALLBACK_PERSONALITY
+    assert av.clean({"id": "halo", "name": "Halo"})["personality"] == "close_friend"  # stored before personalities

@@ -58,7 +58,7 @@ def avatars_list(_o=Depends(_owner)) -> Dict[str, Any]:
                                           "locked": bool(v.get("locked")), "always_ask": bool(v.get("always_ask"))}
                                       for k, v in avatars.FUNCTIONS.items()},
                         "main": avatars.MAIN_FUNCTIONS, "schedules": avatars.SCHEDULES, "models": avatars.MODELS,
-                        "repeats": list(avatars.REPEATS)}}
+                        "repeats": list(avatars.REPEATS), "personalities": avatars.personality_options()}}
 
 
 @router.post("/api/avatars")

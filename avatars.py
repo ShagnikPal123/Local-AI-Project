@@ -92,6 +92,35 @@ SCHEDULES = {"on_call": "Only when called", "all_day": "All day (between hours)"
 MODELS = {"": "Ichos's usual model", "local": "Local only (Ollama, stays on this PC)"}
 REPEATS = ("", "daily", "weekly")
 
+#: Personality used when an avatar has none (the owner: "if there is not a personality set please add one").
+FALLBACK_PERSONALITY = "close_friend"
+#: Each shipped avatar's own personality (presets from personalities.py, or "custom" + text).
+DEFAULT_PERSONALITIES = {"orbit": "professional", "halo": "close_friend", "quasar": "concise", "vector": "coding_mentor",
+                         "parallax": "concise", "lemma": "homework_helper", "perigee": "professional"}
+
+
+def personality_options() -> Dict[str, str]:
+    try:
+        from personalities import PERSONALITY_PRESETS
+
+        options = {key: value["display_name"] for key, value in PERSONALITY_PRESETS.items()}
+    except Exception:  # noqa: BLE001
+        options = {FALLBACK_PERSONALITY: "Close Friend"}
+    return {**options, "custom": "Custom…"}
+
+
+def personality_text(avatar: Dict[str, Any]) -> str:
+    if avatar.get("personality") == "custom" and avatar.get("personality_custom"):
+        return avatar["personality_custom"]
+    try:
+        from personalities import PERSONALITY_PRESETS
+
+        preset = PERSONALITY_PRESETS.get(avatar.get("personality") or "") or PERSONALITY_PRESETS[FALLBACK_PERSONALITY]
+        return preset["system_guidance"]
+    except Exception:  # noqa: BLE001
+        return "Warm, direct and honest, like a trusted friend."
+
+
 LIMITS = {"name": 40, "text": 1200, "goals": 12, "watches": 10, "lessons": 12, "notes": 40, "activity": 40, "team": 6}
 
 
@@ -229,6 +258,9 @@ def clean(raw: Dict[str, Any], base: Optional[Dict[str, Any]] = None) -> Dict[st
                 "repeat": item.get("repeat") if item.get("repeat") in REPEATS else "", "last_at": _num(item.get("last_at"), 0)}
 
     notes = [_text(n, 300) for n in (merged.get("notes") or [])[-LIMITS["notes"]:] if _text(n, 300)]
+    personality = merged.get("personality")
+    if personality not in personality_options() or (personality == "custom" and not _text(merged.get("personality_custom"), 600)):
+        personality = DEFAULT_PERSONALITIES.get(str(merged.get("id") or ""), FALLBACK_PERSONALITY)
     return {
         "id": str(merged.get("id") or _short_id("av"))[:24],
         "name": name,
@@ -237,6 +269,8 @@ def clean(raw: Dict[str, Any], base: Optional[Dict[str, Any]] = None) -> Dict[st
         "main_custom": _text(merged.get("main_custom"), 80) if main == "custom" else "",
         "does": _text(merged.get("does"), LIMITS["text"]),
         "inspired_by": _text(merged.get("inspired_by"), 60),
+        "personality": personality,
+        "personality_custom": _text(merged.get("personality_custom"), 600) if personality == "custom" else "",
         "enabled": bool(merged.get("enabled")),
         "model": merged.get("model") if merged.get("model") in MODELS else "",
         "max_runs_per_day": max(1, min(96, int(_num(merged.get("max_runs_per_day"), 24) or 24))),
@@ -526,6 +560,7 @@ def note_for(avatar: Dict[str, Any]) -> str:
     main = avatar.get("main_custom") or MAIN_FUNCTIONS.get(avatar["main"], "")
     lines = [f"You are {avatar['name']}, one of the owner's Ichos avatars. Main function: {main}.",
              f"What you do: {avatar['does'] or '(the owner has not said yet — ask them)'}",
+             f"Your personality (how you sound): {personality_text(avatar)}",
              "Functions you may use: " + ", ".join(
                  f"{FUNCTIONS[k]['label']}{' (asks the owner first)' if r == 'ask' else ''}"
                  for k, r in avatar["functions"].items() if k in FUNCTIONS) + ". Anything else is blocked — say so "
@@ -849,7 +884,7 @@ def tool_avatar_team(avatars: str, task: str) -> str:
 
 @_tool
 def tool_avatar_create(name: str, does: str, main_function: str = "custom", schedule: str = "on_call",
-                       every_minutes: int = 60, functions: str = "web", copy_of: str = "") -> str:
+                       every_minutes: int = 60, functions: str = "web", copy_of: str = "", personality: str = "") -> str:
     rules = {}
     for key in re.split(r"[,\s]+", functions or ""):
         key = key.strip().lower()
@@ -857,6 +892,10 @@ def tool_avatar_create(name: str, does: str, main_function: str = "custom", sche
             rules[key] = FUNCTIONS[key]["default"]
     raw: Dict[str, Any] = {"name": name, "does": does, "main": main_function if main_function in MAIN_FUNCTIONS else "custom",
                            "schedule": {"mode": schedule, "every_minutes": every_minutes}}
+    if personality:
+        preset = personality.strip().lower().replace(" ", "_")
+        raw.update({"personality": preset} if preset in personality_options() else
+                   {"personality": "custom", "personality_custom": personality})
     if rules or not copy_of:
         raw["functions"] = rules
     template = (find(copy_of) or {}).get("id", "") if copy_of else ""
@@ -961,7 +1000,9 @@ def register_avatar_tools(registry: Any) -> None:
                        ToolParam("schedule", "string", "When it runs", required=False, enum_values=list(SCHEDULES)),
                        ToolParam("every_minutes", "integer", "How often it checks in (15–1440)", required=False),
                        ToolParam("functions", "string", "What it may use, comma separated", required=False),
-                       ToolParam("copy_of", "string", "Start from this avatar", required=False)],
+                       ToolParam("copy_of", "string", "Start from this avatar", required=False),
+                       ToolParam("personality", "string", "A preset (" + ", ".join(k for k in personality_options()
+                                 if k != "custom") + ") or the owner's own words", required=False)],
                       tool_avatar_create, category="agents", label="Making an avatar")
     registry.register("avatar_switch", "Switch an avatar on (it runs on its schedule) or off. Only when the owner asks.",
                       [ToolParam("avatar", "string", "Avatar name"),
