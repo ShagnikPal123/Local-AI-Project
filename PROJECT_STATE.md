@@ -132,6 +132,17 @@ more false positives cost.
 
 ## Session log
 
+### Session — 2026-10-10 (Claude Opus 5.5, session 99acc5bf) — Avatars, then several chats on one screen
+
+Avatars (`avatars.py`, `routes_avatars.py`, Avatars tab, `docs/AVATARS.md`): always-on helpers modelled on OpenAI Dots,
+Meta Muse, xAI Grok Bot and MausBot (ideas only). Main function, what it does, personality, when it runs (on call / all
+day / all year), functions set to Allow or Ask, goals with plans, watches, taught tasks, notes, team tasks. Seven
+defaults (Orbit, Halo, Quasar, Vector, Parallax, Lemma, Perigee), all off; deny-by-default guard per turn; chat tools
+`avatar_*`, `/avatar`, `/team`. `avatars.json` is the owner's and git-ignored. Live: an avatar turn on a free model
+recorded goal progress; the owner already runs Halo with a weather watch. Then multi-chat panes
+(`components/chat/panes/`): drag chats or panes onto any side of another or the outer edges, dividers resize, layout
+remembered; checked in the browser (split, move, resize, a reply in a side pane). Tests: 12 avatar + auth lists.
+
 ### Session — 2026-10-09 (Claude Opus 5.5, session c17036a4) — WhatsApp line, then the update ideas
 
 Committed the World tab and Mods (separate commits), then: the WhatsApp line (`whatsapp_link.py`, helper process,
