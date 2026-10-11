@@ -47,7 +47,8 @@ const load = (): { open: OpenWindow[]; active: string; dock: Dock; size: number 
     const raw = JSON.parse(localStorage.getItem(STORE) || "null");
     if (raw && Array.isArray(raw.open)) {
       return {
-        open: raw.open.filter((w: OpenWindow) => w && w.kind in WINDOW_KINDS),
+        // Windows are not reopened at start (owner: a pane on the right "seems a bit odd"); open boxes bring them back.
+        open: [] as OpenWindow[],
         active: String(raw.active || ""),
         dock: (["right", "left", "bottom", "full"] as Dock[]).includes(raw.dock) ? raw.dock : "right",
         size: Number(raw.size) || 0.5,
