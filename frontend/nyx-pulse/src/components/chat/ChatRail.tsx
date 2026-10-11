@@ -18,6 +18,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../api";
 import { Spinner } from "./AgentDisc";
 import type { ChatSummaryView } from "./types";
+import { openChatPane, startChatDrag } from "./panes/paneDrag";
 
 export type RailMakeKind = "branch" | "fork" | "duplicate";
 
@@ -143,6 +144,7 @@ export function ChatRail({ chats, activeId, runningByChat, onSelect, onNew, onRe
                              onKeyDown={(e) => { if (e.key === "Enter") finishRename(chat.id); if (e.key === "Escape") setRenaming(null); }} />
                     ) : (
                       <button type="button" className="chat-rail__open" onClick={() => onSelect(chat.id)}
+                              draggable onDragStart={(e) => startChatDrag(e, chat.id, chat.title || "New chat")}
                               aria-current={chat.id === activeId ? "page" : undefined}
                               title={made && parent ? `${made} of “${parent}”` : chat.title}>
                         <span className="chat-rail__title">{chat.title || "New chat"}</span>
@@ -154,6 +156,9 @@ export function ChatRail({ chats, activeId, runningByChat, onSelect, onNew, onRe
                             aria-label={`More for ${chat.title}`} onClick={() => { setMenu(menu === chat.id ? null : chat.id); setConfirming(null); }}>⋯</button>
                     {menu === chat.id && (
                       <div ref={menuRef} className="chat-rail__menu" role="menu">
+                        <button role="menuitem" onClick={() => { setMenu(null); openChatPane(chat.id, "right"); }}>
+                          Open beside<small>or drag it onto the chat — any side</small>
+                        </button>
                         <button role="menuitem" onClick={() => { setMenu(null); setDraft(chat.title); setRenaming(chat.id); }}>Rename</button>
                         <button role="menuitem" onClick={() => { setMenu(null); onMake(chat.id, "branch"); }}>
                           Branch<small>every message, then go another way</small>

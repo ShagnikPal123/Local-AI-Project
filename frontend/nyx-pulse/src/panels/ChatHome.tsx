@@ -12,6 +12,7 @@ import type { AvatarState } from "../components/NyxAvatar";
 import { ChatWindowPane, DRAG_TYPE, openChatWindow, readDrag, useChatWindows } from "../components/windows/ChatWindows";
 import { ActivityRail } from "../components/activity/ActivityRail";
 import { ChatPanel } from "./ChatPanel";
+import { ChatPanes } from "../components/chat/panes/ChatPanes";
 import { lazy, Suspense } from "react";
 import { voiceMode, onVoiceMode } from "../voice/voiceBus";
 import { useStyle } from "../style/styleMix";
@@ -79,15 +80,20 @@ export function ChatHome({ onActivity, provider, onProvider, who, onSearch, onSt
         {voiceOn && <Suspense fallback={null}><VoiceStage /></Suspense>}
         <div className="chat-shell__row">
         {(() => {
+          // Several chats on one screen: the home chat is one pane of a layout the owner drags chats into.
           const chat = (
-            <ChatPanel
-              variant="home"
-              onActivity={onActivity}
-              provider={provider}
-              onProvider={onProvider}
-              brain={brain}
-              onOpenBrain={() => openChatWindow("brain")}
-            />
+            <ChatPanes provider={provider} onProvider={onProvider} renderMain={(headExtra, onChatChange) => (
+              <ChatPanel
+                variant="home"
+                onActivity={onActivity}
+                provider={provider}
+                onProvider={onProvider}
+                brain={brain}
+                onOpenBrain={() => openChatWindow("brain")}
+                headExtra={headExtra}
+                onChatChange={onChatChange}
+              />
+            )} />
           );
           const rail = showRail ? <ActivityRail onClose={() => { if (railFits) setRailOn(false); setPeek(false); }} />
             : <button type="button" className="activity-tab" onClick={() => { setRailOn(true); setPeek(true); }}>Activity</button>;

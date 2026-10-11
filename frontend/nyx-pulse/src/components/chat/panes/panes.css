@@ -1,0 +1,82 @@
+/* Several chats on one screen (ChatPanes.tsx). Panes are placed absolutely from the layout tree. */
+.cp-area { position: relative; flex: 1; min-width: 0; min-height: 0; }
+.cp-pane { position: absolute; display: flex; min-width: 0; min-height: 0; box-sizing: border-box; }
+.cp-area.is-split .cp-pane { padding: 3px; }
+.cp-pane__body { position: relative; flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+.cp-pane__body > .chat-home { flex: 1; height: auto; min-height: 0; }
+.cp-area.is-split .cp-pane__body { border-radius: var(--radius-lg, 16px); box-shadow: inset 0 0 0 1px var(--color-divider);
+  background: color-mix(in srgb, var(--color-surface) 55%, transparent); }
+.cp-area.is-split .cp-pane.is-focused .cp-pane__body { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--color-accent) 70%, transparent); }
+
+/* A second pane: the compact chat. */
+.nyx-chat--pane { padding: 6px 10px 10px; gap: 6px; }
+.nyx-chat--pane .nyx-chat__bar { flex-wrap: nowrap; min-width: 0; }
+.nyx-chat--pane .nyx-chat__bar > * { min-width: 0; }
+.nyx-chat--pane .nyx-chat__status { font-size: 12px; color: var(--color-neutral-600); }
+
+/* Grip, split and close controls. */
+.cp-head { display: inline-flex; align-items: center; gap: 2px; flex: none; }
+.cp-splits { display: inline-flex; align-items: center; gap: 2px; flex: none; }
+.cp-grip, .cp-icon { display: inline-grid; place-items: center; flex: none; width: 28px; height: 28px; padding: 0; border: 0;
+  border-radius: 8px; background: none; color: var(--color-neutral-600); cursor: pointer; }
+.cp-grip { width: 20px; cursor: grab; }
+.cp-grip:active { cursor: grabbing; }
+.cp-grip svg { fill: currentColor; }
+.cp-icon svg { fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; }
+.cp-grip:hover, .cp-icon:hover { color: var(--color-text); background: var(--color-surface-3); }
+.cp-grip:focus-visible, .cp-icon:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+.cp-close:hover { color: var(--color-danger); }
+
+/* Drop targets while a chat or pane is being dragged. */
+.cp-drop { position: absolute; inset: 0; z-index: 30; border-radius: var(--radius-lg, 16px); }
+.cp-area.is-dragging .cp-pane__body { pointer-events: none; }
+.cp-preview { position: absolute; display: grid; place-items: center; border-radius: 12px; pointer-events: none;
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent); box-shadow: inset 0 0 0 2px var(--color-accent);
+  transition: inset 0.12s ease; }
+.cp-preview span { padding: 4px 10px; border-radius: 10px; font-size: 12px; font-weight: 600;
+  color: var(--color-on-accent); background: var(--color-accent); }
+.cp-preview.is-left { inset: 4px 50% 4px 4px; }
+.cp-preview.is-right { inset: 4px 4px 4px 50%; }
+.cp-preview.is-top { inset: 4px 4px 50% 4px; }
+.cp-preview.is-bottom { inset: 50% 4px 4px 4px; }
+.cp-preview.is-center { inset: 4px; background: color-mix(in srgb, var(--color-accent) 12%, transparent); }
+
+.cp-outer { position: absolute; z-index: 31; background: transparent; transition: background 0.12s ease; }
+.cp-outer.is-left { left: -2px; top: 0; bottom: 0; width: 18px; }
+.cp-outer.is-right { right: -2px; top: 0; bottom: 0; width: 18px; }
+.cp-outer.is-top { top: -2px; left: 0; right: 0; height: 18px; }
+.cp-outer.is-bottom { bottom: -2px; left: 0; right: 0; height: 18px; }
+.cp-outer::after { content: ""; position: absolute; border-radius: 3px; background: color-mix(in srgb, var(--color-accent) 35%, transparent); }
+.cp-outer.is-left::after, .cp-outer.is-right::after { top: 8px; bottom: 8px; width: 4px; left: 7px; }
+.cp-outer.is-top::after, .cp-outer.is-bottom::after { left: 8px; right: 8px; height: 4px; top: 7px; }
+.cp-outer.is-hot::after { background: var(--color-accent); box-shadow: 0 0 12px var(--color-accent); }
+
+/* Dividers: a wide hit area, a thin line that lights up. */
+.cp-divider { position: absolute; z-index: 20; display: grid; place-items: center; touch-action: none; }
+.cp-divider.is-row { width: 10px; margin-left: -5px; cursor: col-resize; }
+.cp-divider.is-col { height: 10px; margin-top: -5px; cursor: row-resize; }
+.cp-divider::after { content: ""; border-radius: 2px; background: transparent; transition: background 0.12s ease; }
+.cp-divider.is-row::after { width: 3px; height: 36px; }
+.cp-divider.is-col::after { height: 3px; width: 36px; }
+.cp-divider:hover::after, .cp-divider:focus-visible::after { background: var(--color-accent); }
+.cp-divider:focus-visible { outline: none; }
+body.cp-resizing { user-select: none; }
+body.cp-resizing--row { cursor: col-resize; }
+body.cp-resizing--col { cursor: row-resize; }
+body.cp-resizing iframe, body.cp-resizing canvas { pointer-events: none; }
+
+@media (prefers-reduced-motion: reduce) { .cp-preview, .cp-outer, .cp-divider::after { transition: none; } }
+
+/* A narrow home pane keeps its chat list from crowding the conversation: slimmer first, then over the chat (fold it
+   with ‹ to read), the way it behaves on a phone. */
+.cp-area.is-split .cp-pane__body { container: chatpane / inline-size; }
+@container chatpane (max-width: 720px) {
+  .chat-home .chat-rail:not(.is-folded) { width: 190px; }
+}
+@container chatpane (max-width: 520px) {
+  .chat-home { grid-template-columns: minmax(0, 1fr); }
+  .chat-home .chat-rail:not(.is-folded) { position: absolute; z-index: 30; inset: 0 auto 0 0; width: min(260px, 90%);
+    background: var(--color-flyout); box-shadow: 8px 0 24px rgba(0, 0, 0, 0.35); }
+  .chat-home .chat-rail.is-folded { position: absolute; z-index: 5; inset: 6px auto auto 4px; width: auto; padding: 4px; }
+  .chat-home__head { padding-left: 44px; }
+}

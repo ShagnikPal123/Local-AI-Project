@@ -11,7 +11,8 @@
  */
 
 import { takeAbilitiesNote } from "../state/abilities";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { focusedPane } from "../components/chat/panes/paneFocus";
 import {
   api,
   type UploadRecord,
@@ -78,22 +79,41 @@ export function ChatPanel({
   onSent,
   brain,
   onOpenBrain,
+  paneKey = "main",
+  paneChatId,
+  onChatChange,
+  paneBar,
+  headExtra,
 }: {
   onActivity?: (s: AvatarState) => void;
   provider: string;
   onProvider: (provider: string) => void;
   /** "sheet": the compact layout that floats over the brain on the Nyx tab.
    *  "home": chats down the left and the conversation in the middle, like Claude (Update 1, U48). */
-  variant?: "full" | "sheet" | "home";
+  variant?: "full" | "sheet" | "home" | "pane";
   /** Called with the text of every message sent (the brain pulses the predicted cluster). */
   onSent?: (text: string) => void;
   /** "home" only: the Second Brain at a glance in the rail, and how to open it. */
   brain?: { memories: number; today: number } | null;
   onOpenBrain?: () => void;
+  /** Several chats on one screen (components/chat/panes): this pane's id. Microphone, cards and "Explain this" go to
+   *  the pane the owner last clicked, so each panel only takes them when it is that pane. */
+  paneKey?: string;
+  /** A second pane: the chat it shows. It does not take over "the chat you were in" or other tabs' "open chat". */
+  paneChatId?: string;
+  /** Tells the layout which chat this pane is on (a new chat gets its real id on its first turn). */
+  onChatChange?: (chatId: string) => void;
+  /** "pane": the move grip at the start of the bar, split/close buttons at the end. */
+  paneBar?: { start?: ReactNode; end?: ReactNode };
+  /** "home": extra controls at the start of the header (the move grip and split buttons). */
+  headExtra?: ReactNode;
 }) {
+  const isPane = paneChatId !== undefined;
+  const mine = () => focusedPane() === paneKey;
   // Reopen the chat you were in. "default" is only a first-visit placeholder;
   // the server answers it with its active chat and the panel adopts the real id.
   const [activeChatId, setActiveChatId] = useState<string>(() => {
+    if (paneChatId) return paneChatId;
     try {
       return localStorage.getItem(ACTIVE_CHAT_KEY) || "default";
     } catch {
@@ -101,12 +121,19 @@ export function ChatPanel({
     }
   });
   useEffect(() => {
+    if (activeChatId !== "default") onChatChange?.(activeChatId);
+    if (isPane) return;
     try {
       if (activeChatId !== "default") localStorage.setItem(ACTIVE_CHAT_KEY, activeChatId);
     } catch {
       /* private browsing: the choice simply will not persist */
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeChatId]);
+  // The layout dropped another chat onto this pane.
+  useEffect(() => {
+    if (paneChatId) setActiveChatId(paneChatId);
+  }, [paneChatId]);
   const [chats, setChats] = useState<ChatSummaryView[]>([]);
   const [draft, setDraft] = useState(() => {
     try {
@@ -138,7 +165,7 @@ export function ChatPanel({
 
   // --- messages ---------------------------------------------------------------
 
-  const [messages, setMessages] = useState<ChatMessageView[]>(() => transcripts.get("default") ?? []);
+  const [messages, setMessages] = useState<ChatMessageView[]>(() => transcripts.get(paneChatId || "default") ?? []);
 
   const persist = useCallback((chatId: string, next: ChatMessageView[]) => {
     transcripts.set(chatId, next);
@@ -242,6 +269,7 @@ export function ChatPanel({
 
   // A sub-agent's own chat, opened from the Sub-agents tab (owner request, 2026-09-15).
   useEffect(() => {
+    if (isPane) return;
     const onOpen = (event: Event) => {
       const chatId = (event as CustomEvent<{ chatId?: string }>).detail?.chatId;
       if (chatId) { setActiveChatId(chatId); void loadChats(); }
@@ -293,7 +321,7 @@ export function ChatPanel({
   useEffect(() => {
     const onCompose = (event: Event) => {
       const text = (event as CustomEvent<{ text?: string }>).detail?.text;
-      if (text) setDraft(text);
+      if (text && mine()) setDraft(text);
     };
     window.addEventListener("nyx:compose", onCompose);
     return () => window.removeEventListener("nyx:compose", onCompose);
@@ -306,7 +334,7 @@ export function ChatPanel({
     const onCardSend = (event: Event) => {
       const detail = (event as CustomEvent<{ text?: string; mode?: string }>).detail;
       const text = detail?.text?.trim();
-      if (text) void doSendRef.current(text, [], detail?.mode);
+      if (text && mine()) void doSendRef.current(text, [], detail?.mode);
     };
     window.addEventListener("nyx:chat-send", onCardSend);
     return () => window.removeEventListener("nyx:chat-send", onCardSend);
@@ -418,7 +446,7 @@ export function ChatPanel({
     const onVoiceSend = (event: Event) => {
       const detail = (event as CustomEvent<{ text?: string; sessionId?: string }>).detail ?? {};
       const text = (detail.text || "").trim();
-      if (text) void doSendRef.current(text, [], undefined, detail.sessionId);
+      if (text && mine()) void doSendRef.current(text, [], undefined, detail.sessionId);
     };
     window.addEventListener("nyx:voice-send", onVoiceSend);
     return () => window.removeEventListener("nyx:voice-send", onVoiceSend);
@@ -445,7 +473,7 @@ export function ChatPanel({
 
   useEffect(() => onWorkspaceEvent((event) => {
     const opened = (event as { type: string; diagram?: { id?: string } }).diagram;
-    if (event.type === "diagram.open" && opened?.id) void openDiagramById(opened.id);
+    if (event.type === "diagram.open" && opened?.id && mine()) void openDiagramById(opened.id);
   }), [openDiagramById]);
 
   // --- attachments ----------------------------------------------------------------
@@ -1046,6 +1074,7 @@ export function ChatPanel({
         />
         <section className="chat-home__main" aria-label={`Chat: ${title}`}>
           <header className="chat-home__head">
+            {headExtra}
             <h2 className="chat-home__title" title={title}>{title}</h2>
             <ChatActions onMake={(kind) => void makeChat(kind)} />
             <span className="chat-home__spacer" />
@@ -1125,15 +1154,16 @@ export function ChatPanel({
         {teamDetails && !agentSheet && <AgentDetails onClose={() => setTeamDetails(false)} onEdit={(name) => setAgentSheet(name)} />}
         {agentSheet && <AgentProperties name={agentSheet} onClose={() => setAgentSheet(null)} onRenamed={setAgentSheet} />}
         {diagramOverlay}
-        <Toasts items={toasts} onDismiss={dismissToast} />
+        {!isPane && <Toasts items={toasts} onDismiss={dismissToast} />}
       </div>
     );
   }
 
-  if (variant === "sheet") {
+  if (variant === "sheet" || variant === "pane") {
     return (
-      <div className="nyx-chat">
+      <div className={`nyx-chat${isPane ? " nyx-chat--pane" : ""}`}>
         <div className="nyx-chat__bar">
+          {paneBar?.start}
           <ChatSwitcher
             chats={chats}
             activeId={activeChatId}
@@ -1147,18 +1177,19 @@ export function ChatPanel({
           <ChatActions onMake={(kind) => void makeChat(kind)} />
           {activeTalkSupported() && <VoiceSwitch mode={voice} onMode={setVoice} />}
           <ProviderPicker value={provider} onChange={(next) => void pickProvider(next)} compact />
+          {paneBar?.end}
         </div>
         <div className="nyx-chat__status" aria-live="polite">{subtitle}</div>
-        <UsageBar provider={usageProvider} refreshKey={usageKey} />
-        <ContextBar chatId={activeChatId} provider={usageProvider} refreshKey={`${usageKey ?? ""}:${messages.length}`} />
-        <AgentDock
+        {!isPane && <UsageBar provider={usageProvider} refreshKey={usageKey} />}
+        {!isPane && <ContextBar chatId={activeChatId} provider={usageProvider} refreshKey={`${usageKey ?? ""}:${messages.length}`} />}
+        {!isPane && <AgentDock
           agents={agents}
           collapsed={dockCollapsed}
           onToggle={() => setDockCollapsed((v) => !v)}
           onAskAgent={(name) => onAction({ type: "askAgent", name })}
           onOpenAgent={(name) => onAction({ type: "openAgent", name })}
           onOpenDetails={() => setTeamDetails(true)}
-        />
+        />}
         {chatAgents[activeChatId] && (
           <div className="chat-owner" role="note">
             <span>This chat belongs to <b>{chatAgents[activeChatId]}</b> — they answer here, not the Manager.</span>
@@ -1214,7 +1245,7 @@ export function ChatPanel({
         {teamDetails && !agentSheet && <AgentDetails onClose={() => setTeamDetails(false)} onEdit={(name) => setAgentSheet(name)} />}
         {agentSheet && <AgentProperties name={agentSheet} onClose={() => setAgentSheet(null)} onRenamed={setAgentSheet} />}
         {diagramOverlay}
-        <Toasts items={toasts} onDismiss={dismissToast} />
+        {!isPane && <Toasts items={toasts} onDismiss={dismissToast} />}
       </div>
     );
   }
@@ -1303,7 +1334,7 @@ export function ChatPanel({
         {teamDetails && !agentSheet && <AgentDetails onClose={() => setTeamDetails(false)} onEdit={(name) => setAgentSheet(name)} />}
         {agentSheet && <AgentProperties name={agentSheet} onClose={() => setAgentSheet(null)} onRenamed={setAgentSheet} />}
         {diagramOverlay}
-        <Toasts items={toasts} onDismiss={dismissToast} />
+        {!isPane && <Toasts items={toasts} onDismiss={dismissToast} />}
       </div>
     </PanelShell>
   );
