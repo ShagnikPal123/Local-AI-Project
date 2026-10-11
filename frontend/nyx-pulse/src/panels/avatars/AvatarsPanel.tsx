@@ -48,6 +48,14 @@ function minutes(n: number): string {
   return n % 60 === 0 ? (n === 60 ? "hour" : n === 1440 ? "day" : `${n / 60} hours`) : `${n} min`;
 }
 
+/** Fields a record from an older engine may not have yet. */
+function withDefaults(a: Avatar): Avatar {
+  return { ...a, personality: a.personality ?? "", personality_custom: a.personality_custom ?? "",
+    functions: a.functions ?? { talk: "allow" }, goals: a.goals ?? [], watches: a.watches ?? [], lessons: a.lessons ?? [],
+    notes: a.notes ?? [], activity: a.activity ?? [],
+    schedule: a.schedule ?? { mode: "on_call", every_minutes: 60, start: "08:00", end: "20:00", days: [0, 1, 2, 3, 4, 5, 6] } };
+}
+
 export function scheduleWords(s: Schedule): string {
   if (s.mode === "on_call") return "When called";
   const every = `every ${minutes(s.every_minutes)}`;
@@ -77,8 +85,12 @@ export function AvatarsPanel() {
   const load = useCallback(async () => {
     const r = await api.get<{ avatars: Avatar[]; catalog: Catalog }>("/api/avatars");
     if (!r.ok) { setError(r.error); return; }
-    setList(r.data.avatars);
-    setCatalog(r.data.catalog);
+    // An engine older than this page leaves fields out; fill them so nothing reads an undefined list.
+    const c = r.data.catalog ?? ({} as Partial<Catalog>);
+    setCatalog({ functions: c.functions ?? {}, main: c.main ?? {}, schedules: c.schedules ?? { on_call: "Only when called" },
+      models: c.models ?? { "": "Ichos's usual model" }, repeats: c.repeats ?? [""],
+      personalities: c.personalities ?? {} });
+    setList((r.data.avatars ?? []).map(withDefaults));
     setSelected((current) => current && r.data.avatars.some((a) => a.id === current) ? current : r.data.avatars[0]?.id ?? "");
   }, []);
   useEffect(() => { void load(); }, [load]);
@@ -215,11 +227,11 @@ function Editor({ avatar, catalog, reload, onError, onCopy, onGone }: {
             <textarea rows={4} maxLength={1200} value={draft.does} onChange={(e) => set("does", e.target.value)}
               placeholder="In your words: what it should do, how, and when to bother you." />
           </label>
-          <label className="av-field">Personality
+          {Object.keys(catalog.personalities).length > 0 && <label className="av-field">Personality
             <select value={draft.personality} onChange={(e) => set("personality", e.target.value)}>
               {Object.entries(catalog.personalities).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
-          </label>
+          </label>}
           {draft.personality === "custom" && <textarea rows={2} maxLength={600} value={draft.personality_custom}
             onChange={(e) => set("personality_custom", e.target.value)} aria-label="Custom personality"
             placeholder="How it should sound, e.g. calm, dry humour, short sentences, calls me boss" />}
