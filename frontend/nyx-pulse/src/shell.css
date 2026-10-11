@@ -213,3 +213,9 @@ main > :not(.chat-shell):not(.hub):only-child { height: 100%; min-height: 0; ove
 .model-tile__text b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .model-tile__text small { color: var(--color-neutral-600); font-size: 12px; }
 .model-tile__pill { padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; color: var(--color-on-accent); background: var(--color-accent); }
+
+/* Dialogs over the glass look get a solid surface and a darker backdrop (owner, 2026-10-10: "the background is too
+   light and transparent"). The studio style makes --color-surface translucent; dialogs must not inherit that. */
+.acct-scrim, .quit-scrim { background: rgba(4, 4, 8, 0.78) !important; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.acct-sheet, .quit-dialog { background: #16171f !important; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 30px 80px rgba(0, 0, 0, 0.7) !important; }
+.quit-scrim--solid { background: #0b0b10 !important; }

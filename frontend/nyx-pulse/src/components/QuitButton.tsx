@@ -10,6 +10,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { api, setToken } from "../api";
 
 type Phase = "idle" | "confirm" | "quitting" | "stopped";
@@ -65,6 +66,9 @@ export function QuitButton({ signedIn }: { signedIn: boolean }) {
         <span className="quit-btn__label"><PowerGlyph size={14} />Log Out</span>
       </button>
 
+      {/* A portal: inside the glass header a fixed overlay is boxed into the header strip and cut off
+          (owner, 2026-10-10: "the logout doesn't show up just as the account had before"). */}
+      {createPortal(<>
       {(phase === "confirm" || phase === "quitting") && (
         <div className="quit-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget && phase === "confirm") setPhase("idle"); }}>
           <div className="quit-dialog" role="alertdialog" aria-modal="true" aria-labelledby="quit-title" aria-describedby="quit-body">
@@ -100,6 +104,7 @@ export function QuitButton({ signedIn }: { signedIn: boolean }) {
           </div>
         </div>
       )}
+      </>, document.body)}
     </>
   );
 }
