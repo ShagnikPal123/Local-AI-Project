@@ -186,3 +186,14 @@
 .style-mix__style:hover { background: var(--color-surface-3); }
 .style-mix__style input { accent-color: var(--pop-violet); margin-top: 3px; }
 .style-mix__style small { display: block; color: var(--color-neutral-600); font-size: 12px; }
+
+/* Motion touches (style/motion.ts): click sparks and a pointer spotlight on cards. */
+.click-spark { position: fixed; width: 0; height: 0; pointer-events: none; z-index: 400; }
+.click-spark i { position: absolute; left: -2px; top: -2px; width: 4px; height: 4px; border-radius: 999px; }
+.card, .model-tile, .pd-scale { position: relative; }
+.card::after, .model-tile::after, .pd-scale::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity 200ms ease;
+  background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, var(--color-accent) 10%, transparent), transparent 70%);
+}
+.card:hover::after, .model-tile:hover::after, .pd-scale:hover::after { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .card::after, .model-tile::after, .pd-scale::after { display: none; } }

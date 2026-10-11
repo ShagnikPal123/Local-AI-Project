@@ -8,9 +8,11 @@ import "./style/styles.css";
 import "./style/studio.css";
 import { bootMix } from "./style/styleMix";
 import { bootAppearance } from "./style/appearance";
+import { startMotion } from "./style/motion";
 
 bootMix();
 bootAppearance();
+startMotion();
 import { registerShellCache } from "./engine";
 
 // A rebuild — an update, Apply or Improve — replaces the hashed chunks while this page is open. The next tab

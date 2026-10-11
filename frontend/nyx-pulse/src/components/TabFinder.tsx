@@ -58,6 +58,11 @@ export function TabFinder({ onOpen, onCreated, onClose }: {
   const wanted = query.trim().toLowerCase();
   const local = places.filter((p) => !wanted || p.label.toLowerCase().includes(wanted) || p.id.includes(wanted)).slice(0, 12);
   const [cursor, setCursor] = useState(0);
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, [onClose]);
   useEffect(() => { setCursor(0); }, [query]);
   const [name, setName] = useState("");
   const [purpose, setPurpose] = useState("");
