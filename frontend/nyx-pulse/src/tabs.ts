@@ -73,7 +73,7 @@ export const CORE_TABS: TabDef[] = [
   { id: "code", label: "Code", icon: "ph-code", pinned: true, core: true },
   // Agents + Sub-agents.
   { id: "agents", label: "Agents", icon: "ph-tree-structure", pinned: true, core: true },
-  { id: "collab", label: "Collab", icon: "ph-git-pull-request", pinned: false, core: true },
+  { id: "collab", label: "Collab · WIP", icon: "ph-git-pull-request", pinned: false, core: true },
   { id: "trading", label: "Trading", icon: "ph-chart-line-up", pinned: true, core: true },
   { id: "improve", label: "Improve", icon: "ph-arrows-clockwise", pinned: true, core: true },
   { id: "freewill", label: "Free Will", icon: "ph-sparkle", pinned: true, core: true },
@@ -89,7 +89,7 @@ export const CORE_TABS: TabDef[] = [
   { id: "computer", label: "Computer", icon: "ph-desktop-tower", pinned: true, core: true },
   // Connectors + Keys & Models + Models + Add capability.
   { id: "connectors", label: "Connections", icon: "ph-plugs", pinned: true, core: true },
-  { id: "admin", label: "Admin", icon: "ph-shield-check", pinned: false, core: true, adminOnly: true },
+  { id: "admin", label: "Admin · WIP", icon: "ph-shield-check", pinned: false, core: true, adminOnly: true },
 ];
 
 /** Where a tab that was merged or removed now lives, so old links, Nyx's ui_open_tab and habits still land.

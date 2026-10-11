@@ -36,6 +36,7 @@ import { ComputerBanner } from "./components/ComputerBanner";
 import { Companion, KahunaBarButton } from "./components/kahuna/Companion";
 import { TopTabs } from "./components/TopTabs";
 import { TabBoundary } from "./components/TabBoundary";
+import { WorkInProgress } from "./components/WorkInProgress";
 import { onWorkspaceEvent } from "./state/workspaceEvents";
 import { startMods } from "./state/modsStore";
 import { startVoicePlayer } from "./voice/voicePlayer";
@@ -420,7 +421,11 @@ export default function App() {
         {active === "learn" && <LearnPanel />}
         {active === "notes" && <NotesPanel />}
         {active === "code" && <CodePanel />}
-        {active === "collab" && <CollabPanel />}
+        {active === "collab" && (
+          <WorkInProgress title="Collab" why="Working on code together with other people is being built — the page is here so you can see where it is going, but it is not up and running yet.">
+            <CollabPanel />
+          </WorkInProgress>
+        )}
         {active === "trading" && <TradingPanel />}
         {active === "build" && <BuildPanel />}
         {active === "research" && (
@@ -457,7 +462,11 @@ export default function App() {
         {active === "predict" && <PredictPanel />}
         {active === "equalize" && <EqualizePanel />}
         {active === "avatars" && <AvatarsPanel />}
-        {active === "admin" && <AdminPanel />}
+        {active === "admin" && (
+          <WorkInProgress title="Admin access" why="Who may do what in Ichos is being hardened for safety. Until it is finished, keep admin rights to the owner account only.">
+            <AdminPanel />
+          </WorkInProgress>
+        )}
         </Suspense>
         </TabBoundary>
         {activeUserTab && (
