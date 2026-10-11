@@ -7,13 +7,14 @@ import { SpeedControl, TimelineStrip } from "./Controls";
 import { KIND_LABELS, STATUS_WORDS, span } from "./format";
 import { Inspector } from "./Inspector";
 import { PlanetScene, type AgentLook, type PlanetHandle } from "./planet/PlanetScene";
+import { ProgressPanel } from "./ProgressPanel";
 import { GovernmentPanel, PeoplePanel, TimelinePanel } from "./SidePanels";
 import type { Pick, SpeedId } from "./types";
 import { useWorld } from "./useWorld";
 import { WorldChat } from "./WorldChat";
 import { worldApi } from "./worldApi";
 
-type Side = "talk" | "government" | "people" | "timeline";
+type Side = "talk" | "progress" | "government" | "people" | "timeline";
 
 const RUN_TIMES = [
   { value: "until done", label: "Until the goal is met" },
@@ -129,6 +130,10 @@ export function WorldView({ worldId, onLobby, onError }: {
 
   const crumbs: { label: string; pick: Pick | null }[] = [{ label: world.name, pick: null }];
   if (pick) {
+    if (pick.kind === "government" || (pick.kind === "building"
+      && snapshot.buildings.find((b) => b.bid === pick.id)?.sector === "gov")) {
+      crumbs.push({ label: "Government", pick: { kind: "government" } });
+    }
     const sectorId = pick.kind === "sector" ? pick.id
       : pick.kind === "building" ? snapshot.buildings.find((b) => b.bid === pick.id)?.sector
         : pick.kind === "bot" ? snapshot.bots.find((b) => b.aid === pick.id)?.sector : undefined;
@@ -147,7 +152,7 @@ export function WorldView({ worldId, onLobby, onError }: {
   const running = world.status === "running";
   const paused = world.status === "paused";
   const leaderWord = world.leader.kahuna ? "Big Kahuna" : world.leader.name;
-  const government = snapshot.sectors.find((s) => s.important)?.gov ?? "World Government";
+  const government = snapshot.government?.signer ?? "The government";
 
   return (
     <div className="wld-view">
@@ -274,10 +279,11 @@ export function WorldView({ worldId, onLobby, onError }: {
 
         <aside className="wld-side" aria-label="The world's panels">
           <div className="wld-tabs" role="tablist">
-            {(["talk", "government", "people", "timeline"] as Side[]).map((id) => (
+            {(["talk", "progress", "government", "people", "timeline"] as Side[]).map((id) => (
               <button key={id} type="button" role="tab" aria-selected={side === id} className={side === id ? "is-on" : ""}
                       onClick={() => setSide(id)}>
-                {id === "talk" ? "Talk & output" : id === "government" ? "Government" : id === "people" ? "People" : "Timeline"}
+                {id === "talk" ? "Talk & output" : id === "progress" ? "Progress" : id === "government" ? "Government"
+                  : id === "people" ? "People" : "Timeline"}
                 {id === "government" && snapshot.wars.some((w) => w.status === "awaiting") ? <i className="wld-dotnote" /> : null}
                 {id === "government" && snapshot.startups.some((s) => s.status === "proposed") ? <i className="wld-dotnote" /> : null}
               </button>
@@ -290,6 +296,9 @@ export function WorldView({ worldId, onLobby, onError }: {
                            running={running} thinking={world.thinking} onSend={say} sending={sending} />
                 <OutputBox officeId={world.office_id} outputs={office.snapshot?.outputs ?? []} onError={onError} />
               </>
+            )}
+            {side === "progress" && (
+              <ProgressPanel snapshot={snapshot} onChanged={() => void live.reload()} onError={onError} />
             )}
             {side === "government" && (
               <GovernmentPanel snapshot={snapshot} onPick={choose} onChanged={() => void live.reload()} onError={onError} />

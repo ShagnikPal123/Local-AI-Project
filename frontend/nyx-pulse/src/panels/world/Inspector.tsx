@@ -8,7 +8,7 @@
 
 import { useMemo, useState } from "react";
 import type { OfficeAgent, OfficeRole, OfficeSection, OfficeTask } from "../office/types";
-import { ERAS, KIND_LABELS, gameDate, span } from "./format";
+import { ERAS, KIND_LABELS, PHASE_WORDS, gameDate, span } from "./format";
 import type { Pick, WorldSnapshot } from "./types";
 import { worldApi } from "./worldApi";
 
@@ -31,6 +31,7 @@ export function Inspector(props: Props) {
     <aside className="wld-card" aria-label="Details" aria-live="polite">
       <button type="button" className="ofc-x wld-card__close" onClick={props.onClose} aria-label="Close the details">✕</button>
       {pick.kind === "world" && <WorldCard {...props} />}
+      {pick.kind === "government" && <GovernmentCard {...props} />}
       {pick.kind === "sector" && <SectorCard {...props} id={pick.id} />}
       {pick.kind === "building" && <BuildingCard {...props} id={pick.id} />}
       {pick.kind === "bot" && <BotCard {...props} id={pick.id} />}
@@ -49,6 +50,48 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 
 function Gone({ what }: { what: string }) {
   return <p className="ofc-muted">That {what} is gone from the world.</p>;
+}
+
+/** The government: its own district, never a sector's head office — the branches, who sits where, the ministries. */
+function GovernmentCard({ snapshot, onPick }: Props) {
+  const gov = snapshot.government;
+  if (!gov) return <Gone what="government" />;
+  return (
+    <>
+      <p className="wld-card__eyebrow">The government · its own district</p>
+      <h3>{gov.name}</h3>
+      <p className="wld-card__lead">Apart from every sector. The Chancellery plans the projects, the Assembly votes on the
+        government's laws, the High Court judges contests, and the ministries run the world.</p>
+      {gov.branches.map((branch) => (
+        <div key={branch.key} className="wld-branch">
+          <h4>{branch.name} <small>{branch.title}</small></h4>
+          {!branch.open ? <p className="ofc-muted">{branch.note ?? "Not open yet."}</p> : (
+            <ul className="wld-list">
+              {branch.members.length === 0 && <li className="ofc-muted">No one seated yet.</li>}
+              {branch.members.slice(0, 12).map((m) => (
+                <li key={`${branch.key}${m.aid}`}>
+                  <button type="button" className="ofc-link" onClick={() => onPick({ kind: "bot", id: m.aid })}>{m.name}</button>
+                  <em> — {m.seat ? `seat of ${m.seat}` : m.role}</em>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ))}
+      <h4>Ministries</h4>
+      <ul className="wld-list">
+        {gov.ministries.map((m) => (
+          <li key={m.key} className={m.open ? "" : "is-locked"}>
+            <b>{m.name}</b>{m.open ? (m.minister ? <em> — {m.minister.name}</em> : null) : <em> — opens with {m.needs}</em>}
+          </li>
+        ))}
+      </ul>
+      {gov.last_vote && (
+        <p className="wld-card__lead">Last vote: “{gov.last_vote.text}” — {gov.last_vote.passed ? "passed" : "rejected"}{" "}
+          {gov.last_vote.yes}–{gov.last_vote.no}{gov.last_vote.abstain ? `, ${gov.last_vote.abstain} abstained` : ""}.</p>
+      )}
+    </>
+  );
 }
 
 function WorldCard({ snapshot }: Props) {
@@ -86,7 +129,7 @@ function SectorCard({ snapshot, id, agents, sections, tasks, roles, onPick }: Pr
   for (const bot of people) byRole.set(bot.role, (byRole.get(bot.role) ?? 0) + 1);
   return (
     <>
-      <p className="wld-card__eyebrow">{sector.important ? "The capital" : sector.startup ? "Start-up sector" : "Sector"}</p>
+      <p className="wld-card__eyebrow">{sector.startup ? "Start-up sector" : "Sector"}</p>
       <h3>{sector.name}</h3>
       <p className="wld-card__lead">{section?.purpose || "No stated purpose."}</p>
       <Row label="Government">{sector.gov}</Row>
@@ -122,15 +165,27 @@ function BuildingCard({ snapshot, id, agents, onPick }: Props & { id: number }) 
   const building = snapshot.buildings.find((b) => b.bid === id);
   if (!building) return <Gone what="building" />;
   const sector = snapshot.sectors.find((s) => s.sid === building.sector);
+  const civic = building.sector === "gov";
+  const ministry = building.kind === "ministry" ? snapshot.government?.ministries.find((m) => m.key === building.tag) : null;
   const inside = snapshot.bots.filter((b) => b.sector === building.sector && agents[b.aid]?.status === "working");
   return (
     <>
-      <p className="wld-card__eyebrow">{sector?.name ?? "Workplace"}</p>
-      <h3>{KIND_LABELS[building.kind] ?? building.kind}</h3>
+      <p className="wld-card__eyebrow">{civic ? "The government's district" : sector?.name ?? "Workplace"}</p>
+      <h3>{ministry?.name ?? KIND_LABELS[building.kind] ?? building.kind}</h3>
+      {ministry && <p className="wld-card__lead">{ministry.about}{ministry.minister ? ` Minister: ${ministry.minister.name}.` : ""}</p>}
       <Row label="Floors">{building.floors}</Row>
       <Row label="Built in">{ERAS[building.era] ?? building.era} era · {gameDate(building.built_day)}</Row>
-      <Row label="State">{building.state === "constructing" ? `Being built · ${Math.round(building.progress * 100)}%`
+      <Row label="State">{building.state === "constructing"
+        ? `${PHASE_WORDS[building.phase ?? ""] ?? "Being built"} · ${Math.round(building.progress * 100)}%`
         : building.state === "demolishing" ? "Coming down" : "Standing"}</Row>
+      {building.state === "constructing" && (
+        <div className="wld-phases" aria-label="Construction phases">
+          {["survey", "foundation", "frame", "facade", "fit-out"].map((phase) => (
+            <span key={phase} className={phase === building.phase ? "is-now" : ""}>{phase}</span>
+          ))}
+        </div>
+      )}
+      {civic && <button type="button" className="ofc-link" onClick={() => onPick({ kind: "government" })}>Open the government</button>}
       {building.why && <p className="wld-card__lead">{building.why}</p>}
       <h4>Working here now</h4>
       {inside.length === 0 ? <p className="ofc-muted">Nobody at the moment.</p> : (
@@ -361,7 +416,7 @@ function StationCard({ snapshot, id }: Props & { id: number }) {
       <p className="wld-card__eyebrow">In orbit</p>
       <h3>{planet ? `Artificial planet ${id - 99}` : `Space station ${id + 1}`}</h3>
       <p className="wld-card__lead">
-        {planet ? "Built in the Stellar era, when the stations were not enough." :
+        {planet ? "Built with Stellar forges, when the stations were not enough." :
           "Built when the planet ran out of room — where the world's more advanced agents work."}
       </p>
       <Row label="Era">{snapshot.world.era_name}</Row>

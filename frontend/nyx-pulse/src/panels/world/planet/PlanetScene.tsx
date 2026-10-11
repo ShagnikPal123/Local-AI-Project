@@ -13,15 +13,23 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { KIND_LABELS } from "../format";
 import type { Pick, WorldBot, WorldBuilding, WorldSector, WorldSnapshot } from "../types";
 import {
-  R, arcPoints, hash, latLonToVec, offsetOnSurface, plotPosition, sectorReach, slerpSurface, standUp, tangentFrame,
+  GOV_SPACING, R, arcPoints, hash, latLonToVec, offsetOnSurface, plotPosition, plotsFor, sectorReach,
+  setPlanetRadius, slerpSurface, standUp, tangentFrame,
 } from "./geo";
-import { ATMOSPHERE_FRAGMENT, ATMOSPHERE_VERTEX, cloudTexture, paintPlanet } from "./surface";
 import {
-  artificialPlanet, botGeometry, buildingGroup, disposeMeshCaches, figureGeometries, graveGeometry, startupFlag,
-  stationMesh, warSprite, type Look,
+  ATMOSPHERE_FRAGMENT, ATMOSPHERE_VERTEX, Terrain, WATER_DEPTH, cloudTexture, moonMeshes, paintPlanet,
+  planetGeometry as makePlanetGeometry, ringMesh, seaMaterial, type Site,
+} from "./surface";
+import {
+  artificialPlanet, botGeometry, buildingGroup, disposeMeshCaches, figureGeometries, graveGeometry, showPhase,
+  startupFlag, stationMesh, warSprite, type Look,
 } from "./meshes";
+import { Transport, type TransportNode } from "./transport";
 
 export interface PlanetHandle {
   focus: (pick: Pick | null) => void;
@@ -52,6 +60,53 @@ interface Props {
 
 const WORKPLACES = new Set(["office", "lab", "data_center", "mine", "farm", "factory", "refinery", "archive", "studio",
   "bank", "tower"]);
+/** The government's district is not a sector: its buildings carry this instead of a sector id (world/state.py). */
+const GOV = "gov";
+const PROXY_MATERIAL = new THREE.MeshBasicMaterial({ visible: false });
+
+/** Bake finished buildings into a few meshes per material: one district is a handful of draw calls, however big.
+ * Small parts (rooftop plant, columns, antennas) go into a second set that hides from far away. */
+function bake(groups: THREE.Group[]): { main: THREE.Mesh[]; detail: THREE.Mesh[] } {
+  const buckets = [new Map<THREE.Material, THREE.BufferGeometry[]>(), new Map<THREE.Material, THREE.BufferGeometry[]>()];
+  for (const group of groups) {
+    group.updateMatrixWorld(true);
+    const body = group.getObjectByName("body");
+    body?.traverse((object) => {
+      const item = object as THREE.Mesh;
+      if (!item.isMesh || Array.isArray(item.material)) return;
+      const copy = item.geometry.clone().applyMatrix4(item.matrixWorld);
+      const flat = copy.index ? copy.toNonIndexed() : copy;
+      if (flat !== copy) copy.dispose();
+      for (const name of Object.keys(flat.attributes)) {
+        if (!["position", "normal", "uv"].includes(name)) flat.deleteAttribute(name);
+      }
+      if (!flat.getAttribute("uv")) {
+        flat.setAttribute("uv", new THREE.Float32BufferAttribute(new Float32Array(flat.getAttribute("position").count * 2), 2));
+      }
+      const bucket = buckets[item.userData.detail ? 1 : 0];
+      const list = bucket.get(item.material) ?? [];
+      list.push(flat);
+      bucket.set(item.material, list);
+    });
+  }
+  const [main, detail] = buckets.map((bucket) => Array.from(bucket.entries()).flatMap(([material, list]) => {
+    const merged = mergeGeometries(list, false);
+    list.forEach((g) => g.dispose());
+    if (!merged) return [];
+    const made = new THREE.Mesh(merged, material);
+    made.raycast = () => undefined;
+    return [made];
+  }));
+  return { main, detail };
+}
+
+interface District {
+  signature: string;
+  centre: THREE.Vector3;
+  main: THREE.Mesh[];
+  detail: THREE.Mesh[];
+  proxies: THREE.Mesh[];
+}
 const MAX_FIGURES = 512;
 const MAX_COMMON = 640;
 const MAX_GRAVES = 520;
@@ -131,6 +186,16 @@ export const PlanetScene = forwardRef<PlanetHandle, Props>(function PlanetScene(
     clouds: THREE.Mesh;
     territories: THREE.Group;
     buildings: THREE.Group;
+    baked: THREE.Group;
+    proxies: THREE.Group;
+    districts: Map<string, District>;
+    dirty: Set<string>;
+    terrain: Terrain;
+    siteKey: string;
+    sea: THREE.Mesh;
+    moons: THREE.Group;
+    transport: Transport;
+    look: Look | null;
     markers: THREE.Group;
     sky: THREE.Group;
     lines: THREE.Group;
@@ -140,7 +205,8 @@ export const PlanetScene = forwardRef<PlanetHandle, Props>(function PlanetScene(
     commons: THREE.InstancedMesh;
     graves: THREE.InstancedMesh;
     ring: THREE.Mesh;
-    built: Map<number, { group: THREE.Group; key: string; shown: number }>;
+    /** Buildings under construction or coming down: drawn on their own, phase by phase. */
+    built: Map<number, { group: THREE.Group; key: string; shown: number; district: string }>;
     wars: Map<string, { sprite: THREE.Sprite; line: THREE.Line }>;
     flags: Map<string, THREE.Group>;
     figures: Figure[];
@@ -173,21 +239,29 @@ export const PlanetScene = forwardRef<PlanetHandle, Props>(function PlanetScene(
     renderer.domElement.className = "wld-canvas";
     renderer.domElement.setAttribute("aria-hidden", "true");
 
+    // The planet's own size and look come from the world's seed (world/planet.py).
+    const planetLook = latest.current.snapshot.planet;
+    setPlanetRadius(planetLook?.radius ?? 1);
+    const terrain = new Terrain(planetLook);
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(42, 1, 0.05, 3000);
-    camera.position.set(0, 9, 32);
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environment = environment;
+    scene.environmentIntensity = 0.45;
+    const camera = new THREE.PerspectiveCamera(42, 1, 0.05, 6000);
+    camera.position.set(0, R * 0.9, R * 3.2);
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.07;
     controls.enablePan = false;
-    controls.minDistance = R + 2.5;
-    controls.maxDistance = 140;
+    controls.minDistance = R * 1.25;
+    controls.maxDistance = R * 14;
     controls.rotateSpeed = 0.6;
     controls.zoomSpeed = 0.9;
 
     scene.add(new THREE.AmbientLight("#8a90b8", 0.55));
     scene.add(new THREE.HemisphereLight("#cfd8ff", "#1a1420", 0.55));
-    const sun = new THREE.DirectionalLight("#fff4e0", 2.1);
+    const sun = new THREE.DirectionalLight("#fff4e0", 2.3);
     sun.position.set(-40, 26, 30);
     scene.add(sun);
     const rim = new THREE.DirectionalLight("#7f74ff", 0.6);
@@ -198,7 +272,7 @@ export const PlanetScene = forwardRef<PlanetHandle, Props>(function PlanetScene(
     const starPositions = new Float32Array(2600 * 3);
     for (let i = 0; i < 2600; i += 1) {
       const v = new THREE.Vector3(hash(`s${i}x`) - 0.5, hash(`s${i}y`) - 0.5, hash(`s${i}z`) - 0.5).normalize()
-        .multiplyScalar(700 + hash(`s${i}d`) * 400);
+        .multiplyScalar(R * 70 + hash(`s${i}d`) * R * 40);
       starPositions.set([v.x, v.y, v.z], i * 3);
     }
     const stars = new THREE.Points(new THREE.BufferGeometry().setAttribute("position",
@@ -206,14 +280,21 @@ export const PlanetScene = forwardRef<PlanetHandle, Props>(function PlanetScene(
       sizeAttenuation: false, transparent: true, opacity: 0.7 }));
     scene.add(stars);
 
-    const planetGeometry = new THREE.SphereGeometry(R, 160, 120);
-    paintPlanet(planetGeometry, 0);
-    const planet = new THREE.Mesh(planetGeometry, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92,
-      metalness: 0.02 }));
+    const planetGeometry = makePlanetGeometry();
+    paintPlanet(planetGeometry, terrain, 0);
+    const planet = new THREE.Mesh(planetGeometry, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9,
+      metalness: 0.02, envMapIntensity: 0.25 }));
     planet.userData.pick = { kind: "world" } satisfies Pick;
     scene.add(planet);
+    const sea = new THREE.Mesh(new THREE.SphereGeometry(R - WATER_DEPTH, 160, 110), seaMaterial(terrain.planet));
+    sea.raycast = () => undefined;
+    scene.add(sea);
+    if (terrain.planet.rings) scene.add(ringMesh(terrain.planet));
+    const moons = new THREE.Group();
+    moonMeshes(terrain.planet).forEach((moon) => moons.add(moon));
+    scene.add(moons);
 
-    const atmosphereUniforms = { uColor: { value: new THREE.Color("#8fa8ff") }, uStrength: { value: 0.6 } };
+    const atmosphereUniforms = { uColor: { value: new THREE.Color(terrain.planet.air) }, uStrength: { value: 0.6 } };
     const atmosphere = new THREE.Mesh(new THREE.SphereGeometry(R * 1.045, 64, 48), new THREE.ShaderMaterial({
       vertexShader: ATMOSPHERE_VERTEX, fragmentShader: ATMOSPHERE_FRAGMENT, transparent: true, depthWrite: false,
       blending: THREE.AdditiveBlending, uniforms: atmosphereUniforms,
@@ -221,17 +302,20 @@ export const PlanetScene = forwardRef<PlanetHandle, Props>(function PlanetScene(
     atmosphere.raycast = () => undefined;
     scene.add(atmosphere);
 
-    const clouds = new THREE.Mesh(new THREE.SphereGeometry(R * 1.018, 64, 48), new THREE.MeshStandardMaterial({
-      map: cloudTexture(), transparent: true, depthWrite: false, opacity: 0.0, roughness: 1 }));
+    const clouds = new THREE.Mesh(new THREE.SphereGeometry(R * 1.03, 96, 64), new THREE.MeshStandardMaterial({
+      map: cloudTexture(terrain.planet), transparent: true, depthWrite: false, opacity: 0.0, roughness: 1 }));
     clouds.raycast = () => undefined;
     scene.add(clouds);
 
     const territories = new THREE.Group();
     const buildings = new THREE.Group();
+    const baked = new THREE.Group();
+    const proxies = new THREE.Group();
     const markers = new THREE.Group();
     const sky = new THREE.Group();
     const lines = new THREE.Group();
-    scene.add(territories, buildings, markers, sky, lines);
+    const transport = new Transport();
+    scene.add(territories, buildings, baked, proxies, markers, sky, lines, transport.group);
 
     const lights = new THREE.Points(new THREE.BufferGeometry(), new THREE.PointsMaterial({ color: "#ffd78a", size: 0.07,
       transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }));
@@ -266,7 +350,9 @@ export const PlanetScene = forwardRef<PlanetHandle, Props>(function PlanetScene(
     scene.add(ring);
 
     three.current = {
-      renderer, scene, camera, controls, planetGeometry, planet, clouds, territories, buildings, markers, sky, lines,
+      renderer, scene, camera, controls, planetGeometry, planet, clouds, territories, buildings, baked, proxies,
+      districts: new Map(), dirty: new Set(), terrain, siteKey: "", sea, moons, transport, look: null,
+      markers, sky, lines,
       lights, bodies, heads, commons, graves, ring, built: new Map(), wars: new Map(), flags: new Map(), figures: [],
       figureIndex: new Map(), commonSites: [], graveIds: [], pulses: [], seenTalks: new Set(), fly: null, era: -1,
       lookKey: "", reduced, lastInteract: performance.now(), level: "planet",
@@ -300,8 +386,8 @@ export const PlanetScene = forwardRef<PlanetHandle, Props>(function PlanetScene(
       const rect = renderer.domElement.getBoundingClientRect();
       pointer.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
       raycaster.setFromCamera(pointer, camera);
-      const hits = raycaster.intersectObjects([state.buildings, state.markers, state.sky, state.bodies, state.graves,
-        state.territories, state.planet], true);
+      const hits = raycaster.intersectObjects([state.buildings, state.proxies, state.markers, state.sky, state.bodies,
+        state.graves, state.territories, state.planet], true);
       for (const hit of hits) {
         if (hit.object === state.bodies && hit.instanceId !== undefined) {
           const figure = state.figures[hit.instanceId];
@@ -353,6 +439,7 @@ export const PlanetScene = forwardRef<PlanetHandle, Props>(function PlanetScene(
 
     // --- the loop
     let frame = 0;
+    let frameCount = 0;
     let last = performance.now();
     const matrix = new THREE.Matrix4();
     const quaternion = new THREE.Quaternion();
@@ -387,15 +474,35 @@ export const PlanetScene = forwardRef<PlanetHandle, Props>(function PlanetScene(
       if (camera.position.length() < R + 0.35) camera.position.setLength(R + 0.35);
       if (!state.reduced) state.clouds.rotation.y += dt * 0.004;
 
-      // Buildings rise (and come down) smoothly toward the progress the world reports.
-      state.built.forEach((entry) => {
+      // Buildings go through their phases toward the progress the world reports; a finished one joins its
+      // district's baked meshes.
+      state.built.forEach((entry, bid) => {
         const building = entry.group.userData.building as WorldBuilding;
-        const goal = building.state === "standing" ? 1 : Math.max(0.06, building.progress);
-        entry.shown += (goal - entry.shown) * Math.min(1, dt * (state.reduced ? 30 : 2.2));
-        const rising = entry.group.getObjectByName("body");
-        if (rising) rising.scale.y = Math.max(0.04, entry.shown);
-        const scaffold = entry.group.getObjectByName("scaffold");
-        if (scaffold) scaffold.visible = building.state !== "standing";
+        const goal = building.state === "standing" ? 1 : Math.max(0.02, building.progress);
+        entry.shown += (goal - entry.shown) * Math.min(1, dt * (state.reduced ? 30 : 1.6));
+        showPhase(entry.group, entry.shown, building.state, t, state.reduced);
+        if (building.state === "standing" && entry.shown > 0.995) {
+          state.buildings.remove(entry.group);
+          state.built.delete(bid);
+          state.dirty.add(entry.district);
+        }
+      });
+      if (state.dirty.size && frameCount % 20 === 0) {
+        for (const district of Array.from(state.dirty)) rebake(district);
+        state.dirty.clear();
+      }
+      frameCount += 1;
+      // Rooftop plant, columns and antennas only when you are close enough to see them.
+      state.districts.forEach((district) => {
+        const near = camera.position.distanceTo(district.centre) < R * 0.75;
+        district.detail.forEach((m) => { m.visible = near; });
+      });
+      state.transport.tick(dt, t, state.reduced, running);
+      state.moons.children.forEach((moon) => {
+        const orbit = moon.userData.orbit as { radius: number; speed: number; tilt: number; phase: number };
+        const a = (state.reduced ? 0 : t * orbit.speed) + orbit.phase;
+        moon.position.set(Math.cos(a) * orbit.radius, Math.sin(a) * orbit.radius * Math.sin(orbit.tilt),
+          Math.sin(a) * orbit.radius * Math.cos(orbit.tilt));
       });
 
       // The AIs walk.
@@ -503,7 +610,10 @@ export const PlanetScene = forwardRef<PlanetHandle, Props>(function PlanetScene(
 
       // The air thins out as you come down to the surface, so it never paints a band across the view.
       const height = camera.position.length() - R;
-      atmosphereUniforms.uStrength.value = THREE.MathUtils.clamp((height - 1.5) / 18, 0.08, 0.62);
+      atmosphereUniforms.uStrength.value = THREE.MathUtils.clamp((height - 1.5) / (R * 1.6), 0.08, 0.62);
+      // Clouds thin out as you come down, so a city is never hidden under them.
+      (state.clouds.material as THREE.MeshStandardMaterial).opacity = (state.clouds.userData.opacity ?? 0) *
+        THREE.MathUtils.clamp((height - R * 0.25) / (R * 0.9), 0, 1);
 
       // Sector labels sit over their territories, and hide on the far side.
       const layer = labelLayer.current;
@@ -535,6 +645,9 @@ export const PlanetScene = forwardRef<PlanetHandle, Props>(function PlanetScene(
       renderer.domElement.removeEventListener("pointermove", onMove);
       renderer.domElement.removeEventListener("pointerleave", onLeave);
       controls.dispose();
+      transport.dispose();
+      environment.dispose();
+      pmrem.dispose();
       scene.traverse((object) => {
         const meshLike = object as THREE.Mesh;
         meshLike.geometry?.dispose?.();
@@ -551,24 +664,99 @@ export const PlanetScene = forwardRef<PlanetHandle, Props>(function PlanetScene(
 
   const sectorOf = (sid: string): WorldSector | undefined => latest.current.snapshot.sectors.find((s) => s.sid === sid);
 
+  /** The government district's centre — its own place, apart from every sector. */
+  const seat = (): { lat: number; lon: number } | null => {
+    const gov = latest.current.snapshot.government;
+    return gov && gov.lat !== null && gov.lat !== undefined ? { lat: gov.lat, lon: gov.lon } : null;
+  };
+
   const buildingPosition = (building: WorldBuilding): THREE.Vector3 | null => {
+    if (building.sector === GOV) {
+      const at = seat();
+      return at ? plotPosition(at.lat, at.lon, building.plot, R, GOV_SPACING) : null;
+    }
     const sector = sectorOf(building.sector);
     if (!sector) return null;
     return plotPosition(sector.lat, sector.lon, building.plot);
   };
 
-  const graveyard = (): THREE.Vector3 | null => {
-    const shot = latest.current.snapshot;
-    const capital = shot.sectors.find((s) => s.important) ?? shot.sectors[0];
-    if (!capital) return null;
-    const plots = 8 + 4 * shot.world.era;
-    return offsetOnSurface(latLonToVec(capital.lat, capital.lon), -(sectorReach(plots) + 0.55), -0.5);
+  const districtCentre = (sid: string): THREE.Vector3 | null => {
+    if (sid === GOV) {
+      const at = seat();
+      return at ? latLonToVec(at.lat, at.lon) : null;
+    }
+    const sector = sectorOf(sid);
+    return sector ? latLonToVec(sector.lat, sector.lon) : null;
   };
+
+  /** The national cemetery, beside the government's district. */
+  const graveyard = (): THREE.Vector3 | null => {
+    const at = seat();
+    if (at) return offsetOnSurface(latLonToVec(at.lat, at.lon), -(GOV_SPACING * 3.2 + 0.4), -0.6);
+    const shot = latest.current.snapshot;
+    const first = shot.sectors[0];
+    if (!first) return null;
+    return offsetOnSurface(latLonToVec(first.lat, first.lon), -(sectorReach(plotsFor(shot.world.era)) + 0.55), -0.5);
+  };
+
+  const placeBuilding = (building: WorldBuilding, look: Look | null): THREE.Group | null => {
+    const position = buildingPosition(building);
+    if (!position) return null;
+    const group = buildingGroup(building.kind, building.floors, building.era, look, building.tag ?? "", `b${building.bid}`);
+    group.position.copy(position);
+    group.quaternion.copy(standUp(position));
+    group.rotateY(building.sector === GOV ? 0 : hash(`b${building.bid}`) * Math.PI * 2);
+    group.userData.pick = { kind: "building", id: building.bid } satisfies Pick;
+    group.userData.building = building;
+    return group;
+  };
+
+  /** Bake one district's finished buildings again (after one finished, came down or changed). */
+  function rebake(sid: string): void {
+    const state = three.current;
+    if (!state) return;
+    const shot = latest.current.snapshot;
+    const old = state.districts.get(sid);
+    const standing = shot.buildings.filter((b) => b.sector === sid && b.state === "standing" && !state.built.has(b.bid));
+    const signature = standing.map((b) => `${b.bid}:${b.kind}:${b.floors}:${b.era}:${b.plot}:${b.tag ?? ""}`).join("|")
+      + `@${state.lookKey}`;
+    if (old && old.signature === signature) return;
+    if (old) {
+      [...old.main, ...old.detail].forEach((m) => { state.baked.remove(m); m.geometry.dispose(); });
+      old.proxies.forEach((m) => state.proxies.remove(m));
+      state.districts.delete(sid);
+    }
+    const centre = districtCentre(sid);
+    if (!standing.length || !centre) return;
+    const groups: THREE.Group[] = [];
+    const proxies: THREE.Mesh[] = [];
+    for (const building of standing) {
+      const group = placeBuilding(building, state.look);
+      if (!group) continue;
+      showPhase(group, 1, "standing", 0, true);
+      groups.push(group);
+      const [w, d] = (group.userData.size as [number, number]) ?? [0.3, 0.3];
+      const h = (group.userData.height as number) ?? 0.2;
+      const proxy = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), PROXY_MATERIAL);
+      proxy.geometry.translate(0, h / 2, 0);
+      proxy.position.copy(group.position);
+      proxy.quaternion.copy(group.quaternion);
+      proxy.userData.pick = { kind: "building", id: building.bid } satisfies Pick;
+      proxies.push(proxy);
+      state.proxies.add(proxy);
+    }
+    const { main, detail } = bake(groups);
+    main.forEach((m) => state.baked.add(m));
+    detail.forEach((m) => state.baked.add(m));
+    state.districts.set(sid, { signature, centre: centre.clone(), main, detail, proxies });
+  }
 
   function pickPosition(pick: Pick): THREE.Vector3 | null {
     const shot = latest.current.snapshot;
     const state = three.current;
     switch (pick.kind) {
+      case "government":
+        return districtCentre(GOV);
       case "sector": {
         const sector = sectorOf(pick.id);
         return sector ? latLonToVec(sector.lat, sector.lon) : null;
@@ -595,8 +783,8 @@ export const PlanetScene = forwardRef<PlanetHandle, Props>(function PlanetScene(
       }
       case "startup": {
         const startup = shot.startups.find((s) => s.suid === pick.id);
-        const sector = startup ? sectorOf(startup.sector) ?? shot.sectors.find((s) => s.important) : undefined;
-        return sector ? latLonToVec(sector.lat, sector.lon) : null;
+        const sector = startup ? sectorOf(startup.sector) : undefined;
+        return sector ? latLonToVec(sector.lat, sector.lon) : districtCentre(GOV);
       }
       default:
         return null;
@@ -610,10 +798,12 @@ export const PlanetScene = forwardRef<PlanetHandle, Props>(function PlanetScene(
         const sector = sectorOf(pick.id);
         return sector ? `${sector.name} · ${sector.gov}` : "";
       }
+      case "government":
+        return shot.government?.name ?? "The government";
       case "building": {
         const building = shot.buildings.find((b) => b.bid === pick.id);
         if (!building) return "";
-        const label = KIND_WORDS[building.kind] ?? building.kind;
+        const label = building.kind === "ministry" ? ministryName(shot, building.tag) : KIND_LABELS[building.kind] ?? building.kind;
         return `${label}${building.floors > 1 ? ` · ${building.floors} floors` : ""}${building.state === "constructing" ? " · being built" : building.state === "demolishing" ? " · coming down" : ""}`;
       }
       case "bot": {
@@ -655,7 +845,7 @@ export const PlanetScene = forwardRef<PlanetHandle, Props>(function PlanetScene(
       controls.minDistance = 0.6;
     } else {
       toCamera = camera.position.clone().normalize().multiplyScalar(distance);
-      controls.minDistance = R + 2.5;
+      controls.minDistance = R * 1.25;
     }
     state.fly = { fromTarget: controls.target.clone(), toTarget, fromCamera: camera.position.clone(), toCamera,
       start: performance.now(), duration: state.reduced ? 1 : 950 };
@@ -666,7 +856,8 @@ export const PlanetScene = forwardRef<PlanetHandle, Props>(function PlanetScene(
 
   const planetDistance = () => {
     const shot = latest.current.snapshot;
-    return 26 + Math.min(18, shot.sectors.length * 1.4) + (shot.world.stations ? 6 : 0) + (shot.world.planets ? 16 : 0);
+    return R * 2.7 + Math.min(R * 1.2, shot.sectors.length * 1.4) + (shot.world.stations ? R * 0.4 : 0) +
+      (shot.world.planets ? R * 1.6 : 0);
   };
 
   useImperativeHandle(ref, () => ({
@@ -678,7 +869,8 @@ export const PlanetScene = forwardRef<PlanetHandle, Props>(function PlanetScene(
       const at = pickPosition(pick);
       if (!at) return;
       const close = pick.kind === "building" || pick.kind === "bot" || pick.kind === "grave";
-      flyTo(at, close ? 2.4 : pick.kind === "sector" || pick.kind === "startup" ? 6.5 : 12, close ? "workplace" : "sector");
+      flyTo(at, close ? 2.4 : pick.kind === "sector" || pick.kind === "startup" || pick.kind === "government" ? 7 : 14,
+        close ? "workplace" : "sector");
     },
     zoom: (factor) => {
       const state = three.current;
@@ -701,14 +893,27 @@ export const PlanetScene = forwardRef<PlanetHandle, Props>(function PlanetScene(
     const shot = snapshot;
     const world = shot.world;
 
-    // The surface and the sky follow the era.
+    // The land is flattened where the sectors and the government stand; repainted when they or the era change.
+    const plots = plotsFor(world.era);
+    const reach = sectorReach(plots);
+    const govAt = seat();
+    const flatSites: Site[] = shot.sectors.map((s) => ({ dir: latLonToVec(s.lat, s.lon, 1), reach }));
+    if (govAt) flatSites.push({ dir: latLonToVec(govAt.lat, govAt.lon, 1), reach: GOV_SPACING * 3.6 });
+    const yard = graveyard();
+    if (yard) flatSites.push({ dir: yard.clone().normalize(), reach: 1.4 });
+    const siteKey = `${world.era}|${flatSites.map((s) => `${s.dir.x.toFixed(4)}:${s.dir.y.toFixed(4)}:${s.reach.toFixed(2)}`).join("|")}`;
+    if (siteKey !== state.siteKey) {
+      state.siteKey = siteKey;
+      state.terrain.setSites(flatSites);
+      paintPlanet(state.planetGeometry, state.terrain, world.era);
+    }
     if (state.era !== world.era) {
-      paintPlanet(state.planetGeometry, world.era);
-      (state.clouds.material as THREE.MeshStandardMaterial).opacity = world.era >= 1 ? Math.min(0.75, 0.3 + world.era * 0.08) : 0;
+      state.clouds.userData.opacity = world.era >= 1
+        ? Math.min(0.55, 0.2 + world.era * 0.04) * (0.5 + state.terrain.planet.clouds * 0.6) : 0;
       if (state.era === -1) {
-        // Open facing the capital, from a little to the south, so the world's centre is the first thing seen.
-        const capital = shot.sectors.find((s) => s.important) ?? shot.sectors[0];
-        const facing = capital ? latLonToVec(capital.lat - 14, capital.lon + 10, 1) : new THREE.Vector3(0, 0.3, 1);
+        // Open facing the government's district, from a little to the south.
+        const first = govAt ?? shot.sectors[0];
+        const facing = first ? latLonToVec(first.lat - 14, first.lon + 10, 1) : new THREE.Vector3(0, 0.3, 1);
         state.camera.position.copy(facing.normalize().multiplyScalar(planetDistance()));
       }
       state.era = world.era;
@@ -716,6 +921,7 @@ export const PlanetScene = forwardRef<PlanetHandle, Props>(function PlanetScene(
     const tech = [...world.techs].reverse().find((t) => t.era <= world.era) ?? world.techs[world.techs.length - 1];
     const look: Look | null = tech ? { style: tech.style, palette: tech.palette } : null;
     const lookKey = look ? `${look.style}:${look.palette.join(",")}` : "";
+    state.look = look;
     if (lookKey !== state.lookKey) {
       state.built.forEach((entry) => state.buildings.remove(entry.group));
       state.built.clear();
@@ -723,21 +929,27 @@ export const PlanetScene = forwardRef<PlanetHandle, Props>(function PlanetScene(
     }
 
     // Territories: a cap that hugs the surface, and its border — rebuilt only when one of them changed.
-    const plots = 8 + 4 * world.era;
-    const reach = sectorReach(plots);
-    const territoryKey = shot.sectors.map((s) => `${s.sid}:${s.lat}:${s.lon}:${s.full}:${s.important}:${sectionColors[s.sid] ?? ""}`)
-      .join("|") + `@${reach}`;
+    const territoryKey = shot.sectors.map((s) => `${s.sid}:${s.lat}:${s.lon}:${s.full}:${sectionColors[s.sid] ?? ""}`)
+      .join("|") + `@${reach}@${govAt ? `${govAt.lat}:${govAt.lon}` : ""}`;
     if (territoryKey !== state.territories.userData.key) {
       state.territories.userData.key = territoryKey;
       disposeChildren(state.territories);
     }
-    for (const sector of state.territories.children.length ? [] : shot.sectors) {
+    if (!state.territories.children.length && govAt) {
+      // The government's plaza: pale stone under the civic buildings.
+      const plaza = new THREE.Mesh(new THREE.SphereGeometry(R + 0.004, 48, 6, 0, Math.PI * 2, 0, (GOV_SPACING * 2.7) / R),
+        new THREE.MeshStandardMaterial({ color: "#9c968a", roughness: 0.9 }));
+      plaza.quaternion.copy(standUp(latLonToVec(govAt.lat, govAt.lon)));
+      plaza.userData.pick = { kind: "government" } satisfies Pick;
+      state.territories.add(plaza);
+    }
+    for (const sector of state.territories.children.length > (govAt ? 1 : 0) ? [] : shot.sectors) {
       const color = new THREE.Color(sectorColor(sector.sid, sectionColors));
       const cap = new THREE.Mesh(new THREE.SphereGeometry(R + 0.006, 48, 6, 0, Math.PI * 2, 0, reach / R),
-        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: sector.important ? 0.14 : 0.1, depthWrite: false }));
+        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.08, depthWrite: false }));
       cap.quaternion.copy(standUp(latLonToVec(sector.lat, sector.lon)));
       cap.userData.pick = { kind: "sector", id: sector.sid } satisfies Pick;
-      cap.userData.baseOpacity = sector.important ? 0.14 : 0.1;
+      cap.userData.baseOpacity = 0.08;
       state.territories.add(cap);
       const border: THREE.Vector3[] = [];
       const centre = latLonToVec(sector.lat, sector.lon);
@@ -751,34 +963,45 @@ export const PlanetScene = forwardRef<PlanetHandle, Props>(function PlanetScene(
       state.territories.add(line);
     }
 
-    // Buildings: add, rebuild when their shape changed, remove the gone.
+    // Buildings: those being built or torn down are drawn on their own, phase by phase; every finished one is baked
+    // into its district.
     const present = new Set<number>();
+    const touched = new Set<string>();
     for (const building of shot.buildings) {
       present.add(building.bid);
-      const key = `${building.kind}|${building.floors}|${building.era}|${building.sector}|${building.plot}`;
+      const key = `${building.kind}|${building.floors}|${building.era}|${building.sector}|${building.plot}|${building.tag ?? ""}`;
       const existing = state.built.get(building.bid);
+      if (building.state === "standing" && !existing) continue;
       if (existing && existing.key === key) {
         existing.group.userData.building = building;
         continue;
       }
       if (existing) state.buildings.remove(existing.group);
-      const position = buildingPosition(building);
-      if (!position) continue;
-      const group = buildingGroup(building.kind, building.floors, building.era, look);
-      group.position.copy(position);
-      group.quaternion.copy(standUp(position));
-      group.rotateY(hash(`b${building.bid}`) * Math.PI * 2);
-      group.userData.pick = { kind: "building", id: building.bid } satisfies Pick;
-      group.userData.building = building;
+      const group = placeBuilding(building, look);
+      if (!group) continue;
       state.buildings.add(group);
-      state.built.set(building.bid, { group, key, shown: existing ? existing.shown : building.state === "standing" ? 1 : 0.06 });
+      state.built.set(building.bid, { group, key, district: building.sector,
+        shown: existing ? existing.shown : building.state === "demolishing" ? 1 : Math.max(0.02, building.progress) });
+      touched.add(building.sector);
     }
     for (const [bid, entry] of Array.from(state.built.entries())) {
       if (!present.has(bid)) {
         state.buildings.remove(entry.group);
         state.built.delete(bid);
+        touched.add(entry.district);
       }
     }
+    const districtIds = new Set<string>([...shot.sectors.map((s) => s.sid), GOV, ...Array.from(state.districts.keys())]);
+    districtIds.forEach((sid) => rebake(sid));
+
+    // Roads, rails and whatever flies, from the transport technology.
+    const nodes: TransportNode[] = [];
+    if (govAt) nodes.push({ id: GOV, dir: latLonToVec(govAt.lat, govAt.lon, 1), reach: GOV_SPACING * 2.6, rings: 2 });
+    const rings = Math.max(1, Math.round(reach / 0.56 - 0.8));
+    for (const sector of shot.sectors) {
+      nodes.push({ id: sector.sid, dir: latLonToVec(sector.lat, sector.lon, 1), reach, rings });
+    }
+    state.transport.update(nodes, shot.tech?.transport ?? 0, (dir) => state.terrain.height(dir), world.era, GOV);
 
     // City lights at night, from the era of steel frames on.
     const glow: number[] = [];
@@ -824,15 +1047,15 @@ export const PlanetScene = forwardRef<PlanetHandle, Props>(function PlanetScene(
       }
     }
 
-    // Start-ups fly a flag in their own sector (or at the capital while they wait for approval).
+    // Start-ups fly a flag in their own sector (or at the government's district while they wait for approval).
     const liveFlags = new Set<string>();
     for (const startup of shot.startups) {
       if (startup.status === "declined") continue;
-      const sector = sectorOf(startup.sector) ?? shot.sectors.find((s) => s.important);
-      if (!sector) continue;
+      const sector = sectorOf(startup.sector);
+      const centre = sector ? latLonToVec(sector.lat, sector.lon) : districtCentre(GOV);
+      if (!centre) continue;
       liveFlags.add(startup.suid);
       if (state.flags.has(startup.suid)) continue;
-      const centre = latLonToVec(sector.lat, sector.lon);
       const spot = startup.sector ? offsetOnSurface(centre, 0.32, 0.32) : offsetOnSurface(centre, -0.9, 0.9);
       const flag = startupFlag(startup.status === "founded" ? "#30d158" : "#ffd60a");
       flag.position.copy(spot);
@@ -857,19 +1080,19 @@ export const PlanetScene = forwardRef<PlanetHandle, Props>(function PlanetScene(
       for (let i = 0; i < world.stations; i += 1) {
         const station = stationMesh();
         station.userData.pick = { kind: "station", id: i } satisfies Pick;
-        station.userData.orbit = { radius: R * 1.55 + i * 0.8, speed: 0.08 + i * 0.015, tilt: 0.35 + i * 0.4, phase: i * 1.9 };
+        station.userData.orbit = { radius: R * 1.35 + i * 0.9, speed: 0.06 + i * 0.012, tilt: 0.35 + i * 0.4, phase: i * 1.9 };
         state.sky.add(station);
       }
       for (let i = 0; i < world.planets; i += 1) {
         const made = artificialPlanet(i);
         made.userData.pick = { kind: "station", id: 100 + i } satisfies Pick;
-        made.userData.orbit = { radius: R * 3.1 + i * 4, speed: 0.02 + i * 0.006, tilt: 0.2 + i * 0.5, phase: i * 2.4 };
+        made.userData.orbit = { radius: R * 3.4 + i * 5, speed: 0.015 + i * 0.005, tilt: 0.2 + i * 0.5, phase: i * 2.4 };
         state.sky.add(made);
       }
     }
 
-    // Permanent talk lines between the capital and every sector, once there are steel frames to hang them on.
-    const capital = shot.sectors.find((s) => s.important);
+    // Permanent talk lines between the government and every sector, once there are steel frames to hang them on.
+    const capital = govAt ? { sid: GOV, lat: govAt.lat, lon: govAt.lon } : undefined;
     const linesKey = world.era >= 2 ? shot.sectors.map((s) => `${s.sid}:${s.lat}:${s.lon}`).join("|") : "";
     const rebuildLines = linesKey !== state.lines.userData.key;
     if (rebuildLines) {
@@ -882,9 +1105,9 @@ export const PlanetScene = forwardRef<PlanetHandle, Props>(function PlanetScene(
     if (capital && world.era >= 2 && rebuildLines) {
       for (const sector of shot.sectors) {
         if (sector.sid === capital.sid) continue;
-        const points = arcPoints(latLonToVec(capital.lat, capital.lon), latLonToVec(sector.lat, sector.lon), 0.12, 40, 0.02);
+        const points = arcPoints(latLonToVec(capital.lat, capital.lon), latLonToVec(sector.lat, sector.lon), 0.35, 48, 0.03);
         const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),
-          new THREE.LineBasicMaterial({ color: "#a594ff", transparent: true, opacity: 0.22 }));
+          new THREE.LineBasicMaterial({ color: "#a594ff", transparent: true, opacity: 0.14 }));
         line.userData.permanent = true;
         line.raycast = () => undefined;
         state.lines.add(line);
@@ -957,8 +1180,7 @@ export const PlanetScene = forwardRef<PlanetHandle, Props>(function PlanetScene(
     }
     state.commonSites = sites;
 
-    // Graves, in rows in the capital's cemetery.
-    const yard = graveyard();
+    // Graves, in rows in the national cemetery beside the government's district.
     const shown = shot.graves.slice(-MAX_GRAVES);
     state.graveIds = shown.map((g) => g.gid);
     if (yard) {
@@ -1054,8 +1276,16 @@ export const PlanetScene = forwardRef<PlanetHandle, Props>(function PlanetScene(
   return (
     <div className="wld-planet" ref={host}>
       <div className="wld-labels" ref={labelLayer}>
+        {snapshot.government && snapshot.government.lat !== null && snapshot.government.lat !== undefined && (
+          <button type="button" className="wld-label is-capital" data-lat={snapshot.government.lat}
+                  data-lon={snapshot.government.lon} style={{ ["--sector" as string]: "var(--color-accent, #ff7a2e)" }}
+                  onClick={() => onPick({ kind: "government" })}
+                  aria-label={`${snapshot.government.name}. Open its branches and ministries.`}>
+            <i aria-hidden="true" />Government
+          </button>
+        )}
         {snapshot.sectors.map((sector) => (
-          <button key={sector.sid} type="button" className={`wld-label${sector.important ? " is-capital" : ""}`}
+          <button key={sector.sid} type="button" className="wld-label"
                   data-lat={sector.lat} data-lon={sector.lon}
                   style={{ ["--sector" as string]: sectorColor(sector.sid, sectionColors) }}
                   onClick={() => onPick({ kind: "sector", id: sector.sid })}
@@ -1070,8 +1300,6 @@ export const PlanetScene = forwardRef<PlanetHandle, Props>(function PlanetScene(
   );
 });
 
-const KIND_WORDS: Record<string, string> = {
-  capitol: "Capitol", house: "Homes", office: "Office", lab: "Laboratory", data_center: "Data centre", mine: "Mine",
-  farm: "Farm", factory: "Factory", refinery: "Refinery", archive: "Archive", studio: "Studio", bank: "Bank",
-  tower: "Tower", council: "Council hall", station: "Space station", planet: "Artificial planet",
-};
+function ministryName(shot: WorldSnapshot, tag?: string): string {
+  return shot.government?.ministries.find((m) => m.key === tag)?.name ?? "Ministry";
+}

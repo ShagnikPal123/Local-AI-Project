@@ -38,11 +38,41 @@ export function GovernmentPanel({ snapshot, onPick, onChanged, onError }: {
     onChanged();
   };
 
+  const gov = snapshot.government;
   return (
     <div className="wld-panel">
+      {gov && (
+        <section aria-labelledby="wld-branches">
+          <h3 id="wld-branches">{gov.name}</h3>
+          <p className="ofc-muted">Its own district, not a sector. Click a branch's people to see them.</p>
+          <div className="wld-branches">
+            {gov.branches.map((branch) => (
+              <button key={branch.key} type="button" className={`wld-branchcard${branch.open ? "" : " is-locked"}`}
+                      onClick={() => onPick({ kind: "government" })}>
+                <b>{branch.name}</b>
+                <span>{branch.open ? `${branch.members.length} ${branch.key === "legislature" ? "seats" : branch.key === "judiciary" ? "justices" : "leader"}` : branch.note}</span>
+                <small>{branch.about}</small>
+              </button>
+            ))}
+          </div>
+          <ul className="wld-rows wld-ministries">
+            {gov.ministries.filter((m) => m.open).map((m) => (
+              <li key={m.key}>
+                <span className="wld-badge is-enforced">open</span>
+                <span className="wld-rowbtn__text"><b>{m.name}</b> — {m.minister ? m.minister.name : "no minister yet"}
+                  {m.key === "science" && m.focus ? ` · focus: ${m.focus}` : ""}</span>
+              </li>
+            ))}
+            {gov.ministries.filter((m) => !m.open).slice(0, 2).map((m) => (
+              <li key={m.key} className="ofc-muted">{m.name} opens with {m.needs}.</li>
+            ))}
+          </ul>
+        </section>
+      )}
       <section aria-labelledby="wld-laws">
         <h3 id="wld-laws">Laws</h3>
-        <p className="ofc-muted">Each is checked against your rules, tried on one project, then enforced or repealed.</p>
+        <p className="ofc-muted">The government's laws go to an Assembly vote first; yours do not. Each is checked against
+          your rules, tried on one project, then enforced or repealed.</p>
         <ul className="wld-rows">
           {laws.length === 0 && <li className="ofc-muted">No laws yet — the governments propose them as they work.</li>}
           {laws.map((law) => (
@@ -50,7 +80,8 @@ export function GovernmentPanel({ snapshot, onPick, onChanged, onError }: {
               <button type="button" className="wld-rowbtn" onClick={() => onPick({ kind: "law", id: law.lid })}>
                 <span className={`wld-badge is-${law.status}`}>{law.status === "testing" ? "on trial" : law.status}</span>
                 <span className="wld-rowbtn__text">{law.text}</span>
-                <span className="wld-rowbtn__meta">{law.scope === "world" ? "world" : sectorName(law.sector)}</span>
+                <span className="wld-rowbtn__meta">{law.votes ? `vote ${law.votes.split("-").slice(0, 2).join("–")} · ` : ""}
+                  {law.scope === "world" ? "world" : sectorName(law.sector)}</span>
               </button>
             </li>
           ))}
@@ -184,6 +215,7 @@ export function PeoplePanel({ snapshot, working, onPick }: {
 const EVENT_GLYPHS: Record<string, string> = {
   founded: "✦", project: "▶", done: "✓", era: "★", law: "§", war: "⚔", startup: "⚑", birth: "♥", death: "†",
   build: "▲", teardown: "▼", station: "◎", census: "≡", owner: "●", stall: "■", note: "·", retool: "↻", rejoin: "↺",
+  tech: "✷", vote: "☑", ministry: "⌂", economy: "¤",
 };
 
 export function TimelinePanel({ snapshot }: { snapshot: WorldSnapshot }) {

@@ -29,12 +29,20 @@ export function when(ts: number): string {
 }
 
 export const KIND_LABELS: Record<string, string> = {
-  capitol: "Capitol", house: "Homes", office: "Office", lab: "Laboratory", data_center: "Data centre", mine: "Mine",
+  capitol: "The Assembly", house: "Homes", office: "Office", lab: "Laboratory", data_center: "Data centre", mine: "Mine",
   farm: "Farm", factory: "Factory", refinery: "Refinery", archive: "Archive", studio: "Studio", bank: "Bank",
   tower: "Tower", council: "Council hall", station: "Space station", planet: "Artificial planet",
+  chancellery: "The Chancellery", court: "The High Court", ministry: "Ministry", power: "Power plant",
+  transit: "Transit station", spaceport: "Spaceport",
 };
 
-export const ERAS = ["First Light", "Settlement", "Township", "City", "Metropolis", "Orbital", "Stellar"];
+export const PHASE_WORDS: Record<string, string> = {
+  survey: "Surveying the site", foundation: "Pouring the foundation", frame: "Raising the frame",
+  facade: "Closing in the facade", "fit-out": "Fitting out", standing: "Standing", demolishing: "Coming down",
+};
+
+export const ERAS = ["First Light", "Settlement", "Township", "City", "Metropolis", "Orbital", "Stellar",
+  "Interstellar", "Ascendant"];
 
 export const STATUS_WORDS: Record<string, string> = {
   idle: "Not started", running: "Running", paused: "Paused", complete: "Goal met", stopped: "Stopped",

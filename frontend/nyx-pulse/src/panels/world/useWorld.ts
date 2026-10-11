@@ -16,8 +16,8 @@ import type {
 
 const HEAL_MS = 15_000;
 /** Events that change what the planet draws (the rest only change the side panels). */
-const SCENE_KINDS = new Set(["world", "sector", "bot", "grave", "building", "building.gone", "war", "startup", "era", "sky"]);
-const READ_KINDS = new Set(["project", "war", "startup", "grave", "era", "tech"]);
+const SCENE_KINDS = new Set(["world", "sector", "bot", "grave", "building", "building.gone", "war", "startup", "era", "sky", "research"]);
+const READ_KINDS = new Set(["project", "war", "startup", "grave", "era", "tech", "research", "government", "law"]);
 
 export interface WorldLive {
   snapshot: WorldSnapshot | null;

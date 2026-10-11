@@ -169,7 +169,8 @@ def research_rate(world: World, floors: int, speed_factor: float) -> float:
     bigger city researches faster but never runs away from the work its office actually does."""
     if floors <= 0:
         return 0.0
-    return 0.02 * math.sqrt(floors) * multiplier(world, "research") * speed_factor
+    # The bonus is square-rooted too: late computing techs stack to ×8, which would finish the tree in minutes.
+    return 0.02 * math.sqrt(floors) * math.sqrt(multiplier(world, "research")) * speed_factor
 
 
 def next_up(world: World, count: int = 4) -> List[Dict[str, Any]]:

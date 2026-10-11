@@ -288,3 +288,45 @@ aside.wld-side { display: grid; grid-template-rows: auto minmax(0, 1fr); min-hei
   .wld-card, .wld-thinking i { animation: none; }
   .wld-label, .wld-banner__bar { transition: none; }
 }
+
+/* --- the upscale (2026-10-10): government branches, construction phases, Progress --------------------------------- */
+.wld-branches { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 6px 0; }
+.wld-branchcard { display: grid; gap: 2px; text-align: left; padding: 8px 10px; border: 0; border-radius: 12px; cursor: pointer;
+  color: var(--color-text); background: var(--color-surface); box-shadow: inset 0 0 0 1px var(--color-divider); }
+.wld-branchcard:hover { box-shadow: inset 0 0 0 1px var(--color-accent); }
+.wld-branchcard b { font-size: 13px; }
+.wld-branchcard span { font-size: 12px; color: var(--color-accent); }
+.wld-branchcard small { font-size: 12px; color: var(--color-neutral-500); line-height: 1.3; }
+.wld-branchcard.is-locked { opacity: 0.6; }
+.wld-ministries li { display: flex; gap: 8px; align-items: baseline; font-size: 13px; }
+.wld-branch h4 small { font-weight: 400; color: var(--color-neutral-500); margin-left: 6px; }
+.wld-list li.is-locked { opacity: 0.55; }
+.wld-phases { display: flex; gap: 4px; margin: 6px 0 8px; }
+.wld-phases span { flex: 1; text-align: center; font-size: 12px; padding: 3px 0; border-radius: 6px; color: var(--color-neutral-500);
+  background: var(--color-surface-2); }
+.wld-phases span.is-now { color: var(--color-on-accent); background: var(--color-accent); }
+.wld-growth { margin: 4px 0 8px; }
+.wld-growth svg { width: 100%; height: 110px; display: block; border-radius: 12px; background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-divider); }
+.wld-growth figcaption { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; font-size: 12px; color: var(--color-neutral-400); }
+.wld-growth figcaption i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+.wld-ladder { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+.wld-ladder li { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 5px 8px; border-radius: 8px;
+  color: var(--color-neutral-500); background: var(--color-surface-2); }
+.wld-ladder li i { width: 8px; height: 8px; border-radius: 50%; background: var(--color-neutral-700); }
+.wld-ladder li.is-done { color: var(--color-neutral-300); }
+.wld-ladder li.is-done i { background: var(--color-neutral-400); }
+.wld-ladder li.is-now { color: var(--color-text); box-shadow: inset 0 0 0 1px var(--color-accent); }
+.wld-ladder li.is-now i { background: var(--color-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 30%, transparent); }
+.wld-focus { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 6px 0 10px; }
+.wld-focus > span { font-size: 12px; color: var(--color-neutral-500); margin-right: 4px; }
+.wld-focus button { border: 0; font-size: 12px; padding: 4px 9px; border-radius: 999px; cursor: pointer;
+  color: var(--color-neutral-400); background: var(--color-surface-2); }
+.wld-focus button.is-on { color: var(--color-on-accent); background: var(--color-accent); }
+.wld-branchrow h4 { margin: 8px 0 4px; font-size: 12px; color: var(--color-neutral-400); }
+.wld-branchrow ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; }
+.wld-branchrow li { display: inline-flex; gap: 6px; align-items: baseline; font-size: 12px; padding: 3px 8px; border-radius: 8px;
+  background: var(--color-surface-2); color: var(--color-neutral-500); }
+.wld-branchrow li.is-done { color: var(--color-text); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 45%, transparent); }
+.wld-branchrow li.is-ready { color: var(--color-neutral-300); box-shadow: inset 0 0 0 1px var(--color-divider); }
+.wld-branchrow li small { font-variant-numeric: tabular-nums; opacity: 0.8; }

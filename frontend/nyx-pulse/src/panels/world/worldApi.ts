@@ -1,7 +1,7 @@
 /** Typed calls to /api/world (routes_world.py). Every one degrades to a readable error, never a throw. */
 
 import { api } from "../../api";
-import type { SpeedId, WorldLaw, WorldOverview, WorldSnapshot, WorldStartup, WorldWar } from "./types";
+import type { SpeedId, WorldLaw, WorldOverview, WorldSnapshot, WorldStartup, WorldTechStatus, WorldWar } from "./types";
 
 const base = (id: string) => `/api/world/worlds/${encodeURIComponent(id)}`;
 
@@ -20,6 +20,7 @@ export const worldApi = {
   say: (id: string, text: string) =>
     api.post<{ note: string; queued: boolean; snapshot: WorldSnapshot }>(`${base(id)}/say`, { text }, 60_000),
   speed: (id: string, speed: SpeedId) => api.post<WorldSnapshot>(`${base(id)}/speed`, { speed }),
+  focus: (id: string, branch: string) => api.post<WorldTechStatus>(`${base(id)}/focus`, { branch }),
   newLaw: (id: string, text: string, scope = "world", sector = "") =>
     api.post<WorldLaw>(`${base(id)}/laws`, { text, scope, sector }),
   law: (id: string, lid: number, action: "enforce" | "repeal") =>

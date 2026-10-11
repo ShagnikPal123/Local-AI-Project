@@ -43,6 +43,75 @@ export interface WorldBuilding {
   state: "constructing" | "standing" | "demolishing";
   progress: number;
   why: string;
+  tag?: string;
+  phase?: "survey" | "foundation" | "frame" | "facade" | "fit-out" | "standing" | "demolishing";
+}
+
+/** The planet's own look, from the world's seed (world/planet.py). */
+export interface WorldPlanet {
+  type: string;
+  label: string;
+  about: string;
+  radius: number;
+  land: string[];
+  sea: string[];
+  sea_level: number;
+  mountains: number;
+  ice: number;
+  air: string;
+  clouds: number;
+  greens: boolean;
+  lava: boolean;
+  rings: boolean;
+  ring_color: string;
+  ring_tilt: number;
+  moons: { size: number; distance: number; speed: number; tilt: number; color: string }[];
+  noise: number;
+  day_hours: number;
+  tilt: number;
+}
+
+export interface GovPerson { aid: string; name: string; role: string; sector: string; seat?: string }
+
+/** The government's own district and its branches (world/civics.py). */
+export interface WorldGovernment {
+  name: string;
+  lat: number;
+  lon: number;
+  branches: { key: string; name: string; title: string; about: string; open: boolean; members: GovPerson[]; note?: string }[];
+  ministries: {
+    key: string; name: string; about: string; open: boolean; needs: string; minister: GovPerson | null;
+    focus?: string; focus_by?: string; stock?: Record<string, number>;
+  }[];
+  last_vote: { lid: number; yes: number; no: number; abstain: number; passed: boolean; day: number; text: string } | null;
+  signer: string;
+  era: string;
+}
+
+export interface TechRow {
+  id: string;
+  name: string;
+  branch: string;
+  cost: number;
+  needs: string[];
+  about: string;
+  state: "done" | "ready" | "locked";
+  transport?: number | null;
+}
+
+/** The technology tree (world/tech.py). */
+export interface WorldTechStatus {
+  tree: TechRow[];
+  branches: Record<string, string>;
+  focus: string;
+  transport: number;
+  transport_levels: string[];
+  researched: number;
+  total: number;
+  next: { id: string; name: string; cost: number } | null;
+  research_bonus: number;
+  build_bonus: number;
+  yield_bonus: number;
 }
 
 export interface WorldLaw {
@@ -55,6 +124,7 @@ export interface WorldLaw {
   day: number;
   note: string;
   trial_job: string;
+  votes?: string;
 }
 
 export interface WorldWar {
@@ -202,6 +272,12 @@ export interface WorldHead {
 
 export interface WorldSnapshot {
   world: WorldHead;
+  planet: WorldPlanet;
+  government: WorldGovernment;
+  tech: WorldTechStatus;
+  stock: Record<string, number>;
+  /** [game day, tech points, buildings standing, floors, AIs] */
+  growth: number[][];
   sectors: WorldSector[];
   bots: WorldBot[];
   buildings: WorldBuilding[];
@@ -250,6 +326,7 @@ export interface WorldOverview {
 /** What the planet can point at, for the details card (U39: "click on any symbol"). */
 export type Pick =
   | { kind: "world" }
+  | { kind: "government" }
   | { kind: "sector"; id: string }
   | { kind: "building"; id: number }
   | { kind: "bot"; id: string }

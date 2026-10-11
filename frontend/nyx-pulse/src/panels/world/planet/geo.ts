@@ -3,11 +3,18 @@
 
 import * as THREE from "three";
 
-/** The planet's radius in scene units. A floor is FLOOR_HEIGHT tall; a person is about one floor. */
-export const R = 10;
+/** The planet's radius in scene units — 16 times the world's own size (world/planet.py, 1.0–1.4), set once when
+ * the scene opens. A live binding: every importer reads the current value. A floor is FLOOR_HEIGHT tall; a person
+ * is about one floor. */
+export let R = 16;
+export const BASE_RADIUS = 16;
+export function setPlanetRadius(scale: number): void {
+  R = BASE_RADIUS * Math.min(1.6, Math.max(0.8, scale || 1));
+}
 export const FLOOR_HEIGHT = 0.085;
-/** Distance between neighbouring plots, along the surface. */
+/** Distance between neighbouring plots, along the surface. The government's district is laid out wider. */
 export const PLOT_SPACING = 0.56;
+export const GOV_SPACING = 0.95;
 
 const UP = new THREE.Vector3(0, 1, 0);
 
@@ -50,9 +57,14 @@ export function offsetOnSurface(centre: THREE.Vector3, dx: number, dy: number, r
   return normal.multiplyScalar(radius).addScaledVector(east, dx).addScaledVector(north, dy).normalize().multiplyScalar(radius);
 }
 
-export function plotPosition(lat: number, lon: number, plot: number, radius = R): THREE.Vector3 {
+export function plotPosition(lat: number, lon: number, plot: number, radius = R, spacing = PLOT_SPACING): THREE.Vector3 {
   const [x, y] = plotOffset(plot);
-  return offsetOnSurface(latLonToVec(lat, lon, radius), x * PLOT_SPACING, y * PLOT_SPACING, radius);
+  return offsetOnSurface(latLonToVec(lat, lon, radius), x * spacing, y * spacing, radius);
+}
+
+/** How many plots a sector has in an era (world/sim.py ``plots_for``). */
+export function plotsFor(era: number): number {
+  return 12 + 6 * Math.max(0, era);
 }
 
 /** How far a sector's plots reach, for its territory disc. */

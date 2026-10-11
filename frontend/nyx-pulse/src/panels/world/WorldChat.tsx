@@ -37,7 +37,7 @@ export function WorldChat({ messages, government, queued, running, thinking, onS
     <section className="ofc-chat wld-chat" aria-label={`Chat with ${government}`}>
       <header className="ofc-chat__head">
         <h2>World chat</h2>
-        <span className="ofc-chat__sub">Goes to the {government}, and down to everyone.</span>
+        <span className="ofc-chat__sub">Goes to {government}, and down to everyone.</span>
       </header>
       <div className="ofc-chat__list" ref={list}>
         {messages.length === 0 && (
