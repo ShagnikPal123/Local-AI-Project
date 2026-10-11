@@ -73,6 +73,7 @@ const OwnComputerPanel = lazy(() => import("./panels/computer/OwnComputerPanel")
 const PredictPanel = lazy(() => import("./panels/predict/PredictPanel").then((m) => ({ default: m.PredictPanel })));
 const OfficeWorldPanel = lazy(() => import("./panels/OfficeWorldPanel").then((m) => ({ default: m.OfficeWorldPanel })));
 const EqualizePanel = lazy(() => import("./panels/equalize/EqualizePanel").then((m) => ({ default: m.EqualizePanel })));
+const AvatarsPanel = lazy(() => import("./panels/avatars/AvatarsPanel").then((m) => ({ default: m.AvatarsPanel })));
 const AdminPanel = lazy(() => import("./panels/AdminPanel").then((m) => ({ default: m.AdminPanel })));
 const StorePanel = lazy(() => import("./panels/StorePanel").then((m) => ({ default: m.StorePanel })));
 
@@ -455,6 +456,7 @@ export default function App() {
         {active === "office" && <OfficeWorldPanel />}
         {active === "predict" && <PredictPanel />}
         {active === "equalize" && <EqualizePanel />}
+        {active === "avatars" && <AvatarsPanel />}
         {active === "admin" && <AdminPanel />}
         </Suspense>
         </TabBoundary>
