@@ -3,9 +3,11 @@
  * that was on the right before is lost. The calendar is local (no account needed); today is the orange day.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+
+import { api } from "../../api";
 
 function Month() {
   const today = new Date();
@@ -36,7 +38,20 @@ function Month() {
   );
 }
 
-export function StudioSide({ name, role, memories, today, onProfile }: { name: string; role: string; memories?: number; today?: number; onProfile: () => void }) {
+/** True once a Google account with Calendar is connected (owner: "only show calendar if I connect"). */
+export function useCalendarConnected(): boolean {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    void api.get<{ products?: Record<string, string[]> }>("/api/google/oauth/status").then((r) => {
+      if (alive && r.ok) setOn(Object.values(r.data.products ?? {}).some((list) => list.some((p) => /calendar/i.test(p))));
+    });
+    return () => { alive = false; };
+  }, []);
+  return on;
+}
+
+export function StudioSide({ name, role, memories, today, onProfile, calendar = false }: { name: string; role: string; memories?: number; today?: number; onProfile: () => void; calendar?: boolean }) {
   return (
     <div className="studio-side__cards">
       <button type="button" className="studio-profile" onClick={onProfile} title="Accounts and settings">
@@ -48,7 +63,7 @@ export function StudioSide({ name, role, memories, today, onProfile }: { name: s
         <span><b>{new Date().toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}</b><small>Local time</small></span>
         <span><b>{today?.toLocaleString() ?? "—"}</b><small>New today</small></span>
       </div>
-      <Month />
+      {calendar && <Month />}
     </div>
   );
 }

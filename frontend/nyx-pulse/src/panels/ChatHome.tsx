@@ -16,7 +16,7 @@ import { lazy, Suspense } from "react";
 import { voiceMode, onVoiceMode } from "../voice/voiceBus";
 import { useStyle } from "../style/styleMix";
 import { StudioHeader } from "../components/studio/StudioHeader";
-import { StudioSide } from "../components/studio/StudioSide";
+import { StudioSide, useCalendarConnected } from "../components/studio/StudioSide";
 const VoiceStage = lazy(() => import("../components/voice/VoiceStage").then((m) => ({ default: m.VoiceStage })));
 
 export function ChatHome({ onActivity, provider, onProvider, who, onSearch, onStatus }: {
@@ -46,8 +46,10 @@ export function ChatHome({ onActivity, provider, onProvider, who, onSearch, onSt
   useEffect(() => onVoiceMode((mode) => setVoiceOn(mode !== "off")), []);
   const hasWindow = w.open.length > 0;
   // What Ichos touched, on the right (owner: "show more like files used, code accessed, things done"). Remembered.
-  const [railOn, setRailOn] = useState(() => { try { return localStorage.getItem("ichos.activity") !== "0"; } catch { return true; } });
-  useEffect(() => { try { localStorage.setItem("ichos.activity", railOn ? "1" : "0"); } catch { /* not kept */ } }, [railOn]);
+  // Off by default since the owner found it "wonky and unneeded" in plain chat; the Activity tab brings it back.
+  const [railOn, setRailOn] = useState(() => { try { return localStorage.getItem("ichos.activity.v2") === "1"; } catch { return false; } });
+  useEffect(() => { try { localStorage.setItem("ichos.activity.v2", railOn ? "1" : "0"); } catch { /* not kept */ } }, [railOn]);
+  const calendarOn = useCalendarConnected();
   // Room check: with a window open on a narrow screen the activity list steps aside (its tab stays) so the chat
   // keeps a readable width; it comes back by itself when there is room.
   const [width, setWidth] = useState(1600);
@@ -98,9 +100,10 @@ export function ChatHome({ onActivity, provider, onProvider, who, onSearch, onSt
                 <StudioHeader name={person.name} onSearch={() => onSearch?.()} onBell={() => onStatus?.()} />
                 {chat}
               </div>
-              {showRail ? (
+              {showRail || calendarOn ? (
                 <aside className="studio-side">
-                  <StudioSide name={person.name} role={person.role} memories={brain?.memories} today={brain?.today} onProfile={() => onStatus?.()} />
+                  <StudioSide name={person.name} role={person.role} memories={brain?.memories} today={brain?.today}
+                    onProfile={() => onStatus?.()} calendar={calendarOn} />
                   {rail}
                 </aside>
               ) : rail}
