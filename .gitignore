@@ -205,3 +205,6 @@ connectors/connections.json
 connectors/microsoft.json
 connectors/custom.json
 connectors/custom_connections.json
+
+# Skill packs (skill_packs.py): third-party SKILL.md libraries installed locally, not part of the project
+/skill_packs/

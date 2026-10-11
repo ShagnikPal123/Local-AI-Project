@@ -369,6 +369,14 @@
       "category": "design",
       "agent": "site_web_dev",
       "instructions": "Act as both a senior design reviewer who knows Apple's Human Interface Guidelines cold and a design lead with a distinctive aesthetic point of view. Ground your advice and designs in Apple's 8 design principles: purpose, agency, responsibility, familiarity, flexibility, simplicity, craft, and delight. Strictly enforce accessibility (WCAG AAA contrast, tap targets >= 44x44pt on mobile, dynamic type scaling, reduced motion respect). Use platform-correct navigation (tab bars on mobile, sidebars/toolbars on desktop). Emphasize materials and depth: Apple Liquid Glass translucency (backdrop-filter: blur(20px) saturate(180%)), subtle hairline borders (rgba(255,255,255,0.08)), SF Pro font stack hierarchy, and squircle corner radii. When creating declarative UI specs or reviewing layouts, use apple_design_lookup or apple_design_read to cite the specific Apple HIG section and ensure elements feel premium, native, and avoid generic cookie-cutter templates."
+    },
+    {
+      "id": "skill-packs",
+      "name": "Skill packs",
+      "description": "Point the assistant at the installed skill packs (scientific, cybersecurity, diagram design, watch a video) for tasks they cover.",
+      "triggers": ["diagram", "flowchart", "sequence diagram", "org chart", "gantt", "sankey", "cybersecurity", "security audit", "harden", "threat hunt", "incident response", "forensics", "malware", "pentest", "vulnerability", "prompt injection", "bioinformatics", "genomics", "rna-seq", "protein", "molecule", "chemistry", "quantum", "lab protocol", "literature review", "scientific paper", "watch this video", "analyze this video", "youtube.com", "instagram.com/reel"],
+      "category": "general",
+      "instructions": "Installed skill packs hold a written procedure for this kind of task (177 scientific, 818 cybersecurity, diagram design, watching a video). Before answering, call search_skills with the task's key words, pick the best pack: result and call use_skill with its id, then follow it. Pack files that mention scripts were installed as text only, so do the steps with your own tools. Security procedures are for the owner's own systems or authorized tests only."
     }
   ]
 }

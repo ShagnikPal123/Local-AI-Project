@@ -874,13 +874,18 @@ def tool_update_agent(name: str, goal: str = "", instructions: str = "", provide
 def tool_search_skills(query: str) -> str:
     from skills import SKILL_STORE
 
+    import skill_packs
+
     results = SKILL_STORE.search(query, limit=6)
-    if not results:
+    packed = skill_packs.search(query, limit=5)
+    if not results and not packed:
         return f"No skills match {query!r}. If this task needs a focused procedure, create_temp_skill."
     lines = [f"Skills matching {query!r}:"]
     for r in results:
         tag = " [temporary]" if r["temp"] else ""
         lines.append(f"- {r['name']} (id {r['id']}){tag}: {r['description']} — matched {r['why'] or 'loosely'}")
+    for r in packed:
+        lines.append(f"- {r['name']} (id {r['id']}, {r['pack']} pack): {r['description'][:220]}")
     lines.append("Apply one with use_skill(skill='id or name').")
     return "\n".join(lines)
 
@@ -889,6 +894,15 @@ def tool_use_skill(skill: str) -> str:
     from skills import SKILL_STORE
     from tool_context import emit
 
+    import skill_packs
+
+    packed = skill_packs.read(skill) if "/" in (skill or "") else None
+    if packed is not None:
+        emit("skill.used", skills=[{"id": skill, "name": skill.split("/")[-1], "source": "pack", "temp": False,
+                                    "why": "chosen by the assistant"}])
+        return (f"Skill {skill} — follow these instructions for this task. Files it mentions (scripts, references) "
+                f"were not installed; do not assume they exist.
+{packed}")
     found = SKILL_STORE.get(skill)
     if found is None:
         matches = SKILL_STORE.search(skill, limit=1)
