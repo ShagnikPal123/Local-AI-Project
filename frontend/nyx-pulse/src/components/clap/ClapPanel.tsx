@@ -236,7 +236,7 @@ export function ClapPanel() {
         </label>
         <label>
           <span>What it says</span>
-          <input defaultValue={state.greeting.text} placeholder="Nyx here. Listening."
+          <input defaultValue={state.greeting.text} placeholder="Ichos here. Listening."
                  onBlur={(e) => void saveSettings({ greeting: { ...state.greeting, text: e.target.value } })} />
         </label>
         <label>

@@ -43,10 +43,10 @@ TEMPLATE_WIDTH = 12
 
 #: Said once when listening starts, whichever mode it is. Short, and not a butler.
 GREETINGS = [
-    "Nyx here. Listening.",
-    "Nyx here — go ahead.",
-    "Nyx here. I've got the mic.",
-    "Nyx here, ears on.",
+    "Ichos here. Listening.",
+    "Ichos here — go ahead.",
+    "Ichos here. I've got the mic.",
+    "Ichos here, ears on.",
 ]
 
 

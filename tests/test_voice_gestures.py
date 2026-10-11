@@ -70,14 +70,14 @@ def test_the_status_gesture_actually_says_something():
 
 
 def test_the_greeting_is_said_every_time_by_default_and_can_be_made_the_owners_own():
-    assert voice_gestures.greeting().lower().startswith("nyx here")
+    assert voice_gestures.greeting().lower().startswith("ichos here")
 
-    voice_gestures.settings({"greeting": {"text": "Nyx here. Sound's on."}})
-    assert voice_gestures.greeting() == "Nyx here. Sound's on."
+    voice_gestures.settings({"greeting": {"text": "Ichos here. Sound's on."}})
+    assert voice_gestures.greeting() == "Ichos here. Sound's on."
 
     voice_gestures.settings({"greeting": {"when": "first"}})
     assert voice_gestures.greeting(first_today=False) == ""
-    assert voice_gestures.greeting(first_today=True) == "Nyx here. Sound's on."
+    assert voice_gestures.greeting(first_today=True) == "Ichos here. Sound's on."
 
     voice_gestures.settings({"greeting": {"enabled": False}})
     assert voice_gestures.greeting(first_today=True) == ""
