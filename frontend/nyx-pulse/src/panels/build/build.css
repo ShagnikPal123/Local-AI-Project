@@ -241,3 +241,10 @@
 .bs-pros, .bs-cons { margin: 0; padding-left: 18px; font-size: 12px; line-height: 1.45; }
 .bs-pros li::marker { content: "+  "; color: #30d158; }
 .bs-cons li::marker { content: "−  "; color: #ff6961; }
+
+/* Owner, 2026-10-10: "the catalog, saved, and this build are a bit cut off". The three buttons share the rail's width
+   and shrink instead of overflowing; the rails follow the theme instead of a fixed near-black. */
+.bs-tabs { gap: 2px; }
+.bs-tabs button { flex: 1 1 0; min-width: 0; padding: 3px 6px; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; }
+.bs-rail, .bs-side { background: var(--color-nav); }
+.bs-rail__body, .bs-side > :last-child { min-height: 0; overflow-y: auto; }

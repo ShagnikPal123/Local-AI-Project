@@ -23,7 +23,7 @@ import {
 } from "./api";
 import { JoinScreen, LoginScreen } from "./components/AuthScreen";
 import { NyxAvatar, type AvatarState } from "./components/NyxAvatar";
-import { REDIRECTS, visibleTabs, type TabId } from "./tabs";
+import { LEGACY_LABELS, REDIRECTS, visibleTabs, type TabId } from "./tabs";
 import { HubPanel, openSection } from "./components/HubPanel";
 import { SettingsWindow, type SettingsPage } from "./components/settings/SettingsWindow";
 import { QuitButton } from "./components/QuitButton";
@@ -276,6 +276,9 @@ export default function App() {
   useEffect(() => {
     const onOpen = (event: Event) => {
       const wanted = String((event as CustomEvent<{ tab?: string }>).detail?.tab ?? "").trim().toLowerCase();
+      // A tab that was merged or removed (build, screen, settings, …) — by id or by its old name — goes to its new home.
+      const legacy = LEGACY_LABELS.find((t) => t.label.toLowerCase() === wanted)?.id ?? wanted;
+      if (REDIRECTS[legacy]) { setActive(legacy as TabId); return; }
       const all = [...tabs.map((t) => ({ id: t.id as string, label: t.label })), ...userTabs.map((t) => ({ id: t.id, label: t.label || t.id }))];
       const hit = all.find((t) => t.id === wanted || t.label.toLowerCase() === wanted)
         ?? all.find((t) => wanted && (t.label.toLowerCase().startsWith(wanted) || t.id.startsWith(wanted)));

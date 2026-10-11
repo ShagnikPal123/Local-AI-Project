@@ -10,6 +10,7 @@
  *  • **Watching it** — the live screen, what it did, and your own turn on it: click the picture, type, press keys.
  */
 
+import { ErrorState, Loading } from "../../components/Panel";
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
 import { api, authHeaders } from "../../api";
 import { onWorkspaceEvent } from "../../state/workspaceEvents";
@@ -109,7 +110,13 @@ export function OwnComputerPanel() {
   };
 
   if (!status) {
-    return <div className="ocp"><p className="ocp-muted">{error || "Loading Nyx's computer…"}</p></div>;
+    // A real loading state (owner, 2026-10-10: "Add a loading part to Computer"): the orb and what is happening,
+    // centred, instead of one grey line — or the error and a way to try again.
+    return (
+      <div className="ocp">
+        {error ? <ErrorState error={error} /> : <Loading what="Starting Ichos's computer — checking the sandbox and its apps" />}
+      </div>
+    );
   }
   const s = status.settings;
   const state = status.computer.state;
