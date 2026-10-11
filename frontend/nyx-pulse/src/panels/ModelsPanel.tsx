@@ -167,19 +167,21 @@ export function ModelsPanel() {
               use online providers instead. Nothing is broken.
             </div>
           ) : (
-            localModels.map((m, i) => {
-              const name = typeof m === "string" ? m : String((m as Record<string, unknown>).name ?? m);
-              const active = name === models.local_active;
-              return (
-                <div key={i} style={{
-                  display: "flex", justifyContent: "space-between", padding: "6px 0",
-                  fontSize: 13, fontFamily: "var(--font-mono)",
-                }}>
-                  <span>{name}</span>
-                  {active && <span style={{ color: "var(--color-accent)", fontSize: 12 }}>active</span>}
-                </div>
-              );
-            })
+            // Modernised (owner, 2026-10-10): each local model is a card — family initial, name, size tag, and an Active pill.
+            <div className="model-grid">
+              {localModels.map((m, i) => {
+                const name = typeof m === "string" ? m : String((m as Record<string, unknown>).name ?? m);
+                const active = name === models.local_active;
+                const [family, tag] = name.split(":");
+                return (
+                  <div key={i} className={`model-tile${active ? " is-active" : ""}`}>
+                    <span className="model-tile__mark" aria-hidden="true">{family.slice(0, 1).toUpperCase()}</span>
+                    <span className="model-tile__text"><b>{family}</b><small>{tag || "latest"} · on this PC</small></span>
+                    {active && <span className="model-tile__pill">Active</span>}
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
 

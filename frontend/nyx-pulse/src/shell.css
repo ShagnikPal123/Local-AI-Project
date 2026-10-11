@@ -202,3 +202,14 @@ main > :not(.chat-shell):not(.hub):only-child { height: 100%; min-height: 0; ove
 .finder__place { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; padding: 9px 14px; border-radius: 14px; text-align: left; font-size: 14px; }
 .finder__place small { color: var(--color-neutral-600); font-size: 12px; }
 .finder__place[aria-selected="true"] { background: var(--color-surface-3); box-shadow: inset 3px 0 0 var(--color-accent); }
+
+/* Models, modernised: local models as cards (panels/ModelsPanel.tsx). */
+.model-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.model-tile { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 18px; background: var(--color-surface-2); box-shadow: inset 0 0 0 1px var(--color-divider); }
+.model-tile.is-active { box-shadow: inset 0 0 0 1.5px var(--color-accent), 0 0 20px color-mix(in srgb, var(--color-accent) 16%, transparent); }
+.model-tile__mark { width: 40px; height: 40px; flex: none; border-radius: 14px; display: grid; place-items: center; font-weight: 700; font-size: 16px;
+  color: var(--color-accent); background: color-mix(in srgb, var(--color-accent) 15%, transparent); }
+.model-tile__text { display: grid; min-width: 0; flex: 1; }
+.model-tile__text b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.model-tile__text small { color: var(--color-neutral-600); font-size: 12px; }
+.model-tile__pill { padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; color: var(--color-on-accent); background: var(--color-accent); }
