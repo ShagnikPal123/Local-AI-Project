@@ -41,3 +41,28 @@ def test_plot_tool_opens_a_graph_window(monkeypatch):
     assert "Opened a graph" in wb.tool_plot_function("sin(x); x^2/10", -5, 5)
     assert sent[-1][1]["kind"] == "graph" and sent[-1][1]["props"]["expressions"] == ["sin(x)", "x^2/10"]
     assert wb.tool_plot_function("os.system('x')").startswith("Error")
+
+
+def test_screenshot_to_code_extracts_the_page_and_keeps_a_copy(tmp_path, monkeypatch):
+    monkeypatch.setattr(wb, "_s2c_dir", lambda: tmp_path)
+    seen = {}
+
+    def ask(prompt, image, mime):
+        seen["prompt"], seen["mime"] = prompt, mime
+        return "Here you go:\n```html\n<!DOCTYPE html><html><body><h1>Hi</h1></body></html>\n```"
+    out = wb.screenshot_to_code(b"png", "image/png", "html_tailwind", "dark theme", ask=ask)
+    assert out["html"].startswith("<!DOCTYPE html>") and (tmp_path / f"{out['id']}.html").exists()
+    assert "tailwindcss" in seen["prompt"] and "dark theme" in seen["prompt"]
+    with pytest.raises(ValueError):
+        wb.screenshot_to_code(b"png", "image/png", "cobol", ask=ask)
+    with pytest.raises(ValueError):
+        wb.screenshot_to_code(b"png", "image/png", ask=lambda p, i, m: "sorry, no")
+
+
+def test_screenshot_tool_opens_the_window(monkeypatch):
+    sent = []
+    import agent_events
+
+    monkeypatch.setattr(agent_events, "publish_ui", lambda type, **p: sent.append((type, p)))
+    assert "Screenshot to Code" in wb.tool_screenshot_to_code("C:/x/shot.png")
+    assert sent[-1][1]["kind"] == "s2c" and sent[-1][1]["props"]["path"] == "C:/x/shot.png"

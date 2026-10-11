@@ -244,6 +244,8 @@ def tool_open_file(path: str) -> str:
 def register_workbench_tools(registry: Any) -> None:
     from tools import ToolParam
 
+    register_s2c_tool(registry)
+
     registry.register(
         name="plot_function",
         description="Draw a graph of one or more functions of x in an interactive window beside the chat (zoom, pan, "
@@ -271,4 +273,153 @@ def register_workbench_tools(registry: Any) -> None:
                     "owner sees what you are reading or referring to.",
         parameters=[ToolParam("path", "string", "Full path of the file")],
         handler=tool_open_file, category="files.read", label=lambda a: f"Opening {Path(str(a.get('path', ''))).name}",
+    )
+
+
+# --- screenshot → code (owner, 2026-10-10: "https://github.com/abi/screenshot-to-code. Add this to yourself then to
+# the AI") — the method adapted from abi/screenshot-to-code (MIT, (c) 2023 Abi Raja): faithful one-file pages, repeated
+# items in full, placeholder images, pinned CDN versions. The page is previewed in a sandboxed iframe (srcdoc, no
+# same-origin), so generated scripts can never reach Ichos's own storage.
+
+S2C_STACKS = {
+    "html_tailwind": "HTML + Tailwind. Include <script src=\"https://cdn.tailwindcss.com\"></script>.",
+    "html_css": "Plain HTML, CSS and JS only. Do not use Tailwind.",
+    "react_tailwind": ("React + Tailwind on one standalone page: react@18.0.0 and react-dom@18.0.0 UMD from "
+                       "cdn.jsdelivr.net, https://unpkg.com/@babel/standalone@7.25.6/babel.min.js (exactly this version), "
+                       "and https://cdn.tailwindcss.com."),
+    "vue_tailwind": ("Vue 3 global build from https://registry.npmmirror.com/vue/3.3.11/files/dist/vue.global.js with "
+                     "createApp, plus https://cdn.tailwindcss.com."),
+    "bootstrap": "Bootstrap 5.3.2 from cdn.jsdelivr.net.",
+}
+
+S2C_RULES = (
+    "You are an expert front-end developer. Build a single, complete HTML file that looks exactly like the screenshot.\n"
+    "- Match it exactly: the same text (verbatim), order, layout, spacing, colours, font sizes, radii and shadows.\n"
+    "- Repeat repeated elements in full: every list item, card and link. Never write placeholder comments such as "
+    "'<!-- add more items -->'.\n"
+    "- For images use https://placehold.co/WIDTHxHEIGHT with an alt text that describes the original image. Never embed "
+    "the screenshot itself.\n"
+    "- Icons: Font Awesome 5.15.3 (https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css). Fonts: "
+    "Google Fonts are fine.\n"
+    "- Accessible: real headings, labelled inputs, alt text, visible focus.\n"
+    "Reply with the full HTML file only, starting with <!DOCTYPE html>, no explanation."
+)
+
+
+def _html_from(text: str) -> str:
+    fenced = re.search(r"```(?:html)?\s*(.*?)```", text or "", re.S)
+    body = fenced.group(1) if fenced else (text or "")
+    start = body.lower().find("<!doctype")
+    if start < 0:
+        start = body.lower().find("<html")
+    return body[start:].strip() if start >= 0 else body.strip()
+
+
+def _s2c_dir() -> Path:
+    from paths import data_path
+
+    folder = data_path("screenshot_code")
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder
+
+
+def screenshot_to_code(image: bytes, mime: str, stack: str = "html_tailwind", notes: str = "",
+                       current: str = "", instruction: str = "", ask: Any = None) -> Dict[str, Any]:
+    if stack not in S2C_STACKS:
+        raise ValueError(f"Stack must be one of {', '.join(S2C_STACKS)}.")
+    prompt = f"{S2C_RULES}\n\nStack: {S2C_STACKS[stack]}"
+    if notes.strip():
+        prompt += f"\nThe owner adds: {notes.strip()[:800]}"
+    if current.strip() and instruction.strip():
+        prompt += (f"\n\nThis is the current code:\n{current[:60000]}\n\nChange it as asked and return the whole updated "
+                   f"file: {instruction.strip()[:800]}")
+    if ask is None:
+        from model_roles import MODEL_ROLES
+
+        text = MODEL_ROLES.run("image_check", prompt, images=[(image, mime or "image/png")], max_tokens=12000).text
+    else:
+        text = ask(prompt, image, mime)
+    html = _html_from(text)
+    if "<" not in html:
+        raise ValueError("The model did not return HTML. Try again, or add a note about what the image shows.")
+    import uuid
+
+    job_id = uuid.uuid4().hex[:10]
+    (_s2c_dir() / f"{job_id}.html").write_text(html, encoding="utf-8")
+    return {"id": job_id, "stack": stack, "html": html}
+
+
+class S2CBody(BaseModel):
+    upload_id: str = ""
+    path: str = ""
+    stack: str = "html_tailwind"
+    notes: str = ""
+    current: str = ""
+    instruction: str = ""
+
+
+def _image_from(body: "S2CBody") -> tuple:
+    if body.upload_id:
+        import uploads
+
+        record = uploads.get_upload(body.upload_id)
+        if not record:
+            raise ValueError("That upload is gone; drop the image again.")
+        return Path(record["path"]).read_bytes(), record.get("mime") or "image/png"
+    target = Path(body.path).expanduser()
+    if not target.is_file():
+        raise ValueError("Give an image: drop one in, or a file path.")
+    return target.read_bytes(), mimetypes.guess_type(target.name)[0] or "image/png"
+
+
+@router.post("/api/s2c")
+def s2c(body: S2CBody, _owner=Owner) -> Dict[str, Any]:
+    try:
+        image, mime = _image_from(body)
+        return screenshot_to_code(image, mime, body.stack, body.notes, body.current, body.instruction)
+    except Exception as error:  # noqa: BLE001 - no vision model, bad image: one sentence
+        raise HTTPException(status_code=400, detail=str(error)[:300]) from error
+
+
+class S2CSave(BaseModel):
+    path: str
+    html: str
+
+
+@router.post("/api/s2c/save")
+def s2c_save(body: S2CSave, _owner=Owner) -> Dict[str, Any]:
+    """Save the generated page where the owner says (a .html file), never over an existing file."""
+    target = Path(body.path).expanduser()
+    if target.suffix.lower() not in (".html", ".htm") or target.exists():
+        raise HTTPException(status_code=400, detail="Give a new .html file path (existing files are never overwritten).")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(body.html, encoding="utf-8")
+    return {"saved": str(target)}
+
+
+def tool_screenshot_to_code(path: str = "", stack: str = "html_tailwind", notes: str = "") -> str:
+    try:
+        from agent_events import publish_ui
+
+        publish_ui("ui.open_window", kind="s2c", title="Screenshot to Code",
+                   props={"path": path, "stack": stack, "notes": notes})
+    except Exception:  # noqa: BLE001
+        pass
+    return ("Opened Screenshot to Code beside the chat" + (f" with {Path(path).name}" if path else "") +
+            ". It writes the page with the vision model and previews it; the owner can refine and save it there.")
+
+
+def register_s2c_tool(registry: Any) -> None:
+    from tools import ToolParam
+
+    registry.register(
+        name="screenshot_to_code",
+        description="Turn a screenshot or mockup of a UI into a working web page (HTML + Tailwind, HTML/CSS, React, "
+                    "Vue or Bootstrap) in a window beside the chat, with a live preview, refine box and save. Use when "
+                    "the owner shares an image of a UI and wants it built or cloned.",
+        parameters=[ToolParam("path", "string", "Image file path, if known", required=False),
+                    ToolParam("stack", "string", "html_tailwind, html_css, react_tailwind, vue_tailwind or bootstrap",
+                              required=False, enum_values=list(S2C_STACKS)),
+                    ToolParam("notes", "string", "Anything the owner said about the design", required=False)],
+        handler=tool_screenshot_to_code, category="general", label="Opening Screenshot to Code",
     )
