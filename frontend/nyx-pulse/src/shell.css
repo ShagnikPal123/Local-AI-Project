@@ -171,3 +171,28 @@ main > :not(.chat-shell):not(.hub):only-child { height: 100%; min-height: 0; ove
 .wip__banner p { margin: 2px 0 0; color: var(--color-neutral-400); font-size: 13px; }
 .wip__badge { flex: none; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; color: #000; background: var(--color-warn); }
 .wip__body { flex: 1; min-height: 0; overflow-y: auto; }
+
+/* Navigation bar position (Settings › Appearance; style/appearance.ts sets <html data-nav>). */
+:root[data-nav="right"] .app-body { flex-direction: row-reverse; }
+:root[data-nav="top"] .app-body { flex-direction: column; }
+:root[data-nav="bottom"] .app-body { flex-direction: column-reverse; }
+:root:is([data-nav="top"], [data-nav="bottom"]) .studio-rail {
+  width: auto; height: 64px; flex-direction: row; padding: 0 12px; border-radius: 32px;
+}
+:root:is([data-nav="top"], [data-nav="bottom"]) .studio-rail__list {
+  flex-direction: row; overflow-x: auto; overflow-y: hidden; justify-content: safe center; padding: 0 4px; height: 100%;
+}
+:root:is([data-nav="top"], [data-nav="bottom"]) .studio-rail__foot { flex-direction: row; }
+:root:is([data-nav="top"], [data-nav="bottom"]) .studio-rail__sep { width: 1px; height: 24px; margin: 0 4px; }
+:root:is([data-nav="top"], [data-nav="bottom"]) .studio-rail__tip { display: none; }
+:root:is([data-nav="top"], [data-nav="bottom"]) .studio-rail__logo { height: auto; width: 40px; }
+
+.appearance { display: grid; gap: 16px; }
+.appearance__row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+.appearance__label { width: 140px; font-weight: 600; font-size: 14px; }
+.appearance__swatches { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.appearance__swatch { width: 32px; height: 32px; border-radius: 999px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2); }
+.appearance__swatch.is-default { background: conic-gradient(#ff7a2e, #a594ff, #5fd4f4, #6fe3b4, #ff7a2e); }
+.appearance__swatch[aria-checked="true"] { box-shadow: 0 0 0 2px var(--color-bg), 0 0 0 4px #fff; }
+.appearance__custom { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--color-neutral-400); cursor: pointer; }
+.appearance__custom input { width: 32px; height: 32px; border: 0; border-radius: 999px; padding: 0; background: none; cursor: pointer; }

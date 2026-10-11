@@ -17,6 +17,7 @@ import { ContentModeSection } from "./ContentModeSection";
 import { IntelligenceSettings } from "./IntelligenceSettings";
 import { ModsSection } from "./ModsSection";
 import { StyleMixSection } from "../style/StyleMixSection";
+import { AppearanceSection } from "../style/AppearanceSection";
 
 interface SpeedMode {
   id: string;
@@ -364,6 +365,9 @@ export function SettingsPanel({ group = "general" }: { group?: SettingsGroup }) 
         </>}
 
         {group === "appearance" && <>
+          <Section title="Colour and layout" hint="Pick the accent colour, and put the navigation bar on any side. Saved in this browser.">
+            <AppearanceSection />
+          </Section>
           <Section title="Style mix" hint="Mix and combine looks — pick a mix, or switch any of the twenty styles on and off. Saved in this browser.">
             <StyleMixSection />
           </Section>

@@ -7,8 +7,10 @@ import "./shell.css";
 import "./style/styles.css";
 import "./style/studio.css";
 import { bootMix } from "./style/styleMix";
+import { bootAppearance } from "./style/appearance";
 
 bootMix();
+bootAppearance();
 import { registerShellCache } from "./engine";
 
 // A rebuild — an update, Apply or Improve — replaces the hashed chunks while this page is open. The next tab
