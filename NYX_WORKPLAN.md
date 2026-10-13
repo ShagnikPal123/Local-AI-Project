@@ -4,7 +4,83 @@
 
 ---
 
-## 0. The original request — preserved verbatim
+## 0. Current request — Fixer Upper (owner, 2026-10-13) — preserved verbatim
+
+The newest and biggest ask. It is now the top of this board; everything older sits below it. The full
+document (41 pages, 23 reference images) is broken into 15 workstreams in `docs/FIXER_UPPER_PLAN.md`,
+with what is already done, the pages and images each team needs, and the start order. Do not edit this block.
+
+```text
+Using the attached document, I want to expand my project to a higher level. This is a mass
+compilation of all the errors I have seen and what I need fixed, added, and expanded on. Please
+divide this into the appropriate chats, efforts, and models to ensure the best results while you
+act as the command center. There is one or maybe 2 splits I have asked for. The main one is a
+new project folder and a split off for the trading tab, as I feel it would work much better
+independently and would be a much higher benefit to users if they can just use that by itself for
+better results. Use the document and share the parts to the bots that need it as well as the
+images I pushed there as reference. Some images are there to show a new design or addition
+that would benefit the app but I might not have given a long or even any description, so those
+are just general ideas if they do not have that. Please ensure you read the full document first as
+well. The first poage/paragraph explains the entire purpose of the document, and each
+paragraph or couple of paragraphs can be divided into different teams for their work to be
+easier. Try to go from top to bottom, then since the handoff document is slightly outdated, move
+everything remaining to the bottom and this to the top, as much of it was talked about in this
+document. After each change, ensure it is pushed to GitHub; multiple commits are allowed and
+encouraged, as it shows how much we are updating and changing. Read from bottom to top, as
+that is the order I wrote in, and the divide. Take your time and make sure you spend time
+effectively and efficiently. Your new project features are the main thing I would love to be added
+as a sort of command center, which is why I chose you. A couple of the issues in this doc might
+have been worked on before, which is why, when you divide this up, make sure that each agent
+checks to make sure if that part was fixed or not by checking the code and the GitHub commits.
+```
+
+The document's own opening paragraph (its statement of purpose and newest fixes):
+
+```text
+Using this document, please start from the bottom and read up. Read each part to its full then
+delegate and understand from there. After reading to the fullest make sure to divide each task
+and add the proper context and images and parts of this document to each agent branch and
+new chat you make. Make sure to first add all skills from the GitHub’s I have added and then
+begin work for each part I have asked. To be clear all of these are changes to make the AI have
+more freedom for access. I can say anything and it won't just say yes or no, it will try it, rebuild
+itself in the most extreme scenarios and do all it can to work. If i ask to add Bluetooth to its
+design in any chat, it will see if it can, if it cant it won't give up. Integrity is the name of this
+aspect and we want to remember that. If I say scroll my Instagram Reels and make it into a
+super massive skill from what I have saved, it will be able to watch these, if it doesn't have the
+skill it will find it and add it, then do the task. This is our definition and answer to lazy bots. If a
+bot is idle, they should realize and try harder. I want to ensure this AI is not lazy but rather
+knows its worth, knows its power, knows that its more than prompts and can compete with large
+models if it works properly. If I ask to integrate with an app it will check if it can, if it can't, it will
+make it happen. If I want to see a diagram or a new app ro a new something it has the ability to
+design it itself. If I want a new kind of table that's never seen, itr will design and make it. The
+design studio si not just for humans, its for the AI to see and actually use to make its own things.
+Make it clear that the AI can uise any service here or search online for services to get the best
+results for its user. Next part to this is the fact that the AI ahs too many restrictions and is why I
+want to remove free will mode in exchange the AI gets third-mind info as its own and stores on
+the tab with most of its info that we have now. In addition with this replace the AI will be much
+freer, which is why I said the things before. The AI seems to think it is fully restricted and cant do
+
+anything. I ask for it to open a tab and it has issues; that is the main issue and I would like that
+to be fixed. I ask for it to navigate me to finances and it has an issue. Next the Tab if not already
+done, the design is not complete and I need to see that finished science it is too boxy, if this is
+after the notch redesign, ignore this text. Last part is teh AI is slow, whether texting on whatsapp
+or in the actual UI, it is super slow and I want it to be faster. This si our own model so I propose
+a new skill and a new case that can push it to be faster or a good restructure that allows for
+much higher speeds that dont cause frustration. In addition, for the images I show please
+examine and try to copy what makes them look good whil not changing our full design unless I
+ask. For the true last thing, can you use Electron js or a similar app (download if needed) and try
+to have this as an actual app if not already. In addition, continue and add more machine learning
+so it is not just AI. Then ensure it is updated that this is a ml and ai based model, leveraging
+both to run at its best if you can implement more ml into this. For projects copy how Claude
+```
+
+How to read it: the cover note and purpose come first; the rest was written bottom to top (page 41 is
+the oldest). His priorities: skills from his GitHub links first; transitions after everything else;
+self-improve, flexibility mod, rules & laws and the Slack huddle are the last four, in that order.
+
+---
+
+## 0b. The earlier request (2026-09-05) — preserved verbatim
 
 Kept here so it survives a context reset or a lost session. Do not edit this block.
 
@@ -78,6 +154,11 @@ Standing file ownership when delegating:
 
 
 ## 2. Now (max 3)
+
+### 2026-10-13 — Fixer Upper: split into 15 workstreams
+- [~] **Plan:** `docs/FIXER_UPPER_PLAN.md` — each item marked Done / Partial / Not started against the code at
+  `102d659`, with the team that owns it. Two splits: Projects + Commander (the command center, WS2) and the trader as
+  its own app (WS1). Each team re-checks the code and `git log` before building, and pushes small commits.
 
 ### 2026-10-09 — WhatsApp line + seven update ideas (session c17036a4)
 
@@ -347,6 +428,10 @@ Owner could access and use the app; these are the follow-ups, verbatim intent pr
 ---
 
 ## 7. Handoff
+
+**2026-10-13:** the Fixer Upper request is §0 above and its plan is `docs/FIXER_UPPER_PLAN.md`; start there.
+The local `AI_HANDOFF/START_HERE.md` (git-ignored, on the owner's PC) still needs the same reorder: this request
+on top, older content below. Everything after this line is the earlier handoff.
 
 **Last touched:** 2026-10-09 (session c17036a4) — WhatsApp line, U2, U4, U11/U12, U14, U16, U25, U42.
 
