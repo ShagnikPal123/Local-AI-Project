@@ -20,6 +20,18 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 _DEFAULT_API_KEY = ""  # never a literal: set OBSIDIAN_API_KEY in .env.local
 
 
+def _clean_path(path: str) -> str:
+    """Note path relative to the vault, with every way of climbing out of it refused.
+
+    Why: the assistant supplies these paths, and the folder fallback joins them onto the vault folder, so a path like
+    ``../../.env.local`` would read or overwrite files outside the vault. Raises ValueError for such paths.
+    """
+    rel = (path or "").replace("\\", "/").strip("/")
+    if not rel or any(part in ("..", "") for part in rel.split("/")) or ":" in rel.split("/")[0]:
+        raise ValueError(f"Not a note path inside the vault: {path!r}")
+    return rel
+
+
 class ObsidianConnector(BaseConnector):
     """Bridge to an Obsidian vault via Local REST API or direct filesystem."""
 
@@ -97,7 +109,13 @@ class ObsidianConnector(BaseConnector):
         return bool(self._api_key)
 
     def execute(self, action: str, **params: Any) -> Dict[str, Any]:
-        """Execute Obsidian actions: list, read, write, append, search, status."""
+        """Execute Obsidian actions: list, read, write, append, search, status. A bad path is an answer, not a crash."""
+        try:
+            return self._dispatch(action, **params)
+        except ValueError as error:
+            return {"success": False, "error": str(error)}
+
+    def _dispatch(self, action: str, **params: Any) -> Dict[str, Any]:
         action = action.lower().strip()
         if action in ("status", "health"):
             return self._status()
@@ -176,7 +194,7 @@ class ObsidianConnector(BaseConnector):
         }
 
     def _read_note(self, path: str) -> Dict[str, Any]:
-        rel_path = path.strip("/\\")
+        rel_path = _clean_path(path)
         if not rel_path.endswith(".md"):
             rel_path += ".md"
 
@@ -201,7 +219,7 @@ class ObsidianConnector(BaseConnector):
         return {"success": False, "error": f"Note '{rel_path}' could not be retrieved from Obsidian."}
 
     def _write_note(self, path: str, content: str) -> Dict[str, Any]:
-        rel_path = path.strip("/\\")
+        rel_path = _clean_path(path)
         if not rel_path.endswith(".md"):
             rel_path += ".md"
 
@@ -228,7 +246,7 @@ class ObsidianConnector(BaseConnector):
         return {"success": False, "error": f"Could not write note '{rel_path}' to Obsidian."}
 
     def _append_note(self, path: str, content: str) -> Dict[str, Any]:
-        rel_path = path.strip("/\\")
+        rel_path = _clean_path(path)
         if not rel_path.endswith(".md"):
             rel_path += ".md"
 

@@ -81,3 +81,17 @@ def test_obsidian_tools_registered():
     ]:
         tool = tools.TOOL_REGISTRY.get_tool(name)
         assert tool is not None, f"Expected {name} to be registered in TOOL_REGISTRY"
+
+
+def test_paths_cannot_climb_out_of_the_vault(tmp_path):
+    """The assistant picks note paths; '..' must never reach files outside the vault folder."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (tmp_path / "secret.md").write_text("outside", encoding="utf-8")
+    conn = ObsidianConnector(api_key="", vault_path=str(vault))
+    for bad in ("../secret", "a/../../secret", "C:/Windows/x"):
+        for action, extra in (("read", {}), ("write", {"content": "x"}), ("append", {"content": "x"})):
+            result = conn.execute(action, path=bad, **extra)
+            assert result["success"] is False, (action, bad)
+    assert (tmp_path / "secret.md").read_text(encoding="utf-8") == "outside"
+    assert conn.execute("write", path="Nyx/ok", content="hi")["success"] is True
