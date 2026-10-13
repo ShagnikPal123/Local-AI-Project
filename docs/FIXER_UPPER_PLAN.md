@@ -199,6 +199,9 @@ Effort means the thread's reasoning effort. Model suggestions use the current Cl
   p38-style sidebar merged with the assistant as a hands-off mode; sidebar and notch draggable and lockable; wake by a
   recorded sound + phrase, notch expands while listening.
 - **Effort / model:** high, Opus.
+- **Left open by the notch rebuild** (`AI_HANDOFF/START_HERE.md` on his PC): the wake phrase is saved but not listened
+  for; voice cloning is pitch-matched only; agents' approvals and questions don't pop the notch open yet; real mic,
+  real email send and dragging a file from Explorer onto the notch are untested.
 - **Depends on:** WS6 for wake and voice. Shared file: `equalize_assistant.py` — WS6 owns the voice parts, WS7 the
   notch parts.
 
@@ -297,6 +300,10 @@ Effort means the thread's reasoning effort. Model suggestions use the current Cl
 ---
 
 ## Earlier work each team should read
+
+On his PC, `AI_HANDOFF/` (git-ignored) holds `01_GOALS.md` with every past request verbatim, `START_HERE.md` (the
+resume point, now with this plan on top) and `FIXER_UPPER/` (this plan, the text and the images). A team that needs
+them uses the folder on his device.
 
 GitHub matches the PC: the latest local session ("Equalizer4 assistant redesign") pushed its notch rebuild to
 `main` at `50d49be` on 2026-10-13 and left only two unrelated local files out. Most past AI Dev chats ran in the
