@@ -75,6 +75,12 @@ const PredictPanel = lazy(() => import("./panels/predict/PredictPanel").then((m)
 const OfficeWorldPanel = lazy(() => import("./panels/OfficeWorldPanel").then((m) => ({ default: m.OfficeWorldPanel })));
 const EqualizePanel = lazy(() => import("./panels/equalize/EqualizePanel").then((m) => ({ default: m.EqualizePanel })));
 const AvatarsPanel = lazy(() => import("./panels/avatars/AvatarsPanel").then((m) => ({ default: m.AvatarsPanel })));
+// Constellations · Quasars · Orbits · Fractal (Projects, Artifacts, Scheduled, Design — owner, 2026-10-11): one chunk.
+const constellations = () => import("./panels/constellations/ConstellationsPanel");
+const ProjectsPanel = lazy(() => constellations().then((m) => ({ default: m.ProjectsPanel })));
+const ArtifactsPanel = lazy(() => constellations().then((m) => ({ default: m.ArtifactsPanel })));
+const ScheduledPanel = lazy(() => constellations().then((m) => ({ default: m.ScheduledPanel })));
+const DesignPanel = lazy(() => constellations().then((m) => ({ default: m.DesignPanel })));
 const AdminPanel = lazy(() => import("./panels/AdminPanel").then((m) => ({ default: m.AdminPanel })));
 const StorePanel = lazy(() => import("./panels/StorePanel").then((m) => ({ default: m.StorePanel })));
 
@@ -465,6 +471,10 @@ export default function App() {
         {active === "predict" && <PredictPanel />}
         {active === "equalize" && <EqualizePanel />}
         {active === "avatars" && <AvatarsPanel />}
+        {active === "projects" && <ProjectsPanel />}
+        {active === "artifacts" && <ArtifactsPanel />}
+        {active === "scheduled" && <ScheduledPanel />}
+        {active === "design" && <DesignPanel />}
         {active === "admin" && (
           <WorkInProgress title="Admin access" why="Who may do what in Ichos is being hardened for safety. Until it is finished, keep admin rights to the owner account only.">
             <AdminPanel />

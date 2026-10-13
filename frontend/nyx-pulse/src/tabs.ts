@@ -33,6 +33,10 @@ export type TabId =
   | "equalize"
   | "predict"
   | "avatars"
+  | "projects"
+  | "artifacts"
+  | "scheduled"
+  | "design"
   | "design_research"
   | "computer"
   | "admin"
@@ -85,6 +89,11 @@ export const CORE_TABS: TabDef[] = [
   { id: "predict", label: "Predict", icon: "ph-crystal-ball", pinned: true, core: true },
   // Always-on helpers the owner shapes (avatars.py): main function, schedule, functions, goals, watches, taught tasks.
   { id: "avatars", label: "Avatars", icon: "ph-users-three", pinned: true, core: true },
+  // Sidebar of the owner's reference (2026-10-11): Projects, Artifacts, Scheduled, Design — space / maths names, plain subtitles.
+  { id: "projects", label: "Constellations", icon: "ph-planet", pinned: true, core: true },
+  { id: "artifacts", label: "Quasars", icon: "ph-sparkle", pinned: true, core: true },
+  { id: "scheduled", label: "Orbits", icon: "ph-clock-clockwise", pinned: true, core: true },
+  { id: "design", label: "Fractal", icon: "ph-pen-nib", pinned: true, core: true },
   // Ichos's own computer + Screen Share.
   { id: "computer", label: "Computer", icon: "ph-desktop-tower", pinned: true, core: true },
   // Connectors + Keys & Models + Models + Add capability.
@@ -131,7 +140,8 @@ export const LEGACY_LABELS: { id: string; label: string }[] = [
   { id: "settings", label: "Settings" }, { id: "dashboard", label: "Dashboard" }, { id: "power", label: "Power" },
   { id: "work", label: "Sessions & Memory" }, { id: "design_research", label: "Design Research" },
   { id: "computer", label: "Nyx's Computer" }, { id: "world", label: "World" }, { id: "office", label: "Office Space" },
-  { id: "court", label: "Court" }, { id: "nyx", label: "Nyx" }, { id: "nyx", label: "Second Brain" },
+  { id: "projects", label: "Projects" }, { id: "artifacts", label: "Artifacts" }, { id: "scheduled", label: "Scheduled" },
+  { id: "design", label: "Design" }, { id: "court", label: "Court" }, { id: "nyx", label: "Nyx" }, { id: "nyx", label: "Second Brain" },
 ];
 
 export type ShellLayout = "rail" | "strip";
