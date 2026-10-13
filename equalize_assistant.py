@@ -319,6 +319,8 @@ def _diff(old: str, new: str, start: int = 1) -> List[Dict[str, Any]]:
 def step_from_tool(name: str, args: Dict[str, Any], label: str = "") -> Dict[str, Any]:
     """One readable step from a tool call: what kind it is, its title, and the code or email behind it."""
     name = str(name or "")
+    if name.startswith("mcp__"):  # mcp__Claude_Browser__browser_batch -> "browser batch"
+        name = name.rsplit("__", 1)[-1]
     low = name.lower()
     args = args if isinstance(args, dict) else {}
     path = str(args.get("file_path") or args.get("path") or args.get("filename") or "")
@@ -466,6 +468,8 @@ def _chat_turn(agent: Dict[str, Any], task: str, sink: Callable[[Dict[str, Any]]
         if record is not None:
             service.tool_guard = avatars.AvatarGuard(record)
             note = avatars.note_for(record)
+    if agent.get("kind") == "ichos" and personality_note():
+        note = f"{note} {personality_note()}"
     try:
         service.set_turn_context(note)
         result = service.chat_turn(task, sink=sink, role="local", turn_id=uuid.uuid4().hex[:12])

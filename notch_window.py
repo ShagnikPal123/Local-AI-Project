@@ -182,6 +182,55 @@ def _watch() -> None:
         time.sleep(1 / 30)
 
 
+MODS = {"alt": 0x1, "ctrl": 0x2, "control": 0x2, "shift": 0x4, "win": 0x8}
+
+
+def parse_hotkey(text: str) -> tuple:
+    """'Ctrl+Alt+Space' -> (modifiers, virtual key). Unknown keys fall back to Ctrl+Alt+Space."""
+    mods, key = 0, 0
+    for part in [p.strip().lower() for p in str(text or "").split("+") if p.strip()]:
+        if part in MODS:
+            mods |= MODS[part]
+        elif part == "space":
+            key = 0x20
+        elif len(part) == 1 and part.isalnum():
+            key = ord(part.upper())
+        elif part.startswith("f") and part[1:].isdigit() and 1 <= int(part[1:]) <= 12:
+            key = 0x6F + int(part[1:])
+    return (mods, key) if mods and key else (0x3, 0x20)
+
+
+def _hotkey_loop(text: str) -> None:
+    """Ctrl+Alt+Space (or the owner's own) from any app: bring the notch forward on its chat."""
+    from ctypes import wintypes
+
+    mods, key = parse_hotkey(text)
+    if not user32.RegisterHotKey(None, 1, mods | 0x4000, key):  # MOD_NOREPEAT
+        _log(f"hotkey {text} is taken by another app")
+        return
+    message = wintypes.MSG()
+    while not _quit.is_set() and user32.GetMessageW(ctypes.byref(message), None, 0, 0) > 0:
+        if message.message == 0x0312 and _window is not None:  # WM_HOTKEY
+            hwnd = _hwnd()
+            if hwnd:
+                user32.SetForegroundWindow(hwnd)
+            try:
+                _window.run_js("window.__notchHotkey && window.__notchHotkey()")
+            except Exception:  # noqa: BLE001
+                pass
+
+
+def _hotkey_setting() -> str:
+    try:
+        request = urllib.request.Request(BASE + "/api/equalize/assistant",
+                                         headers={"Authorization": f"Bearer {TOKEN}"} if TOKEN else {})
+        settings = json.loads(urllib.request.urlopen(request, timeout=5).read())["settings"]  # noqa: S310
+        activation = settings.get("activation") or {}
+        return activation.get("hotkey", "Ctrl+Alt+Space") if "hotkey" in (activation.get("gestures") or []) else ""
+    except Exception:  # noqa: BLE001
+        return "Ctrl+Alt+Space"
+
+
 def main() -> None:
     global _window
     import webview
@@ -196,6 +245,9 @@ def main() -> None:
                                     frameless=True, transparent=True, on_top=True, resizable=True, easy_drag=False,
                                     min_size=(1, 1), background_color="#000000", shadow=False)
     threading.Thread(target=_watch, name="notch-watch", daemon=True).start()
+    hotkey = _hotkey_setting()
+    if hotkey and user32 is not None:
+        threading.Thread(target=_hotkey_loop, args=(hotkey,), name="notch-hotkey", daemon=True).start()
     webview.start(private_mode=False, storage_path=os.path.join(os.environ.get("LOCALAPPDATA", "."), "Ichos", "notch"))
 
 

@@ -273,6 +273,11 @@ export function Notch({ embedded = false }: { embedded?: boolean }) {
     later(() => setView((v) => (v === "note" ? homeView() : v)), 2400);
   };
 
+  // The global shortcut (notch_window.py registers it) opens the chat.
+  useEffect(() => {
+    (window as unknown as { __notchHotkey?: () => void }).__notchHotkey = () => { touch(); openView("chat"); };
+  }, [openView, touch]);
+
   // ── island size, and the click-through hit box for the desktop host ──────
   const chatHeight = Math.min(300, HEIGHTS.chat + Math.max(0, log.length - 1) * 30);
   const size = mode === "expanded" ? { w: EXPANDED_W, h: view === "chat" ? chatHeight : HEIGHTS[view] }
@@ -364,7 +369,10 @@ export function Notch({ embedded = false }: { embedded?: boolean }) {
     }
     play("send");
     setLog((old) => [...old, { role: "user", text }, { role: "assistant", text: "", done: false }]);
-    await send({ message: text, chatId: id, attachmentIds: files.map((f) => f.id), mode: settings?.ultrafast ? "ultrafast" : "normal" });
+    const personalityText = settings?.personality.source === "avatar" ? settings.avatar.personality
+      : settings?.personality.source === "custom" ? settings.personality.text : "";
+    await send({ message: text, chatId: id, attachmentIds: files.map((f) => f.id), personalityText,
+      mode: settings?.ultrafast ? "ultrafast" : "normal" });
     setFiles([]);
   };
 

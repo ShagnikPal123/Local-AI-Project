@@ -42,6 +42,8 @@ export interface SendOptions {
   voiceSession?: string;
   /** The slider under the composer: normal | cowork | plan | plan_go (chat_modes.py). */
   mode?: string;
+  /** A personality for this turn only, in the owner's words (the Equalize notch's chosen personality). */
+  personalityText?: string;
 }
 
 export interface UseTurnsResult {
@@ -169,7 +171,7 @@ export function useTurns(chatId: string): UseTurnsResult {
   }, [chatId]);
 
   const send = useCallback(
-    async ({ message, chatId: targetChat, attachmentIds, provider, voice, voiceSession, mode }: SendOptions) => {
+    async ({ message, chatId: targetChat, attachmentIds, provider, voice, voiceSession, mode, personalityText }: SendOptions) => {
       if (localTurnId) return; // one turn at a time per panel
       const placeholder = beginLocalTurn(`local-${Date.now().toString(36)}`, targetChat, Date.now());
       setLocalTurnId(placeholder.turnId);
@@ -187,6 +189,7 @@ export function useTurns(chatId: string): UseTurnsResult {
           voice: voice || undefined,
           voice_session: voiceSession || undefined,
           mode: mode || undefined,
+          personality_text: personalityText || undefined,
         },
         onEvent: (event) => {
           const realId = typeof event.turn_id === "string" ? event.turn_id : "";
