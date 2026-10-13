@@ -901,8 +901,7 @@ def tool_use_skill(skill: str) -> str:
         emit("skill.used", skills=[{"id": skill, "name": skill.split("/")[-1], "source": "pack", "temp": False,
                                     "why": "chosen by the assistant"}])
         return (f"Skill {skill} — follow these instructions for this task. Files it mentions (scripts, references) "
-                f"were not installed; do not assume they exist.
-{packed}")
+                f"were not installed; do not assume they exist.\n\n{packed}")
     found = SKILL_STORE.get(skill)
     if found is None:
         matches = SKILL_STORE.search(skill, limit=1)
