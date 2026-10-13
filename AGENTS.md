@@ -132,6 +132,10 @@ Each has an enforcement point in code. Do not weaken them.
 | `dynamic_tabs.py` / `widgets.py` / `skills.py` | The three declarative spec systems |
 | `taint_gate.py` | After a turn reads outside content, risky actions in it ask the owner (checked in `tools.call_tool`) |
 | `morning_digest.py` / `claude_sessions.py` | The equalize tab: daily briefing; Claude Code sessions by state |
+| `equalize_assistant.py` | The Equalize notch's state: settings, agents and their live work, fast file reads, mail on Send, timers, voice, avatar |
+| `notch.py` / `notch_window.py` | Starts the desktop notch window (its own pywebview process, sized to the island) and carries Back to chat |
+| `ultrafast.py` | Ultra Fast mode (Jev's pattern): one choice over closed sets, then code does the desktop action; judge-before-reply |
+| `system_audio.py` | The speaker peak meter (COM, no recording) for the notch's sound pill |
 | `whatsapp_link.py` | The owner's WhatsApp line: pairing, the PC tie, phone turns behind a guard (helper in `whatsapp_worker/`) |
 | `site_preview.py` | Serving a built site or web game until stopped, and zipping it for download |
 | `sketch_studio.py` | The Create tab: drawing as checked shape data, scan, picture |

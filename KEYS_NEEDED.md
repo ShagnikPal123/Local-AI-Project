@@ -30,6 +30,7 @@ at no cost.
 | Key | Unlocks | Without it |
 |---|---|---|
 | `GROQ_API_KEY` | Very fast Llama inference; good for the quick-response path | Falls back to Gemini or local |
+| `TYPESAFE_API_KEY` | Jev (TypeSafe System One) for Ultra Fast mode: one ~250 ms request picks each desktop command | Ultra Fast runs the same choice locally (~1 ms) |
 | `DEEPSEEK_API_KEY` | Strong, cheap coding model; good second opinion in collab mode | One fewer collaborator |
 
 Note `.env.example` already documents `FREE_ONLY=true`, which prevents auto-selecting paid
