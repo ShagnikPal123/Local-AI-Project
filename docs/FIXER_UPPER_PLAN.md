@@ -296,6 +296,32 @@ Effort means the thread's reasoning effort. Model suggestions use the current Cl
 
 ---
 
+## Earlier work each team should read
+
+GitHub matches the PC: the latest local session ("Equalizer4 assistant redesign") pushed its notch rebuild to
+`main` at `50d49be` on 2026-10-13 and left only two unrelated local files out. Most past AI Dev chats ran in the
+Claude desktop app and are not readable from a cloud thread; their results are in git history (checked above), the
+session log in `PROJECT_STATE.md`, and the docs named here. If a team needs a specific old chat, ask the coordinator,
+or open a session on his PC. Chat titles are as they appear in his sidebar.
+
+| WS | Past chats (sidebar titles) | Docs and logs in the repo |
+|---|---|---|
+| 1 Trader | AAI trader optimization and settings; Finance simulation and chat interface; Apple Design trading/finances feature | `PROJECT_STATE.md` session 2026-09-22→24; `finance_knowledge.md` |
+| 2 Command center | Command zone chat screen; Claude code usage audit | `command_zone.py` header; `mission-control/README.md` |
+| 3 Ichos app | Nyx Ichos AI naming | `docs/DESIGN.md` |
+| 4 Integrity | Engine single-click activation; AI improvement plan | `ROADMAP.md` V (machine control), T (auto-everything) |
+| 5 Speed and models | Context window size increase; Identity 0 core AI model | `docs/IDENTITY0.md`, `docs/adr/ADR-001-identity-0.md`, `ROADMAP.md` W, EE |
+| 6 Voice | Voice animation states and feedback; Voice interface and site improvements; Thinking-orbs integration and design | `ROADMAP.md` G, FF; `docs/JARVIS.md` |
+| 7 Notch | Equalizer4 assistant redesign (pushed at `50d49be`) | `equalize_assistant.py` header; `docs/WINDOWS_IN_CHAT_PLAN.md` |
+| 8 Avatars | AI bot integrations and avatars; AI chat collaboration design | `docs/AVATARS.md` |
+| 9 Phone | WhatsApp connector for phone texting | `docs/WHATSAPP.md` |
+| 10 Normal chat | World upscaling and structure; Startup animation and office space | `docs/WORLD.md`, `docs/WINDOWS_IN_CHAT_PLAN.md` |
+| 11 UI fixes | Startup animation and tab redesign; AI app crashes/freezes | `docs/DESIGN_FIX_PLAN.md` |
+| 12 Design | Design research for AI layout; Design skills announcement; Site redesign with GitHub link; Google Docs design reference | `docs/DESIGN.md`, `reports/Ichos design research sweep.md` |
+| 13 Skills | AI skills and Instagram saved content; Obsidian API integration (two chats, Sep 5 and Sep 8); Mods integration for AI application | `NYX_WORKPLAN.md` §0b (Obsidian decisions) |
+| 14 Desktop app | Fix engine shutdown hook; Save and publish to GitHub; 3D build studio performance | `AGENTS.md` §3 (Smart App Control blocks unsigned .exe) |
+| 15 Autonomy | AI improvement plan (fork); Handoff continuation | `change_review.py` header; `AGENTS.md` §4 |
+
 ## Start order
 
 | Wave | Workstreams | Why |
