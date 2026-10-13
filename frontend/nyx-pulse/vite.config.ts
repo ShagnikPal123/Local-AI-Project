@@ -16,6 +16,8 @@ export default defineConfig({
       input: {
         main: resolve(import.meta.dirname, "index.html"),
         app: resolve(import.meta.dirname, "app/index.html"),
+        // The Equalize notch's own desktop window (notch_window.py), served at /notch.
+        notch: resolve(import.meta.dirname, "notch.html"),
       },
     },
   },

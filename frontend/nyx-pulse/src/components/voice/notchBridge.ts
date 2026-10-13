@@ -56,6 +56,13 @@ export function useVoiceState(report = false): { orb: OrbState; heard: string; o
 /** Mounted once by the app: the notch's Talk button reaches the page through the engine. */
 export function useNotchCommands(): void {
   useEffect(() => onWorkspaceEvent((event) => {
+    // The Equalize notch's "Back to chat" / "Open Equalize" (notch.open_app): switch this page's tab.
+    if (event.type === "notch.open-tab") {
+      const tab = String((event as { tab?: unknown }).tab ?? "chat");
+      window.dispatchEvent(new CustomEvent("nyx:open-tab", { detail: { tab } }));
+      window.focus();
+      return;
+    }
     if (event.type !== "voice.toggle") return;
     setVoiceMode(voiceMode() === "off" ? "talk" : "off");
   }), []);
