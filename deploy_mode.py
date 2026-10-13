@@ -69,6 +69,10 @@ HOSTED_BLOCKED_PREFIXES = (
     "/api/freewill",
     # Avatars can be given the owner's computer, files and mail.
     "/api/avatars",
+    # Projects hand helpers the owner's files; scheduled tasks send mail and texts through an avatar.
+    "/api/projects",
+    "/api/artifacts",
+    "/api/scheduled",
     "/api/local-models",
     # Request S: Big Kahuna sees every answer and opens things on this PC by voice.
     "/api/identity0",

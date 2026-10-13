@@ -968,6 +968,53 @@ def test_avatar_routes_do_not_exist_on_a_hosted_build():
     assert "/api/avatars" in deploy_mode.HOSTED_BLOCKED_PREFIXES
 
 
+# --- Constellations / Quasars / Orbits (projects.py, scheduled.py) ----------------------------------------------
+
+OWNER_ONLY_PROJECT_ROUTES = [
+    ("get", "/api/projects", None),
+    ("post", "/api/projects", {"name": "x"}),
+    ("get", "/api/projects/pr-1", None),
+    ("put", "/api/projects/pr-1", {"name": "y"}),
+    ("delete", "/api/projects/pr-1", None),
+    ("put", "/api/projects/pr-1/groups/auto-build", {"name": "z"}),
+    ("post", "/api/projects/pr-1/tabs", {"tab": "code"}),
+    ("delete", "/api/projects/pr-1/tabs/code", None),
+    ("post", "/api/projects/pr-1/members", {"kind": "avatars", "member": "orbit"}),
+    ("get", "/api/artifacts", None),
+    ("post", "/api/artifacts", {"title": "x"}),
+    ("put", "/api/artifacts/ar-1/project", {"project_id": ""}),
+    ("delete", "/api/artifacts/ar-1", None),
+    ("get", "/api/scheduled", None),
+    ("post", "/api/scheduled", {"title": "x", "prompt": "y"}),
+    ("put", "/api/scheduled/sc-1", {"enabled": False}),
+    ("delete", "/api/scheduled/sc-1", None),
+    ("post", "/api/scheduled/sc-1/run", None),
+]
+
+
+@pytest.mark.parametrize("method,path,body", OWNER_ONLY_PROJECT_ROUTES)
+def test_project_routes_refuse_anonymous_callers(client, store, method, path, body):
+    _claim(store)
+    call = getattr(client, method)
+    response = call(path, json=body) if body is not None else call(path)
+    assert response.status_code in (401, 403), f"{path} was reachable anonymously"
+
+
+@pytest.mark.parametrize("method,path,body", OWNER_ONLY_PROJECT_ROUTES)
+def test_a_beta_tester_cannot_reach_projects_or_scheduled(client, beta_token, method, path, body):
+    call = getattr(client, method)
+    response = (call(path, json=body, headers=_auth(beta_token)) if body is not None
+                else call(path, headers=_auth(beta_token)))
+    assert response.status_code == 403, f"beta tester reached {path}"
+
+
+def test_project_routes_do_not_exist_on_a_hosted_build():
+    import deploy_mode
+
+    for prefix in ("/api/projects", "/api/artifacts", "/api/scheduled"):
+        assert prefix in deploy_mode.HOSTED_BLOCKED_PREFIXES
+
+
 # Proto Voice (Project Null N92): the microphone that may act on the computer.
 OWNER_ONLY_PROTO_VOICE_ROUTES = [
     ("get", "/api/proto-voice", None),
