@@ -173,3 +173,169 @@ def design_research_to_masterplan(entry_id: str, _owner_user=Depends(_owner)) ->
         return design_research.add_to_masterplan(entry_id)
     except design_research.ResearchError as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
+
+
+# ---------------------------------------------------------------------------
+# The notch assistant (equalize_assistant.py) and Ultra Fast (ultrafast.py) — owner, 2026-10-11
+# ---------------------------------------------------------------------------
+
+def _bad(error: Exception) -> Any:
+    from fastapi import HTTPException
+
+    return HTTPException(status_code=400, detail=str(error))
+
+
+@router.get("/api/equalize/assistant")
+def assistant_state(_owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import equalize_assistant as ea
+
+    return {"settings": ea.settings(), "agents": ea.agents()}
+
+
+@router.put("/api/equalize/assistant")
+def assistant_save(body: Dict[str, Any], _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import equalize_assistant as ea
+
+    return ea.update(body)
+
+
+@router.get("/api/equalize/agents")
+def assistant_agents(_owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import equalize_assistant as ea
+
+    return {"agents": ea.agents(), "catalog": ea.catalog()}
+
+
+@router.post("/api/equalize/agents/drop")
+def assistant_drop(body: Dict[str, Any], _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import equalize_assistant as ea
+
+    return ea.drop_agent(str(body.get("id") or ""), remove=bool(body.get("remove")))
+
+
+@router.get("/api/equalize/agents/{agent_id}/work")
+def assistant_work(agent_id: str, _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import equalize_assistant as ea
+
+    return ea.work(agent_id)
+
+
+@router.post("/api/equalize/tasks")
+def assistant_task(body: Dict[str, Any], _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import equalize_assistant as ea
+
+    try:
+        return ea.start_task(str(body.get("agent") or "ichos"), str(body.get("task") or ""),
+                             folder=str(body.get("folder") or ""), new_name=str(body.get("new_name") or ""),
+                             app=str(body.get("app") or ""))
+    except ValueError as error:
+        raise _bad(error) from error
+
+
+@router.get("/api/equalize/tasks/{job_id}")
+def assistant_job(job_id: str, _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import equalize_assistant as ea
+
+    found = ea.job(job_id)
+    if found is None:
+        raise _bad(ValueError("No such task."))
+    return found
+
+
+@router.post("/api/equalize/tasks/{job_id}/stop")
+def assistant_job_stop(job_id: str, _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import equalize_assistant as ea
+
+    return {"stopped": ea.stop_job(job_id)}
+
+
+@router.get("/api/equalize/files/{upload_id}")
+def assistant_read_file(upload_id: str, _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import equalize_assistant as ea
+
+    try:
+        return ea.read_file(upload_id)
+    except (ValueError, OSError) as error:
+        raise _bad(error) from error
+
+
+@router.post("/api/equalize/intent")
+def assistant_intent(body: Dict[str, Any], _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import equalize_assistant as ea
+
+    return ea.intent(str(body.get("text") or ""), has_file=bool(body.get("has_file")))
+
+
+@router.post("/api/equalize/mail")
+def assistant_mail(body: Dict[str, Any], _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    """The notch's Send button — the only way this sends."""
+    import equalize_assistant as ea
+    import email_client
+
+    try:
+        return ea.send_mail(str(body.get("to") or ""), str(body.get("subject") or ""), str(body.get("body") or ""),
+                            [str(u) for u in body.get("upload_ids") or []])
+    except (email_client.EmailError, ValueError) as error:
+        raise _bad(error) from error
+
+
+@router.post("/api/equalize/timers")
+def assistant_timer(body: Dict[str, Any], _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import equalize_assistant as ea
+
+    return ea.add_timer(float(body.get("seconds") or 60), str(body.get("label") or ""))
+
+
+@router.delete("/api/equalize/timers/{timer_id}")
+def assistant_timer_remove(timer_id: str, _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import equalize_assistant as ea
+
+    return {"removed": ea.remove_timer(timer_id)}
+
+
+@router.post("/api/equalize/voice")
+def assistant_voice(body: Dict[str, Any], _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import equalize_assistant as ea
+
+    return ea.set_voice(str(body.get("mode") or "default"), str(body.get("description") or ""),
+                        body.get("sample") if isinstance(body.get("sample"), dict) else None)
+
+
+@router.post("/api/equalize/avatar")
+def assistant_avatar(body: Dict[str, Any], _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import equalize_assistant as ea
+
+    if body.get("reset"):
+        return ea.reset_avatar()
+    keep = body.get("keep_personality")
+    return ea.set_avatar(name=str(body.get("name") or ""), image=str(body.get("image") or ""),
+                         avatar_id=str(body.get("avatar_id") or ""), personality=str(body.get("personality") or ""),
+                         keep_personality=None if keep is None else bool(keep))
+
+
+@router.get("/api/equalize/sound")
+def assistant_sound(_owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import system_audio
+
+    return system_audio.level()
+
+
+@router.get("/api/ultrafast")
+def ultrafast_status(_owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import ultrafast
+
+    return ultrafast.status()
+
+
+@router.post("/api/ultrafast")
+def ultrafast_run(body: Dict[str, Any], _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import ultrafast
+
+    return ultrafast.handle(str(body.get("text") or ""), dry_run=bool(body.get("dry_run")))
+
+
+@router.post("/api/ultrafast/judge")
+def ultrafast_judge(body: Dict[str, Any], _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import ultrafast
+
+    return ultrafast.judge(str(body.get("conversation") or ""), str(body.get("me") or "me"))
