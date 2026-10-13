@@ -11,6 +11,10 @@
  *   • generative-ai.md › Outputs — say specifically what is happening ("Summarizing 16 earlier messages"), and make the
  *     result easy to revert (Undo).
  * Quiet until it matters: a thin line and a number; the Compact button gains prominence only past 70 %.
+ *
+ * 2026-10-11 (owner: "context fills up fast … at least 1M like Claude"): the bar measures the chat's own 1M-token
+ * window, not the answering model's. The details say how much one call of that model reads; past it, older
+ * messages are recalled by relevance (context_budget.fit) and the model can search all of them (recall_chat).
  */
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
@@ -21,6 +25,8 @@ interface Measure {
   used: number; window: number; percent: number; messages: number; level: "ok" | "warn" | "full";
   parts: { instructions: number; memory: number; summary: number; conversation: number; tools: number; images: number };
   can_compact: boolean; can_undo: boolean; auto_compact: boolean; threshold: number; keep_last: number; compacted: boolean;
+  /** What one call of the answering model reads (0: Big Kahuna or Auto pick per turn). */
+  model_window?: number; fits_model?: boolean;
 }
 interface CompactResult { compacted_messages: number; saved_tokens: number; source: string; after: Measure; before: Measure }
 
@@ -147,6 +153,14 @@ export function ContextBar({ chatId, provider, refreshKey }: { chatId: string; p
               </li>
             ))}
           </ul>
+          <p className="context-bar__hint">
+            This chat holds up to {k(measure.window)} tokens.{" "}
+            {measure.model_window
+              ? (measure.fits_model
+                ? `All of it fits in one call of this model (${k(measure.model_window)}).`
+                : `This model reads ${k(measure.model_window)} at a time, so it gets the newest messages plus the older ones that match your question, and can search the rest.`)
+              : "Each model sees what fits it: the newest messages plus older ones that match your question, and it can search the rest."}
+          </p>
           <p className="context-bar__hint">
             {measure.messages} messages in the model's copy of this chat. Compacting turns older ones into a short summary and keeps the last
             {" "}{measure.keep_last} word for word — your transcript stays exactly as it is. Token counts are estimates.
