@@ -13,31 +13,105 @@ from config import SETTINGS
 from providers.base import Provider, ProviderError
 
 
-def _default_ctx() -> int:
-    """Sized to the GPU (owner, 2026-10-10: "context seems to fill up too fast, add more"): 64k tokens on a 12 GB+
-    card, 48k on 8 GB+, else 32k. Read from the cached device profile — never a slow hardware probe at import."""
+#: Context sizes tried for a local model, largest first.
+_CTX_STEPS = (262144, 229376, 196608, 163840, 131072, 98304, 65536, 49152, 32768)
+#: Share of the GPU left for the voice models, the browser and the desktop.
+_GPU_HEADROOM = 0.15
+#: Ollama's own working memory beside the weights and the KV cache.
+_RUNTIME_BYTES = 1.0e9
+_SIZED: Dict[str, int] = {}
+_UNREAD: Dict[str, float] = {}
+
+
+def _vram_bytes() -> float:
+    """From the cached device profile (GiB) — never a slow hardware probe."""
     try:
-        import json
         from pathlib import Path
 
         vram = float(json.loads((Path(__file__).resolve().parent.parent / "device_profile.json")
                                 .read_text(encoding="utf-8")).get("vram_gb") or 0)
     except Exception:  # noqa: BLE001
         vram = 0.0
+    return vram * 2 ** 30
+
+
+def _default_ctx() -> int:
+    """When the model can't be read (Ollama not up yet): 64k tokens on a 12 GB+ card, 48k on 8 GB+, else 32k."""
+    vram = _vram_bytes() / 2 ** 30
     return 65536 if vram >= 12 else 49152 if vram >= 8 else 32768
 
 
-def _num_ctx() -> int:
+def kv_bytes_per_token(info: Dict[str, Any]) -> float:
+    """KV-cache bytes one token costs (f16), from Ollama's ``model_info``.
+
+    Hybrid models such as Qwen 3.5 keep a cache on only one layer in four (``head_count_kv`` is listed per layer,
+    0 for the linear-attention layers), so they hold four times the context a dense model of the same size does.
+    """
+    arch = str(info.get("general.architecture") or "")
+    layers = int(info.get(f"{arch}.block_count") or 0)
+    heads = int(info.get(f"{arch}.attention.head_count") or 0) if not isinstance(
+        info.get(f"{arch}.attention.head_count"), list) else max(info[f"{arch}.attention.head_count"])
+    kv = info.get(f"{arch}.attention.head_count_kv")
+    if isinstance(kv, list):
+        kv_heads = sum(int(n or 0) for n in kv)
+    else:
+        interval = max(1, int(info.get(f"{arch}.full_attention_interval") or 1))
+        kv_heads = int(kv or heads) * (layers // interval)
+    head_dim = int(info.get(f"{arch}.embedding_length") or 0) / heads if heads else 128
+    key = float(info.get(f"{arch}.attention.key_length") or head_dim)
+    value = float(info.get(f"{arch}.attention.value_length") or head_dim)
+    return kv_heads * (key + value) * 2
+
+
+def fit_ctx(model_bytes: float, per_token: float, trained: int, vram_bytes: float) -> int:
+    """The largest step whose weights + KV cache stay on the GPU with headroom, never past what the model was trained on."""
+    room = vram_bytes * (1 - _GPU_HEADROOM) - model_bytes - _RUNTIME_BYTES
+    for step in _CTX_STEPS:
+        if (not trained or step <= trained) and per_token > 0 and step * per_token <= room:
+            return step
+    return _CTX_STEPS[-1]
+
+
+def num_ctx(model: Optional[str] = None) -> int:
+    """Context window asked of a local model: as large as fits on this GPU (owner, 2026-10-11: "context fills up fast …
+    increase it, at least like Claude's 1M"). On the RTX 5080 (16 GB) Qwen 3.5 9B gets 192k, measured 100 % on the GPU at
+    full speed; 256k spilled onto the CPU and ran a third slower.
+
+    ``OLLAMA_NUM_CTX`` overrides it. Sized once per model, so every call asks the same — a different ``num_ctx`` makes
+    Ollama reload the model. When Ollama can't be read the GPU tier is used and the next call tries again.
+    """
     try:
-        return max(2048, min(262144, int(os.getenv("OLLAMA_NUM_CTX", "") or _default_ctx())))
+        if os.getenv("OLLAMA_NUM_CTX", "").strip():
+            return max(2048, min(262144, int(os.environ["OLLAMA_NUM_CTX"])))
     except ValueError:
+        pass
+    name = (model or SETTINGS.ollama_model or "").strip()
+    if name in _SIZED:
+        return _SIZED[name]
+    if _UNREAD.get(name, 0.0) > time.monotonic():
         return _default_ctx()
+    host = (SETTINGS.ollama_host or "http://127.0.0.1:11434").replace("//localhost:", "//127.0.0.1:")
+    try:
+        info = requests.post(f"{host}/api/show", json={"model": name}, timeout=2).json().get("model_info") or {}
+        sizes = {m.get("name"): float(m.get("size") or 0) for m in requests.get(f"{host}/api/tags", timeout=2).json().get("models", [])}
+        arch = str(info.get("general.architecture") or "")
+        size = sizes.get(name) or sizes.get(f"{name}:latest") or 0.0
+        if not arch or not size:
+            _UNREAD[name] = time.monotonic() + 60
+            return _default_ctx()
+        _SIZED[name] = fit_ctx(size, kv_bytes_per_token(info), int(info.get(f"{arch}.context_length") or 0), _vram_bytes())
+    except Exception:  # noqa: BLE001 - never fails a call; the tier below is what the last version always used
+        # Ollama down: ask again in a minute, not on every meter refresh (a refused loopback costs ~2 s on Windows).
+        _UNREAD[name] = time.monotonic() + 60
+        return _default_ctx()
+    return _SIZED[name]
 
 
-#: Context window asked of every local model. Ollama's default here is 4096 tokens, but Nyx's own
-#: instructions and tool list are ~12.7k tokens, so the local model silently lost the tool rules.
-#: One fixed size for every call on purpose: a different ``num_ctx`` makes Ollama reload the model.
-NUM_CTX = _num_ctx()
+def __getattr__(name: str) -> Any:
+    # Older callers import the constant; it is now sized from the model on first use.
+    if name == "NUM_CTX":
+        return num_ctx()
+    raise AttributeError(name)
 
 
 class OllamaProvider(Provider):
@@ -135,7 +209,7 @@ class OllamaProvider(Provider):
                     "model": SETTINGS.ollama_model,
                     "messages": messages,
                     "stream": False,
-                    "options": {"num_ctx": NUM_CTX},
+                    "options": {"num_ctx": num_ctx()},
                 },
                 timeout=self._TIMEOUT_SECONDS,
             )
@@ -156,7 +230,7 @@ class OllamaProvider(Provider):
                     "model": SETTINGS.ollama_model,
                     "messages": messages,
                     "stream": True,
-                    "options": {"num_ctx": NUM_CTX},
+                    "options": {"num_ctx": num_ctx()},
                 },
                 timeout=self._TIMEOUT_SECONDS,
                 stream=True,
@@ -219,7 +293,7 @@ class OllamaProvider(Provider):
             with requests.post(
                 f"{SETTINGS.ollama_host}/api/chat",
                 json={"model": chosen, "messages": body, "stream": True, "think": bool(thinking),
-                      "options": {"num_ctx": NUM_CTX}},
+                      "options": {"num_ctx": num_ctx(chosen)}},
                 # A cold model takes up to a minute to load before its first token.
                 timeout=(5, 180),
                 stream=True,
