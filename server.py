@@ -2827,6 +2827,12 @@ def _resume_background_work() -> None:
         kahuna_api.warm_up()  # the first spoken turn should not be the slow one (Request S22)
     except Exception:  # pragma: no cover - never at the cost of the API starting
         logging.getLogger("nyx.server").warning("could not resume Big Kahuna's training", exc_info=True)
+    try:
+        import notch
+
+        notch.start_if_enabled()  # the Equalize notch comes back if the owner left it on
+    except Exception:  # pragma: no cover
+        logging.getLogger("nyx.server").warning("could not reopen the notch", exc_info=True)
 
     def grow_on_first_run() -> None:
         # The brain starts from what is already on this PC; Nyx Core from the turns already learned.
