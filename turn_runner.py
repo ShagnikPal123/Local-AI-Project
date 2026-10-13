@@ -368,6 +368,12 @@ class TurnRunner:
             stored += "\n\n" + "\n".join(f"[Attached: {r.get('name')}]" for r in records)
         service.chat_store.append("user", stored, chat_id=service.chat_id)
 
+        # Ultra Fast (ultrafast.py, Jev's pattern): a desktop command is done and answered without any model.
+        if self.mode_switches.get("ultrafast") and not records:
+            fast = self._ultrafast(user_text)
+            if fast is not None:
+                return fast
+
         # Request H13: /commands anywhere in the message — their skills are read first.
         service.conversation_history = [
             m for m in service.conversation_history
@@ -601,7 +607,8 @@ class TurnRunner:
                  "cowork": "Co-work — working in the background",
                  "plan": "Plan — writing the plan first, changing nothing",
                  "plan_go": "Working through the plan you approved",
-                 "swarm": f"Swarm — up to {switches.get('swarm') or 0} agents at once"}[switches["mode"]]
+                 "swarm": f"Swarm — up to {switches.get('swarm') or 0} agents at once",
+                 "ultrafast": "Ultra Fast — doing it at once"}[switches["mode"]]
         if switches.get("auto"):
             self.emit("status", phase="route", text=f"Auto picked {words} ({switches.get('auto_reason')})")
         elif switches["mode"] != "normal":
@@ -1124,6 +1131,26 @@ class TurnRunner:
         self.service._append_assistant_response(reply)
         self.provider = f"cache ({getattr(hit, 'provider', '') or 'earlier answer'})"
         self.from_cache = True
+        return self._finish(reply)
+
+    def _ultrafast(self, user_text: str) -> Optional[Dict[str, Any]]:
+        """Plan and do a desktop command in one step; None hands the turn on to the normal (short) answer."""
+        try:
+            import ultrafast
+
+            result = ultrafast.handle(user_text)
+        except Exception as error:  # noqa: BLE001 - the normal turn still answers
+            self.emit("learning.note", text=f"Ultra Fast skipped: {error}")
+            return None
+        if not result.get("handled"):
+            return None
+        reply = str(result.get("reply") or "Done.")
+        via = str((result.get("plan") or {}).get("via") or "local")
+        self.emit("status", phase="answer", text=f"Ultra Fast · {result.get('ms')} ms · {'Jev' if via == 'jev' else 'local'}")
+        self.emit("answer.delta", text=reply)
+        self.service.add_message("user", user_text)
+        self.service._append_assistant_response(reply)
+        self.provider, self.model = "ultrafast", ("jev" if via == "jev" else "local")
         return self._finish(reply)
 
     def _grow_brain(self, reply: str, elapsed_ms: int) -> None:

@@ -39,7 +39,7 @@ import json
 import re
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-MODES = ("normal", "cowork", "plan", "plan_go", "swarm", "auto")
+MODES = ("normal", "cowork", "plan", "plan_go", "swarm", "auto", "ultrafast")
 DEFAULT = "normal"
 
 #: Marks this turn's mode note in the conversation history, so the next turn can replace it.
@@ -122,6 +122,12 @@ PLAN_GO_NOTE = (
 )
 
 
+ULTRAFAST_NOTE = (
+    f"{PREFIX} Ultra Fast — speed first. Answer in one or two short sentences, no preamble, no thinking lines. Use a "
+    "tool only when the answer truly needs one; for a quick computer action use ultrafast_command."
+)
+
+
 def normalize(mode: Optional[str]) -> str:
     text = str(mode or "").strip().lower().replace("-", "_")
     if text in ("plan_approved", "plango", "plan_start"):
@@ -130,6 +136,8 @@ def normalize(mode: Optional[str]) -> str:
         return "cowork"
     if text in ("automatic", "auto_mode"):
         return "auto"
+    if text in ("ultra_fast", "ultra", "jev", "fast"):
+        return "ultrafast"
     return text if text in MODES else DEFAULT
 
 
@@ -219,6 +227,10 @@ def settings_for(mode: Optional[str]) -> Dict[str, Any]:
             size = 4
         return {"mode": mode, "skip_optimizer": True, "skip_consult": True, "max_steps": 48,
                 "force_full": True, "read_only": False, "checklist": True, "swarm": size}
+    if mode == "ultrafast":
+        # Ultra Fast (ultrafast.py): desktop commands never reach a model; the rest is a short, tool-light answer.
+        return {"mode": mode, "skip_optimizer": True, "skip_consult": True, "max_steps": 4,
+                "force_full": False, "read_only": False, "checklist": False, "ultrafast": True}
     return {"mode": mode, "skip_optimizer": True, "skip_consult": True, "max_steps": 16,
             "force_full": False, "read_only": False, "checklist": False}
 
@@ -234,7 +246,8 @@ def note_for(mode: Optional[str], swarm_size: int = 0) -> str:
         except Exception:  # noqa: BLE001
             size, together = int(swarm_size or 4), 2
         return SWARM_NOTE.format(size=size, parallel=together)
-    return {"cowork": COWORK_NOTE, "plan": PLAN_NOTE, "plan_go": PLAN_GO_NOTE}.get(mode, NORMAL_NOTE)
+    return {"cowork": COWORK_NOTE, "plan": PLAN_NOTE, "plan_go": PLAN_GO_NOTE,
+            "ultrafast": ULTRAFAST_NOTE}.get(mode, NORMAL_NOTE)
 
 
 def plan_guard(inner: Optional[Callable[[str, str], None]] = None) -> Callable[[str, str], None]:
