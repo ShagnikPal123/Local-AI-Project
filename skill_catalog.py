@@ -1,4 +1,4 @@
-"""The curated list of skills Shagnik asked for ("first add all skills from the GitHubs I have added"), and the installer.
+"""The curated list of skills the owner asked for ("first add all skills from the GitHubs I have added"), and the installer.
 
 Why this exists: ``skill_packs.py`` can hold a big library, but someone has to say *which* SKILL.md files from the
 owner's repos are worth keeping. Dumping every file would attach duplicates (claude-mem ships the same ``do`` skill in
