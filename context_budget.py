@@ -15,6 +15,15 @@ could overflow a small context window (Kimi 8k, a local Ollama model) with a con
 * :func:`undo` puts the full history back.
 * :func:`maybe_auto_compact` runs before a turn: past the owner's threshold (85 % by default) the chat compacts
   itself and says so.
+
+A chat holds 1M tokens, like Claude's long-context window (owner, 2026-10-11: "context fills up fast and has too few
+of it — at least 1M"). Before, the meter and auto-compact used the answering model's own window, and Big Kahuna — the
+default brain — fell through to 32k, so a chat compacted itself after a few long answers. Now:
+
+* :data:`CHAT_WINDOW` is what one chat keeps before it needs compacting, whatever model answers.
+* :func:`fit` hands each model call what that model can read: the instructions and the turn in progress always, the
+  newest messages, and older ones that share words with the latest question. Nothing is thrown away.
+* ``recall_chat`` lets the model search the whole saved chat for anything it doesn't see.
 """
 
 from __future__ import annotations
@@ -33,6 +42,12 @@ CHARS_PER_TOKEN = 3.8
 IMAGE_TOKENS = 1100
 MESSAGE_OVERHEAD = 4
 DEFAULT_WINDOW = 32_000
+#: What one chat holds before it needs compacting — the same as Claude's 1M-token window.
+CHAT_WINDOW = 1_048_576
+#: Routers that pick a different model per turn: no single model window to show.
+PLANNERS = ("", "auto", "identity0")
+#: Share of a model's free room spent on older messages recalled because they match the latest question.
+RECALL_SHARE = 0.25
 
 #: Context windows in tokens: (provider, model prefix) → size. The first match wins; "" matches any model.
 WINDOWS: List[Tuple[str, str, int]] = [
@@ -53,16 +68,16 @@ WINDOWS: List[Tuple[str, str, int]] = [
 ]
 
 
-def _ollama_window() -> int:
+def _ollama_window(model: str = "") -> int:
     """What Nyx really asks of a local model: ``num_ctx`` on every Ollama call (providers.ollama_provider).
 
     This was a fixed 8,192 while the provider asked for 32,768, so a fresh local chat — Nyx's instructions alone
     are ~15k tokens — read "186 % · almost full", and past six messages every turn auto-compacted for nothing.
     """
     try:
-        from providers.ollama_provider import NUM_CTX
+        from providers.ollama_provider import num_ctx
 
-        return int(NUM_CTX)
+        return int(num_ctx(model or None))
     except Exception:  # noqa: BLE001 - the meter never fails because the provider would not import
         return 32_768
 
@@ -119,7 +134,7 @@ def window_for(provider: str, model: str = "") -> int:
         if key in override:
             return override[key]
     if name == "ollama":
-        return _ollama_window()
+        return _ollama_window(model)
     for prov, prefix, size in WINDOWS:
         if name == prov and model.startswith(prefix):
             return size
@@ -131,6 +146,19 @@ def window_for(provider: str, model: str = "") -> int:
     except Exception:  # noqa: BLE001
         pass
     return DEFAULT_WINDOW
+
+
+def model_window(provider: str, model: str = "") -> int:
+    """What one call to this provider reads. With no model named, its default one (Kimi's default has 8k, not 128k)."""
+    name = (provider or "").strip().lower()
+    if not model and name != "ollama":
+        try:
+            from model_hub import default_model
+
+            model = default_model(name, "text") or ""
+        except Exception:  # noqa: BLE001
+            model = ""
+    return window_for(name, model)
 
 
 def estimate_tokens(text: Any) -> int:
@@ -158,16 +186,135 @@ def measure(history: List[Dict[str, Any]], provider: str = "", model: str = "") 
         if message.get("role") in ("user", "assistant") and not message.get("_tool_results"):
             messages += 1
     used = sum(parts.values())
-    window = window_for(provider, model)
+    reads = 0 if (provider or "").strip().lower() in PLANNERS else window_for(provider, model)
+    window = max(CHAT_WINDOW, reads)
     percent = round(100 * used / window, 1) if window else 0.0
     config = settings()
     return {
         "used": used, "window": window, "percent": percent, "parts": parts, "messages": messages,
+        # What the answering model reads in one call (0: Big Kahuna or Auto pick a model per turn). Past it, older
+        # messages are recalled by relevance instead of sent whole (see fit).
+        "model_window": reads, "fits_model": not reads or used <= reads,
         "provider": provider, "model": model, "compacted": parts["summary"] > 0,
         "level": "full" if percent >= config["threshold"] else "warn" if percent >= 70 else "ok",
         "can_compact": messages > config["keep_last"] + 1, "auto_compact": config["auto_compact"],
         "threshold": config["threshold"], "keep_last": config["keep_last"], "estimate": True,
     }
+
+
+# ---------------------------------------------------------------------------
+# Fitting one model call
+# ---------------------------------------------------------------------------
+
+_WORD = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_./\\:-]{2,}")
+_STOP = frozenset("the and for are but not you your with this that have from was were what when where which who why how "
+                  "can could would should will just about into than then them they there their here also some any all "
+                  "out its our ours yes okay please thanks thank like make made more most very much does did done "
+                  "has had been being use used using get got let lets need want".split())
+
+
+def _cost(message: Dict[str, Any]) -> int:
+    return estimate_tokens(message.get("content", "")) + IMAGE_TOKENS * len(message.get("images") or [])
+
+
+def _clip(message: Dict[str, Any], tokens: int) -> Dict[str, Any]:
+    """The start and end of a long message (a pasted file, a page of tool output), with a note where the middle was."""
+    text = str(message.get("content", ""))
+    chars = max(400, int(tokens * CHARS_PER_TOKEN) - 80)
+    if len(text) <= chars:
+        return message
+    head = int(chars * 0.6)
+    return {**message, "content": f"{text[:head]}\n[… {len(text) - chars:,} characters left out here to fit this model's "
+                                  f"context …]\n{text[-(chars - head):]}"}
+
+
+def _terms(text: str) -> set:
+    return {w.lower().strip(".:-") for w in _WORD.findall(text)} - _STOP
+
+
+def _k(tokens: int) -> str:
+    return f"{tokens / 1_048_576:.0f}M" if tokens >= 1_000_000 else f"{tokens / 1000:.0f}k"
+
+
+def fit(messages: List[Dict[str, Any]], window: int, *, reserve: Optional[int] = None) -> List[Dict[str, Any]]:
+    """What one model call gets when the chat holds more than that model reads at once.
+
+    Always kept: every system message (instructions, memory, skills, a summary) and the turn in progress — the latest
+    question and any tool steps after it; very long ones are clipped in the middle only if they alone overflow. Then
+    the newest messages word for word (about three quarters of the room, starting on a question), then older messages
+    that share the most uncommon words with the latest question, in one recalled note. The model is told how much it
+    isn't seeing and that ``recall_chat`` searches all of it. A chat that fits is returned unchanged.
+    """
+    if not messages or window <= 0:
+        return messages
+    reserve = reserve if reserve is not None else min(16_384, window // 8)
+    budget = max(1024, window - reserve)
+    costs = [_cost(m) for m in messages]
+    if sum(costs) <= budget:
+        return messages
+    last_user = max((i for i, m in enumerate(messages) if m.get("role") == "user" and not m.get("_tool_results")),
+                    default=len(messages) - 1)
+    pinned = {i for i, m in enumerate(messages) if m.get("role") == "system" or i >= last_user}
+    out: Dict[int, Dict[str, Any]] = {i: messages[i] for i in pinned}
+    pinned_cost = sum(costs[i] for i in pinned)
+    note_room = 400
+    for i in sorted(pinned, key=lambda i: -costs[i]):
+        if pinned_cost + note_room <= budget:
+            break
+        target = max(costs[i] - (pinned_cost + note_room - budget), 300)
+        out[i] = _clip(messages[i], target)
+        pinned_cost -= costs[i] - _cost(out[i])
+    room = max(0, budget - pinned_cost - note_room)
+
+    history = [i for i in range(len(messages)) if i not in pinned]
+    keep: List[int] = []
+    used = 0
+    for i in reversed(history):
+        if used + costs[i] > room * (1 - RECALL_SHARE):
+            break
+        keep.append(i)
+        used += costs[i]
+    keep.sort()
+    while keep and messages[keep[0]].get("role") != "user":
+        used -= costs[keep.pop(0)]
+    first_kept = keep[0] if keep else last_user
+    older = [i for i in history if i < first_kept]
+
+    recalled: List[Tuple[int, str]] = []
+    question = _terms(str(messages[last_user].get("content", ""))) if 0 <= last_user < len(messages) else set()
+    if older and question:
+        words = {i: _terms(str(messages[i].get("content", ""))) for i in older}
+        seen: Dict[str, int] = {}
+        for found in words.values():
+            for word in found & question:
+                seen[word] = seen.get(word, 0) + 1
+        rarity = {word: 1.0 / (1 + count) for word, count in seen.items()}
+        ranked = sorted(((sum(rarity[w] for w in words[i] & question), i) for i in older), reverse=True)
+        left = room - used
+        for score, i in ranked:
+            if score <= 0 or left <= 200:
+                break
+            piece = str(_clip(messages[i], min(costs[i], 1500)).get("content", ""))
+            cost = estimate_tokens(piece) + 6
+            if cost <= left:
+                role = "Tool results" if messages[i].get("_tool_results") else str(messages[i].get("role", "")).capitalize()
+                recalled.append((i, f"[{role}, message {i}] {piece}"))
+                left -= cost
+
+    hidden = sum(costs[i] for i in older)
+    note = (f"[Earlier in this chat] {len(older)} older messages (about {_k(hidden)} tokens) are saved but not shown in "
+            f"full: this model reads {_k(window)} tokens at a time and the chat holds up to {_k(CHAT_WINDOW)}. Use "
+            "recall_chat to search all of it before saying something wasn't discussed.")
+    if recalled:
+        note += "\nOlder parts that match the latest message:\n\n" + "\n\n".join(text for _, text in sorted(recalled))
+    result: List[Dict[str, Any]] = []
+    chosen = set(keep) | pinned
+    for i, message in enumerate(messages):
+        if i == first_kept and older:
+            result.append({"role": "system", "content": note})
+        if i in chosen:
+            result.append(out.get(i, message))
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -331,7 +478,8 @@ def _publish(chat_id: str, payload: Dict[str, Any]) -> None:
 # ---------------------------------------------------------------------------
 
 SKILL_INSTRUCTIONS = (
-    "Use compact_context when the context bar says the chat is getting full (about 70 % or more), when the person asks to "
+    "A chat holds up to 1M tokens. Use compact_context when the context bar says it is getting full (about 70 % or "
+    "more), when the person asks to "
     "compact, tidy up or start fresh without losing the thread, or before a long new task in an old chat. Pass focus with "
     "anything that must survive word for word (a decision, a file path, a number). Afterwards tell the person in one "
     "sentence how many earlier messages became a summary and that Undo in the context bar brings them back. Never compact "
@@ -362,8 +510,63 @@ def tool_compact_context(focus: str = "", keep_last: int = 0) -> str:
             "kept word for word, and Undo in the context bar restores everything.")
 
 
+def search_messages(messages: List[Dict[str, Any]], query: str, limit: int = 6) -> List[Tuple[int, Dict[str, Any]]]:
+    """The saved messages sharing the most uncommon words with ``query``, best first (an exact phrase counts double)."""
+    wanted = _terms(query)
+    phrase = query.strip().lower()
+    if not wanted and not phrase:
+        return []
+    words = [_terms(str(m.get("content", ""))) for m in messages]
+    seen: Dict[str, int] = {}
+    for found in words:
+        for word in found & wanted:
+            seen[word] = seen.get(word, 0) + 1
+    scored = []
+    for index, message in enumerate(messages):
+        score = sum(1.0 / (1 + seen[w]) for w in words[index] & wanted)
+        if len(phrase) >= 4 and phrase in str(message.get("content", "")).lower():
+            score = score * 2 + 1
+        if score > 0:
+            scored.append((score, index))
+    scored.sort(key=lambda pair: (-pair[0], -pair[1]))
+    return [(index, messages[index]) for _, index in scored[:max(1, min(20, int(limit)))]]
+
+
+def tool_recall_chat(query: str, limit: int = 6) -> str:
+    from tool_context import current
+
+    ctx = current()
+    if ctx is None:
+        return "Error: recall_chat only works inside a chat."
+    try:
+        import server
+
+        stored = [m for m in server._shared_chat_store().messages(ctx.chat_id) if m.get("role") in ("user", "assistant")]
+    except Exception as error:  # noqa: BLE001
+        return f"Error: could not read this chat ({type(error).__name__})."
+    hits = search_messages(stored, query, limit)
+    if not hits:
+        return f"Nothing in this chat's {len(stored)} saved messages matches {query!r}."
+    lines = [f"{len(hits)} of {len(stored)} saved messages match {query!r} (best first):"]
+    for index, message in hits:
+        text = str(_clip(message, 900).get("content", ""))
+        lines.append(f"\n[message {index + 1} of {len(stored)}, {message.get('role')}] {text}")
+    return "\n".join(lines)
+
+
 def register_context_tools(registry: Any) -> None:
     from tools import ToolParam
+
+    registry.register(
+        name="recall_chat",
+        description="Search everything said earlier in this chat — including parts the model no longer sees in full or "
+                    "that were compacted into a summary — and return the matching messages word for word.",
+        parameters=[ToolParam("query", "string", "Words or a phrase to look for"),
+                    ToolParam("limit", "integer", "How many messages to return (1-20, default 6)", required=False)],
+        handler=tool_recall_chat,
+        category="general",
+        label="Looking back through this chat",
+    )
 
     registry.register(
         name="compact_context",

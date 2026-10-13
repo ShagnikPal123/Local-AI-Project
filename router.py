@@ -42,6 +42,21 @@ _BUILTIN_ROUTER_NAMES = frozenset(("ollama", "identity0", *_FREE_FIRST_ORDER))
 _IDENTITY0 = "identity0"
 
 
+def _fit(provider: Any, model: Optional[str], messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Size the chat to what this model reads in one call (context_budget.fit). A chat holds up to 1M tokens; a model
+    that reads less gets the instructions, the turn in progress, the newest messages and recalled older ones.
+    Big Kahuna is left whole: its own calls come back through here for the member it picked."""
+    name = getattr(provider, "name", "")
+    if name == _IDENTITY0:
+        return messages
+    try:
+        import context_budget
+
+        return context_budget.fit(messages, context_budget.model_window(name, model or getattr(provider, "model", "") or ""))
+    except Exception:  # noqa: BLE001 - sizing never costs a turn
+        return messages
+
+
 def _without_images(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Replace attached images with a note, for providers that cannot see them."""
     from providers.base import image_note
@@ -334,7 +349,7 @@ class Router:
 
         start_time = time.time()
         try:
-            response = provider.chat(messages)
+            response = provider.chat(_fit(provider, None, messages))
             latency = time.time() - start_time
             GLOBAL_METRICS.record(provider=provider_name, latency_seconds=latency, success=True)
             return response, provider.name
@@ -445,7 +460,7 @@ class Router:
             start_time = time.time()
             try:
                 payload = messages if getattr(provider, "supports_vision", False) else _without_images(messages)
-                response = provider.chat(payload)
+                response = provider.chat(_fit(provider, None, payload))
                 latency = time.time() - start_time
                 GLOBAL_METRICS.record(
                     provider=provider.name,
@@ -546,6 +561,7 @@ class Router:
             if cancelled is not None and cancelled():
                 raise ProviderError("Stopped.")
             prepared = messages if getattr(provider, "supports_vision", False) else _without_images(messages)
+            prepared = _fit(provider, model, prepared)
             emit({"type": "provider", "name": provider.name, "model": model or ""})
             produced = False
             parts: List[str] = []

@@ -172,7 +172,15 @@ class ChatService:
                 self.conversation_history.append({"role": "system", "content": f"{SUMMARY_PREFIX}\n{compaction['summary']}"})
                 conversational = [m for m in stored if m.get("role") in ("user", "assistant")]
                 stored = conversational[compaction["upto"]:]
-            for message in stored[-40:]:
+            # The newest messages up to the chat's 1M tokens (was the last 40). Each model call is then sized to what
+            # that model reads (context_budget.fit), so a long chat keeps all of it instead of forgetting.
+            from context_budget import CHAT_WINDOW, estimate_tokens
+
+            room, start = CHAT_WINDOW, len(stored)
+            while start > 0 and room - estimate_tokens(stored[start - 1].get("content", "")) >= 0:
+                start -= 1
+                room -= estimate_tokens(stored[start].get("content", ""))
+            for message in stored[start:]:
                 if message.get("role") in ("user", "assistant", "system"):
                     self.conversation_history.append(
                         {"role": message["role"], "content": str(message.get("content", ""))}

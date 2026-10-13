@@ -119,6 +119,10 @@ def stream_chat(messages: List[Dict[str, Any]], *, max_tokens: int = 512, temper
                 cancelled=None) -> Iterator[str]:
     import requests
 
+    from context_budget import fit
+
+    # The server keeps only what its short window holds; don't ship it a whole 1M-token chat to get there.
+    messages = fit(list(messages), 16_384)
     body = {"messages": [{"role": m.get("role", "user"), "content": str(m.get("content", ""))} for m in messages],
             "stream": True, "max_tokens": max_tokens, "temperature": temperature}
     with requests.post(URL + "/v1/chat/completions", json=body, stream=True, timeout=(3, 120)) as response:

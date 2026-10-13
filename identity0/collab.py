@@ -176,6 +176,13 @@ def complete(member: str, messages: Sequence[Dict[str, Any]], *, max_tokens: int
         result["error"] = why[:300]
         return result
     body = ([{"role": "system", "content": system}] if system else []) + list(messages)
+    if provider != "self":
+        try:
+            import context_budget
+
+            body = context_budget.fit(body, context_budget.model_window(provider, model))
+        except Exception:  # noqa: BLE001 - sizing never costs an answer
+            pass
     try:
         providers = getattr(router, "providers", {}) or {}
         if provider == "self":
@@ -199,12 +206,12 @@ def complete(member: str, messages: Sequence[Dict[str, Any]], *, max_tokens: int
         elif provider == "ollama":
             import requests
             import local_models
-            from providers.ollama_provider import NUM_CTX
+            from providers.ollama_provider import num_ctx
             from identity0.members import _ollama_vision
 
             response = requests.post(local_models.host() + "/api/chat", timeout=timeout, json={
                 "model": model, "messages": _ollama_messages(body, _ollama_vision(model)), "stream": False,
-                "think": False, "options": {"num_predict": max_tokens, "temperature": temperature, "num_ctx": NUM_CTX}})
+                "think": False, "options": {"num_predict": max_tokens, "temperature": temperature, "num_ctx": num_ctx(model)}})
             response.raise_for_status()
             text = str((response.json().get("message") or {}).get("content") or "")
         else:
