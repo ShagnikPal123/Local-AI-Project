@@ -66,7 +66,7 @@ export function Notch({ embedded = false }: { embedded?: boolean }) {
   // chat
   const [chatId, setChatId] = useState("");
   const [log, setLog] = useState<ChatEntry[]>([]);
-  const { send, runningTurn, sending } = useTurns(chatId || "none");
+  const { send, runningTurn, sending } = useTurns(chatId);
   // files
   const [files, setFiles] = useState<{ id: string; name: string }[]>([]);
   const [progress, setProgress] = useState(0);
