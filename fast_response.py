@@ -90,7 +90,22 @@ _ACTION_WORDS = re.compile(
     r"notes?|notebook|tabs?|remember|forget|agents?|sub-?agents?|skills?|connectors?|"
     r"spreadsheet|excel|sheets?|docs?|slides?|pdf|"
     r"buy|sell|trade|portfolio|"
-    r"play|pause|volume|mute|lock|shut\s?down|restart|timer|alarm)\b",
+    r"play|pause|volume|mute|lock|shut\s?down|restart|timer|alarm|"
+    # Fixer Upper S26/S39 (owner, 2026-10-13): "type hi in a fresh document", "navigate me to finances".
+    # Hands-on words: only the mouse, the keyboard or ui_open_tab can do these. "type of" is a question.
+    r"typ(?:e|ing)(?!\s+of\b)|click|mouse|keyboard|scroll|press|navigate|take\s+me|bring\s+me|"
+    r"go\s+to|finances?|trading|window|screen)\b",
+    re.IGNORECASE,
+)
+
+# A short nudge after a reply ("go on", "No you do it", "try again") is the owner telling Nyx to carry out the
+# last request, not small talk. In the Google Docs transcript (Fixer Upper S26) "No you do it" was 12 characters,
+# took the tool-less quick path, and the model said it could not use the mouse or keyboard. These always get tools.
+_FOLLOW_UP = re.compile(
+    r"^\W*(?:(?:no|nope|ok|okay|yes|yeah|yep|now|please|then|so)\W+)*"
+    r"(?:go\s+on|go\s+ahead|carry\s+on|keep\s+going|continue|proceed|finish(?:\s+it)?|"
+    r"(?:you\s+)?do\s+(?:it|that|this)(?:\s+yourself|\s+for\s+me)?|you\s+do\s+it|"
+    r"(?:try|do)\s+(?:it\s+)?again|retry|try\s+harder|just\s+do\s+it|i\s+have|i\s+did|done|signed\s+in)\b",
     re.IGNORECASE,
 )
 
@@ -121,6 +136,9 @@ class FastResponsePolicy:
 
         if len(text) > _MAX_FAST_CHARS:
             return SpeedDecision(False, f"long input ({len(text)} chars)")
+
+        if _FOLLOW_UP.match(text):
+            return SpeedDecision(False, "a follow-up that asks Nyx to carry on")
 
         lowered = text.lower()
         for marker in _NEEDS_FULL_PIPELINE:
@@ -160,7 +178,8 @@ FAST_SYSTEM_PROMPT = (
     "This is a quick-answer turn: reply directly and concisely. Keep it to a few "
     "sentences unless the user asked for a specific length, a list or a count — then "
     "give all of it, never a shortened version. Tools are not loaded on this turn, but Nyx has them: "
-    "email, calendar, notes, files, apps, the computer, the web, tabs, agents and settings. If the "
+    "email, calendar, notes, files, apps, the computer's mouse and keyboard, the web, tabs, agents and "
+    "settings. If the "
     "request needs any of those, current data, or code execution, reply with exactly "
     "NEEDS_FULL_PIPELINE and nothing else. Never tell the user you cannot do something."
 )
@@ -174,10 +193,15 @@ ESCALATION_SENTINEL = "NEEDS_FULL_PIPELINE"
 _CAPABILITY_REFUSAL = re.compile(
     r"\b(?:i|nyx)\s*(?:can(?:not|'t|’t)|am\s+(?:not\s+able|unable)|(?:'m|’m)\s+(?:not\s+able|unable)|"
     r"do(?:n't|n’t|\s+not)\s+have|have\s+no)\b[^.!?\n]{0,90}?"
-    r"\b(?:send|e-?mail|access|open|browse|search|tools?|accounts?|internet|real[- ]time|files?|"
-    r"calendar|computer|device|capabilit\w*|abilit\w*|integrations?|connect\w*|interface)\b"
+    r"\b(?:send|e-?mail|access|open|browse|browser|search|tools?|accounts?|internet|real[- ]time|files?|"
+    r"calendar|computer|device|capabilit\w*|abilit\w*|integrations?|connect\w*|interface|"
+    # Fixer Upper S26: "I can't control your mouse or keyboard", "unable to … simulate typing".
+    r"control\w*|mouse|keyboard|typ(?:e|ing)|click\w*|simulat\w*|navigat\w*|screen|tabs?|apps?|"
+    r"windows?|interact\w*|operat\w*|physically|directly)\b"
     r"|\b(?:without|lack(?:ing)?)\s+(?:the\s+)?(?:capabilit\w*|abilit\w*|access|tools?)\b"
-    r"|\bisn['’]t\s+available\s+in\s+my\b",
+    r"|\bisn['’]t\s+available\s+in\s+my\b"
+    # Handing the job back: "Please just type "hi" in the document now".
+    r"|\b(?:simply|just)\s+(?:type|click|press|paste)\b",
     re.IGNORECASE,
 )
 

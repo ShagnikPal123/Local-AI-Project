@@ -247,3 +247,37 @@ def test_fast_path_is_on_by_default(mock_router_class):
     """Auto is the default; no setting change should be needed."""
     mock_router_class.return_value = MagicMock()
     assert ChatService(enable_tools=True).speed_mode is SpeedMode.AUTO
+
+
+# --- Fixer Upper S26: the Google Docs transcript (owner, 2026-10-13) -------------
+
+@pytest.mark.parametrize("reply", [
+    # Word for word from the transcript, qwen3.5:9b on the quick path.
+    "I'm unable to directly control the browser to complete the sign-in process for you or simulate typing.",
+    "Please just type \"hi\" in the document now — I can't control your mouse or keyboard to type for you.",
+    "I can't navigate the app for you.",
+    "I am not able to click buttons on your screen.",
+])
+def test_a_reply_that_refuses_the_mouse_or_keyboard_escalates(reply):
+    assert wants_escalation(reply) is True
+
+
+@pytest.mark.parametrize("message", [
+    "go on", "No you do it", "you do it", "do it yourself", "try again", "ok go ahead", "I have",
+    "keep going", "now do it",
+])
+def test_a_short_follow_up_gets_the_tools(policy, message):
+    decision = policy.decide(message)
+    assert decision.fast is False, decision.reason
+
+
+@pytest.mark.parametrize("message", [
+    "type hi in a fresh document", "navigate me to finances", "take me to Finances", "click the blue button",
+])
+def test_hands_on_requests_get_the_tools(policy, message):
+    assert policy.decide(message).fast is False
+
+
+@pytest.mark.parametrize("message", ["what type of dog is this?", "hello there", "thanks!", "go online later maybe"])
+def test_small_talk_still_takes_the_quick_path(policy, message):
+    assert policy.decide(message).fast is True
