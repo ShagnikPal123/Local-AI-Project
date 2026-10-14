@@ -200,6 +200,9 @@ export function WhatsAppLine() {
           )}
           <div className="wa-row">
             <p className="cx-muted">The whole conversation is in the chat called <b>WhatsApp</b>. Linked {when(line.paired_at)}.</p>
+            <button className="btn" disabled={!!busy} title="Start the phone conversation over. The chats go to Recently deleted; the pairing stays."
+              onClick={() => { if (window.confirm("Clear the WhatsApp chat? It moves to Recently deleted and the pairing stays.")) void call("clear", "/api/whatsapp/clear"); }}>
+              Clear chat</button>
             <button className="btn" disabled={!!busy} onClick={() => void call("unlink", "/api/whatsapp/unlink")}>Unlink This PC</button>
           </div>
         </>

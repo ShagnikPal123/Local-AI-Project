@@ -469,7 +469,7 @@ class WhatsAppLink:
                 moved += bool(self.chats.delete(chat_id))
             except Exception:  # noqa: BLE001 - a chat already gone is already clear
                 pass
-        return {"cleared": True, "chats_moved": moved, "status": self.status()}
+        return {**self.status(), "cleared": True, "chats_moved": moved}
 
     def update(self, *, enabled: Optional[bool] = None, allow: Optional[str] = None,
                notify_office: Optional[bool] = None) -> Dict[str, Any]:

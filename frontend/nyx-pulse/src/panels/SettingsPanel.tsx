@@ -20,6 +20,7 @@ import { ModsSection } from "./ModsSection";
 import { StyleMixSection } from "../style/StyleMixSection";
 import { AppearanceSection } from "../style/AppearanceSection";
 import { ChatCleanupSection } from "../components/settings/ChatCleanupSection";
+import { ChatResetSection } from "../components/settings/ChatResetSection";
 
 interface SpeedMode {
   id: string;
@@ -381,6 +382,7 @@ export function SettingsPanel({ group = "general" }: { group?: SettingsGroup }) 
         {group === "storage" && <>
           <Section title="Storage"><StorageSection /></Section>
           <Section title="Old chats" hint="Tidy the chat list on its own. Off until you turn it on."><ChatCleanupSection /></Section>
+          <Section title="Reset chats" hint="For chats that have gotten out of hand. Backed up first; nothing is purged."><ChatResetSection /></Section>
         </>}
       </div>
   );

@@ -125,7 +125,8 @@ def reset(parts: Any = DEFAULT_PARTS) -> Dict[str, Any]:
         try:
             import whatsapp_link
 
-            out["whatsapp"] = {k: v for k, v in whatsapp_link.link().clear_chat().items() if k != "status"}
+            done = whatsapp_link.link().clear_chat()
+            out["whatsapp"] = {"cleared": done["cleared"], "chats_moved": done["chats_moved"]}
         except Exception as error:  # noqa: BLE001 - reported, the rest of the reset still counts
             out["whatsapp"] = {"cleared": False, "error": str(error)[:200]}
     return out
