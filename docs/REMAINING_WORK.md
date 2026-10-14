@@ -2,12 +2,13 @@
 
 One list of everything still to do, from three sources, checked against the code on `main` and not just the plans.
 
-- **Checked at:** `main` = `14fac4c` (2026-10-14 02:46 UTC).
+- **Checked at:** `main` = `b1e5c70` (2026-10-14, about 02:55 UTC). Eight commits landed while this list was written
+  (Commander picker, notch white box, wake gestures, new icon, WhatsApp lanes); their rows are updated.
 - **Sources:**
   1. The **"Fixer uper"** Drive doc (41 pages). Triage: `docs/FIXER_UPPER_PLAN.md` (sections S1 to S39, teams WS1 to WS15).
   2. Drive document **"1"** (items 1.1 to 1.30). Last edited in Drive 2026-10-13 23:55 UTC; nothing newer, and no document "2" yet.
   3. The **updates file**: `docs/CHANGELOG.md`, the code-named change log made by `changelog_gen.py`. Regenerated in
-     the same push as this file, so it lists every update up to `14fac4c`.
+     the same push as this file, so it lists every update on main up to this file.
 - **Status key:** **Done** = in the code on main. **Partial** = a real base exists, more is asked for.
   **Not started** = nothing in the code. **Needs PC** = done in code but only his Windows PC can prove it.
 - **Evidence** is a commit (short hash) or `file:line` on main.
@@ -20,16 +21,16 @@ One list of everything still to do, from three sources, checked against the code
 |---|---|---|---|---|---|
 | WS4 Act instead of refusing | Active | 3 | 4 | 5 | Persona modes, file helper, "digging", remove Free Will |
 | WS6 Voice and Equalize | Active | 3 (Needs PC) | 3 | 4 | Proof on his PC; avatar choice; faster voice |
-| WS2 Projects and Commander | Active | 1 | 4 | 10 | Threads, delegator chat, Waiting on you panel (in progress, nothing pushed yet) |
-| WS10 Normal chat | Active (2 handoffs only) | 1 | 6 | 10 | Chat-name menu and Hide empty chats (in progress), then court, offices panel, header |
+| WS2 Projects and Commander | Active | 2 | 3 | 10 | Threads, delegator chat, Waiting on you panel (in progress; the model picker is pushed) |
+| WS10 Normal chat | Active (2 handoffs only) | 1 | 7 | 9 | Chat-name menu and Hide empty chats (in progress), then court, offices panel, header |
 | WS13 Skills, plugins, Obsidian | Active (PC installs) | 4 | 2 | 2 | Installs on his PC; Instagram reels pass |
-| WS7 Notch, sidebar, hands-off | Active | 0 | 3 | 6 | White box check, notch controls, p38 sidebar, hands-off mode |
+| WS7 Notch, sidebar, hands-off | Active | 2 (Needs PC) | 1 | 6 | Notch controls, default view, p38 sidebar, hands-off mode |
 | WS1 Trading app | Paused (next in line) | 1 | 11 | 14 | The app itself in `apps/ichos-trader/` |
 | WS5 Speed and model lineup | Paused | 0 | 5 | 8 | Lineup names, picker, effort slider, speed numbers |
 | WS8 Avatars and bot teams | Paused | 0 | 2 | 5 | Three avatar-tab bugs, hierarchy, settings sections |
-| WS9 Phone, WhatsApp, notifications | Paused | 2 | 3 | 7 | Files over WhatsApp, notifications, any chat on WhatsApp |
+| WS9 Phone, WhatsApp, notifications | Paused | 4 | 3 | 5 | Files over WhatsApp, notifications, phone remote connection |
 | WS3 Ichos lightweight app | Paused | 0 | 1 | 1 (the whole app) | Everything; `apps/ichos/` does not exist yet |
-| WS12 Design, brand, motion | Paused | 0 | 4 | 6 | Icon, mascot, glass look; transitions last |
+| WS12 Design, brand, motion | Paused | 1 | 4 | 5 | Mascot, glass look; transitions last |
 | WS14 Desktop app and VS Code | Paused (first pass finished) | 2 | 2 | 3 | Console windows popping up (1.18), browser extension |
 | WS15 Autonomy layer | Paused (runs last) | 0 | 4 | 4 | Self-approve switch, rules and laws, emotions, Slack huddle |
 | WS19 Engine parity | Paused | 1 | 2 | 6 | Tool search, context editing, token counting |
@@ -76,14 +77,14 @@ Counts are rows in the tables below. Several asks sit with two teams; each row i
 
 ## WS2 — Projects and Commander command center (Active)
 
-Working now on threads + delegator chat + Waiting on you / Idle / Resolved + two-way relay + "Tasks done/total". **Nothing
-from this team is on main yet** (no branch on GitHub at 02:47 UTC).
+Working now on threads + delegator chat + Waiting on you / Idle / Resolved + two-way relay + "Tasks done/total". Its first
+piece, the per-task model picker, is on main (`7d8e37e`); the threads and panels are not yet.
 
 | Item | Source | Status | Evidence / what is left |
 |---|---|---|---|
 | Mission Control auto-picks model and effort | S13 | **Done** | Haiku router in the `mission-control` repo (`hooks/route.ts`) |
 | A project has its own folder and shows links to chats, splits, sectors (like p16) | S19, S9 | **Partial** | `projects.py` has sectors, helpers, artifacts (`f033e45`); no folder on disk, no chats linked |
-| Auto-assign tasks to models, learning from past assignments | S9 | **Partial** | `model_autoassign.py` per fixed job only |
+| Auto-assign tasks to models, learning from past assignments | S9 | **Done (engine)** | `commander_pick.py` (`7d8e37e`): model kind, effort and sector per task, a vote over past assignments, his corrections count three times. Not on a screen until the threads land |
 | Track each thread's tokens and context; brief a fresh thread | S13 | **Partial** | `context_budget.py` measure and compact; no fresh-chat hand-off |
 | Mission Control side panel instead of the band | S13 | **Partial** | Side layout exists, band is still the default |
 | Threads ("divisions") with a right panel: Waiting on you / Idle / Resolved (p27) | S9, focus | **Not started on main** | In progress in the team's thread |
@@ -115,7 +116,7 @@ from this team is on main yet** (no branch on GitHub at 02:47 UTC).
 | Personal-assistant layout from the FlowAI images (p5-6) | S29 | **Not started** | |
 | Useful header modules instead of brain waves; usage graph and "what is working" | S29, 1.16 | **Not started** | `StudioHeader.tsx:104-124` still shows memories / brain pulse |
 | Thinking phrases like Claude's and new-chat greetings | 1.15 | **Not started** | No phrase list in the code |
-| Badges on chats (WhatsApp, connectors) | 1.8 | **Not started** | |
+| Badges on chats (WhatsApp, connectors) | 1.8 | **Partial** | The data is there (`GET /api/whatsapp/chats`, `b1e5c70`); the chat list does not draw a badge yet (`ChatRail.tsx`) |
 | Answer boxes: approve/deny, checkboxes, multi-select, graphs, image drop | 1.19 | **Partial** | Question cards with a free-text box exist (`question_cards.py`) |
 | Slash commands `/context`, `/rewind`, `/goal` | 1.29 | **Not started** | `/compact` exists (`commands.py:79`); the engine side is WS19 |
 
@@ -136,9 +137,9 @@ from this team is on main yet** (no branch on GitHub at 02:47 UTC).
 
 | Item | Source | Status | Evidence / what is left |
 |---|---|---|---|
-| White box behind the notch | S34, 1.11 | **Partial, Needs PC** | `1243cb7` made the window transparent and sized to the island; he still mentions it, so check on his PC |
+| White box behind the notch | S34, 1.11 | **Done, Needs PC** | `7bcc195` clips the window to the shapes it draws (GDI region), `173508a` sends the outline every frame and draws the wake strip black. Check on his PC |
 | Make the notch look unique (images from the first doc) | 1.11 | **Partial** | Coucou-style notch exists (`5f0617b`) |
-| Wake by a recorded sound + phrase; notch expands while listening | S2 | **Partial** | The wake phrase is saved (`equalize_assistant.py`) but nothing listens for it |
+| Wake by a recorded sound + phrase | S2 | **Done, Needs PC** | `b5749a2`: two claps, a whistle or the wake phrase turn the microphone on (`voice/wakePhrase.ts`, `ClapListener.tsx`). The phrase needs the internet; sounds work offline. Still check that the notch expands while listening |
 | Notch controls: system, search, sound, OS light/dark, launch apps, File Explorer, cmd with a preset prompt | S30 | **Not started** | No such controls in `notch.py` / `routes_notch.py` |
 | Default view (apps, music, weather, calendar, videos) and switching it by triple click or an H button | S30 | **Not started** | |
 | Import notch looks | S30 | **Not started** | |
@@ -199,11 +200,11 @@ except `3aa8b82`).
 | WhatsApp "a bit better", auto-set models | S31 | **Partial** | Uses the chat's model; `model_autoassign.py` is WS5's |
 | Text him when the AI is away / a job finishes | S31 | **Partial** | Office jobs only (`a54435f`) |
 | Away mode: approvals go out by WhatsApp or email, his reply counts | 1.24 | **Partial** | Away detection exists (`presence.py`); nothing routes approvals out |
-| Avatar per line; pick or create an avatar from the general line | S35 | **Not started** | One chat per line in `whatsapp_link.py` |
+| Avatar per line; pick or create an avatar from the general line | S35 | **Done** | `b1e5c70`, `6d817f6`: `/avatar Name`, `@Name` asks once, `/newavatar`; each avatar keeps its own Allow/Ask rules |
 | Send and receive files and images on WhatsApp | S31 | **Not started** | `whatsapp_worker/worker.py` reads text only |
 | Notifications when a chat finishes, needs help or texts | S31 | **Not started** | Toasts only for `notify` events |
 | Choose where notifications appear | S31 | **Not started** | Hard-coded `bottom: 16, right: 16` (`components/chat/Toasts.tsx:26`) |
-| Any chat can link to WhatsApp; `/chats` to list and continue | 1.8 | **Not started** | Commands are `/new /status /pause /help` |
+| Any chat can link to WhatsApp; `/chats` to list and continue | 1.8 | **Done** | `b1e5c70`: `/chats`, `/chat 2`; `POST /api/whatsapp/link-chat` from the PC |
 | Claude-style remote connection from the phone; 1-minute pairing key | S38, S5 | **Not started** | Only the WhatsApp device pairing exists |
 | A phone number per AI / avatar | S31 | **Not started, needs his decision** | Each number is a separate WhatsApp account and costs money |
 
@@ -222,7 +223,7 @@ except `3aa8b82`).
 | Move "copy site look" into the Design tab | S7 | **Partial** | Design Research tab (`db611a0`), screenshot to code (`3ec5258`) |
 | OpenMausBot looks as selectable styles | S24 | **Partial** | Ideas only (`docs/AVATARS.md`) |
 | Transitions like Claude's (last, by his word) | 1.2, S18, S31 | **Partial** | Lenis, GSAP settle (`e039854`); skills added (`4fffbe6`) |
-| New main icon (asymmetric, one colour, gradient) | S1, S3 | **Not started** | |
+| New main icon (asymmetric, one colour, gradient) | S1, S3 | **Done** | `66196c6` (mark and app icon sizes), `359e584` (app, site, tray, shortcuts use it) |
 | Multi-armed pixel mascot, arms show tasks, animated around the chat bar | S1, S3 | **Not started** | |
 | Figma-style board of every page | S10 | **Not started** | |
 | Design tab for websites that recognises a design | S10 | **Not started** | |
