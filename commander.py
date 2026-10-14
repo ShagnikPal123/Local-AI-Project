@@ -39,8 +39,10 @@ BRIEF_PREFIX = "[Command Zone]"
 REFRESH_AT = 0.7
 #: Statuses in the order the panel shows them. Short names, as the owner asked (1–2 words, not "Waiting on you").
 STATUS_LABELS = {"needs_you": "Needs you", "working": "Working", "idle": "Idle", "resolved": "Resolved"}
-#: Effort until WS5 lands the real effort control: how hard the thread's turn works (chat_modes).
-EFFORT_MODE = {"low": "normal", "medium": "normal", "high": "cowork", "max": "cowork"}
+#: How hard a thread's turn works until the lineup's effort reaches the turn itself: from High up it gets Co-work's
+#: room (more tool steps, a checklist) instead of Normal's quick path (chat_modes).
+EFFORT_MODE = {"low": "normal", "mid": "normal", "normal": "normal", "high": "cowork", "higher": "cowork",
+               "super": "cowork", "aleph": "cowork"}
 
 DONE_RE = re.compile(r"^\s*(?:\*\*)?done:(?:\*\*)?\s*(.+)$", re.IGNORECASE | re.MULTILINE)
 WAITING_RE = re.compile(r"^\s*(?:\*\*)?waiting on you:(?:\*\*)?\s*(.+)$", re.IGNORECASE | re.MULTILINE)
@@ -721,10 +723,10 @@ def register_commander_tools(registry: Any) -> None:
         "unless the owner named them. The thread does not see this chat, so the task must say everything.",
         [P("title", "string", "A few plain words naming the work"),
          P("task", "string", "The full brief: what to do, what done looks like, any facts it needs"),
-         P("model_kind", "string", "Only if the owner asked: light, general, heavy or code", required=False,
-           enum_values=["light", "general", "heavy", "code"]),
-         P("effort", "string", "Only if the owner asked: low, medium, high or max", required=False,
-           enum_values=["low", "medium", "high", "max"]),
+         P("model_kind", "string", "Only if the owner asked: pico (light), monolith (general), crescendo (heavy) or "
+           "zencode (code)", required=False, enum_values=["pico", "monolith", "crescendo", "zencode"]),
+         P("effort", "string", "Only if the owner asked: low, mid, normal, high, higher, super or aleph", required=False,
+           enum_values=["low", "mid", "normal", "high", "higher", "super", "aleph"]),
          P("provider", "string", "Only if the owner named a provider", required=False)],
         tool_start_thread, category="agents", label=lambda a: f"Starting a thread: {str(a.get('title', ''))[:50]}")
     registry.register(

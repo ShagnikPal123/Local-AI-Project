@@ -17,8 +17,10 @@ Two layers, so it is right on day one and gets better with use:
 ``model_for`` then turns the kind of model into a real one that can run now, cloud or local, by reusing
 ``model_autoassign``'s scoring (which never picks a paid provider unless it is the owner's own pick in the model menu).
 
-The kind names are placeholders. WS5 owns the model lineup (Pico for light devices, Monolith in the middle, Crescendo
-for heavy work, Bit to Exa for code); when it lands only ``TIER_LABELS`` changes, the ids here stay.
+The kinds are the owner's model families from ``model_lineup`` (Pico for lighter work, Monolith for general work,
+Crescendo for power-hungry work, Zencode for code) and the efforts are its effort dial (Low to Aleph), so a thread's
+pick reads the same as the model picker. Aleph can split a job across a swarm, so only the owner or the Commander's
+explicit choice gives it; the rules stop at Super.
 """
 
 from __future__ import annotations
@@ -33,14 +35,31 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from paths import atomic_replace, data_path
 
-TIERS = ("light", "general", "heavy", "code")
-TIER_LABELS = {"light": "Light", "general": "General", "heavy": "Heavy", "code": "Code"}
-EFFORTS = ("low", "medium", "high", "max")
+TIERS = ("pico", "monolith", "crescendo", "zencode")
+EFFORTS = ("low", "mid", "normal", "high", "higher", "super", "aleph")
 SECTORS = ("Updates", "Fixes", "Questions", "Research")
 
-#: Which built-in job's needs a kind borrows when a real model is scored (model_autoassign.ROLE_NEEDS). "general" is
+
+def _family_names() -> Dict[str, str]:
+    """The families' display names from the lineup, so a rename there shows here too."""
+    names = {"pico": "Pico", "monolith": "Monolith", "crescendo": "Crescendo", "zencode": "Zencode"}
+    try:
+        import model_lineup
+
+        for tier in TIERS:
+            found = model_lineup.family(tier)
+            if found is not None:
+                names[tier] = found.name
+    except Exception:  # noqa: BLE001 - the lineup is optional here; the names above are its own
+        pass
+    return names
+
+
+TIER_LABELS = _family_names()
+
+#: Which built-in job's needs a kind borrows when a real model is scored (model_autoassign.ROLE_NEEDS). Monolith is
 #: not a built-in job, so it gets auto-assign's default weighting (mostly quality, some speed and reading length).
-TIER_ROLE = {"light": "fast_chat", "code": "code_generation", "heavy": "research", "general": "commander_general"}
+TIER_ROLE = {"pico": "fast_chat", "zencode": "code_generation", "crescendo": "research", "monolith": "commander_general"}
 
 #: How many earlier tasks get a vote, how alike they must read, and how much they must agree before they win.
 NEIGHBOURS = 5
@@ -103,31 +122,33 @@ def rule_pick(text: str) -> Dict[str, Any]:
     asking = raw.endswith("?") or (bool(plain) and plain[0] in _QUESTION_STARTS)
 
     if code_hits >= 1 and code_hits >= research_hits:
-        tier, why = "code", "it reads like code work"
+        tier, why = "zencode", "it reads like code work"
     elif research_hits >= 1:
-        tier, why = "heavy", "it is research that reads and compares a lot"
+        tier, why = "crescendo", "it is research that reads and compares a lot"
     elif asking and count <= 25 and parts == 1:
-        tier, why = "light", "it is a short question"
+        tier, why = "pico", "it is a short question"
     else:
-        tier, why = "general", "it is everyday work"
+        tier, why = "monolith", "it is everyday work"
 
     size = count / 40 + (parts - 1)
-    if tier == "light":
+    if tier == "pico":
         effort = "low"
     elif size < 0.6:
-        effort = "low" if asking else "medium"
+        effort = "mid" if asking else "normal"
     elif size < 1.5:
-        effort = "medium"
+        effort = "normal"
     elif size < 3.5:
         effort = "high"
+    elif size < 6:
+        effort = "higher"
     else:
-        effort = "max"
-    if tier == "heavy" and EFFORTS.index(effort) < EFFORTS.index("high"):
+        effort = "super"
+    if tier == "crescendo" and EFFORTS.index(effort) < EFFORTS.index("high"):
         effort = "high"  # research that stops early is worse than no research
 
-    if fixing and tier == "code":
+    if fixing and tier == "zencode":
         sector = "Fixes"
-    elif tier == "heavy":
+    elif tier == "crescendo":
         sector = "Research"
     elif asking and parts == 1:
         sector = "Questions"

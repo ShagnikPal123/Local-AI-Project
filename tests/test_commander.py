@@ -64,8 +64,8 @@ def world(tmp_path, monkeypatch):
 
 def test_a_delegator_starts_a_thread_with_a_picked_model_and_a_full_brief(world):
     thread = world.cm.start_thread(world.main, "Login bug", "Fix the crash in the login function and add a test")
-    assert thread["tier"] == "code" and thread["sector"] == "Fixes" and thread["provider"] == "ollama"
-    assert thread["model"] == "code-model" and thread["why"]
+    assert thread["tier"] == "zencode" and thread["sector"] == "Fixes" and thread["provider"] == "ollama"
+    assert thread["model"] == "zencode-model" and thread["why"]
     sent = world.sent[-1]
     assert sent["chat_id"] == thread["chat_id"] and sent["provider"] == "ollama"
     assert "Fix the crash" in sent["text"] and "Done:" in sent["text"] and "Waiting on you:" in sent["text"]
@@ -87,7 +87,7 @@ def test_a_thread_cannot_become_a_commander(world):
 def test_effort_sets_how_hard_the_turn_works(world):
     world.cm.start_thread(world.main, "Quick", "What is 2 + 2?")
     assert world.sent[-1]["mode"] == "normal"
-    world.cm.start_thread(world.main, "Big", "Fix it", effort="max")
+    world.cm.start_thread(world.main, "Big", "Fix it", effort="super")
     assert world.sent[-1]["mode"] == "cowork"
 
 
@@ -169,10 +169,10 @@ def test_a_full_thread_starts_fresh_with_a_summary(world, monkeypatch):
 def test_the_owners_correction_teaches_the_picker(world):
     cm = world.cm
     thread = cm.start_thread(world.main, "Newsletter", "Draft the club newsletter")
-    changed = cm.set_pick(thread["id"], tier="heavy", effort="high")
-    assert changed["tier"] == "heavy" and changed["model"] == "heavy-model" and changed["source"] == "owner"
+    changed = cm.set_pick(thread["id"], tier="crescendo", effort="high")
+    assert changed["tier"] == "crescendo" and changed["model"] == "crescendo-model" and changed["source"] == "owner"
     nxt = cm.start_thread(world.main, "Newsletter again", "Draft the club newsletter for June")
-    assert nxt["tier"] == "heavy" and nxt["source"] == "learned"
+    assert nxt["tier"] == "crescendo" and nxt["source"] == "learned"
 
 
 def test_bad_picks_are_refused(world):
