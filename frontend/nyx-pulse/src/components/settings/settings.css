@@ -112,3 +112,4 @@
 .platform-check { display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer; margin-bottom: 12px; }
 .platform-range { display: grid; gap: 6px; font-size: 12.5px; color: var(--color-neutral-400); margin-bottom: 12px; }
 .platform-range b { color: var(--color-text); }
+.platform-drives { display: flex; flex-wrap: wrap; gap: 4px 16px; }

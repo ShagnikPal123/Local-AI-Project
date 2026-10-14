@@ -12,6 +12,7 @@ interface Tool { name: string; description: string; category: string; mode: stri
 interface ModuleStatus { ok: boolean; error: string; tools: string[] }
 interface ToolsData { tools: Tool[]; modules: Record<string, ModuleStatus> }
 interface Policy { categories: Record<string, string>; descriptions: Record<string, string>; modes: string[] }
+interface Digging { on: boolean; drives: string[]; available: string[] }
 interface ContextSettings { auto_compact: boolean; threshold: number; keep_last: number }
 
 const MODE_WORDS: Record<string, string> = { allow: "Allowed", ask: "Asks first", block: "Off" };
@@ -68,7 +69,43 @@ export function ToolsPage() {
           );
         })}
       </Card>
+      <DiggingCard />
     </div>
+  );
+}
+
+/** Digging (item 1.20): the assistant may search the whole PC, on the drives picked here. Off until turned on. */
+function DiggingCard() {
+  const [d, setD] = useState<Digging | null>(null);
+  const [note, setNote] = useState("");
+  useEffect(() => { void api.get<Digging>("/api/digging").then((r) => { if (r.ok) setD(r.data); }); }, []);
+
+  async function save(change: Partial<Digging>) {
+    const result = await api.post<Digging>("/api/digging", change);
+    if (result.ok) { setD(result.data); setNote(""); } else setNote(result.error);
+  }
+
+  if (!d) return null;
+  const chosen = d.drives.length ? d.drives : d.available;
+  return (
+    <Card title="Digging" hint="Lets Ichos search the whole PC, outside its usual folders, find what it needs and sort it by folder. You can tell it to stop digging any time; only you can turn it on, here.">
+      {note && <div className="platform-note">{note}</div>}
+      <label className="platform-check">
+        <input type="checkbox" checked={d.on} onChange={(e) => void save({ on: e.target.checked })} />
+        Allow digging
+      </label>
+      <div className="platform-drives" aria-label="Drives Ichos may dig through">
+        {d.available.map((drive) => (
+          <label key={drive} className="platform-check">
+            <input type="checkbox" disabled={!d.on} checked={chosen.includes(drive)}
+                   onChange={(e) => void save({
+                     drives: e.target.checked ? [...chosen, drive] : chosen.filter((x) => x !== drive),
+                   })} />
+            {drive}
+          </label>
+        ))}
+      </div>
+    </Card>
   );
 }
 
