@@ -545,6 +545,7 @@ select option, select optgroup { background-color: #15151c; color: #f5f5f7; }
 .voice-switch__menu { position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 60; min-width: 232px;
   display: grid; padding: 6px; background: var(--color-surface-2); border-radius: 12px;
   box-shadow: inset 0 0 0 1px var(--color-divider), 0 18px 40px rgba(0, 0, 0, 0.55); }
+.voice-switch__menu.is-down { bottom: auto; top: calc(100% + 6px); z-index: 80; }
 .voice-switch__item { display: grid; gap: 1px; padding: 7px 9px; text-align: left; font-size: 12.5px;
   color: var(--color-neutral-400); background: none; border: none; border-radius: 8px; cursor: pointer; }
 .voice-switch__item b { color: var(--color-text); font-size: 13px; font-weight: 600; }
@@ -566,7 +567,7 @@ select option, select optgroup { background-color: #15151c; color: #f5f5f7; }
 .chat-home__main { display: flex; flex-direction: column; min-width: 0; min-height: 0; gap: 6px; padding: 10px 0 12px; }
 .chat-home__head, .chat-home__meta, .chat-home__team, .chat-home__dock, .chat-home__main > .chat-owner {
   width: 100%; max-width: 860px; margin: 0 auto; padding: 0 20px; box-sizing: border-box; }
-.chat-home__head { display: flex; align-items: center; gap: 8px; min-height: 36px; }
+.chat-home__head { position: relative; z-index: 5; display: flex; align-items: center; gap: 8px; min-height: 36px; }
 .chat-home__head .btn { min-height: 30px; padding: 3px 10px; }
 .chat-home__title { margin: 0; min-width: 0; font: 600 15px var(--font-heading); white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis; }

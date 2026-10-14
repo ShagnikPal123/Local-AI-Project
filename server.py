@@ -2684,6 +2684,7 @@ def _include_routers() -> Dict[str, str]:
                         "routes_security", "routes_proto_voice", "routes_features", "routes_curiosity", "routes_finance_lab", "routes_voice_gestures",
                         "routes_design", "routes_accounts", "routes_swarm", "routes_own_computer", "routes_connectors",
                         "routes_freewill", "routes_identity0", "routes_office", "routes_world", "routes_whatsapp", "routes_sketch", "routes_equalize", "routes_court", "routes_notch", "routes_workbench", "routes_predict", "routes_avatars", "routes_projects", "routes_commander",
+                        "routes_phone",
                         "routes_notifications"):
         try:
             module = importlib.import_module(module_name)
@@ -2797,6 +2798,13 @@ async def _shutdown_background_work() -> None:
             whatsapp_link._LINK.stop()
     except Exception:
         logger.warning("WhatsApp helper did not stop", exc_info=True)
+    try:
+        import phone_gateway
+
+        if phone_gateway._GATEWAY is not None:
+            phone_gateway._GATEWAY.halt()
+    except Exception:
+        logger.warning("phone gateway did not stop", exc_info=True)
 
     # Only what Nyx started (see _BACKGROUND_TASKS). A task left from an earlier loop — a previous
     # TestClient session — cannot be awaited or cancelled from this one.
@@ -2873,6 +2881,10 @@ def _resume_background_work() -> None:
 
         # The owner's phone line reconnects by itself, but only on the PC it was paired with.
         whatsapp_link.start_in_background()
+        import phone_gateway
+
+        # The phone's chat window comes back only if the owner left "Allow my phone" on.
+        phone_gateway.start_in_background()
         import morning_digest
 
         # The daily briefing's clock; it does nothing until the owner turns the schedule on.

@@ -63,7 +63,8 @@ def _path():
 
 
 def _blank() -> Dict[str, Any]:
-    return {"delegators": {}, "threads": {}, "settings": {"divisions_in_chat": False, "auto_pick": True}}
+    return {"delegators": {}, "threads": {}, "asks": {},
+            "settings": {"divisions_in_chat": False, "auto_pick": True}}
 
 
 def _load() -> Dict[str, Any]:
@@ -126,6 +127,12 @@ def _running(chat_id: str) -> Any:
         return TURNS.running_for_chat(chat_id)
     except Exception:
         return None
+
+
+def _decide(approval_id: str, approve: bool) -> bool:
+    from permissions import resolve_approval
+
+    return bool(resolve_approval(approval_id, approve))
 
 
 def _approvals() -> List[Dict[str, Any]]:
@@ -202,7 +209,7 @@ def read_chat(chat_id: str, messages: Optional[List[Dict[str, Any]]] = None,
             return {"status": "needs_you", "kind": "blocked", "line": _clean(waiting[-1], 160)}
         done = DONE_RE.findall(text)
         line = done[-1] if done else next((ln for ln in text.splitlines() if ln.strip() and not ln.startswith("```")), "")
-        return {"status": "idle", "kind": "", "line": _clean(re.sub(r"[*_#`>]+", "", line), 160)}
+        return {"status": "idle", "kind": "finished", "line": _clean(re.sub(r"[*_#`>]+", "", line), 160)}
     return {"status": "idle", "kind": "", "line": _clean(f"You: {last.get('content', '')}", 160)}
 
 
@@ -598,9 +605,25 @@ def threads(*, delegator: str = "", project_id: str = "") -> List[Dict[str, Any]
     return sorted(out, key=lambda t: -t.get("updated", 0))
 
 
+def _done(thread: Dict[str, Any]) -> bool:
+    return thread["status"] == "resolved" or (thread["status"] == "idle" and thread.get("kind") == "finished")
+
+
+def task_counts(rows: List[Dict[str, Any]]) -> Dict[str, int]:
+    """Tasks done out of all, for "Tasks 3/7". A thread restarted fresh is one task, counted once in its fresh thread."""
+    tasks = [t for t in rows if not t.get("refreshed_to")]
+    return {"done": sum(1 for t in tasks if _done(t)), "total": len(tasks)}
+
+
 def board(*, delegator: str = "", project_id: str = "") -> Dict[str, Any]:
-    """The right-hand panel (image p27): Pinned, Needs you, Working, Idle and Resolved, newest first in each."""
-    rows = threads(delegator=delegator, project_id=project_id)
+    """The right-hand panel (image p27): Pinned, Needs you, Working, Idle and Resolved, newest first in each. For one
+    main chat it also brings that chat's asks up to date (``sync_asks``), from the same reading of its threads."""
+    everything = threads(delegator=delegator)
+    rows = [t for t in everything if not project_id or t["project_id"] == project_id]
+    asks = sync_asks(delegator, everything) if delegator else []
+    projects: Dict[str, List[Dict[str, Any]]] = {}
+    for t in rows:
+        projects.setdefault(t.get("project_id") or "", []).append(t)
     groups = [{"id": "pinned", "label": "Pinned", "threads": [t for t in rows if t.get("pinned")]}]
     for status in ("needs_you", "working", "idle", "resolved"):
         groups.append({"id": status, "label": STATUS_LABELS[status],
@@ -608,7 +631,128 @@ def board(*, delegator: str = "", project_id: str = "") -> Dict[str, Any]:
     used = sum(t["tokens"]["used"] for t in rows)
     return {"groups": groups, "total": len(rows), "needs_you": sum(1 for t in rows if t["status"] == "needs_you"),
             "working": sum(1 for t in rows if t["status"] == "working"), "tokens": used,
-            "sectors": sorted({t["sector"] for t in rows if t.get("sector")})}
+            "sectors": sorted({t["sector"] for t in rows if t.get("sector")}),
+            "tasks": task_counts(rows), "by_project": {pid: task_counts(ts) for pid, ts in projects.items() if pid},
+            "asks": asks}
+
+
+# ---------------------------------------------------------------------------
+# The relay: threads post their questions, approvals and results up to their main chat
+# ---------------------------------------------------------------------------
+# Owner request (2026-10-14): like this Claude project, threads send their asks and results to the main chat, where the
+# owner mainly looks, and he can answer in either place. Asks are not written into the main chat's history: that would
+# cost the delegator a model turn per answer and fill its context. They are kept here, each anchored after the main
+# chat message it arrived behind (``after``), and drawn in place by CommanderView. Each read of the board reconciles
+# them with the threads' live state, so an answer given in the thread closes the ask in the main chat too.
+
+MAX_ASKS = 300
+
+
+def _ask_key(thread: Dict[str, Any]) -> str:
+    """One key per thing a thread asked or reported, so polling the board never posts it twice."""
+    if thread.get("refreshed_to"):
+        return ""
+    if thread["status"] == "needs_you":
+        return f"{thread['kind']}:{thread['id']}:{thread.get('approval_id') or thread['messages']}"
+    if thread["status"] == "idle" and thread.get("kind") == "finished":
+        return f"result:{thread['id']}:{thread['messages']}"
+    return ""
+
+
+def _card_source(chat_id: str) -> str:
+    """The question card a thread asked, as written, so the main chat can show the same card."""
+    try:
+        from question_cards import BLOCK_RE
+
+        last = _last(_store().messages(chat_id), "assistant")
+        found = BLOCK_RE.search(str((last or {}).get("content") or ""))
+        return found.group(0) if found else ""
+    except Exception:
+        return ""
+
+
+def _short_answer(text: str) -> str:
+    """A card's answer is "**Question?**" then "→ choice" lines; the main chat shows only the choices."""
+    picked = [ln.strip().lstrip("→").strip() for ln in text.splitlines() if ln.strip().startswith("→")]
+    return _clean("; ".join(picked) if picked else text, 200)
+
+
+def sync_asks(delegator: str, rows: Optional[List[Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
+    """Post each thread's new question, approval or result to its main chat, close the asks that were answered in
+    the thread, and return the main chat's asks, oldest first."""
+    if not delegator:
+        return []
+    rows = threads(delegator=delegator) if rows is None else rows
+    try:
+        anchor = sum(1 for m in _store().messages(delegator) if m.get("role") in ("user", "assistant"))
+    except Exception:
+        anchor = 0
+    now = time.time()
+    changed = False
+    with _LOCK:
+        state = _load()
+        asks = state.setdefault("asks", {})
+        mine = {a["key"]: a for a in asks.values() if a["delegator"] == delegator}
+        live = {}
+        for t in rows:
+            key = _ask_key(t)
+            if not key:
+                continue
+            live[t["id"]] = key
+            if key in mine:
+                continue
+            kind = "result" if key.startswith("result:") else t["kind"]
+            ask = {"id": f"ask-{uuid.uuid4().hex[:8]}", "key": key, "delegator": delegator, "thread_id": t["id"],
+                   "title": t["title"], "kind": kind, "line": t["line"], "approval_id": t.get("approval_id", ""),
+                   "card": _card_source(t["chat_id"]) if kind == "question" else "", "after": anchor,
+                   "created": now, "open": kind != "result", "answer": "", "where": ""}
+            asks[ask["id"]] = mine[key] = ask
+            changed = True
+        for ask in mine.values():
+            if ask["open"] and live.get(ask["thread_id"]) != ask["key"]:
+                ask.update(open=False, where=ask["where"] or "thread", closed=now)
+                changed = True
+        if changed:
+            if len(asks) > MAX_ASKS:
+                oldest = sorted((a for a in asks.values() if not a["open"]), key=lambda a: a["created"])
+                for old in oldest[:len(asks) - MAX_ASKS]:
+                    asks.pop(old["id"], None)
+            _save(state)
+        out = sorted((dict(a) for a in asks.values() if a["delegator"] == delegator), key=lambda a: a["created"])
+    if changed:
+        _publish()
+    return out[-60:]
+
+
+def answer_ask(ask_id: str, *, text: str = "", approve: Optional[bool] = None, role: str = "local") -> Dict[str, Any]:
+    """The owner answers a thread from the main chat. The answer goes to the thread as his message (or decides its
+    approval), and the ask shows as answered in both places."""
+    with _LOCK:
+        ask = dict((_load().get("asks") or {}).get(ask_id) or {})
+    if not ask:
+        raise CommanderError("No such question.")
+    if not ask["open"]:
+        raise CommanderError("That was already answered.")
+    if ask["kind"] == "approval":
+        if approve is None:
+            raise CommanderError("Approve or deny it.")
+        if not _decide(ask["approval_id"], bool(approve)):
+            raise CommanderError("That request was already answered or timed out.")
+        answer = "Approved" if approve else "Denied"
+    else:
+        answer = str(text or "").strip()
+        if not answer:
+            raise CommanderError("Type an answer.")
+        message_thread(ask["thread_id"], answer, delegator=ask["delegator"], role=role)
+    with _LOCK:
+        state = _load()
+        row = state.get("asks", {}).get(ask_id)
+        if row is not None:
+            row.update(open=False, where="main", answer=_short_answer(answer), closed=time.time())
+            _save(state)
+            ask = dict(row)
+    _publish()
+    return ask
 
 
 def brief(chat_id: str) -> str:
@@ -632,6 +776,8 @@ def brief(chat_id: str) -> str:
         "that is too full is restarted fresh with a summary for you automatically.\n"
         "- read_thread shows what a thread said; resolve_thread when its work is done and nothing is owed.\n"
         "- A small question you can answer from what you already know gets a one-line answer here, no thread.\n"
+        "- Threads' questions, approvals and results show up in this chat by themselves, and the owner can answer them "
+        "there; do not repeat them. When he answers one in his own words here, pass it on with message_thread.\n"
         "Reply in two to four short lines: which threads got what, and what (if anything) needs the owner.\n"
         f"Threads now:\n{listing}"
     )

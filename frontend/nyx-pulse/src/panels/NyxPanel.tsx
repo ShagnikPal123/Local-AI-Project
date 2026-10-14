@@ -283,23 +283,11 @@ export function NyxPanel({ onActivity, provider, onProvider, onOpenTab, windowed
   useEffect(() => { try { localStorage.setItem("nyx.field.legend", legendOpen ? "1" : "0"); } catch { /* not kept */ } }, [legendOpen]);
   useEffect(() => { try { localStorage.setItem("nyx.field.status", statusOpen ? "1" : "0"); } catch { /* not kept */ } }, [statusOpen]);
 
-  const layoutBar = windowed ? null : (
-    <div className="nyx-tab__bar">
-      <div className="segmented" role="group" aria-label="What the Nyx tab shows">
-        <button type="button" aria-pressed={layout === "chat"} onClick={() => setLayout("chat")}>Chat</button>
-        <button type="button" aria-pressed={layout === "brain"} onClick={() => setLayout("brain")}>Second Brain</button>
-      </div>
-      <span className="nyx-tab__hint">
-        {layout === "chat" ? "Your chats are on the left — the memory field and voice are one click away."
-          : "The memory field, voice and a chat beside them."}
-      </span>
-    </div>
-  );
+  // The Chat / Second Brain switch is gone (owner, 2026-10-14: it switched one way and never back).
 
   if (layout === "chat") {
     return (
       <div className="nyx-tab">
-        {layoutBar}
         <ChatPanel variant="home" onActivity={onActivity} provider={provider} onProvider={onProvider} onSent={onSent}
           brain={summary ? { memories: summary.memories, today: summary.memories_24h } : null}
           onOpenBrain={() => setLayout("brain")} />
@@ -309,7 +297,6 @@ export function NyxPanel({ onActivity, provider, onProvider, onOpenTab, windowed
 
   return (
     <div className="nyx-tab">
-    {layoutBar}
     <div ref={stageRef} className={`nyx-stage${chatOpen ? " has-chat" : ""}${view === "core" ? " is-core" : ""}`} style={{ ["--sheet-w" as string]: `${effectiveSheet}px` }}>
       {view === "core" && (
         <CoreView shiftX={chatOpen && stageWidth > 900 ? Math.round(effectiveSheet / 2) : 0} onOpenAgent={setOpenAgent} onOpenTab={onOpenTab} />

@@ -103,6 +103,7 @@
   backdrop-filter: blur(24px);
 }
 .studio-rail__logo { display: grid; place-items: center; height: 40px; }
+.studio-rail__logo-img { display: block; border-radius: 8px; }
 .studio-rail__list {
   flex: 1;
   min-height: 0;

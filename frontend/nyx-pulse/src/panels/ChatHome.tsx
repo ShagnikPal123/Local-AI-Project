@@ -2,14 +2,15 @@
  *
  * The owner: chat is home; Game Studio, drawing and the Second Brain are things the chat does, not tabs to travel to;
  * screen sharing is "a choice in there". So this is the chat with a pane of windows beside it (ChatWindows), docked
- * wherever the owner put it. The Chat/Second Brain switch that made one tab feel like two is gone: the brain opens as
- * a window from the rail card or the + menu, and never covers the conversation again.
+ * wherever the owner put it. The Second Brain is gone from the chat (owner, 2026-10-14: its switch only went one way);
+ * agents are dragged from the agents side panel (✦ › Agents panel) instead of its Core view.
  */
 
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import type { AvatarState } from "../components/NyxAvatar";
 import { ChatWindowPane, DRAG_TYPE, openChatWindow, readDrag, useChatWindows } from "../components/windows/ChatWindows";
+import { AgentsSidePanel } from "../components/agents/AgentsSidePanel";
 import { ActivityRail } from "../components/activity/ActivityRail";
 import { ChatPanel } from "./ChatPanel";
 import { ChatPanes } from "../components/chat/panes/ChatPanes";
@@ -89,7 +90,6 @@ export function ChatHome({ onActivity, provider, onProvider, who, onSearch, onSt
                 provider={provider}
                 onProvider={onProvider}
                 brain={brain}
-                onOpenBrain={() => openChatWindow("brain")}
                 headExtra={headExtra}
                 onChatChange={onChatChange}
               />
@@ -119,6 +119,7 @@ export function ChatHome({ onActivity, provider, onProvider, who, onSearch, onSt
         </div>
       </div>
       {hasWindow && <ChatWindowPane w={w} containerRef={shell} />}
+      <AgentsSidePanel />
     </div>
   );
 }

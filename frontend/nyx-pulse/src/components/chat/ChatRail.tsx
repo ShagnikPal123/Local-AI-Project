@@ -153,7 +153,8 @@ export function ChatRail({ chats, activeId, runningByChat, onSelect, onNew, onRe
                 const made = chat.kind && KIND_WORDS[chat.kind];
                 const parent = chat.parentId ? titles[chat.parentId] : "";
                 return (
-                  <li key={chat.id} className={`chat-rail__item${chat.id === activeId ? " is-active" : ""}`}>
+                  <li key={chat.id} className={`chat-rail__item${chat.id === activeId ? " is-active" : ""}`}
+                    data-chat-id={chat.id} data-chat-title={chat.title || "New chat"}>
                     {renaming === chat.id ? (
                       <input className="chat-rail__rename" value={draft} autoFocus aria-label="Chat name"
                              onChange={(e) => setDraft(e.target.value)} onBlur={() => finishRename(chat.id)}

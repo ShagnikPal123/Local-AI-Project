@@ -43,6 +43,9 @@ _target = {"w": 240, "h": 6}
 _shown = {"w": 240, "h": 6}
 #: The black shapes the page draws (island, ears, pills), in CSS pixels. The window is clipped to them.
 _shapes: list = []
+#: Where along the top edge it sits (CSS px from the centre) and whether it is locked there (notch_controls "place").
+_offset = {"x": 0.0, "locked": False}
+_drag = {"on": False, "grab": 0.0}
 _lock = threading.Lock()
 _window = None
 _quit = threading.Event()
@@ -87,7 +90,7 @@ def _place(width: float, height: float) -> None:
         return
     scale = _scale(hwnd)
     w, h = max(1, int(round(width * scale))), max(1, int(round(height * scale)))
-    x = (_screen_width() - w) // 2
+    x = max(0, min(_screen_width() - w, (_screen_width() - w) // 2 + int(round(_offset["x"] * scale))))
     ok = user32.SetWindowPos(hwnd, HWND_TOPMOST, x, 0, w, h, SWP_NOACTIVATE | SWP_SHOWWINDOW)
     _shown.update(w=width, h=height)
     _log(f"place {w}x{h} at {x} ok={ok}")
@@ -179,6 +182,31 @@ def _no_frame(hwnd: int) -> None:
         pass
 
 
+# ── Dragging along the top edge, and locking it there (Fixer Upper S2: "dragged and locked onto a part of the screen")
+
+SNAP = 40  # CSS px: dropped this close to the centre, it goes back to the centre
+
+
+def drag_offset(cursor_x: float, grab: float, screen_w: float, scale: float, width: float) -> float:
+    """Where the notch's centre goes (CSS px from the screen's centre) for a cursor at ``cursor_x`` (device px) that
+    grabbed it ``grab`` device px right of its centre. Kept on screen, and snapped back to the middle when close."""
+    scale = max(1.0, scale)
+    half_room = max(0.0, (screen_w / scale - width) / 2)
+    offset = (cursor_x - grab - screen_w / 2) / scale
+    offset = max(-half_room, min(half_room, offset))
+    return 0.0 if abs(offset) < SNAP else round(offset)
+
+
+def _load_place() -> None:
+    try:
+        request = urllib.request.Request(BASE + "/api/notch/place/notch",
+                                         headers={"Authorization": f"Bearer {TOKEN}"} if TOKEN else {})
+        place = json.loads(urllib.request.urlopen(request, timeout=5).read())  # noqa: S310 - our own engine
+        _offset.update(x=float(place.get("x") or 0), locked=bool(place.get("locked")))
+    except Exception:  # noqa: BLE001 - the engine is still starting: the centre is fine
+        pass
+
+
 def _fullscreen_app_running() -> bool:
     """A game, video or presentation owns the screen (SHQueryUserNotificationState: busy / D3D / presentation)."""
     try:
@@ -221,6 +249,26 @@ class Bridge:
         with _lock:
             _shapes[:] = cleaned
 
+    def drag_start(self) -> bool:
+        """The page's grip was pressed: follow the mouse along the top edge until the button is let go."""
+        if _offset["locked"] or user32 is None:
+            return False
+        point = POINT()
+        user32.GetCursorPos(ctypes.byref(point))
+        hwnd = _hwnd()
+        scale = _scale(hwnd)
+        centre = _screen_width() / 2 + _offset["x"] * scale
+        _drag.update(on=True, grab=point.x - centre)
+        return True
+
+    def set_lock(self, locked: bool) -> bool:
+        _offset["locked"] = bool(locked)
+        threading.Thread(target=_post, args=("/api/notch/place/notch", {"locked": bool(locked)}), daemon=True).start()
+        return _offset["locked"]
+
+    def place(self) -> dict:
+        return dict(_offset)
+
     def open_app(self, tab: str = "chat") -> None:
         threading.Thread(target=_post, args=("/api/notch/open-app", {"tab": str(tab)[:40]}), daemon=True).start()
 
@@ -256,6 +304,14 @@ def _watch() -> None:
         if shapes != clipped_to:
             _apply_region(hwnd, shapes)
             clipped_to = shapes
+        if _drag["on"]:
+            point = POINT()
+            user32.GetCursorPos(ctypes.byref(point))
+            _offset["x"] = drag_offset(point.x, _drag["grab"], _screen_width(), _scale(hwnd), _shown["w"])
+            _place(_shown["w"], _shown["h"])
+            if not user32.GetAsyncKeyState(0x01) & 0x8000:  # left button let go: stay here
+                _drag["on"] = False
+                threading.Thread(target=_post, args=("/api/notch/place/notch", {"x": _offset["x"]}), daemon=True).start()
         if want["w"] >= _shown["w"] and want["h"] >= _shown["h"]:
             if want != _shown:
                 _place(want["w"], want["h"])
@@ -277,7 +333,7 @@ def _watch() -> None:
         if user32.GetCursorPos(ctypes.byref(point)) and (point.x, point.y) != last_cursor and _window is not None:
             last_cursor = (point.x, point.y)
             scale = _scale(hwnd)
-            left = (_screen_width() - _shown["w"] * scale) / 2
+            left = (_screen_width() - _shown["w"] * scale) / 2 + _offset["x"] * scale
             x, y = (point.x - left) / scale, point.y / scale
             try:
                 _window.run_js(f"window.__notchCursor && window.__notchCursor({x:.0f}, {y:.0f})")
@@ -351,6 +407,7 @@ def main() -> None:
     _window = webview.create_window(TITLE, URL, js_api=Bridge(), width=240, height=6, x=(width - 240) // 2, y=0,
                                     frameless=True, transparent=True, on_top=True, resizable=True, easy_drag=False,
                                     min_size=(1, 1), background_color="#000000", shadow=False)
+    _load_place()
     threading.Thread(target=_watch, name="notch-watch", daemon=True).start()
     hotkey = _hotkey_setting()
     if hotkey and user32 is not None:

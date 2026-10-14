@@ -68,7 +68,14 @@ DEFAULTS: Dict[str, Any] = {
     "launchers": [],
     "home": {"default": "apps", "views": ["apps", "now_playing", "weather", "calendar"], "city": "",
              "triple_click": True},
+    # Where the notch and the hands-off sidebar sit, and whether they are locked there (Fixer Upper S2: "They can be
+    # dragged and locked onto a part of the screen"). The notch slides along the top edge (x = offset from centre);
+    # the sidebar docks to the left or right edge, or floats where it was dropped.
+    "place": {"notch": {"x": 0, "locked": False},
+              "sidebar": {"enabled": False, "edge": "right", "x": 0, "y": 96, "locked": False, "collapsed": False}},
 }
+
+EDGES = ("left", "right", "free")
 
 _lock = threading.RLock()
 
@@ -115,6 +122,13 @@ def _check(state: Dict[str, Any]) -> Dict[str, Any]:
         home["default"] = home["views"][0]
     home["city"] = str(home.get("city") or "").strip()[:60]
     home["triple_click"] = bool(home.get("triple_click", True))
+    place = state["place"]
+    num = lambda v, lo, hi: max(lo, min(hi, int(float(v or 0))))  # noqa: E731
+    place["notch"] = {"x": num(place["notch"].get("x"), -4000, 4000), "locked": bool(place["notch"].get("locked"))}
+    bar = place["sidebar"]
+    place["sidebar"] = {"enabled": bool(bar.get("enabled")), "edge": bar.get("edge") if bar.get("edge") in EDGES else "right",
+                        "x": num(bar.get("x"), -8000, 8000), "y": num(bar.get("y"), 0, 4000),
+                        "locked": bool(bar.get("locked")), "collapsed": bool(bar.get("collapsed"))}
     return state
 
 
@@ -129,7 +143,16 @@ def _load() -> Dict[str, Any]:
             state[key] = saved[key]
     if isinstance(saved.get("home"), dict):
         state["home"].update({k: v for k, v in saved["home"].items() if k in state["home"]})
+    _merge_place(state, saved.get("place"))
     return _check(state)
+
+
+def _merge_place(state: Dict[str, Any], place: Any) -> None:
+    if not isinstance(place, dict):
+        return
+    for part in ("notch", "sidebar"):
+        if isinstance(place.get(part), dict):
+            state["place"][part].update({k: v for k, v in place[part].items() if k in state["place"][part]})
 
 
 def settings() -> Dict[str, Any]:
@@ -146,12 +169,28 @@ def update(changes: Dict[str, Any]) -> Dict[str, Any]:
                 state[key] = changes[key]
         if isinstance(changes.get("home"), dict):
             state["home"].update({k: v for k, v in changes["home"].items() if k in state["home"]})
+        _merge_place(state, changes.get("place"))
         state = _check(state)
         STORE.parent.mkdir(parents=True, exist_ok=True)
         tmp = STORE.with_suffix(".tmp")
         tmp.write_text(json.dumps(state, indent=2), encoding="utf-8")
         atomic_replace(tmp, STORE)
         return state
+
+
+def place(part: str) -> Dict[str, Any]:
+    """Where the notch or the sidebar sits now (read by their windows at start and after a drag)."""
+    return settings()["place"][part]
+
+
+def move(part: str, changes: Dict[str, Any]) -> Dict[str, Any]:
+    """A drag ended (or a lock was toggled). A locked window keeps its place: only unlocking moves it again."""
+    if part not in ("notch", "sidebar"):
+        raise ValueError("Only the notch and the sidebar move.")
+    current = place(part)
+    if current["locked"] and changes.get("locked") is not False:
+        changes = {k: v for k, v in changes.items() if k in ("locked", "enabled", "collapsed")}
+    return update({"place": {part: changes}})["place"][part]
 
 
 def add_launcher(item: Dict[str, Any]) -> Dict[str, Any]:

@@ -132,6 +132,22 @@ more false positives cost.
 
 ## Session log
 
+### Session — 2026-10-14 (Fixer Upper WS6, Voice and Equalize assistant)
+
+Fixes for S33/S34 and Drive doc 1's "intro said twice, then no answer". One intro: the recognizer restarts every few
+seconds and each restart announced "start", which replayed the greeting; now "start" goes out once per session and
+`voice_gestures.greeting_for_start` will not greet twice within 20 s. No answer off the Chat tab: `voice/toChat.ts`
+opens the Chat tab and waits for it before sending. Doubled answers: the model's `speak` tool played the answer while
+ActiveTalk read it too; voice turns now carry `ToolContext.voice` and `speak` declines on them. Equalize's talk, wake
+sound and phrase (`voice/wakePhrase.ts`) and avatar personality are read now (they were saved and never used).
+Clap + command goes to Ultra Fast first. Thinking is a sphere of rings (VoiceFace). New neural lines stream
+(`tts.stream`, MediaSource in `voicePlayer`): the first sound came at 76 ms of a 2.4 s download in headless Chromium.
+`voice_bench.py` times voice tests, first sound, voice to action and the spoken answer. The app window (WebView2) has
+no speech service, so listening moves to the PC there (and when a browser's recognizer breaks, or "local" is chosen):
+`voice/localEar.ts` records one sentence per pause and `local_stt.py` (`/api/voice/transcribe`) hears it with
+faster-whisper if installed, else Windows dictation. Each spoken progress line is said once per answer. Not yet
+checked by ear or timed on the owner's PC. Licences: `docs/VOICE_REFERENCES.md`.
+
 ### Session — 2026-10-10 (Claude Opus 5.5, session 99acc5bf) — Avatars, then several chats on one screen
 
 Avatars (`avatars.py`, `routes_avatars.py`, Avatars tab, `docs/AVATARS.md`): always-on helpers modelled on OpenAI Dots,
@@ -803,6 +819,36 @@ all trading tests 49 green):
 - Not done: p10 "Where Ichos works" picker (overlaps WS4); auto filter in the chat rail (needs `ChatRail.tsx`).
 - Gotchas: `tests/test_server_auth.py` is CRLF, edit it in binary mode; every `npm run build` rewrites the tracked
   `tsconfig.tsbuildinfo`, so `git checkout --` it before committing.
+
+### 2026-10-14 — WS9 phone, WhatsApp, notifications (Fixer Upper)
+
+- WhatsApp: three lanes on the one line (general, a chosen PC chat, an avatar). `/chats` lists chats and `/chat N`
+  continues one; `/avatars`, `/avatar Name`, `@Name question`, `/newavatar Name: job` and `/general` do the same for
+  avatars, and replies outside the general lane are tagged with the name. An avatar's phone turn runs under the phone
+  guard and the avatar's own rules, in its own "WhatsApp · Name" chat. Any PC chat can be linked to WhatsApp
+  (`POST /api/whatsapp/link-chat`; `GET /api/whatsapp/chats` carries the `whatsapp` flag WS10 uses for the badge).
+  Code: `whatsapp_lanes.py` (words only), `whatsapp_link.py`, `routes_whatsapp.py`.
+- Files and pictures both ways (`whatsapp_files.py`, helper `send_file` op, `whatsapp_send_file` tool,
+  `POST /api/whatsapp/send-file`). Incoming files go through `uploads.save_upload` and `file_guard` and the inbox copy is
+  deleted; outgoing refuses protected paths, risky files, folders and anything over 50 MB. The AI can text from any chat.
+- Email from the phone: the phone guard allows `email_list`, `email_read`, `email_accounts` and `email_to_me` (only to the
+  owner's own account). Sending depends on the Google sign-in send fix, which is WS16's.
+- Notifications (`notifications.py`, `routes_notifications.py`): kinds done / help / message / schedule; boxes in the
+  app, Windows notification, phone text (never / when away / always, 12 an hour at most). Away is detected from
+  idle time or set by the owner (`/away`, `/back`). A chat linked to WhatsApp always reaches the phone. The corner
+  (six places, bottom right by default) is Settings > Notifications and follows changes live. Hooks: `routes_live.work`,
+  `permissions.ask`, `scheduled.run_now`.
+- Phone connection: `phone_pairing.py` (a key that works once and for 60 seconds, wrong guesses rationed, token stored
+  only as a hash), `phone_gateway.py` (a separate server for home-network addresses only, off until Settings > Phone is
+  switched on, token needed for every chat door, phone messages run under the phone guard), `routes_phone.py`.
+- Not done: a number per avatar (needs the owner's OK, it means paid SIMs); reaching the PC from outside the home
+  network (needs a tunnel and a decision about exposure); WhatsApp turns using `model_lineup.plan_for_turn`
+  (`surface="whatsapp"` exists, WS5 wires it); Google sign-in and Gmail send (WS16).
+- Not tried on real hardware: the WhatsApp helper with a real phone, the Windows notification, the phone page on a real
+  phone. Every part has mocked tests (`tests/test_whatsapp_*.py`, `test_notification*.py`, `test_phone_*.py`,
+  `test_routes_phone.py`).
+- Gotchas: the phone key is shown once and never stored; turning "Allow my phone" off forgets it. The gateway answers only
+  private addresses, so a router port-forward does not expose it.
 
 ---
 

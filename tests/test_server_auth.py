@@ -224,6 +224,10 @@ def test_a_beta_tester_cannot_reach_admin_routes(client, beta_token, method, pat
     ("/api/notch/launchers/suggest", {"name": "x"}),
     ("/api/notch/looks/import", {"name": "x", "colors": {"island": "#000000"}}),
     ("/api/notch/looks/use", {"id": "ember"}),
+    ("/api/notch/sidebar/start", {}),
+    ("/api/notch/hands-off", {"on": True}),
+    ("/api/notch/ask", {"text": "hello"}),
+    ("/api/notch/place/sidebar", {"x": 10}),
 ])
 def test_a_beta_tester_cannot_run_or_change_the_notchs_controls(client, beta_token, path, body):
     """The notch's buttons open apps and cmd windows on the owner's PC; an invited tester only gets to look."""
@@ -1024,6 +1028,7 @@ OWNER_ONLY_PROJECT_ROUTES = [
     ("post", "/api/commander/projects/pr-1/chat", None),
     ("post", "/api/commander/send", {"chat_id": "c1", "message": "hi"}),
     ("post", "/api/commander/threads/th-1/message", {"text": "more"}),
+    ("post", "/api/commander/asks/ask-1/answer", {"text": "yes"}),
     ("put", "/api/commander/threads/th-1", {"resolved": True}),
     ("delete", "/api/commander/threads/th-1", None),
     ("get", "/api/commander/settings", None),

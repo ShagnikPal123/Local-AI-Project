@@ -104,3 +104,16 @@ def test_the_window_opens_with_the_remembered_size_and_saves_it_on_close(tmp_pat
     events.moved[0](12, 34)
     events.closing[0]()
     assert app_window.load_geometry("nyx") == {"width": 1400, "height": 950, "x": 12, "y": 34, "maximized": False}
+
+
+def test_pinned_button_relaunches_through_the_launcher():
+    """A pin runs the same command as the desktop shortcut, so it still works with the engine off."""
+    import launcher
+
+    expected = " ".join(f'"{part}"' for part in launcher.launch_command())
+    assert app_window.relaunch_command("nyx", "http://localhost:8000/") == expected
+
+
+def test_pin_identity_is_a_no_op_off_windows(tmp_path):
+    """Off Windows (and with no window yet) it must do nothing and raise nothing."""
+    app_window.set_pin_identity(0, "NyxIchos.App", "Nyx Ichos", tmp_path / "missing.ico", "x")
