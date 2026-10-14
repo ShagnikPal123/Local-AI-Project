@@ -9,6 +9,10 @@ changes something (start, stop, settings, keys, Claude) needs the **owner**. A v
 the trader is set up but never use its keys or its account. When the app runs locally with no login
 configured, the person at the PC is the owner.
 
+Every request that changes something (anything but GET) must carry the header `x-ichos-trader: 1`.
+The dashboard sends it; another website open in the same browser cannot, so it cannot press the
+buttons. In local mode the page must be opened at `127.0.0.1` or `localhost`.
+
 Errors come back as `{"detail": "a sentence the owner can read"}` with a 4xx status.
 
 ---

@@ -25,8 +25,9 @@ def app():
     return server.create_app(Engine(hub))
 
 
-def client(app, where=LOCAL, role=None):
-    c = TestClient(app, client=where)
+def client(app, where=LOCAL, role=None, header=True):
+    c = TestClient(app, client=where, base_url="http://127.0.0.1:8100",
+                   headers={server.CHANGE_HEADER: "1"} if header else {})
     if role:
         c.cookies.set(auth.COOKIE, auth.session_for("Guest", role))
     return c
@@ -130,6 +131,13 @@ def test_oauth_callback_needs_the_state_it_was_sent_with(app):
     assert start.status_code == 302 and start.headers["location"].startswith("https://accounts.google.com/")
     assert c.get("/api/auth/callback/google?code=x&state=wrong").status_code == 400
     assert c.get("/api/auth/login/github", follow_redirects=False).status_code == 404
+
+
+def test_another_website_cannot_press_the_buttons(app):
+    assert client(app, header=False).post("/api/control/cycle").status_code == 403
+    assert client(app, header=False).get("/api/dashboard").status_code == 200
+    rebound = TestClient(app, client=LOCAL, base_url="http://evil.example", headers={server.CHANGE_HEADER: "1"})
+    assert rebound.get("/api/dashboard").status_code == 403
 
 
 def test_unknown_api_paths_are_404_and_the_page_falls_back(app):

@@ -1,7 +1,8 @@
 """The web API (docs/API.md) and the built dashboard, from one small FastAPI app.
 
 Deny by default: every ``/api/*`` route needs a signed-in person unless it is in ``PUBLIC``, and a
-route that changes anything also needs the **owner** (``Depends(owner)``). A viewer sees the setup,
+route that changes anything also needs the **owner** (``Depends(owner)``) and the
+``x-ichos-trader: 1`` header the dashboard sends (so another website cannot press the buttons). A viewer sees the setup,
 never a key, and cannot trade. The dashboard is served from ``web/dist`` on the same address, so
 there is no cross-site access to open up.
 """
@@ -27,6 +28,8 @@ from .paper import PaperAccount
 PUBLIC = ("/api/health", "/api/me", "/api/auth/")
 WEB = config.APP_ROOT / "web" / "dist"
 PASSCODE_TRIES, PASSCODE_WINDOW = 5, 600.0
+SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
+CHANGE_HEADER = "x-ichos-trader"
 
 
 def _who(request: Request) -> Optional[Dict[str, Any]]:
@@ -71,6 +74,14 @@ def create_app(engine: Optional[Engine] = None) -> FastAPI:
     @app.middleware("http")
     async def deny_by_default(request: Request, call_next):
         path = request.url.path
+        if path.startswith("/api/"):
+            # Another website open in the same browser can send requests to 127.0.0.1, but it cannot
+            # add a custom header without permission we never give, and a renamed address (DNS
+            # rebinding) shows up in Host. Together they keep local mode's trust to this app's own page.
+            if request.method not in SAFE_METHODS and request.headers.get(CHANGE_HEADER) != "1":
+                return JSONResponse({"detail": "Changes must come from the trader's own page."}, status_code=403)
+            if auth.mode() == "local" and (request.url.hostname or "") not in auth.LOOPBACK:
+                return JSONResponse({"detail": "Open the trader at http://127.0.0.1."}, status_code=403)
         if path.startswith("/api/") and not path.startswith(PUBLIC):
             user = _who(request)
             if not user:
