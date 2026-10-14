@@ -46,6 +46,15 @@ PRODUCT_SCOPES: Dict[str, tuple] = {
     "slides": ("https://www.googleapis.com/auth/presentations", "https://www.googleapis.com/auth/drive.readonly"),
     "tasks": ("https://www.googleapis.com/auth/tasks",),
 }
+#: The Google Cloud API each app needs switched on once, by the project's owner. Listed together so one link can
+#: turn them all on and one sign-in can ask for all of them ("connect all my Google apps").
+PRODUCT_APIS: Dict[str, str] = {
+    "gmail": "gmail.googleapis.com", "calendar": "calendar-json.googleapis.com", "drive": "drive.googleapis.com",
+    "docs": "docs.googleapis.com", "sheets": "sheets.googleapis.com", "slides": "slides.googleapis.com",
+    "tasks": "tasks.googleapis.com",
+}
+ALL_PRODUCTS = tuple(PRODUCT_SCOPES)
+ENABLE_ALL_URL = "https://console.cloud.google.com/flows/enableapi?apiid=" + ",".join(PRODUCT_APIS.values())
 SCOPES = BASE_SCOPES + PRODUCT_SCOPES["gmail"]
 CLIENT_ID_KEY = "GOOGLE_OAUTH_CLIENT_ID"
 CLIENT_SECRET_KEY = "GOOGLE_OAUTH_CLIENT_SECRET"

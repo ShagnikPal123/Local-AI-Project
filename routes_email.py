@@ -122,6 +122,7 @@ def google_status(request: Request, _owner_user=Depends(_owner)) -> Dict[str, An
     return {"client_configured": google_oauth.client_configured(), "connected": google_oauth.connected(),
             "redirect_uri": _redirect_uri(request), "redirect_help": google_oauth.redirect_help(_redirect_uri(request)),
             "client_type": google_oauth.client_type(), "scopes": list(google_oauth.SCOPES),
+            "all_products": list(google_oauth.ALL_PRODUCTS), "enable_all_url": google_oauth.ENABLE_ALL_URL,
             "products": {address: google_oauth.products_of(address) for address in accounts
                          if google_oauth.products_of(address)}}
 
