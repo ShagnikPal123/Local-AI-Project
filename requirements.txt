@@ -17,6 +17,9 @@ psutil
 pillow
 # launcher.py: the tray icon that replaces "leave this console window open".
 pystray
+# app_window.py and notch_window.py: Nyx's own desktop window on WebView2 (the Edge engine built into Windows), so it
+# opens as an app without an unsigned .exe that Smart App Control would block.
+pywebview
 # tts.py: free Microsoft neural voices, so replies are not stuck with SAPI David/Zira.
 edge-tts
 # uploads.py: text extraction from PDFs for providers that cannot read them natively.
