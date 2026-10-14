@@ -165,3 +165,43 @@ def test_a_heard_wake_phrase_opens_it_listening():
     state = notch.wake("phrase: wake up")
     assert state["state"] == "listening" and state["woke"] > 0 and state["source"] == "phrase: wake up"
     notch.set_state("idle")
+
+
+# ── Hands-off: the sidebar asks through the notch, and voice is switched only when it needs to be ─────
+
+
+def test_hands_off_asks_the_page_to_switch_voice_only_when_it_differs(monkeypatch):
+    import agent_events
+
+    sent = []
+    monkeypatch.setattr(agent_events, "publish_ui", lambda kind, **payload: sent.append(kind))
+    notch.set_state("idle", "", False)
+    assert notch.hands_off(True) == {"on": True, "was": False} and sent == ["voice.toggle"]
+    notch.set_state("listening", "", True)
+    notch.hands_off(True)
+    assert sent == ["voice.toggle"]  # already on: nothing to flip
+    notch.hands_off(False)
+    assert sent == ["voice.toggle", "voice.toggle"]
+    notch.set_state("idle", "", False)
+
+
+def test_typed_in_the_sidebar_reaches_the_notch():
+    import pytest
+
+    asked = notch.ask("  open my budget sheet  ")
+    assert asked["text"] == "open my budget sheet" and notch.status()["ask"]["at"] == asked["at"]
+    with pytest.raises(ValueError):
+        notch.ask("   ")
+
+
+def test_the_picked_tab_is_kept_for_the_sidebar(monkeypatch):
+    import agent_events
+
+    monkeypatch.setattr(agent_events.BUS, "subscriber_count", lambda _channel=None: 1)
+    monkeypatch.setattr(agent_events, "publish_ui", lambda kind, **payload: None)
+    notch.open_app("trading")
+    assert notch.status()["tab"]["id"] == "trading" and notch.status()["tab"]["by"] == "you"
+
+
+def test_the_sidebar_is_off_until_started():
+    assert notch.sidebar_running() is False

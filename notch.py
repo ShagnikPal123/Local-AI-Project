@@ -112,7 +112,7 @@ def _remember(on: bool) -> None:
 
 
 def start_if_enabled() -> None:
-    """At engine start: bring the notch back if the owner left it on."""
+    """At engine start: bring the notch and the hands-off sidebar back if the owner left them on."""
     try:
         import equalize_assistant
 
@@ -120,11 +120,19 @@ def start_if_enabled() -> None:
             threading.Timer(4.0, start).start()
     except Exception:  # noqa: BLE001
         pass
+    try:
+        import notch_controls
+
+        if notch_controls.place("sidebar")["enabled"] and sys.platform == "win32":
+            threading.Timer(5.0, start_sidebar).start()
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def open_app(tab: str = "chat") -> Dict[str, Any]:
     """Back to chat / Open Equalize: an open app page switches tab; with none open, a browser opens on the app."""
     tab = str(tab or "chat")[:40]
+    picked_tab(tab, "you")
     listening = 0
     try:
         from agent_events import BUS, publish_ui
@@ -193,3 +201,93 @@ def waiting(store: Any = None, now: Optional[float] = None) -> list:
     except Exception:  # noqa: BLE001
         pass
     return sorted(items, key=lambda i: -float(i.get("since") or 0))
+
+
+
+# ── The hands-off sidebar (sidebar_window.py) ────────────────────────────────
+# Fixer Upper S2: "the side bar looked like the image attached … a place for hands off mode. This should be combined
+# with the personal assistant so basically we just have the side bar and the notch on our screen."
+
+_sidebar: Optional[subprocess.Popen] = None
+
+
+def sidebar_running() -> bool:
+    return _sidebar is not None and _sidebar.poll() is None
+
+
+def start_sidebar(token: str = "", port: Optional[int] = None) -> Dict[str, Any]:
+    """Open the sidebar window (once), signed in like the notch: the session arrives through the environment."""
+    global _sidebar
+    with _lock:
+        if not sidebar_running():
+            port = port or int(os.environ.get("NYX_PORT", "8000"))
+            env = dict(os.environ, ICHOS_SIDEBAR_TOKEN=token or _owner_token())
+            script = Path(__file__).resolve().with_name("sidebar_window.py")
+            _sidebar = subprocess.Popen([_python(), str(script), f"http://127.0.0.1:{port}/sidebar"], env=env,
+                                        cwd=str(script.parent), creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    _remember_sidebar(True)
+    return {"running": sidebar_running()}
+
+
+def stop_sidebar() -> Dict[str, Any]:
+    global _sidebar
+    with _lock:
+        if sidebar_running():
+            _sidebar.terminate()
+            try:
+                _sidebar.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                _sidebar.kill()
+        _sidebar = None
+    _remember_sidebar(False)
+    return {"running": False}
+
+
+def _remember_sidebar(on: bool) -> None:
+    try:
+        import notch_controls
+
+        if notch_controls.place("sidebar")["enabled"] != on:
+            notch_controls.move("sidebar", {"enabled": on})
+    except Exception:  # noqa: BLE001
+        pass
+
+
+# ── Hands-off: voice on, and things typed in the sidebar go to the notch's chat ──
+
+_asks: Dict[str, Any] = {"at": 0.0, "text": ""}
+_tab: Dict[str, Any] = {"id": "", "at": 0.0, "by": ""}
+
+
+def hands_off(on: bool) -> Dict[str, Any]:
+    """Hands-off mode on means the assistant is listening; the app page owns the microphone, so it is asked to
+    switch voice on or off (the page reports back through set_state, which also opens the notch as a wake)."""
+    with _lock:
+        voice = bool(_state["voice"])
+    if voice != bool(on):
+        try:
+            from agent_events import publish_ui
+
+            publish_ui("voice.toggle")
+        except Exception:  # noqa: BLE001
+            pass
+    return {"on": bool(on), "was": voice}
+
+
+def ask(text: str) -> Dict[str, Any]:
+    """Something typed in the sidebar: the notch opens on its chat and sends it, so there is one conversation."""
+    text = str(text or "").strip()[:2000]
+    if not text:
+        raise ValueError("Type something to ask.")
+    with _lock:
+        _asks.update(at=time.time(), text=text)
+        _state["ask"] = dict(_asks)
+    return dict(_asks)
+
+
+def picked_tab(tab: str, by: str = "you") -> Dict[str, Any]:
+    """The tab the app was just sent to, and by whom — the sidebar lights it up ("as the ai selects the correct tab")."""
+    with _lock:
+        _tab.update(id=str(tab or "")[:40], at=time.time(), by=str(by or "")[:20])
+        _state["tab"] = dict(_tab)
+    return dict(_tab)
