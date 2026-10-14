@@ -18,6 +18,7 @@ import { onWorkspaceEvent } from "../state/workspaceEvents";
 import { CustomModelsSection, KeyAlerts, KeyPool } from "./KeyPoolSections";
 import { LocalModels, ModelFinder } from "./LocalModelsSections";
 import { GoogleSignIn } from "./GoogleSignIn";
+import { EmailHelpers } from "./EmailHelpers";
 import { AutoAssignModels } from "./AutoAssignModels";
 
 interface KeyField {
@@ -356,6 +357,7 @@ function EmailSection() {
       </p>
       <div className="keys-grid">
         <GoogleSignIn />
+        <EmailHelpers />
         {accounts.map((account) => (
           <div key={account.id} className="card keys-provider" data-configured={account.configured}>
             <div className="keys-provider__head">
