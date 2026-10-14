@@ -216,6 +216,70 @@ def set_window_icon(hwnd: int, icon_path: Path) -> None:
             user32.SendMessageW(hwnd, wm_seticon, kind, handle)
 
 
+def relaunch_command(name: str, url: str) -> str:
+    """What a pinned taskbar button runs. The full app goes through the launcher, like the desktop shortcut, so a
+    pin still works when the engine is not running; any other app reopens its own window."""
+    if name == "nyx":
+        import launcher
+
+        argv = launcher.launch_command()
+    else:
+        argv = command(name, url)
+    return " ".join(f'"{part}"' for part in argv)
+
+
+def set_pin_identity(hwnd: int, app_id: str, title: str, icon_path: Path, relaunch: str) -> None:
+    """Tell Windows what to pin (owner, 2026-10-14: "when I pin to task bar the icon is not changed").
+
+    The process id above gives the running button Nyx's icon, but a pin is a shortcut Windows makes from the
+    process's .exe, which is pythonw.exe, so the pin showed Python's icon and command. These four window properties
+    (``PKEY_AppUserModel_*``) make the pin use Nyx's icon, name and launch command instead.
+    """
+    if sys.platform != "win32" or not hwnd or not icon_path.is_file():
+        return
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        class GUID(ctypes.Structure):
+            _fields_ = [("d1", wintypes.DWORD), ("d2", wintypes.WORD), ("d3", wintypes.WORD), ("d4", ctypes.c_ubyte * 8)]
+
+        class PROPERTYKEY(ctypes.Structure):
+            _fields_ = [("fmtid", GUID), ("pid", wintypes.DWORD)]
+
+        class PROPVARIANT(ctypes.Structure):
+            _fields_ = [("vt", wintypes.USHORT), ("r1", wintypes.USHORT), ("r2", wintypes.USHORT),
+                        ("r3", wintypes.USHORT), ("value", ctypes.c_void_p), ("pad", ctypes.c_void_p)]
+
+        def guid(text: str) -> GUID:
+            raw = GUID()
+            ctypes.oledll.ole32.CLSIDFromString(ctypes.c_wchar_p(text), ctypes.byref(raw))
+            return raw
+
+        appusermodel = guid("{9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3}")
+        iid_property_store = guid("{886D8EEB-8CF2-4446-8D02-CDBA1DBDCF99}")
+        store = ctypes.c_void_p()
+        ctypes.oledll.shell32.SHGetPropertyStoreForWindow(
+            wintypes.HWND(hwnd), ctypes.byref(iid_property_store), ctypes.byref(store))
+        vtable = ctypes.cast(ctypes.cast(store, ctypes.POINTER(ctypes.c_void_p))[0], ctypes.POINTER(ctypes.c_void_p))
+        set_value = ctypes.WINFUNCTYPE(ctypes.HRESULT, ctypes.c_void_p, ctypes.POINTER(PROPERTYKEY),
+                                       ctypes.POINTER(PROPVARIANT))(vtable[6])
+        commit = ctypes.WINFUNCTYPE(ctypes.HRESULT, ctypes.c_void_p)(vtable[7])
+        release = ctypes.WINFUNCTYPE(wintypes.ULONG, ctypes.c_void_p)(vtable[2])
+        keep = []  # the strings must outlive SetValue, which copies them
+        # RelaunchCommand (2), RelaunchIconResource (3) and RelaunchDisplayNameResource (4) only count together,
+        # and only next to the ID (5).
+        for pid, text in ((5, app_id), (2, relaunch), (3, f"{icon_path},0"), (4, title)):
+            buffer = ctypes.create_unicode_buffer(text)
+            keep.append(buffer)
+            value = PROPVARIANT(vt=31, value=ctypes.cast(buffer, ctypes.c_void_p))  # VT_LPWSTR
+            set_value(store, ctypes.byref(PROPERTYKEY(appusermodel, pid)), ctypes.byref(value))
+        commit(store)
+        release(store)
+    except Exception:  # noqa: BLE001 - the window still works; a pin would just show Python's icon
+        pass
+
+
 # ---------------------------------------------------------------------------
 # The window
 # ---------------------------------------------------------------------------
@@ -270,7 +334,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     _track_geometry(window, name, geometry)
 
     def shown() -> None:
-        set_window_icon(find_window(spec["title"]), PROJECT_DIR / spec["icon"])
+        hwnd = find_window(spec["title"])
+        set_window_icon(hwnd, PROJECT_DIR / spec["icon"])
+        set_pin_identity(hwnd, spec["app_id"], spec["title"], PROJECT_DIR / spec["icon"], relaunch_command(name, url))
 
     window.events.shown += shown
     storage = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "NyxIchos" / "webview" / name
