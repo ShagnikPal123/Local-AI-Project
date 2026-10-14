@@ -81,7 +81,7 @@ search key on my account until I've diagnosed it.
 Open `.env.local` and add the line. No restart of anything but the app is needed.
 
 ```bash
-notepad "C:\Users\shagn\Desktop\Ai Dev Folder\Ai Dev Folder\.env.local"
+notepad "C:\Users\<you>\Desktop\Ai Dev Folder\Ai Dev Folder\.env.local"
 ```
 
 Tell me when you've added one and I'll wire up and test the provider.

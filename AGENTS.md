@@ -29,8 +29,8 @@ server to use the app.
 The project root is the **nested** folder:
 
 ```
-C:\Users\shagn\Desktop\Ai Dev Folder\Ai Dev Folder\     <-- THE PROJECT (run from here)
-C:\Users\shagn\Desktop\Ai Dev Folder\                   <-- outer container, NOT the project
+C:\Users\<you>\Desktop\Ai Dev Folder\Ai Dev Folder\     <-- THE PROJECT (run from here)
+C:\Users\<you>\Desktop\Ai Dev Folder\                   <-- outer container, NOT the project
 ```
 
 Historically several stores resolved their paths **relative to the current working directory**, so

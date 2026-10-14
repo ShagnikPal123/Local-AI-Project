@@ -74,7 +74,7 @@ Owner's request E is in `AI_HANDOFF/01_GOALS.md`. Ownership for this round:
 | **Critic** | `REVIEW_LOG.md` — reviews and approves or rejects; edits no source |
 
 Design language: the Apple Human Interface Guidelines skill references at
-`C:\Users\shagn\AppData\Roaming\Claude\local-agent-mode-sessions\skills-plugin\ca8cd84f-a11e-4ddf-921b-13f7b82b1639\d2a95da8-c160-42e9-b024-cc939296474f\skills\apple-design\references\hig\`
+`C:\Users\<you>\AppData\Roaming\Claude\local-agent-mode-sessions\skills-plugin\ca8cd84f-a11e-4ddf-921b-13f7b82b1639\d2a95da8-c160-42e9-b024-cc939296474f\skills\apple-design\references\hig\`
 (the owner mentioned a GitHub design link that did not come through; use HIG until it does).
 
 ---

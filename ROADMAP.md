@@ -355,7 +355,7 @@ Personalities have **two independent axes**:
 
 # BB. Front End Implementation  ← *added session 3*
 
-Design handoff at `C:\Users\shagn\Downloads\Local AI Agent Platform-handoff\`.
+Design handoff at `C:\Users\<you>\Downloads\Local AI Agent Platform-handoff\`.
 Target `frontend/nyx-pulse` (React + TS + Vite, already scaffolded).
 
 - [x] **BB1** — Tabbed shell: rail (206px) and strip layouts *(built session 4; drag-reorder still to do)*

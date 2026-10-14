@@ -212,7 +212,7 @@ custom tab and removed it. Restarted the launcher-managed engine so its API load
 built against a Codex CLI cached runtime:
 
 ```
-home = C:\Users\shagn\.cache\codex-runtimes\codex-primary-runtime\dependencies\python
+home = C:\Users\<you>\.cache\codex-runtimes\codex-primary-runtime\dependencies\python
 version = 3.12.13
 ```
 
@@ -322,7 +322,7 @@ capability, including hardware-adaptive execution and computer control for the b
 **Delivered:** front-end design handoff reviewed, 3 new agents, and the two priorities
 Shagnik named — hardware safety and response speed.
 
-**Design handoff reviewed.** `C:\Users\shagn\Downloads\Local AI Agent Platform-handoff\`.
+**Design handoff reviewed.** `C:\Users\<you>\Downloads\Local AI Agent Platform-handoff\`.
 Claude Design prototypes using `x-dc`/`sc-if`/`sc-for` templating — mockups, not production
 code. 8 core tabs: Chat, Dashboard, Sessions & Memory, Models, Agents, Connectors,
 Add capability, Settings. Two layouts (rail 206px / strip). Palette `#161826` bg, `#12141f`
