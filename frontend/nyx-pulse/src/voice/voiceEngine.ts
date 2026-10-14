@@ -31,6 +31,7 @@ import { kahunaAllOn, readIntent, runAction } from "../state/kahuna";
 import { speakText, stopSpeaking } from "./voicePlayer";
 import { isEcho, quiet } from "./echoGuard";
 import { onVad, startVad, stopVad, vadRunning, vadState } from "./micVad";
+import { localEarEngine, startLocalEar, stopLocalEar } from "./localEar";
 import { emitVoice, onVoice, speaking, type VoiceMode } from "./voiceBus";
 
 /** Fallback pause when the engine has not answered yet. */
@@ -70,8 +71,9 @@ function recognizerProblem(code: string): string {
   return "This browser's speech service isn't answering. Try again in a moment, or use Edge or Chrome.";
 }
 
+/** Voice can work here: the browser recognizer, or a microphone to record for listening on this PC. */
 export function voiceSupported(): boolean {
-  return speechRecognition() !== null;
+  return speechRecognition() !== null || Boolean(navigator.mediaDevices?.getUserMedia && window.AudioContext);
 }
 
 export type ThinkReply = {
@@ -285,8 +287,6 @@ export function useVoiceEngine({ mode, busy, chatId, onSend, onCommand }: {
       return;
     }
     const Speech = speechRecognition();
-    if (!Speech) { setError("This browser cannot listen. Chrome or Edge can."); return; }
-    void startVad();                       // for pause timing and real barge-in
     // A local model that has gone cold takes minutes to answer, so wake it while
     // the owner is still reaching for the first word (Big Kahuna's warm-up).
     void api.post("/api/identity0/warm", { keep_minutes: 20 }).catch(() => undefined);
@@ -298,8 +298,50 @@ export function useVoiceEngine({ mode, busy, chatId, onSend, onCommand }: {
     let announced = false;
     newUtterance();
 
+    const announce = () => {
+      if (!announced) { announced = true; emitVoice({ type: "start", mode }); }
+    };
+
+    // --- listening on this PC: the app window, offline, or the owner chose it ---------------------------------
+    // One sentence is recorded at each pause and turned into words on the PC (`localEar`), so there are no
+    // partial words to think along with; the answer path after that is the same.
+    const heardLocally = (text: string) => {
+      if (closed || !text) return;
+      if (!quiet() && isEcho(text)) return;
+      if (speakingNow.current) {
+        // The echo-cancelled meter already heard a person; a real sentence (or "stop") cuts Nyx off.
+        if (text.split(/\s+/).length < 2 && !STOP_WORDS.test(text)) return;
+        stopSpeaking();
+        emitVoice({ type: "bargein" });
+      }
+      finalText.current = `${finalText.current} ${text}`.trim();
+      setHeard(finalText.current);
+      lastHeardAt.current = Date.now();
+      emitVoice({ type: "partial", text: finalText.current, utteranceId: utteranceId.current });
+      void flush();
+    };
+    const listenLocally = async (why: string) => {
+      stopped = true;                                        // the browser recognizer, if any, is not restarted
+      const [micOpen, engineName] = await Promise.all([startVad(), localEarEngine()]);
+      if (closed) return;                                    // voice was turned off while this was starting
+      if (!micOpen) { setError("The microphone is blocked or missing for this window."); return; }
+      if (!engineName) { setError(why === "fallback" ? recognizerProblem("network") : "Nothing on this PC can listen yet. Install faster-whisper (or use Windows dictation)."); return; }
+      const ok = startLocalEar({
+        heard: (text) => heardLocally(text),
+        busy: (on) => setWaiting(on),
+        failed: (message) => setError(message),
+      }, () => Math.min(waitMs.current, 900));
+      if (!ok) { setError("The microphone could not be opened for listening on this PC."); return; }
+      localMode = true;
+      setListening(true);
+      setError("");
+      announce();
+    };
+    let localMode = false;
+    let closed = false;
+
     const start = () => {
-      if (stopped) return;
+      if (stopped || !Speech) return;
       const recognition = new Speech();
       recognition.continuous = true;
       recognition.interimResults = true;
@@ -364,8 +406,14 @@ export function useVoiceEngine({ mode, busy, chatId, onSend, onCommand }: {
           // The recognizer itself is not working here (no speech service: offline, or inside the app window, whose
           // WebView2 has none). Restarting it every 300 ms only loops, so after a couple of failures with nothing
           // heard it stops and says why.
+          // Listening moves to this PC when it can; only if nothing here can listen does the owner see why.
           failures += 1;
-          if (failures >= 2) { stopped = true; setError(recognizerProblem(event.error)); emitVoice({ type: "error", message: event.error }); }
+          if (failures >= 2 && !stopped) {
+            stopped = true;
+            emitVoice({ type: "error", message: event.error });
+            if (event.error === "audio-capture") setError(recognizerProblem(event.error));
+            else void listenLocally("fallback");
+          }
         }
       };
       recognition.onend = () => {
@@ -377,12 +425,25 @@ export function useVoiceEngine({ mode, busy, chatId, onSend, onCommand }: {
         recognition.start();
         setListening(true);
         setError("");
-        if (!announced) { announced = true; emitVoice({ type: "start", mode }); }
+        announce();
       } catch {
         /* already running */
       }
     };
-    start();
+    // The app window has no speech service at all, so it listens on this PC from the start; so does a browser
+    // without a recognizer, or when the owner picked "local" in the voice settings.
+    if (!Speech || inAppWindow()) void listenLocally("window");
+    else {
+      void startVad();                     // for pause timing and real barge-in
+      void api.get<{ settings?: { listening?: string } }>("/api/voice/pipeline").then((result) => {
+        if (result.ok && result.data.settings?.listening === "local" && !closed && !localMode) {
+          stopped = true;
+          engine?.stop();
+          void listenLocally("chosen");
+        }
+      }).catch(() => undefined);
+      start();
+    }
 
     // The pause itself: the microphone says when it went quiet, and the engine
     // says how long a pause has to be for *this* sentence.
@@ -400,11 +461,13 @@ export function useVoiceEngine({ mode, busy, chatId, onSend, onCommand }: {
 
     return () => {
       stopped = true;
+      closed = true;
       offVad();
       window.clearInterval(check);
       window.clearTimeout(intentTimer.current);
       engine?.stop();
       engine = null;
+      stopLocalEar();
       setListening(false);
       stopVad();
       emitVoice({ type: "stop", mode });
