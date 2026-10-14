@@ -50,6 +50,7 @@ import { NotchBridge } from "./components/voice/notchBridge";
 import { ParticleField } from "./style/ParticleField";
 import { useStyle } from "./style/styleMix";
 import { useNavSide } from "./style/useNavSide";
+import { useDesktopSync } from "./style/desktopSync";
 import { StudioRail } from "./components/studio/StudioRail";
 
 // Every tab is its own chunk (2026-09-16). The shell used to import all of them up front,
@@ -306,6 +307,8 @@ export default function App() {
   const studio = useStyle("studio");
   // Where the navigation bar goes (Settings › Appearance). Every look honours it now, not only Studio Glass.
   const navSide = useNavSide(studio);
+  // "Sync with desktop" (Settings › Appearance): the accent and wallpaper tint follow the Windows desktop.
+  useDesktopSync();
   const who = user
     ? user.role === "owner"
       ? { name: "Shagnik", role: "Owner" }

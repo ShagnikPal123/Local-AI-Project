@@ -1,8 +1,9 @@
 /** Settings › Appearance › Colour and layout: accent colour (swatches or any colour) and where the navigation bar sits. */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { fetchDesktopTheme } from "./desktopSync";
 import { clearTabOrder } from "../state/tabOrder";
-import { ACCENTS, applyAppearance, readAppearance, type NavChoice } from "./appearance";
+import { ACCENTS, applyAppearance, readAppearance, type DesktopTheme, type NavChoice } from "./appearance";
 
 const SIDES: { id: NavChoice; label: string }[] = [
   { id: "", label: "Look default" }, { id: "left", label: "Left" }, { id: "right", label: "Right" }, { id: "top", label: "Top" }, { id: "bottom", label: "Bottom" },
@@ -11,6 +12,8 @@ const SIDES: { id: NavChoice; label: string }[] = [
 export function AppearanceSection() {
   const [saved, setSaved] = useState(readAppearance());
   const set = (next: Parameters<typeof applyAppearance>[0]) => setSaved(applyAppearance(next));
+  const [desktop, setDesktop] = useState<DesktopTheme | null>(null);
+  useEffect(() => { void fetchDesktopTheme().then(setDesktop); }, []);
   return (
     <div className="appearance">
       <div className="appearance__row">
@@ -27,6 +30,21 @@ export function AppearanceSection() {
             Custom
           </label>
         </div>
+      </div>
+      <div className="appearance__row">
+        <span className="appearance__label">Sync with desktop</span>
+        <label className="appearance__custom" title="Use your desktop's accent colour and tint the app with your wallpaper">
+          <input type="checkbox" role="switch" checked={saved.sync} disabled={desktop !== null && !desktop.available}
+            onChange={(e) => set({ sync: e.target.checked })} aria-label="Sync with desktop colours" />
+          {saved.sync ? "On" : "Off"}
+        </label>
+        <span className="appearance__hint">
+          {desktop === null ? "Looking at your desktop…"
+            : !desktop.available ? "Only on Windows."
+            : desktop.accent ? <>Accent <span className="appearance__chip" style={{ background: desktop.accent }} aria-hidden="true" /> {desktop.accent}
+              {desktop.wallpaper_color && <> · wallpaper <span className="appearance__chip" style={{ background: desktop.wallpaper_color }} aria-hidden="true" /></>}</>
+            : "Your desktop's colours could not be read."}
+        </span>
       </div>
       <div className="appearance__row">
         <span className="appearance__label">Navigation bar</span>

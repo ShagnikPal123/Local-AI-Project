@@ -261,3 +261,4 @@ main > :not(.chat-shell):not(.hub):only-child { height: 100%; min-height: 0; ove
 .top-tabs--left .top-tabs__tab, .top-tabs--right .top-tabs__tab { border-radius: 14px; }
 .top-tabs--left .top-tabs__tab[aria-selected="true"]::after, .top-tabs--right .top-tabs__tab[aria-selected="true"]::after { left: -4px; top: 50%; margin: -9px 0 0; width: 3px; height: 18px; bottom: auto; }
 .top-tabs--bottom .top-tabs__tab[aria-selected="true"]::after { top: -3px; bottom: auto; }
+.appearance__chip { display: inline-block; width: 14px; height: 14px; border-radius: 999px; vertical-align: -2px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25); }
