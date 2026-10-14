@@ -89,6 +89,8 @@
   border-radius: inherit;
 }
 
+/* The strip that wakes the notch when the pointer reaches the top centre. It is drawn black (a hairline notch)
+   because the desktop window is clipped to what is drawn — a see-through strip showed the window's light backing. */
 .nx-wake {
   position: absolute;
   top: 0;
@@ -96,6 +98,8 @@
   transform: translateX(-50%);
   width: 240px;
   height: 6px;
+  background: #000;
+  border-radius: 0 0 3px 3px;
 }
 
 .nx-countdown {

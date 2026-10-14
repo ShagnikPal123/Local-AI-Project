@@ -39,8 +39,10 @@ const HEIGHTS: Record<View, number> = {
 const TAB_OF: Partial<Record<View, Tab>> = { home: "home", empty: "home", work: "home", agents: "home", app: "home",
   timer: "home", sound: "home", chat: "chat", drop: "new", uploading: "new", choose: "new", mail: "new", note: "new" };
 
+interface Shape { kind: "island" | "box"; x: number; y: number; w: number; h: number; r: number }
 interface HostApi {
   set_hit?: (x: number, y: number, w: number, h: number) => void;
+  set_shape?: (shapes: Shape[]) => void;
   open_app?: (tab: string) => void;
   hide?: () => void;
 }
@@ -297,9 +299,25 @@ export function Notch({ embedded = false }: { embedded?: boolean }) {
   }, [mode, size.w, size.h, volHover, pinned.length, activeTimers.length, soundPlaying]);
   useEffect(() => {
     if (embedded) return;
-    const id = window.setInterval(() => host()?.set_hit?.(0, 0, hit.current.w, hit.current.h), 500);
+    const id = window.setInterval(() => {
+      host()?.set_hit?.(0, 0, hit.current.w, hit.current.h);
+      reportShapes();
+    }, 500);
     return () => window.clearInterval(id);
   }, [embedded]);
+  // The window is clipped to what is drawn (notch_window.py, the "white box" fix), so while the island grows or
+  // shrinks its outline is sent every frame; afterwards the twice-a-second report above keeps it right.
+  useEffect(() => {
+    if (embedded) return;
+    let frame = 0;
+    const until = performance.now() + 700;
+    const step = () => {
+      reportShapes();
+      if (performance.now() < until) frame = requestAnimationFrame(step);
+    };
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [embedded, mode, view, size.w, size.h, volHover, pinned.length, activeTimers.length, soundPlaying]);
 
   // ── the big Io: clicks are slaps, three quick ones make it dizzy ─────────
   const ioState: IoState = view === "chat" && (sending || runningTurn) ? "thinking"
@@ -613,6 +631,34 @@ export function Notch({ embedded = false }: { embedded?: boolean }) {
       <IoClickCatcher onSlap={slap} islandRef={islandRef} />
     </div>
   );
+}
+
+/** The black shapes on the page right now, for the desktop window's outline. Read from the DOM so the island's
+ * CSS transition is followed as it runs. */
+function measureShapes(): Shape[] {
+  const shapes: Shape[] = [];
+  const box = (el: Element, kind: Shape["kind"], r: number) => {
+    const b = el.getBoundingClientRect();
+    if (b.width >= 1 && b.height >= 1) shapes.push({ kind, x: b.left, y: b.top, w: b.width, h: b.height, r });
+  };
+  const island = document.querySelector(".nx-island:not(.hidden)");
+  if (island) box(island, "island", parseFloat(getComputedStyle(island).borderBottomLeftRadius) || 0);
+  document.querySelectorAll(".nx-trio .nx-pill-top").forEach((pill) => box(pill, "box", pill.getBoundingClientRect().height / 2));
+  document.querySelectorAll(".nx-vol-pop").forEach((pop) => box(pop, "box", 14));
+  const wake = document.querySelector(".nx-wake");
+  if (wake) box(wake, "box", 3);
+  return shapes;
+}
+
+let lastShapes = "";
+function reportShapes(): void {
+  const send = host()?.set_shape;
+  if (!send) return;
+  const shapes = measureShapes();
+  const key = JSON.stringify(shapes.map((s) => [s.kind, Math.round(s.x), Math.round(s.y), Math.round(s.w), Math.round(s.h), Math.round(s.r)]));
+  if (key === lastShapes) return;
+  lastShapes = key;
+  send(shapes);
 }
 
 /** Clicking the big Io in an open view is a slap (Coucou §8); the views own their own clicks otherwise. */
