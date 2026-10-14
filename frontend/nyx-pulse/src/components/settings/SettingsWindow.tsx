@@ -17,10 +17,11 @@ import "./settings.css";
 const SettingsPanel = lazy(() => import("../../panels/SettingsPanel").then((m) => ({ default: m.SettingsPanel })));
 const DashboardPanel = lazy(() => import("../../panels/DashboardPanel").then((m) => ({ default: m.DashboardPanel })));
 const PowerPanel = lazy(() => import("../../panels/PowerPanel").then((m) => ({ default: m.PowerPanel })));
+import { ContextPage, ToolInfrastructurePage, ToolsPage } from "./PlatformPages";
 const WorkPanel = lazy(() => import("../../panels/WorkPanel").then((m) => ({ default: m.WorkPanel })));
 const DesignResearchPanel = lazy(() => import("../../panels/design/DesignResearchPanel").then((m) => ({ default: m.DesignResearchPanel })));
 
-export type SettingsPage = SettingsGroup | "status" | "power" | "memory" | "design";
+export type SettingsPage = SettingsGroup | "tools" | "toolinfra" | "context" | "status" | "power" | "memory" | "design";
 
 interface Page { id: SettingsPage; label: string; glyph: string; purpose: string }
 
@@ -29,10 +30,20 @@ const GROUPS: { title: string; pages: Page[] }[] = [
     title: "Ichos",
     pages: [
       { id: "general", label: "General", glyph: "⚙", purpose: "The engine, how Ichos opens, safety and response speed." },
-      { id: "intelligence", label: "Intelligence", glyph: "✦", purpose: "How Ichos thinks: models per job, personality, your mods." },
       { id: "voice", label: "Voice", glyph: "◉", purpose: "Voices you can hear before choosing, and the sounds Ichos answers to." },
       { id: "appearance", label: "Appearance", glyph: "◐", purpose: "Background and content settings." },
-      { id: "storage", label: "Storage", glyph: "▤", purpose: "What Ichos keeps on this PC, and how much room it takes." },
+    ],
+  },
+  // Named like Claude's platform docs (Drive doc 1, item 1.22). The ids of the two renamed pages stay the same, so
+  // old links to "intelligence" and "storage" still land here.
+  {
+    title: "Platform",
+    pages: [
+      { id: "intelligence", label: "Model capabilities", glyph: "✦", purpose: "How Ichos thinks: models per job, personality, your mods." },
+      { id: "tools", label: "Tools", glyph: "⚒", purpose: "What Ichos may do: each kind of action allowed, asked first, or off." },
+      { id: "toolinfra", label: "Tool infrastructure", glyph: "⧉", purpose: "The modules the tools come from, and any that did not load." },
+      { id: "context", label: "Context management", glyph: "≋", purpose: "How long chats are compacted to fit the model's window." },
+      { id: "storage", label: "Files and assets", glyph: "▤", purpose: "What Ichos keeps on this PC, and how much room it takes." },
     ],
   },
   {
@@ -122,6 +133,9 @@ export function SettingsWindow({ initial, onClose }: { initial?: SettingsPage; o
               <Suspense fallback={<TabLoading what={`Opening ${current.label}`} />}>
                 {(["general", "intelligence", "voice", "appearance", "storage"] as const).includes(page as SettingsGroup)
                   && <SettingsPanel group={page as SettingsGroup} />}
+                {page === "tools" && <ToolsPage />}
+                {page === "toolinfra" && <ToolInfrastructurePage />}
+                {page === "context" && <ContextPage />}
                 {page === "status" && <DashboardPanel />}
                 {page === "power" && <PowerPanel />}
                 {page === "memory" && <WorkPanel />}
