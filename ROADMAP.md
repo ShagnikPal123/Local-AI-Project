@@ -336,8 +336,8 @@ Personalities have **two independent axes**:
 
 - [x] **AA1** — Local account login *(session 4 — `auth.py`, scrypt hashes, 48 tests)*
 - [~] **AA2** — Google OAuth login *(account-binding done in `auth.py`; still needs the Google token-verification round trip + a button in `AuthScreen.tsx`)*
-- [x] **AA3** — Owner admin account for `shagnikpal@gmail.com` *(session 4)*.
-      Built as designed: `python admin_setup.py claim shagnikpal@gmail.com` creates the
+- [x] **AA3** — Owner admin account for `<your-email>` *(session 4)*.
+      Built as designed: `python admin_setup.py claim <your-email>` creates the
       account with **no password**, then prompts for one at a hidden prompt and stores only
       a salted scrypt hash. No credential exists anywhere in the repo. The password shared
       in chat was never used and must not be — treat it as compromised.

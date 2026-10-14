@@ -72,7 +72,7 @@ class ConfirmationRequired(MachineControlError):
 @dataclass
 class Grant:
     capability: Capability
-    # Glob narrowing the grant, e.g. "C:/Users/shagn/Projects/*". Empty means
+    # Glob narrowing the grant, e.g. "C:/Users/<you>/Projects/*". Empty means
     # the whole capability, which is deliberately harder to read as safe.
     scope: str = ""
     granted_by: str = ""

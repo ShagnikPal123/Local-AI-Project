@@ -28,7 +28,7 @@ the next session reads this file plus `ROADMAP.md` and picks up exactly where wo
 **1. The password shared in chat is compromised.** `Shagnik2007!` was sent in plaintext
 through a chat transcript. It is **not** in the code and never was. Treat it as burned — do
 not use it here or anywhere else.
-*Resolved in code (session 4):* `python admin_setup.py claim shagnikpal@gmail.com` creates
+*Resolved in code (session 4):* `python admin_setup.py claim <your-email>` creates
 the owner account with no password, then reads one from a hidden prompt and stores only a
 salted scrypt hash. `auth.json` is gitignored. You choose the secret; it never reaches the
 repo or me.

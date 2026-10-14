@@ -2,7 +2,7 @@
 
 Run this to claim the owner account and to mint beta-tester invites.
 
-    python admin_setup.py claim shagnikpal@gmail.com
+    python admin_setup.py claim <your-email>
     python admin_setup.py invite --role beta
     python admin_setup.py invite --role beta --email friend@example.com
     python admin_setup.py list
