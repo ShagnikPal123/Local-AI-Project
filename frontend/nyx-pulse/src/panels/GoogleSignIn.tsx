@@ -16,6 +16,7 @@ interface RedirectHelp { client_type: string; needs_registration: boolean; messa
 interface Status {
   client_configured: boolean; connected: string[]; redirect_uri: string; products?: Record<string, string[]>;
   client_type?: string; redirect_help?: RedirectHelp;
+  all_products?: string[]; enable_all_url?: string;
 }
 
 interface Props {
@@ -70,8 +71,10 @@ export function GoogleSignIn({ products, title, enableUrl, apiName }: Props = {}
     window.setTimeout(() => setCopied(false), 2000);
   }
 
-  async function signIn() {
-    const result = await api.post<{ auth_url: string }>("/api/google/oauth/start", { login_hint: hint, products: products ?? [] });
+  async function signIn(everything = false) {
+    // One Google screen for every app: the server already merges scopes, so this only names them all.
+    const asked = everything ? status?.all_products ?? [] : products ?? [];
+    const result = await api.post<{ auth_url: string }>("/api/google/oauth/start", { login_hint: hint, products: asked });
     if (!result.ok) { setMessage({ ok: false, text: result.error }); return; }
     window.open(result.data.auth_url, "_blank", "noopener");
     setWaiting(true);
@@ -128,6 +131,11 @@ export function GoogleSignIn({ products, title, enableUrl, apiName }: Props = {}
             <button className="btn btn-primary google-signin__button" onClick={() => void signIn()} disabled={waiting}>
               {waiting ? "Waiting for Google…" : connected.length ? "Sign In Another Account" : "Sign In with Google"}
             </button>
+            {(status.all_products?.length ?? 0) > 1 && (
+              <button type="button" className="btn btn-secondary" onClick={() => void signIn(true)} disabled={waiting}>
+                Connect All Google Apps
+              </button>
+            )}
             <button type="button" className="btn btn-secondary" onClick={() => setEditingClient(true)}>Change Client</button>
           </div>
           {status.redirect_help?.needs_registration && (
@@ -137,6 +145,12 @@ export function GoogleSignIn({ products, title, enableUrl, apiName }: Props = {}
                 <button type="button" className="btn btn-secondary" onClick={() => void copyRedirect(status.redirect_help!.redirect_uri)}>{copied ? "Copied" : "Copy"}</button></p>
               <ul>{(status.redirect_help.steps ?? []).map((step) => <li key={step}>{step}</li>)}</ul>
             </div>
+          )}
+          {status.enable_all_url && (
+            <p className="keys-notes">
+              <b>Connect All Google Apps</b> asks for Gmail, Calendar, Drive, Docs, Sheets, Slides and Tasks in one Google screen.
+              Turn their APIs on first in one go: <a href={status.enable_all_url} target="_blank" rel="noopener noreferrer">Enable all Google APIs ↗</a>.
+            </p>
           )}
           <p className="keys-notes">Google may say the app isn't verified — that's your own test app. Choose <b>Continue</b>.</p>
         </div>
