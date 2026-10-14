@@ -129,6 +129,15 @@ export function ClapListener() {
         // The clap's own line is the hello; the listening it starts must not add the intro on top.
         if (action === "listen") { if (speak) greetedSession.current = true; setVoiceMode("talk"); }
         if (action === "command" && text.trim()) {
+          // Voice to action (Fixer Upper S6, "like Jev opens tabs in a second"): a desktop command ("open chrome") is
+          // done by Ultra Fast at once, with no model; only what is not a desktop command goes to the chat.
+          const fast = await api.post<{ handled: boolean; ok?: boolean; reply: string; ms: number }>(
+            "/api/ultrafast", { text: text.trim() }, 10_000);
+          if (fast.ok && fast.data.handled) {
+            if (fast.data.reply) void speakText(fast.data.reply, { role: "reply" });
+            pushToast(`Heard “${gesture.name}” — ${fast.data.reply} (${Math.round(fast.data.ms)} ms)`, fast.data.ok === false ? "warn" : "info");
+            return;
+          }
           sendToChat("nyx:chat-send", { text: text.trim() });
         }
         pushToast(`Heard “${gesture.name}”.`, "info");
