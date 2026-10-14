@@ -2,8 +2,9 @@
  *  plain subtitle so they stay findable: Constellations (Projects), Quasars (Artifacts), Orbits (Scheduled), Fractal (Design).
  *  Data and rules live in projects.py / scheduled.py; nothing here runs code. */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../api";
+import { CommanderView } from "../../components/commander/CommanderView";
 import "./constellations.css";
 
 interface Group { id: string; name: string; about?: string; auto: boolean; tabs: string[] }
@@ -37,7 +38,20 @@ export function ProjectsPanel() {
   const [name, setName] = useState("");
   const [member, setMember] = useState("");
   const [error, setError] = useState("");
+  const [view, setView] = useState<"chat" | "setup">("chat");
+  const [mainChat, setMainChat] = useState<Record<string, string>>({});
   const project = projects.find((p) => p.id === sel) ?? projects[0];
+
+  // A project's main chat (its delegator) is made the first time the project is opened. Once per project: a reload
+  // while the first request is still out must not make a second chat.
+  const opening = useRef(new Set<string>());
+  useEffect(() => {
+    if (!project || mainChat[project.id] || opening.current.has(project.id)) return;
+    opening.current.add(project.id);
+    void api.post<{ chat_id: string }>(`/api/commander/projects/${project.id}/chat`).then((r) => {
+      if (r.ok) setMainChat((m) => ({ ...m, [project.id]: r.data.chat_id })); else setError(r.error);
+    });
+  }, [project, mainChat]);
 
   const load = useCallback(async () => {
     const r = await api.get<{ projects: Project[] }>("/api/projects");
@@ -79,7 +93,15 @@ export function ProjectsPanel() {
         </div>
 
         {project && (
-          <div style={{ display: "grid", gap: 14 }}>
+          <div style={{ display: "grid", gap: 14, minWidth: 0 }}>
+            <div className="cx-row" role="tablist" aria-label={`${project.name} views`}>
+              <button role="tab" aria-selected={view === "chat"} className={`cx-chip ${view === "chat" ? "is-on" : ""}`} onClick={() => setView("chat")}>Main chat and threads</button>
+              <button role="tab" aria-selected={view === "setup"} className={`cx-chip ${view === "setup" ? "is-on" : ""}`} onClick={() => setView("setup")}>Setup</button>
+            </div>
+            {view === "chat" && (mainChat[project.id]
+              ? <CommanderView key={project.id} chatId={mainChat[project.id]} projectId={project.id} name={project.name} />
+              : <p className="cx-muted">Opening the main chat…</p>)}
+            {view === "setup" && <>
             <section className="cx-card">
               <input defaultValue={project.name} key={project.id + project.name} aria-label="Project name" style={{ fontWeight: 600, fontSize: 16 }}
                 onBlur={(e) => { if (e.target.value.trim() && e.target.value !== project.name) void act(() => api.put(`/api/projects/${project.id}`, { name: e.target.value })); }} />
@@ -127,6 +149,7 @@ export function ProjectsPanel() {
               </div>
               <p className="cx-muted">Agents and sub-agents are added by name from chat: “put the Researcher agent on {project.name}”.</p>
             </section>
+            </>}
           </div>
         )}
       </div>
