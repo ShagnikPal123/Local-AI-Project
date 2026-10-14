@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- App icon: the full mark on a dark rounded tile (128 px and up). -->
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#121a33"/><stop offset="1" stop-color="#060912"/></linearGradient></defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect x="3" y="3" width="506" height="506" rx="109" fill="none" stroke="#8FE3FF" stroke-opacity=".14" stroke-width="6"/>
+  <g transform="translate(76 76) scale(0.703)">
+  <defs>
+    <linearGradient id="g2" gradientUnits="userSpaceOnUse" x1="40" y1="40" x2="470" y2="470">
+      <stop offset="0" stop-color="#8FE3FF"/>
+      <stop offset="0.5" stop-color="#3D8BFF"/>
+      <stop offset="1" stop-color="#2A3FD8"/>
+    </linearGradient>
+  </defs>
+  <g fill="none" stroke="url(#g2)" stroke-width="38" stroke-linecap="round" stroke-linejoin="round">
+    <!-- the i -->
+    <path d="M70 196 V392"/>
+    <!-- the arch: rises from the stem's foot side, over the top -->
+    <path d="M140 392 C132 230 190 92 318 76"/>
+    <!-- the leaf -->
+    <path d="M140 300 C176 210 236 136 318 76 C304 176 252 252 140 300 Z"/>
+    <!-- the sail: a sharp tip top-right, down the diagonal, then the hook -->
+    <path d="M420 300 L262 296 L458 64 C470 230 440 380 360 436 C300 478 220 470 206 420 C196 384 232 360 268 372" stroke-linejoin="miter" stroke-miterlimit="24"/>
+  </g>
+  <circle cx="72" cy="124" r="26" fill="url(#g2)"/>
+</g>
+</svg>

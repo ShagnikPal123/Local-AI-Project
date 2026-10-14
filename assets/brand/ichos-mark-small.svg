@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Ichos mark for small sizes (favicon, 16-64 px icons): the i and the sail only, thicker strokes, so it stays readable. -->
+  <defs>
+    <linearGradient id="g" gradientUnits="userSpaceOnUse" x1="40" y1="40" x2="470" y2="470">
+      <stop offset="0" stop-color="#8FE3FF"/>
+      <stop offset="0.5" stop-color="#3D8BFF"/>
+      <stop offset="1" stop-color="#2A3FD8"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(40 58) scale(0.85)">
+  <g fill="none" stroke="url(#g)" stroke-width="64" stroke-linecap="round">
+    <path d="M96 230 V430"/>
+    <path d="M430 330 L232 318 L466 46 C478 230 446 380 362 438 C300 480 214 470 200 418" stroke-linejoin="miter" stroke-miterlimit="24"/>
+  </g>
+  <circle cx="96" cy="128" r="42" fill="url(#g)"/>
+  </g>
+</svg>

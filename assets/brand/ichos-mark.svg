@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Ichos mark (owner, Fixer Upper p33 and p39): an i, an arch and a leaf, and a sail with one sharp tip and a hook. One blue, lighter top-left to deeper bottom-right. Asymmetric on purpose. -->
+  <defs>
+    <linearGradient id="g" gradientUnits="userSpaceOnUse" x1="40" y1="40" x2="470" y2="470">
+      <stop offset="0" stop-color="#8FE3FF"/>
+      <stop offset="0.5" stop-color="#3D8BFF"/>
+      <stop offset="1" stop-color="#2A3FD8"/>
+    </linearGradient>
+  </defs>
+  <g fill="none" stroke="url(#g)" stroke-width="38" stroke-linecap="round" stroke-linejoin="round">
+    <!-- the i -->
+    <path d="M70 196 V392"/>
+    <!-- the arch: rises from the stem's foot side, over the top -->
+    <path d="M140 392 C132 230 190 92 318 76"/>
+    <!-- the leaf -->
+    <path d="M140 300 C176 210 236 136 318 76 C304 176 252 252 140 300 Z"/>
+    <!-- the sail: a sharp tip top-right, down the diagonal, then the hook -->
+    <path d="M420 300 L262 296 L458 64 C470 230 440 380 360 436 C300 478 220 470 206 420 C196 384 232 360 268 372" stroke-linejoin="miter" stroke-miterlimit="24"/>
+  </g>
+  <circle cx="72" cy="124" r="26" fill="url(#g)"/>
+</svg>
