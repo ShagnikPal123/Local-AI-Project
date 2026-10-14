@@ -133,12 +133,19 @@ export function useActiveTalk({ enabled, turn }: {
       const running = turn.steps?.filter((step) => step.status === "running") ?? [];
       const step = running[running.length - 1];
       const now = Date.now();
+      const line = step ? step.label || `${step.name.replace(/_/g, " ")}…` : "";
+      // The same line is said once per answer: three web searches in a row were "Searching the web…" three times
+      // (Fixer Upper S33, "it repeats itself").
+      const lineKey = `line:${line.toLowerCase().replace(/[.…\s]+$/, "")}`;
       if (step && !spokenSteps.current.has(step.callId ?? step.name) && now - lastProgress.current > PROGRESS_GAP_MS
           && progressCount.current < MAX_PROGRESS) {
         spokenSteps.current.add(step.callId ?? step.name);
-        lastProgress.current = now;
-        progressCount.current += 1;
-        say(step.label || `${step.name.replace(/_/g, " ")}…`, "narrator");
+        if (!spokenSteps.current.has(lineKey)) {
+          spokenSteps.current.add(lineKey);
+          lastProgress.current = now;
+          progressCount.current += 1;
+          say(line, "narrator");
+        }
       }
     }
   }, [enabled, turn?.state, turn?.turnId, turn?.steps?.length, turn?.answer, say]); // eslint-disable-line react-hooks/exhaustive-deps
