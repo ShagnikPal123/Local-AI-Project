@@ -71,29 +71,24 @@ export function visibleTabs(role: string | undefined): TabDef[] {
 export const CORE_TABS: TabDef[] = [
   // Redesign 2026-10-10 (owner): chat is home, and Game Studio, drawing and the Second Brain open as windows inside it.
   { id: "nyx", label: "Chat", icon: "ph-chat-circle", pinned: true, core: true },
-  // Research + Data Absorption + Apply, one tab with three sections.
-  { id: "research", label: "Research Lab", icon: "ph-magnifying-glass", pinned: true, core: true },
-  { id: "learn", label: "Learn", icon: "ph-graduation-cap", pinned: true, core: true },
-  { id: "code", label: "Code", icon: "ph-code", pinned: true, core: true },
-  // Agents + Sub-agents.
-  { id: "agents", label: "Agents", icon: "ph-tree-structure", pinned: true, core: true },
-  { id: "collab", label: "Collab · WIP", icon: "ph-git-pull-request", pinned: false, core: true },
-  { id: "trading", label: "Trading", icon: "ph-chart-line-up", pinned: true, core: true },
-  { id: "improve", label: "Improve", icon: "ph-arrows-clockwise", pinned: true, core: true },
-  { id: "freewill", label: "Free Will", icon: "ph-sparkle", pinned: true, core: true },
-  { id: "kahuna", label: "Big Kahuna", icon: "ph-crown-simple", pinned: true, core: true },
-  // Office Space + World (+ the court they share).
-  { id: "office", label: "Office & World", icon: "ph-buildings", pinned: true, core: true },
-  { id: "equalize", label: "Equalize", icon: "ph-circles-three", pinned: true, core: true },
-  // A swarm of simulated people forecasts anything (predict.py; the MiroFish idea, owner 2026-10-10).
-  { id: "predict", label: "Predict", icon: "ph-crystal-ball", pinned: true, core: true },
+  // Fewer tabs (owner, Drive doc 1, 2026-10-14: "fewer tabs by combining, look closer to other AI apps"). Each old tab is
+  // now a section of one of these, and every old link, name and ui_open_tab call still lands on it (REDIRECTS below).
+  // Sidebar of the owner's reference (2026-10-11): Constellations, Quasars, Orbits, Fractal — space / maths names, plain subtitles.
+  { id: "projects", label: "Constellations", icon: "ph-planet", pinned: true, core: true },
   // Always-on helpers the owner shapes (avatars.py): main function, schedule, functions, goals, watches, taught tasks.
   { id: "avatars", label: "Avatars", icon: "ph-users-three", pinned: true, core: true },
-  // Sidebar of the owner's reference (2026-10-11): Projects, Artifacts, Scheduled, Design — space / maths names, plain subtitles.
-  { id: "projects", label: "Constellations", icon: "ph-planet", pinned: true, core: true },
-  { id: "artifacts", label: "Quasars", icon: "ph-sparkle", pinned: true, core: true },
-  { id: "scheduled", label: "Orbits", icon: "ph-clock-clockwise", pinned: true, core: true },
-  { id: "design", label: "Fractal", icon: "ph-pen-nib", pinned: true, core: true },
+  // Agents + Sub-agents + Big Kahuna.
+  { id: "agents", label: "Agents", icon: "ph-tree-structure", pinned: true, core: true },
+  // Research + Predict + Data Absorption + Apply, one tab with four sections.
+  { id: "research", label: "Research Lab", icon: "ph-magnifying-glass", pinned: true, core: true },
+  // Code + Collab (working on code with other people, still being built).
+  { id: "code", label: "Code", icon: "ph-code", pinned: true, core: true },
+  // Office Space + World (+ the court they share).
+  { id: "office", label: "Office & World", icon: "ph-buildings", pinned: true, core: true },
+  { id: "trading", label: "Trading", icon: "ph-chart-line-up", pinned: true, core: true },
+  // Improve + Learn + Free Will (the Integrity team removes Free Will; its third mind moves to the info page).
+  { id: "improve", label: "Improve", icon: "ph-arrows-clockwise", pinned: true, core: true },
+  { id: "equalize", label: "Equalize", icon: "ph-circles-three", pinned: true, core: true },
   // Ichos's own computer + Screen Share.
   { id: "computer", label: "Computer", icon: "ph-desktop-tower", pinned: true, core: true },
   // Connectors + Keys & Models + Models + Add capability.
@@ -130,6 +125,15 @@ export const REDIRECTS: Record<string, Redirect> = {
   power: { kind: "settings", page: "power" },
   work: { kind: "settings", page: "memory" },
   design_research: { kind: "settings", page: "design" },
+  // Merged on 2026-10-14 (doc 1, "fewer tabs"): each lives on as a section of the tab named here.
+  artifacts: { kind: "hub", tab: "projects", section: "artifacts" },
+  scheduled: { kind: "hub", tab: "projects", section: "scheduled" },
+  design: { kind: "hub", tab: "projects", section: "design" },
+  kahuna: { kind: "hub", tab: "agents", section: "kahuna" },
+  predict: { kind: "hub", tab: "research", section: "predict" },
+  collab: { kind: "hub", tab: "code", section: "collab" },
+  learn: { kind: "hub", tab: "improve", section: "learn" },
+  freewill: { kind: "hub", tab: "improve", section: "freewill" },
 };
 
 /** Old names people (and Nyx) still say, so voice and ui_open_tab can find the new home. */
@@ -142,6 +146,9 @@ export const LEGACY_LABELS: { id: string; label: string }[] = [
   { id: "computer", label: "Nyx's Computer" }, { id: "world", label: "World" }, { id: "office", label: "Office Space" },
   { id: "projects", label: "Projects" }, { id: "artifacts", label: "Artifacts" }, { id: "scheduled", label: "Scheduled" },
   { id: "design", label: "Design" }, { id: "court", label: "Court" }, { id: "nyx", label: "Nyx" }, { id: "nyx", label: "Second Brain" },
+  { id: "projects", label: "Constellations" }, { id: "artifacts", label: "Quasars" }, { id: "scheduled", label: "Orbits" },
+  { id: "design", label: "Fractal" }, { id: "kahuna", label: "Big Kahuna" }, { id: "predict", label: "Predict" },
+  { id: "collab", label: "Collab" }, { id: "collab", label: "Collab · WIP" }, { id: "learn", label: "Learn" }, { id: "freewill", label: "Free Will" },
 ];
 
 export type ShellLayout = "rail" | "strip";

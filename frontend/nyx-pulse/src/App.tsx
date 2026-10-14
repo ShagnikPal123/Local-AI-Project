@@ -472,19 +472,23 @@ export default function App() {
         <Suspense fallback={<div className="tab-loading" role="status"><span className="tab-loading__dot" />Opening…</div>}>
         {active === "nyx" && <ChatHome onActivity={onActivity} provider={provider} onProvider={setProvider} who={who}
           onSearch={() => setFinderOpen(true)} onStatus={() => setSettings({ open: true, page: "status" })} />}
-        {active === "learn" && <LearnPanel />}
         {active === "notes" && <NotesPanel />}
-        {active === "code" && <CodePanel />}
-        {active === "collab" && (
-          <WorkInProgress title="Collab" why="Working on code together with other people is being built — the page is here so you can see where it is going, but it is not up and running yet.">
-            <CollabPanel />
-          </WorkInProgress>
+        {active === "code" && (
+          <HubPanel id="code" title="Code" sections={[
+            { id: "code", label: "Code", purpose: "Open a folder, read and edit files, and ask Ichos about any lines.", render: () => <CodePanel /> },
+            { id: "collab", label: "Collab · WIP", purpose: "Working on code together with other people (being built).", render: () => (
+              <WorkInProgress title="Collab" why="Working on code together with other people is being built — the page is here so you can see where it is going, but it is not up and running yet.">
+                <CollabPanel />
+              </WorkInProgress>
+            ) },
+          ]} />
         )}
         {active === "trading" && <TradingPanel />}
         {active === "build" && <BuildPanel />}
         {active === "research" && (
           <HubPanel id="research" title="Research Lab" sections={[
             { id: "research", label: "Research", purpose: "Deep research on any question, with sources you can check.", render: () => <ResearchPanel /> },
+            { id: "predict", label: "Predict", purpose: "A swarm of simulated people forecasts anything you ask.", render: () => <PredictPanel /> },
             { id: "absorb", label: "Absorb", purpose: "Ichos studies documents and keeps what you approve.", render: () => <AbsorbPanel /> },
             { id: "apply", label: "Apply", purpose: "Describe a change to Ichos itself; each step applies only when you press it.", render: () => <ApplyPanel /> },
           ]} />
@@ -493,6 +497,7 @@ export default function App() {
           <HubPanel id="agents" title="Agents" sections={[
             { id: "agents", label: "Team", purpose: "Every agent Ichos can call, how they connect, and what each is for.", render: () => <AgentsPanel /> },
             { id: "subagents", label: "Sub-agents", purpose: "Your own helpers: make one, give it a job, run it.", render: () => <SubAgentsPanel /> },
+            { id: "kahuna", label: "Big Kahuna", purpose: "The main router: it hears every request and picks who handles it.", render: () => <KahunaPanel /> },
           ]} />
         )}
         {active === "computer" && (
@@ -509,17 +514,24 @@ export default function App() {
             { id: "store", label: "Add capability", purpose: "Skills, tools and connectors you can add.", render: () => <StorePanel /> },
           ]} />
         )}
-        {active === "improve" && <ImprovePanel />}
-        {active === "freewill" && <FreeWillPanel />}
-        {active === "kahuna" && <KahunaPanel />}
+        {active === "improve" && (
+          <HubPanel id="improve" title="Improve" sections={[
+            { id: "improve", label: "Improve", purpose: "Ichos finds ways to get better; you review every change.", render: () => <ImprovePanel /> },
+            { id: "learn", label: "Learn", purpose: "What Ichos has learned and how much it knows.", render: () => <LearnPanel /> },
+            { id: "freewill", label: "Free Will", purpose: "What Ichos wonders about and wants when nobody is asking.", render: () => <FreeWillPanel /> },
+          ]} />
+        )}
         {active === "office" && <OfficeWorldPanel />}
-        {active === "predict" && <PredictPanel />}
         {active === "equalize" && <EqualizePanel />}
         {active === "avatars" && <AvatarsPanel />}
-        {active === "projects" && <ProjectsPanel />}
-        {active === "artifacts" && <ArtifactsPanel />}
-        {active === "scheduled" && <ScheduledPanel />}
-        {active === "design" && <DesignPanel />}
+        {active === "projects" && (
+          <HubPanel id="projects" title="Constellations" sections={[
+            { id: "projects", label: "Constellations", purpose: "Your projects: a folder of chats, helpers and files that belong together.", render: () => <ProjectsPanel /> },
+            { id: "artifacts", label: "Quasars", purpose: "Things Ichos made for you, kept in one place.", render: () => <ArtifactsPanel /> },
+            { id: "scheduled", label: "Orbits", purpose: "Tasks that run on a repeat.", render: () => <ScheduledPanel /> },
+            { id: "design", label: "Fractal", purpose: "Design templates to start from.", render: () => <DesignPanel /> },
+          ]} />
+        )}
         {active === "admin" && (
           <WorkInProgress title="Admin access" why="Who may do what in Ichos is being hardened for safety. Until it is finished, keep admin rights to the owner account only.">
             <AdminPanel />
