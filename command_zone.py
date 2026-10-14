@@ -404,8 +404,19 @@ def ensure_chat(store: Any) -> str:
 
 
 def brief_for_chat(chat_id: str) -> str:
-    """The routing brief when a turn runs in the Command Zone chat, else nothing."""
-    return DISPATCH_BRIEF if chat_id and chat_id == INBOX.chat_id else ""
+    """The routing brief when a turn runs in the Command Zone chat or a Commander chat (commander.py), else nothing.
+
+    Both are briefs that make the chat hand work out instead of answering alone, so they share this one hook in the
+    turn runner and one prefix (the runner drops the last turn's brief by it before adding this turn's).
+    """
+    if chat_id and chat_id == INBOX.chat_id:
+        return DISPATCH_BRIEF
+    try:
+        import commander
+
+        return commander.brief(chat_id)
+    except Exception:  # noqa: BLE001 - a broken Commander store must never block a turn
+        return ""
 
 
 def idea_message(item: Dict[str, Any]) -> str:
