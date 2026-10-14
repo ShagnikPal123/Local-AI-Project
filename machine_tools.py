@@ -287,6 +287,93 @@ def search_files(query: str, root: str = "", limit: int = 50) -> str:
     return "\n".join(lines)
 
 
+# ---------------------------------------------------------------------------
+# Digging (Drive doc 1, item 1.20): searching the whole PC, outside the usual folders
+# ---------------------------------------------------------------------------
+# Off until the owner turns it on in Settings > Tools, with the drives he picks. The assistant can switch it off when
+# asked but never on: widening what it may look through is the owner's call, not the model's.
+
+_DIG_SKIP = {"windows", "program files", "program files (x86)", "programdata", "$recycle.bin", "system volume information",
+             "appdata", "node_modules", ".git", ".venv", "venv", "__pycache__", "$windows.~bt", "recovery"}
+
+
+def _digging_path() -> Path:
+    from paths import data_path
+
+    folder = data_path("security")
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder / "digging.json"
+
+
+def all_drives() -> List[str]:
+    """Drive roots on this PC (C:\\, D:\\ ...), or / elsewhere."""
+    if sys.platform != "win32":
+        return ["/"]
+    return [f"{letter}:\\" for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ" if Path(f"{letter}:\\").exists()]
+
+
+def digging_settings() -> Dict[str, Any]:
+    try:
+        saved = json.loads(_digging_path().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        saved = {}
+    drives = [str(d) for d in (saved.get("drives") or []) if isinstance(d, str)]
+    return {"on": bool(saved.get("on", False)), "drives": drives, "available": all_drives()}
+
+
+def save_digging(on: Optional[bool] = None, drives: Optional[List[str]] = None) -> Dict[str, Any]:
+    current = digging_settings()
+    if on is not None:
+        current["on"] = bool(on)
+    if drives is not None:
+        current["drives"] = [str(d) for d in drives if str(d).strip()][:26]
+    _digging_path().write_text(json.dumps({"on": current["on"], "drives": current["drives"]}, indent=1),
+                               encoding="utf-8")
+    return digging_settings()
+
+
+def dig_files(query: str, limit: int = 60) -> str:
+    """Find files by name across the drives the owner chose, grouped by folder so related files sit together."""
+    state = digging_settings()
+    if not state["on"]:
+        return ("Digging is off, so I can only search your usual folders (search_files). The owner can turn it on "
+                "in Settings > Tools > Digging and pick which drives.")
+    pattern = (query or "").strip()
+    if not pattern:
+        return "Error: give part of a file name, or a wildcard like *.pdf."
+    if not any(ch in pattern for ch in "*?"):
+        pattern = f"*{pattern}*"
+    roots = [Path(d) for d in (state["drives"] or state["available"]) if Path(d).is_dir()]
+    if not roots:
+        return "Error: none of the chosen drives is reachable right now."
+    limit = max(1, min(int(limit or 60), 300))
+    found: List[Path] = []
+    scanned = 0
+    deadline = time.monotonic() + 60
+    for root in roots:
+        for folder, dirs, files in os.walk(root):
+            dirs[:] = [d for d in dirs if d.lower() not in _DIG_SKIP and not d.startswith(".")]
+            for name in files:
+                scanned += 1
+                if fnmatch.fnmatch(name.lower(), pattern.lower()):
+                    found.append(Path(folder) / name)
+            if len(found) >= limit * 2 or time.monotonic() > deadline:
+                break
+    by_folder: Dict[str, List[str]] = {}
+    for item in found[:limit]:
+        by_folder.setdefault(str(item.parent), []).append(item.name)
+    lines = [f"{len(found)} match(es) for {pattern} on {', '.join(str(r) for r in roots)} ({scanned:,} files checked):"]
+    for folder in sorted(by_folder):
+        lines.append(f"{folder}")
+        lines.extend(f"  - {name}" for name in sorted(by_folder[folder]))
+    return "\n".join(lines)
+
+
+def stop_digging() -> str:
+    save_digging(on=False)
+    return "Digging is off. Searches stay in your usual folders until you turn it back on in Settings."
+
+
 def file_info(path: str) -> str:
     target = _resolve(path)
     if not target.exists():
@@ -705,6 +792,13 @@ def register_machine_tools(registry: Any) -> None:
          P("root", "string", "Folder to search (default: your user folder)", required=False),
          P("limit", "number", "Max results (default 50)", required=False)],
         search_files, "files.read", lambda a: f"Searching for {str(a.get('query', ''))[:50]}")
+    reg("dig_files", "Dig through the whole PC (the drives the owner allowed) for files by name, grouped by folder. "
+        "Only works when the owner has turned Digging on; use search_files for the usual folders.",
+        [P("query", "string", "Part of the name or a wildcard"),
+         P("limit", "number", "Max results (default 60)", required=False)],
+        dig_files, "files.read", lambda a: f"Digging for {str(a.get('query', ''))[:50]}")
+    reg("stop_digging", "Turn Digging off when the user asks (turning it on is only done in Settings).", [],
+        stop_digging, "files.read", "Turning digging off")
     reg("file_info", "Size, dates and type of a file or folder.", [P("path", "string", "Path")],
         file_info, "files.read", lambda a: f"Inspecting {Path(str(a.get('path', ''))).name}")
     reg("list_drives", "Drives on this PC with free space.", [], list_drives, "files.read", "Listing drives")

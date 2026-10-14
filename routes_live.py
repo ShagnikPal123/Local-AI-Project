@@ -792,6 +792,29 @@ def set_permissions(body: PermissionsUpdate, request: Request) -> Dict[str, Any]
     return snapshot
 
 
+class DiggingUpdate(BaseModel):
+    on: Optional[bool] = None
+    drives: Optional[List[str]] = None
+
+
+@router.get("/api/digging")
+def get_digging(_user=RequireChat) -> Dict[str, Any]:
+    """Drive doc 1, item 1.20: whether the assistant may search the whole PC, and which drives."""
+    import machine_tools
+
+    return machine_tools.digging_settings()
+
+
+@router.post("/api/digging")
+def set_digging(body: DiggingUpdate, request: Request) -> Dict[str, Any]:
+    """Only the owner on this PC widens what the assistant may look through, like the permission modes."""
+    import machine_tools
+    import server
+
+    server.require_local_owner(request, request.headers.get("authorization"))
+    return machine_tools.save_digging(body.on, body.drives)
+
+
 # ---------------------------------------------------------------------------
 # The workspace event stream
 # ---------------------------------------------------------------------------

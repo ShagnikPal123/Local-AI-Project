@@ -132,3 +132,39 @@ def test_blocked_category_is_enforced_by_the_registry(monkeypatch, tmp_path):
     permissions.POLICY.update(categories={"shell": "block"})
     result = registry.call_tool("run_command", command="Write-Output hi")
     assert result.startswith("Blocked")
+
+
+# --- Digging (Drive doc 1, item 1.20) -----------------------------------------
+
+
+@pytest.fixture
+def dig_file(monkeypatch, tmp_path):
+    path = tmp_path / "digging.json"
+    monkeypatch.setattr(machine_tools, "_digging_path", lambda: path)
+    return path
+
+
+def test_digging_is_off_by_default_and_refuses(dig_file):
+    assert machine_tools.digging_settings()["on"] is False
+    assert "Digging is off" in machine_tools.dig_files("report")
+
+
+def test_digging_finds_files_on_the_chosen_drive_grouped_by_folder(dig_file, tmp_path):
+    drive = tmp_path / "drive"
+    (drive / "work").mkdir(parents=True)
+    (drive / "work" / "tax-report.pdf").write_text("x")
+    (drive / "node_modules").mkdir()
+    (drive / "node_modules" / "report.js").write_text("x")
+    machine_tools.save_digging(on=True, drives=[str(drive)])
+    out = machine_tools.dig_files("report")
+    assert "tax-report.pdf" in out and str(drive / "work") in out
+    assert "report.js" not in out  # skipped folders stay skipped
+
+
+def test_the_assistant_can_only_switch_digging_off(dig_file):
+    machine_tools.save_digging(on=True, drives=[])
+    registry = ToolRegistry()
+    machine_tools.register_machine_tools(registry)
+    assert "stop_digging" in registry.tools and "start_digging" not in registry.tools
+    machine_tools.stop_digging()
+    assert machine_tools.digging_settings()["on"] is False
