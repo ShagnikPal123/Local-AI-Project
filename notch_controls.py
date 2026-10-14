@@ -66,7 +66,9 @@ DEFAULTS: Dict[str, Any] = {
     # The left row of the reference image (p05): settings, sound, display, theme; the right row is the owner's apps.
     "system": ["settings", "technical", "sound", "display", "theme", "explorer", "cmd"],
     "launchers": [],
-    "home": {"default": "apps", "views": ["apps", "now_playing", "weather", "calendar"], "city": "",
+    # The Io view with the agents is home (owner, 2026-10-14: of the two homes, "the other one looks better"); the
+    # controls dashboard is one triple click away.
+    "home": {"default": "agents", "views": ["agents", "apps", "now_playing", "weather", "calendar"], "city": "",
              "triple_click": True},
     # Where the notch and the hands-off sidebar sit, and whether they are locked there (Fixer Upper S2: "They can be
     # dragged and locked onto a part of the screen"). The notch slides along the top edge (x = offset from centre);
@@ -108,6 +110,10 @@ def _clean_launcher(raw: Dict[str, Any], index: int = 0) -> Optional[Dict[str, A
             "color": str(raw.get("color") or APP_COLORS.get(key, COLORS[index % len(COLORS)]))[:16]}
 
 
+#: The home list every install had before the Io view became the default.
+_OLD_HOME_VIEWS = ["apps", "now_playing", "weather", "calendar"]
+
+
 def _check(state: Dict[str, Any]) -> Dict[str, Any]:
     state["system"] = [s for s in dict.fromkeys(state.get("system") or []) if s in SYSTEM]
     launchers = []
@@ -143,6 +149,9 @@ def _load() -> Dict[str, Any]:
             state[key] = saved[key]
     if isinstance(saved.get("home"), dict):
         state["home"].update({k: v for k, v in saved["home"].items() if k in state["home"]})
+        if state["home"]["default"] == "apps" and state["home"]["views"] == _OLD_HOME_VIEWS:
+            # Saved before the Io view became home and never changed by the owner: move it to the new default.
+            state["home"].update(default=DEFAULTS["home"]["default"], views=list(DEFAULTS["home"]["views"]))
     _merge_place(state, saved.get("place"))
     return _check(state)
 
