@@ -197,3 +197,97 @@ def google_callback(request: Request, state: str = "", code: str = "", error: st
                  "slides": "Slides", "tasks": "Tasks"}
         text = f"Nyx can now use {', '.join(names.get(a, a) for a in apps)} for this account. You can close this tab."
     return page(f"Connected {address}", text, True)
+
+
+# --- Email helpers: draft and ask (email_helpers.py) -----------------------------------------------------------
+
+
+class RuleIn(BaseModel):
+    match: str
+    action: str
+    note: str = ""
+
+
+class DraftEditIn(BaseModel):
+    body: str
+
+
+class HelperSettingsIn(BaseModel):
+    send_without_asking: bool
+
+
+def _helper_call(fn, *args):
+    import email_helpers
+
+    try:
+        return fn(*args)
+    except email_helpers.HelperError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+@router.get("/api/email/helpers")
+def helpers_overview(_user=RequireChat) -> Dict[str, Any]:
+    import email_helpers
+
+    return {"rules": email_helpers.list_rules(), "drafts": email_helpers.list_drafts("pending"),
+            "settings": email_helpers.settings(), "rule_actions": list(email_helpers.RULE_ACTIONS)}
+
+
+@router.post("/api/email/helpers/check")
+def helpers_check(_owner_user=Depends(_owner)) -> Dict[str, Any]:
+    """Label the unread mail not seen before. Reads headers and a snippet; sends and deletes nothing."""
+    import email_client
+    import email_helpers
+
+    try:
+        result = email_helpers.check_new()
+    except email_client.EmailError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return {**result, "summary": email_helpers.summarize(result)}
+
+
+@router.post("/api/email/helpers/rules")
+def helpers_add_rule(body: RuleIn, _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import email_helpers
+
+    return {"rule": _helper_call(email_helpers.add_rule, body.match, body.action, body.note)}
+
+
+@router.delete("/api/email/helpers/rules/{rule_id}")
+def helpers_remove_rule(rule_id: str, _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import email_helpers
+
+    if not email_helpers.remove_rule(rule_id):
+        raise HTTPException(status_code=404, detail="No such rule.")
+    return {"ok": True}
+
+
+@router.post("/api/email/helpers/drafts/{draft_id}/edit")
+def helpers_edit_draft(draft_id: str, body: DraftEditIn, _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import email_helpers
+
+    return {"draft": _helper_call(email_helpers.edit_draft, draft_id, body.body)}
+
+
+@router.post("/api/email/helpers/drafts/{draft_id}/reject")
+def helpers_reject_draft(draft_id: str, _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import email_helpers
+
+    return {"draft": _helper_call(email_helpers.reject_draft, draft_id)}
+
+
+@router.post("/api/email/helpers/drafts/{draft_id}/send")
+def helpers_send_draft(draft_id: str, _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    """The owner pressing Send on a draft is the approval; this is the one route that sends from the queue."""
+    import email_helpers
+
+    _helper_call(email_helpers.send_draft, draft_id)
+    _changed()
+    return {"ok": True}
+
+
+@router.post("/api/email/helpers/settings")
+def helpers_settings(body: HelperSettingsIn, _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import email_helpers
+
+    return {"settings": email_helpers.set_send_without_asking(body.send_without_asking)}
