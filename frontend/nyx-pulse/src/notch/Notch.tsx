@@ -482,9 +482,9 @@ export function Notch({ embedded = false }: { embedded?: boolean }) {
     }
     play("send");
     setLog((old) => [...old, { role: "user", text }, { role: "assistant", text: "", done: false }]);
-    const personalityText = settings?.personality.source === "avatar" ? settings.avatar.personality
-      : settings?.personality.source === "custom" ? settings.personality.text : "";
-    await send({ message: text, chatId: id, attachmentIds: files.map((f) => f.id), personalityText,
+    // The quick chat is plain Ichos (owner, 2026-10-14): an avatar's voice belongs to that avatar's own chat, so no
+    // personality rides along from here any more.
+    await send({ message: text, chatId: id, attachmentIds: files.map((f) => f.id),
       mode: settings?.ultrafast ? "ultrafast" : "normal" });
     setFiles([]);
   };

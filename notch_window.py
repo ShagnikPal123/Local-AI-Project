@@ -337,6 +337,9 @@ def _hotkey_setting() -> str:
 
 def main() -> None:
     global _window
+    # WebView2 paints white until the page's own transparent background arrives; a transparent default means no white
+    # flash or box even before the window clip (set_shape) is in place.
+    os.environ.setdefault("WEBVIEW2_DEFAULT_BACKGROUND_COLOR", "00000000")
     import webview
 
     try:
