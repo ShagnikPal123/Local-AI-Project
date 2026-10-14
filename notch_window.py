@@ -4,7 +4,8 @@ A frameless, transparent, always-on-top WebView2 window (pywebview, already inst
 centre of the main screen, showing ``/notch`` from the engine. Coucou keeps a fixed panel and toggles click-through
 at 60 Hz; here the window simply *is* the island: the page reports the island's size (``set_hit``) and the window
 grows to it at once and shrinks after the closing animation, so everything outside the island reaches the apps
-below. It never shows a taskbar button, hides while a full-screen game or video owns the screen, and feeds the
+below. The page also reports the black shapes it draws (``set_shape``) and the window is clipped to exactly those,
+so no backing colour can show around the island (the "white box"). It never shows a taskbar button, hides while a full-screen game or video owns the screen, and feeds the
 cursor position into the page so Io's eyes follow the pointer anywhere on screen.
 
 Run by notch.py: ``pythonw notch_window.py http://127.0.0.1:8000/notch``. The owner's session arrives in the
@@ -40,6 +41,8 @@ SWP_NOACTIVATE, SWP_SHOWWINDOW = 0x0010, 0x0040
 
 _target = {"w": 240, "h": 6}
 _shown = {"w": 240, "h": 6}
+#: The black shapes the page draws (island, ears, pills), in CSS pixels. The window is clipped to them.
+_shapes: list = []
 _lock = threading.Lock()
 _window = None
 _quit = threading.Event()
@@ -90,6 +93,92 @@ def _place(width: float, height: float) -> None:
     _log(f"place {w}x{h} at {x} ok={ok}")
 
 
+# ── The white box (owner, Fixer Upper S34: "a white outline around it like a white box of where the UI goes") ──
+#
+# pywebview's ``transparent=True`` on Windows makes the WebView2 page see-through but skips the form's background
+# colour, so wherever the page is transparent (the 14 px beside the island, under its rounded corners, the gap
+# between the trio pills) the form's default light grey shows. Instead of trusting the window's transparency, the
+# window is clipped to the black shapes the page actually draws: nothing outside them is part of the window at all,
+# so nothing can show there and clicks go straight to the apps below.
+
+EAR = 14  # the concave "ears" beside the island (.nx-island::before/::after in notch.css)
+
+
+def _clean_shape(raw: dict) -> dict:
+    """One shape from the page, as plain numbers. Unknown kinds become plain rounded boxes."""
+    kind = str(raw.get("kind") or "box")
+    num = lambda key: max(0.0, float(raw.get(key) or 0))  # noqa: E731
+    return {"kind": kind if kind in ("island", "box") else "box", "x": float(raw.get("x") or 0), "y": float(raw.get("y") or 0),
+            "w": num("w"), "h": num("h"), "r": num("r")}
+
+
+def region_plan(shapes: list, scale: float = 1.0) -> list:
+    """The GDI steps that build the window's outline: ``("add", kind, x1, y1, x2, y2, rx, ry)`` adds a shape,
+    ``("cut", x1, y1, x2, y2)`` removes an ellipse (the inside of an ear). Device pixels.
+
+    Curved edges sit one pixel inside the page's own anti-aliased edge, so the half-see-through pixels of the curve
+    never reach the window's backing colour (that was the faint light rim).
+    """
+    steps: list = []
+    s = max(1.0, float(scale))
+    px = lambda v: int(round(v * s))  # noqa: E731
+    for shape in shapes:
+        x, y, w, h, r = shape["x"], shape["y"], shape["w"], shape["h"], shape["r"]
+        if w < 1 or h < 1:
+            continue
+        if shape["kind"] == "island":
+            # The island hangs from the top edge: square top corners (extend the round box above the window),
+            # rounded bottom corners, and an ear on each side that curves into the top of the screen.
+            d = px(2 * r)
+            steps.append(("add", "round", px(x) + 1, px(y) - d, px(x + w) - 1, px(y + h) - 1, d, d))
+            if r:
+                # Each ear is a square minus a circle centred on its outer bottom corner (one pixel wider).
+                e, top, left, right = px(EAR), px(y), px(x), px(x + w)
+                steps.append(("add", "rect", left - e, top, left + 1, top + e))
+                steps.append(("cut", left - 2 * e - 1, top - 1, left + 1, top + 2 * e + 1))
+                steps.append(("add", "rect", right - 1, top, right + e, top + e))
+                steps.append(("cut", right - 1, top - 1, right + 2 * e + 1, top + 2 * e + 1))
+        else:
+            d = px(2 * min(r, w / 2, h / 2))
+            steps.append(("add", "round", px(x), px(y), px(x + w), px(y + h), d, d))
+    return steps
+
+
+def _apply_region(hwnd: int, shapes: list, gdi32=None, user=None) -> bool:
+    """Clip the window to ``shapes``. No shapes means no clipping (an older page that does not report them)."""
+    user = user or user32
+    if not hwnd or user is None:
+        return False
+    if not shapes:
+        user.SetWindowRgn(hwnd, None, True)
+        return True
+    gdi32 = gdi32 or ctypes.windll.gdi32
+    RGN_OR, RGN_DIFF = 2, 4
+    total = gdi32.CreateRectRgn(0, 0, 0, 0)
+    for step in region_plan(shapes, _scale(hwnd)):
+        if step[0] == "add":
+            _, kind, x1, y1, x2, y2, *radii = step
+            part = gdi32.CreateRoundRectRgn(x1, y1, x2, y2, *radii) if kind == "round" else gdi32.CreateRectRgn(x1, y1, x2, y2)
+            gdi32.CombineRgn(total, total, part, RGN_OR)
+        else:
+            _, x1, y1, x2, y2 = step
+            part = gdi32.CreateEllipticRgn(x1, y1, x2, y2)
+            gdi32.CombineRgn(total, total, part, RGN_DIFF)
+        gdi32.DeleteObject(part)
+    # The window owns the region from here on (it frees it), so it is not deleted.
+    return bool(user.SetWindowRgn(hwnd, total, True))
+
+
+def _no_frame(hwnd: int) -> None:
+    """Windows 11 rounds and outlines every top-level window with a 1 px border; the notch draws its own shape."""
+    try:
+        dwm = ctypes.windll.dwmapi
+        for attribute, value in ((33, 1), (34, 0xFFFFFFFE)):  # corner: do not round · border colour: none
+            dwm.DwmSetWindowAttribute(hwnd, attribute, ctypes.byref(ctypes.c_uint(value)), 4)
+    except Exception:  # noqa: BLE001 - Windows 10 has neither attribute; nothing to remove there
+        pass
+
+
 def _fullscreen_app_running() -> bool:
     """A game, video or presentation owns the screen (SHQueryUserNotificationState: busy / D3D / presentation)."""
     try:
@@ -123,6 +212,15 @@ class Bridge:
                 _log(f"page asks {w}x{h}")
             _target.update(w=max(1.0, float(w)), h=max(1.0, float(h)))
 
+    def set_shape(self, shapes: list) -> None:
+        """The black shapes on the page right now (sent while they move, so the outline follows the animation)."""
+        try:
+            cleaned = [_clean_shape(raw) for raw in list(shapes or [])[:12] if isinstance(raw, dict)]
+        except (TypeError, ValueError):
+            return
+        with _lock:
+            _shapes[:] = cleaned
+
     def open_app(self, tab: str = "chat") -> None:
         threading.Thread(target=_post, args=("/api/notch/open-app", {"tab": str(tab)[:40]}), daemon=True).start()
 
@@ -143,7 +241,9 @@ def _watch() -> None:
     time.sleep(0.5)  # let pywebview finish styling the window first
     style = user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
     user32.SetWindowLongW(hwnd, GWL_EXSTYLE, (style | WS_EX_TOOLWINDOW) & ~WS_EX_APPWINDOW)
+    _no_frame(hwnd)
     _place(_target["w"], _target["h"])  # also puts it back on top
+    clipped_to: list = []
     shrink_at = 0.0
     hidden_for_fullscreen = False
     last_cursor = (-1, -1)
@@ -152,6 +252,10 @@ def _watch() -> None:
         now = time.time()
         with _lock:
             want = dict(_target)
+            shapes = list(_shapes)
+        if shapes != clipped_to:
+            _apply_region(hwnd, shapes)
+            clipped_to = shapes
         if want["w"] >= _shown["w"] and want["h"] >= _shown["h"]:
             if want != _shown:
                 _place(want["w"], want["h"])
