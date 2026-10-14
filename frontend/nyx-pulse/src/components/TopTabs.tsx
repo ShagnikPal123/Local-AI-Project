@@ -10,6 +10,8 @@ import { useEffect, useRef, useState } from "react";
 import type { TabDef } from "../tabs";
 import type { TabSpec } from "../panels/DynamicTab";
 import type { NavSide } from "../style/appearance";
+import type { DragItem } from "../state/dragItems";
+import { useTabDnd } from "./useTabDnd";
 
 interface Props {
   /** Which edge the bar sits on. Left and right stand it up as a column; the menu opens away from the edge. */
@@ -19,9 +21,14 @@ interface Props {
   active: string;
   onSelect: (id: string) => void;
   onNewTab: () => void;
+  /** A tab was dragged next to another (its place in the saved order changes). */
+  onReorder: (dragged: string, over: string, after: boolean) => void;
+  /** Something (a chat, an avatar, the assistant) was dropped on a tab; "+new" is the + New tab button. */
+  onDropItem: (tabId: string, item: DragItem) => void;
 }
 
-export function TopTabs({ tabs, userTabs, active, onSelect, onNewTab, side = "top" }: Props) {
+export function TopTabs({ tabs, userTabs, active, onSelect, onNewTab, onReorder, onDropItem, side = "top" }: Props) {
+  const dnd = useTabDnd({ horizontal: side === "top" || side === "bottom", onReorder, onDropItem });
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -40,7 +47,7 @@ export function TopTabs({ tabs, userTabs, active, onSelect, onNewTab, side = "to
   }, [menuOpen]);
 
   const tab = (id: string, label: string) => (
-    <button key={id} type="button" role="tab" aria-selected={active === id} className="top-tabs__tab" onClick={() => onSelect(id)}>
+    <button key={id} type="button" role="tab" aria-selected={active === id} className={`top-tabs__tab ${dnd.marks(id)}`} onClick={() => onSelect(id)} {...dnd.props(id)}>
       {label}
     </button>
   );
@@ -58,7 +65,8 @@ export function TopTabs({ tabs, userTabs, active, onSelect, onNewTab, side = "to
             {userTabs.map((t) => tab(t.id, t.label))}
           </>
         )}
-        <button type="button" className="top-tabs__tab" onClick={onNewTab} title="Find or create a tab (Ctrl+K)">+ New tab</button>
+        <button type="button" className={`top-tabs__tab ${dnd.marks("+new")}`} onClick={onNewTab} title="Find or create a tab (Ctrl+K), or drop something here to make a tab for it"
+          onDragOver={dnd.props("+new").onDragOver} onDragLeave={dnd.props("+new").onDragLeave} onDrop={dnd.props("+new").onDrop}>+ New tab</button>
       </div>
 
       <div ref={menuRef} className="top-tabs__more">

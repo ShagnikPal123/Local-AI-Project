@@ -8,7 +8,7 @@
  * The old Rail/Strip switch is now a density control (see components/TopTabs).
  */
 
-import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { BackgroundLayer } from "./components/BackgroundLayer";
 import { ClapListener } from "./components/clap/ClapListener";
 import "./theme.css";
@@ -38,6 +38,8 @@ import { TopTabs } from "./components/TopTabs";
 import { TabBoundary } from "./components/TabBoundary";
 import { WorkInProgress } from "./components/WorkInProgress";
 import { onWorkspaceEvent } from "./state/workspaceEvents";
+import { applyOrder, moveTab, readTabOrder, saveTabOrder } from "./state/tabOrder";
+import { ITEM_DROPPED_EVENT, type DragItem } from "./state/dragItems";
 import { startMods } from "./state/modsStore";
 import { startVoicePlayer } from "./voice/voicePlayer";
 import { FileDropOverlay } from "./files/FileDropOverlay";
@@ -270,7 +272,36 @@ export default function App() {
   }, []);
 
   // Presentation only — the server enforces the real boundary on every request.
-  const tabs = visibleTabs(user?.role);
+  // The owner's own order (drag a tab to move it) sits on top of the shipped order.
+  const [tabOrder, setTabOrder] = useState<string[]>(readTabOrder);
+  const shippedTabs = useMemo(() => visibleTabs(user?.role), [user?.role]);
+  const tabs = useMemo(() => applyOrder(shippedTabs, tabOrder), [shippedTabs, tabOrder]);
+  const shownUserTabs = useMemo(() => applyOrder(userTabs, tabOrder), [userTabs, tabOrder]);
+  useEffect(() => {
+    const onReset = () => setTabOrder(readTabOrder());
+    window.addEventListener("ichos:tab-order", onReset);
+    return () => window.removeEventListener("ichos:tab-order", onReset);
+  }, []);
+  const reorderTab = useCallback((dragged: string, over: string, after: boolean) => {
+    // Each group moves inside itself: a tab you made cannot jump in among the shipped ones, and the other way round.
+    const group = shippedTabs.some((t) => t.id === dragged) ? tabs : shownUserTabs;
+    if (!group.some((t) => t.id === over)) return;
+    const next = moveTab(group.map((t) => t.id), dragged, over, after);
+    // The saved list holds both groups, so one group's move leaves the other where it was.
+    const rest = (tabOrder.length ? tabOrder : [...tabs, ...shownUserTabs].map((t) => t.id)).filter((id) => !next.includes(id));
+    const merged = [...next, ...rest];
+    setTabOrder(merged);
+    saveTabOrder(merged);
+  }, [shippedTabs, tabs, shownUserTabs, tabOrder]);
+  // Something dragged onto a tab opens it and tells the AI what the owner is pointing at (S23). "+new" opens the finder,
+  // with the dropped thing's name filled in, so a tab can be made for it.
+  const [finderQuery, setFinderQuery] = useState("");
+  const dropOnTab = useCallback((tabId: string, item: DragItem) => {
+    window.dispatchEvent(new CustomEvent(ITEM_DROPPED_EVENT, { detail: { item, tab: tabId } }));
+    void api.post("/api/presence/drop", { kind: item.kind, id: item.id, label: item.label, tab: tabId === "+new" ? "" : tabId });
+    if (tabId === "+new") { setFinderQuery(item.label); setFinderOpen(true); return; }
+    setActive(tabId as TabId);
+  }, [setActive]);
   // Studio Glass (owner, 2026-10-10): icon rail on the left instead of the tab strip, panels float over the backdrop.
   const studio = useStyle("studio");
   // Where the navigation bar goes (Settings › Appearance). Every look honours it now, not only Studio Glass.
@@ -315,8 +346,10 @@ export default function App() {
   const tabBar = (
     <TopTabs
       side={navSide}
+      onReorder={reorderTab}
+      onDropItem={dropOnTab}
       tabs={tabs}
-      userTabs={userTabs}
+      userTabs={shownUserTabs}
       active={active}
       onSelect={(id) => setActive(id as TabId)}
       onNewTab={() => setFinderOpen(true)}
@@ -370,8 +403,11 @@ export default function App() {
       <div className="app-body">
       {studio && (
         <StudioRail
+          side={navSide}
+          onReorder={reorderTab}
+          onDropItem={dropOnTab}
           tabs={tabs}
-          userTabs={userTabs}
+          userTabs={shownUserTabs}
           active={active}
           avatar={avatar}
           onSelect={(id) => setActive(id as TabId)}
@@ -515,13 +551,14 @@ export default function App() {
 
       {finderOpen && (
         <TabFinder
+          initialQuery={finderQuery}
           onOpen={(tabId) => setActive(tabId as TabId)}
           onCreated={async (spec) => {
             await loadUserTabs();
             setActive(spec.id as TabId);
             setFinderOpen(false);
           }}
-          onClose={() => setFinderOpen(false)}
+          onClose={() => { setFinderOpen(false); setFinderQuery(""); }}
         />
       )}
     </div>

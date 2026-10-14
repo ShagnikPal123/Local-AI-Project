@@ -9,6 +9,9 @@ import { useRef, useState, type FocusEvent, type MouseEvent } from "react";
 import type { TabDef } from "../../tabs";
 import type { TabSpec } from "../../panels/DynamicTab";
 import { NyxAvatar, type AvatarState } from "../NyxAvatar";
+import type { DragItem } from "../../state/dragItems";
+import type { NavSide } from "../../style/appearance";
+import { useTabDnd } from "../useTabDnd";
 
 // Lucide-style strokes (24 grid). Tabs without their own glyph get the first letter of their name.
 const GLYPHS: Record<string, string> = {
@@ -46,7 +49,10 @@ function Glyph({ id, label }: { id: string; label: string }) {
   );
 }
 
-export function StudioRail({ tabs, userTabs, active, avatar, onSelect, onNewTab, onSettings }: {
+export function StudioRail({ tabs, userTabs, active, avatar, onSelect, onNewTab, onSettings, onReorder, onDropItem, side = "left" }: {
+  onReorder: (dragged: string, over: string, after: boolean) => void;
+  onDropItem: (tabId: string, item: DragItem) => void;
+  side?: NavSide;
   tabs: TabDef[];
   userTabs: TabSpec[];
   active: string;
@@ -65,10 +71,11 @@ export function StudioRail({ tabs, userTabs, active, avatar, onSelect, onNewTab,
     setTip({ text, top: r.top - rail.top + r.height / 2 });
   };
   const hide = () => setTip(null);
+  const dnd = useTabDnd({ horizontal: side === "top" || side === "bottom", onReorder, onDropItem });
   const tipProps = { onMouseEnter: show, onMouseLeave: hide, onFocus: show, onBlur: hide };
   const item = (id: string, label: string) => (
     <button key={id} type="button" role="tab" aria-selected={active === id} aria-label={label} data-tip={label}
-      className="studio-rail__item" onClick={() => onSelect(id)} {...tipProps}>
+      className={`studio-rail__item ${dnd.marks(id)}`} onClick={() => onSelect(id)} {...tipProps} {...dnd.props(id)}>
       <Glyph id={id} label={label} />
     </button>
   );
@@ -80,7 +87,8 @@ export function StudioRail({ tabs, userTabs, active, avatar, onSelect, onNewTab,
         {tabs.map((t) => item(t.id, t.label))}
         {userTabs.length > 0 && <span className="studio-rail__sep" aria-hidden="true" />}
         {userTabs.map((t) => item(t.id, t.label))}
-        <button type="button" className="studio-rail__item" aria-label="New tab" data-tip="Find or create a tab (Ctrl+K)" onClick={onNewTab} {...tipProps}>
+        <button type="button" className={`studio-rail__item ${dnd.marks("+new")}`} aria-label="New tab" data-tip="Find or create a tab (Ctrl+K), or drop something here" onClick={onNewTab} {...tipProps}
+          onDragOver={dnd.props("+new").onDragOver} onDragLeave={dnd.props("+new").onDragLeave} onDrop={dnd.props("+new").onDrop}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
         </button>
       </div>

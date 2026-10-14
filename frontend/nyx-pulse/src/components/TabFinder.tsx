@@ -32,12 +32,14 @@ interface SearchHit {
 /** Matches the server-side cap in dynamic_tabs.build_spec. */
 const MAX_LABEL = 40;
 
-export function TabFinder({ onOpen, onCreated, onClose }: {
+export function TabFinder({ onOpen, onCreated, onClose, initialQuery = "" }: {
+  /** Pre-filled search, e.g. the label of something dropped on + New tab. */
+  initialQuery?: string;
   onOpen: (tabId: string) => void;
   onCreated: (spec: TabSpec) => void;
   onClose: () => void;
 }) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [offerCreate, setOfferCreate] = useState(false);
   const [creating, setCreating] = useState(false);
