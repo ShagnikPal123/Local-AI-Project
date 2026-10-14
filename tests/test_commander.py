@@ -287,3 +287,91 @@ def test_a_projects_main_chat_route(world, monkeypatch, tmp_path):
     assert client.post(f"/api/commander/projects/{project['id']}/chat").json()["chat_id"] == first
     assert world.store.chats[first]["title"] == "Moon base · Commander"
     assert client.post("/api/commander/projects/pr-nope/chat").status_code == 404
+
+
+# --- The relay: threads post asks and results up to the main chat, answered in either place -------------------------
+
+CARD = '```question\n{"question": "Which palette?", "options": [{"label": "Warm"}, {"label": "Cool"}]}\n```'
+
+
+def test_a_thread_question_is_posted_to_the_main_chat_once_and_anchored_in_place(world):
+    cm = world.cm
+    world.store.say(world.main, "user", "Restyle the dashboard")
+    thread = cm.start_thread(world.main, "Colours", "Pick a palette")
+    world.store.say(thread["chat_id"], "assistant", f"Two good ones.\n{CARD}")
+    first = cm.sync_asks(world.main)
+    again = cm.board(delegator=world.main)["asks"]
+    assert [a["id"] for a in first] == [a["id"] for a in again] and len(first) == 1
+    ask = first[0]
+    assert ask["open"] and ask["kind"] == "question" and ask["line"] == "Which palette?"
+    assert ask["card"].startswith("```question") and ask["after"] == 1
+
+
+def test_answering_in_the_main_chat_relays_to_the_thread_and_closes_the_ask(world):
+    cm = world.cm
+    thread = cm.start_thread(world.main, "Colours", "Pick a palette")
+    world.store.say(thread["chat_id"], "assistant", f"Two good ones.\n{CARD}")
+    ask = cm.sync_asks(world.main)[0]
+    done = cm.answer_ask(ask["id"], text="**Which palette?**\n→ Warm (amber accents)")
+    assert world.sent[-1]["chat_id"] == thread["chat_id"] and "Warm" in world.sent[-1]["text"]
+    assert done["open"] is False and done["where"] == "main" and done["answer"] == "Warm (amber accents)"
+    assert cm.sync_asks(world.main)[0]["where"] == "main"  # the thread moving on does not relabel it
+    with pytest.raises(cm.CommanderError):
+        cm.answer_ask(ask["id"], text="Cool")
+
+
+def test_answering_in_the_thread_closes_the_ask_in_the_main_chat(world):
+    cm = world.cm
+    thread = cm.start_thread(world.main, "Login bug", "Fix login")
+    world.store.say(thread["chat_id"], "assistant", "Waiting on you: which login page?")
+    assert cm.sync_asks(world.main)[0]["open"] is True
+    world.store.say(thread["chat_id"], "user", "The admin one")
+    ask = cm.sync_asks(world.main)[0]
+    assert ask["open"] is False and ask["where"] == "thread"
+
+
+def test_an_approval_is_decided_from_the_main_chat(world, monkeypatch):
+    cm = world.cm
+    decided = []
+    monkeypatch.setattr(cm, "_decide", lambda approval_id, approve: decided.append((approval_id, approve)) or True)
+    thread = cm.start_thread(world.main, "Report", "Send the report")
+    world.running[thread["chat_id"]] = SimpleNamespace(turn_id="t9", status="Sending")
+    world.approvals.append({"id": "a9", "turn_id": "t9", "summary": "Send an email to the team"})
+    ask = cm.sync_asks(world.main)[0]
+    assert ask["kind"] == "approval" and ask["approval_id"] == "a9"
+    with pytest.raises(cm.CommanderError):
+        cm.answer_ask(ask["id"], text="yes")  # an approval needs a yes or no, not words
+    assert cm.answer_ask(ask["id"], approve=True)["answer"] == "Approved" and decided == [("a9", True)]
+
+
+def test_a_finished_thread_reports_its_result_once_and_counts_as_a_done_task(world):
+    cm = world.cm
+    report = cm.start_thread(world.main, "Report", "Write the weekly report")
+    other = cm.start_thread(world.main, "Login bug", "Fix login")
+    world.running[other["chat_id"]] = SimpleNamespace(turn_id="t2", status="Reading")
+    world.store.say(report["chat_id"], "assistant", "Done: the report is in reports/week.md")
+    board = cm.board(delegator=world.main)
+    results = [a for a in board["asks"] if a["kind"] == "result"]
+    assert len(results) == 1 and results[0]["open"] is False and "reports/week.md" in results[0]["line"]
+    assert len([a for a in cm.board(delegator=world.main)["asks"] if a["kind"] == "result"]) == 1
+    assert board["tasks"] == {"done": 1, "total": 2}
+
+
+def test_the_answer_route_relays_and_is_refused_for_a_closed_ask(world, monkeypatch, tmp_path):
+    from fastapi.testclient import TestClient
+
+    import server
+    import server_auth
+    from auth import AuthStore
+
+    unclaimed = AuthStore(tmp_path / "auth.json")
+    monkeypatch.setattr(server_auth, "AUTH_STORE", unclaimed)
+    monkeypatch.setattr(server, "AUTH_STORE", unclaimed)
+    client = TestClient(server.app, client=("127.0.0.1", 50000))
+    thread = world.cm.start_thread(world.main, "Login bug", "Fix login")
+    world.store.say(thread["chat_id"], "assistant", "Waiting on you: which login page?")
+    ask = client.get(f"/api/commander?delegator={world.main}").json()["board"]["asks"][0]
+    answered = client.post(f"/api/commander/asks/{ask['id']}/answer", json={"text": "The admin one"})
+    assert answered.status_code == 200, answered.text
+    assert world.sent[-1]["text"] == "The admin one"
+    assert client.post(f"/api/commander/asks/{ask['id']}/answer", json={"text": "again"}).status_code == 400
