@@ -40,8 +40,10 @@ def line(tmp_path, monkeypatch):
     monkeypatch.setattr(wa, "pc_name", lambda: "DESKTOP-A")
     turns = []
 
-    def turn(text, lane=None):
+    def turn(text, lane=None, attachments=None):
         turns.append(text)
+        if attachments:
+            turns.append(("attached", list(attachments)))
         return f"**Answer** to {text}"
 
     link = wa.WhatsAppLink(transport=FakeTransport(), turn=turn, state_path=tmp_path / "whatsapp" / "link.json")
@@ -63,7 +65,8 @@ def test_pairing_asks_whatsapp_for_a_code_for_the_right_number_and_ties_the_pc(l
     _pair(line)
     start = [args for op, args in line.transport.calls if op == "start"][0]
     assert start["pair_phone"] == "447700900123"
-    assert start["allow"] == {"mode": "self", "owner": "447700900123", "reply_prefix": wa.REPLY_PREFIX}
+    assert start["allow"] == {"mode": "self", "owner": "447700900123", "reply_prefix": wa.REPLY_PREFIX,
+                              "inbox": str((line._path.parent / "inbox").resolve())}
     status = line.status()
     assert status["status"] == "linked" and status["connected"] and status["pc"] == "DESKTOP-A"
     assert status["phone"] == "+44•••123"                     # the number is never sent back whole
@@ -307,9 +310,9 @@ def lanes_line(line):
     line.turn_lanes = []
     inner = line._turn
 
-    def turn(text, lane=None):
+    def turn(text, lane=None, **extra):
         line.turn_lanes.append(dict(lane or {}))
-        return inner(text, lane=lane)
+        return inner(text, lane=lane, **extra)
 
     line._turn = turn
     _pair(line)

@@ -12,7 +12,8 @@ Protocol: one JSON object per line on stdin, one per line on stdout.
   → {"id": 1, "op": "start", "db": "...", "pair_phone": "4475...", "allow": {...}}   ← {"id": 1, "ok": true, ...}
   ← {"event": "pair_code", "code": "ABCD-EFGH"}      the code the owner confirms on their phone
   ← {"event": "connected", "me": "4475...", "me_lid": "..."}
-  ← {"event": "message", "id": "...", "text": "...", "sender": "4475..."}
+  ← {"event": "message", "id": "...", "text": "...", "sender": "4475...", "media": [{"path","name","mime","size","kind"}]}
+  → {"id": 2, "op": "send_file", "to": "4475...", "path": "...", "kind": "image|video|document", "caption": "..."}
   ← {"event": "logged_out"} / {"event": "error", "message": "..."}
 """
 
@@ -20,8 +21,11 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import threading
+import time
+import uuid
 
 _PROTO = sys.stdout                 # replaced in main(); importing this file (the tests do) must not touch fd 1
 _send_lock = threading.Lock()
@@ -30,6 +34,12 @@ _allow: dict = {}
 _me: dict = {"user": "", "lid": ""}
 _sent_ids: set = set()
 _pair_requested = False
+
+#: Largest file taken from the phone. Bigger ones are skipped (and the owner is told), not half-downloaded.
+MAX_MEDIA_BYTES = 25 * 1024 * 1024
+#: Message fields that carry a file, with the kind Nyx calls it. Stickers and contacts are left alone.
+_MEDIA_FIELDS = (("imageMessage", "image"), ("documentMessage", "document"), ("videoMessage", "video"),
+                 ("audioMessage", "audio"))
 
 
 def _emit(message: dict) -> None:
@@ -49,7 +59,8 @@ def _user(jid) -> str:
         return ""
 
 
-def accepts(source: dict, allow: dict, me: dict, sent_ids: set, message_id: str, text: str) -> bool:
+def accepts(source: dict, allow: dict, me: dict, sent_ids: set, message_id: str, text: str,
+            has_media: bool = False) -> bool:
     """Whether one incoming message belongs to the owner's line. Pure, so it is tested without WhatsApp.
 
     ``source`` holds plain strings: chat, sender, sender_alt (users, digits or LID), from_me, group.
@@ -57,7 +68,7 @@ def accepts(source: dict, allow: dict, me: dict, sent_ids: set, message_id: str,
                  never Nyx's own replies (matched by id and by the reply prefix).
     number mode — Nyx has its own number: only the owner's number, never a group.
     """
-    if source.get("group") or not text.strip() or message_id in sent_ids:
+    if source.get("group") or not (text.strip() or has_media) or message_id in sent_ids:
         return False
     prefix = str(allow.get("reply_prefix") or "")
     if prefix and text.startswith(prefix):
@@ -71,6 +82,46 @@ def accepts(source: dict, allow: dict, me: dict, sent_ids: set, message_id: str,
     return owner in {_digits(source.get("sender", "")), _digits(source.get("sender_alt", ""))}
 
 
+def media_info(message) -> dict:
+    """Which file a message carries, as plain values: kind, mime, name, declared size. Empty when it has none.
+
+    ``message`` is the protobuf ``Message``; each file kind is its own field and ``ListFields()`` is empty when unset.
+    """
+    for field, kind in _MEDIA_FIELDS:
+        part = getattr(message, field, None)
+        try:
+            present = bool(part is not None and part.ListFields())
+        except Exception:  # noqa: BLE001
+            present = False
+        if present:
+            name = str(getattr(part, "fileName", "") or "") or str(getattr(part, "title", "") or "")
+            return {"kind": kind, "mime": str(getattr(part, "mimetype", "") or ""), "name": name,
+                    "size": int(getattr(part, "fileLength", 0) or 0)}
+    return {}
+
+
+def inbox_name(info: dict) -> str:
+    """A fresh, harmless file name for something from the phone: its own name is only kept as a visible suffix."""
+    tail = re.sub(r"[^A-Za-z0-9._-]+", "_", str(info.get("name") or info.get("kind") or "file")).strip("._")[-60:]
+    return f"{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}-{tail or 'file'}"
+
+
+def _save_media(client, message, info: dict) -> dict:
+    """Download the file into the inbox the engine named, or say why not. Never raises."""
+    inbox = str(_allow.get("inbox") or "")
+    if not inbox:
+        return {**info, "error": "no inbox"}
+    if info.get("size", 0) > MAX_MEDIA_BYTES:
+        return {**info, "error": f"too big ({info['size'] // (1024 * 1024)} MB; the limit is {MAX_MEDIA_BYTES // (1024 * 1024)} MB)"}
+    try:
+        os.makedirs(inbox, exist_ok=True)
+        path = os.path.join(inbox, inbox_name(info))
+        client.download_any(message, path)
+        return {**info, "path": path, "size": os.path.getsize(path)}
+    except Exception as error:  # noqa: BLE001
+        return {**info, "error": f"download failed ({type(error).__name__})"}
+
+
 def _on_message(client, message) -> None:
     try:
         from neonize.utils.message import extract_text
@@ -78,12 +129,21 @@ def _on_message(client, message) -> None:
         info = message.Info
         src = info.MessageSource
         text = extract_text(message.Message) or ""
+        media = media_info(message.Message)
         source = {"chat": _user(src.Chat), "sender": _user(src.Sender), "sender_alt": _user(src.SenderAlt),
                   "from_me": bool(src.IsFromMe), "group": bool(src.IsGroup)}
-        if not accepts(source, _allow, _me, _sent_ids, str(info.ID), text):
+        if not accepts(source, _allow, _me, _sent_ids, str(info.ID), text, has_media=bool(media)):
             return                                   # someone else's conversation: dropped here, never forwarded
-        _emit({"event": "message", "id": str(info.ID), "text": text[:8000],
-               "sender": _digits(source["sender_alt"] or source["sender"])})
+        event = {"event": "message", "id": str(info.ID), "text": text[:8000],
+                 "sender": _digits(source["sender_alt"] or source["sender"])}
+        if not media:
+            _emit(event)
+            return
+
+        def deliver() -> None:                       # a download can take seconds; the connection thread must not wait
+            _emit({**event, "media": [_save_media(client, message.Message, media)]})
+
+        threading.Thread(target=deliver, name="whatsapp-media", daemon=True).start()
     except Exception as error:  # noqa: BLE001
         _emit({"event": "error", "message": f"Reading a message failed: {type(error).__name__}"})
 
@@ -148,6 +208,31 @@ def _start(args: dict) -> dict:
     return {"started": True}
 
 
+def _send_file(args: dict) -> dict:
+    """Send a local file to one number as a picture, video, voice/audio file or document."""
+    to = _digits(args.get("to", ""))
+    path = str(args.get("path") or "")
+    if not to:
+        raise RuntimeError("No number to send to.")
+    if not os.path.isfile(path):                     # only ever a local file: a URL would make the helper fetch it
+        raise RuntimeError("That file is not there any more.")
+    caption = str(args.get("caption") or "")
+    kind = str(args.get("kind") or "document")
+    if kind == "image":
+        response = _client.send_image(to, path, caption=caption or None)
+    elif kind == "video":
+        response = _client.send_video(to, path, caption=caption or None)
+    else:                                            # documents, and sound files (they carry no caption as audio)
+        response = _client.send_document(to, path, caption=caption or None,
+                                         filename=str(args.get("filename") or os.path.basename(path)))
+    message_id = str(getattr(response, "ID", "") or "")
+    if message_id:
+        _sent_ids.add(message_id)
+        if len(_sent_ids) > 500:
+            _sent_ids.pop()
+    return {"id": message_id}
+
+
 def _handle(op: str, args: dict):
     if op == "ping":
         return {"pong": True}
@@ -169,6 +254,8 @@ def _handle(op: str, args: dict):
             if len(_sent_ids) > 500:
                 _sent_ids.pop()
         return {"id": message_id}
+    if op == "send_file":
+        return _send_file(args)
     if op == "logout":
         _client.logout()
         return {"ok": True}

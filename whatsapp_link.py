@@ -41,6 +41,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
+import whatsapp_files as files
 import whatsapp_lanes as lanes
 from paths import data_path
 
@@ -48,6 +49,8 @@ log = logging.getLogger("nyx.whatsapp")
 
 STATE_FILE = "whatsapp/link.json"
 SESSION_DB = "whatsapp/session.sqlite3"
+#: Where the helper puts files the phone sends, until they are checked and moved into Nyx's uploads.
+INBOX = "whatsapp/inbox"
 WORKER = Path(__file__).resolve().parent / "whatsapp_worker" / "worker.py"
 PACKAGE = "neonize==0.5.2"
 #: Starts every message Nyx sends, so in the "message yourself" chat its replies are told apart from the owner's.
@@ -394,9 +397,12 @@ class WhatsAppLink:
         self._start_worker(pair_phone=nyx)
         return self.status()
 
+    def _inbox(self) -> Path:
+        return data_path(INBOX)
+
     def _allow_rule(self) -> Dict[str, Any]:
         return {"mode": self.state.get("mode", "self"), "owner": self.state.get("phone", ""),
-                "reply_prefix": REPLY_PREFIX}
+                "reply_prefix": REPLY_PREFIX, "inbox": str(self._inbox().resolve())}
 
     def _start_worker(self, pair_phone: str = "") -> None:
         self.transport.request("start", timeout=60, db=str(data_path(SESSION_DB).resolve()),
@@ -492,7 +498,9 @@ class WhatsAppLink:
             self.last_error = str(event.get("message") or "")[:300]
         elif kind == "message":
             text = str(event.get("text") or "")
-            threading.Thread(target=self.handle_incoming, args=(text,), name="nyx-whatsapp-turn", daemon=True).start()
+            media = event.get("media") or None
+            threading.Thread(target=self.handle_incoming, args=(text, media), name="nyx-whatsapp-turn",
+                             daemon=True).start()
 
     def _finish_pairing(self) -> None:
         expected = self.state.get("nyx_number") or self.state.get("phone")
@@ -522,16 +530,43 @@ class WhatsAppLink:
         self._note("out", text)
         return {"sent": True, "to": masked(to), "parts": len(chunks(text)), "origin": origin}
 
-    def handle_incoming(self, text: str) -> None:
-        """One message from the owner's phone: a shortcut, a question for one avatar, or a turn in the current lane."""
+    def send_file(self, path: str, caption: str = "", origin: str = "pc") -> Dict[str, Any]:
+        """Send one file or picture from this PC to the owner's phone — the one number this line has.
+
+        Refused (in plain words) for protected credential files, anything the file check blocks, folders and files too
+        big for WhatsApp, because a phone is easier to lose than a PC."""
+        if self.state.get("status") != "linked" or not self.device_ok():
+            raise WhatsAppError("WhatsApp is not linked on this PC yet.")
+        if not self.connected:
+            raise WhatsAppError("WhatsApp is linked but not connected right now. Check the PC is online.")
+        try:
+            resolved, size = files.check_outgoing(path)
+        except files.FileRefused as error:
+            raise WhatsAppError(str(error)) from error
+        name = Path(resolved).name
+        kind = files.kind_for(resolved)
+        # The caption always starts with the reply mark: in the "message yourself" chat that is how Nyx's own file
+        # is told apart from one the owner sent.
+        shown = REPLY_PREFIX + (to_whatsapp(caption) or name)
+        to = self.state.get("phone", "")
+        self.transport.request("send_file", timeout=180, to=to, path=resolved, kind=kind, caption=shown, filename=name)
+        self._note("out", f"[{kind}] {name}")
+        return {"sent": True, "to": masked(to), "name": name, "kind": kind, "size": size, "origin": origin}
+
+    def handle_incoming(self, text: str, media: Optional[List[Dict[str, Any]]] = None) -> None:
+        """One message from the owner's phone: a shortcut, a question for one avatar, or a turn in the current lane.
+
+        ``media`` is what came with it (pictures, documents), already downloaded by the helper into the inbox."""
         text = (text or "").strip()
-        if not text or not self.state.get("enabled", True) or not self.device_ok():
+        if not (text or media) or not self.state.get("enabled", True) or not self.device_ok():
+            self._discard(media)
             return
-        self._note("in", text)
-        _notify_pc(text)
+        self._note("in", text or f"[{len(media or [])} file(s)]")
+        _notify_pc(text or "a file")
         try:
             command = lanes.parse(text)
             if command is not None:
+                self._discard(media)
                 self._shortcut(command)
                 return
             target = self.current_lane()
@@ -539,10 +574,19 @@ class WhatsAppLink:
             avatar = self.avatars.find(mention[0]) if mention else None
             if avatar is not None:                     # "@Mira …": answered by Mira, the lane stays where it was
                 target, text = lanes.lane(lanes.AVATAR, avatar["id"]), mention[1]
+            kept, notes = files.keep_incoming(media or [], self._inbox())
+            if notes:
+                self.send("\n".join(notes), origin="nyx")
+            if media and not kept and not text:
+                return                                 # nothing usable came, and the notes above said why
+            text = files.incoming_text(text, len(kept), [str(m.get("kind") or "") for m in media or []])
             with self._busy:                           # one phone turn at a time, in the order sent
-                speaker, reply = self._answer(text, target)
-            self.send(lanes.tag(speaker, reply or "(I had nothing to say to that — try asking another way.)"),
-                      origin="nyx")
+                speaker, reply = self._answer(text, target, kept)
+            words, pictures = files.split_pictures(reply or "")
+            if words or not pictures:
+                self.send(lanes.tag(speaker, words or "(I had nothing to say to that — try asking another way.)"),
+                          origin="nyx")
+            self._send_pictures(pictures)
         except WhatsAppError as error:
             self.last_error = str(error)
         except Exception as error:  # noqa: BLE001 - the phone gets a plain message, the log the detail
@@ -707,14 +751,37 @@ class WhatsAppLink:
 
     # -- the turn itself ---------------------------------------------------------------
 
-    def _answer(self, text: str, target: Dict[str, str]) -> "tuple[str, str]":
+    def _answer(self, text: str, target: Dict[str, str], attachments: Optional[List[str]] = None) -> "tuple[str, str]":
         """Run one turn in ``target`` and return (who is speaking, the reply). The speaker is blank in the main chat."""
         speaker = self.lane_name(target) if target["kind"] != lanes.GENERAL else ""
         if self._turn is not None:
-            return speaker, self._turn(text, lane=target)
-        return speaker, self._run_turn(text, target)
+            extra = {"attachments": attachments} if attachments else {}
+            return speaker, self._turn(text, lane=target, **extra)
+        return speaker, self._run_turn(text, target, attachments)
 
-    def _run_turn(self, text: str, target: Optional[Dict[str, str]] = None) -> str:
+    def _discard(self, media: Optional[List[Dict[str, Any]]]) -> None:
+        """Files that arrived with something that is not a question (a shortcut, a paused line) are not kept."""
+        for item in media or []:
+            try:
+                os.remove(str(item.get("path") or ""))
+            except OSError:
+                pass
+
+    def _send_pictures(self, upload_ids: List[str]) -> None:
+        """Pictures Nyx made this turn go to the phone as pictures, not as links to the PC."""
+        import uploads
+
+        for upload_id in upload_ids[:6]:
+            record = uploads.get_upload(upload_id)
+            if record is None:
+                continue
+            try:
+                self.send_file(record["path"], caption=str(record.get("name") or ""), origin="nyx")
+            except WhatsAppError as error:
+                self.last_error = str(error)
+
+    def _run_turn(self, text: str, target: Optional[Dict[str, str]] = None,
+                  attachments: Optional[List[str]] = None) -> str:
         import server
 
         target = target or lanes.lane()
@@ -744,6 +811,7 @@ class WhatsAppLink:
         try:
             service.set_turn_context(PHONE_NOTE + (("\n\n" + self.avatars.note(avatar)) if avatar is not None else ""))
             result = service.chat_turn(text, sink=lambda _event: None, role="local", turn_id=uuid.uuid4().hex[:12],
+                                       attachments=attachments or None,
                                        provider="ollama" if avatar is not None and avatar.get("model") == "local" else None)
         finally:
             service.tool_guard = guard_before
@@ -909,6 +977,14 @@ def tool_send(text: str) -> str:
         return f"Not sent: {error}"
 
 
+def tool_send_file(path: str, caption: str = "") -> str:
+    try:
+        result = link().send_file(path, caption, origin="tool")
+        return f"Sent {result['name']} to the owner's phone ({result['to']}) on WhatsApp."
+    except WhatsAppError as error:
+        return f"Not sent: {error}"
+
+
 def tool_status() -> str:
     s = link().status()
     if s["status"] != "linked":
@@ -944,6 +1020,13 @@ def register_whatsapp_tools(registry: Any) -> None:
         "Text the owner on their phone over WhatsApp. It only ever reaches the owner's own paired phone — use it when "
         "they ask you to send them something, or to tell them a long job finished. Never for anyone else.",
         [P("text", "string", "The message")], tool_send, category="whatsapp", label="Texting your phone")
+    registry.register(
+        "whatsapp_send_file",
+        "Send a file or picture from this PC to the owner's phone over WhatsApp (a photo, a PDF, a spreadsheet). It only "
+        "reaches the owner's own phone. Protected credential files and anything the file check blocks are refused.",
+        [P("path", "string", "Full path of the file on this PC"), P("caption", "string", "A short line to go with it",
+                                                                    required=False)],
+        tool_send_file, category="whatsapp", label=lambda a: f"Sending {str(a.get('path', 'a file'))[-40:]} to your phone")
     registry.register("whatsapp_status", "Whether the owner's phone is linked to Nyx over WhatsApp.", [],
                       tool_status, category="whatsapp", label="Checking the WhatsApp link")
     registry.register(
