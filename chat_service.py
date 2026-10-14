@@ -134,6 +134,9 @@ class ChatService:
         self.speech = SpeechPatternStore(path=speech_patterns_path)
         self.rag = RagMemory(memory=self.memory)
         self.personality: Optional[Dict[str, str]] = None
+        #: A personality sent with one request (the notch's chosen voice): used for that turn only, never stored
+        #: in this chat (persona_scope.py). It used to be installed for good, so the voice stuck to the chat.
+        self.turn_persona: Optional[Dict[str, str]] = None
         self.large_prompt_chars = large_prompt_chars
         self.interim_callback = interim_callback
         self._turn_lock = threading.RLock()
@@ -764,6 +767,12 @@ If the user asks to change model or provider, or to go local/offline, call switc
         # Skills auto-attach when a turn matches their triggers, and cost nothing
         # otherwise (ROADMAP U3). No slash command, no setting.
         self._attach_skills(user_message)
+        try:
+            import persona_scope
+
+            persona_scope.prepare_turn(self)
+        except Exception:  # pragma: no cover - a badge problem must not stop the turn
+            pass
         self._attach_mods(user_message)
 
         decision = self.speed_policy.decide(user_message, self.speed_mode)
@@ -887,8 +896,11 @@ If the user asks to change model or provider, or to go local/offline, call switc
         ]
         try:
             from mods import MOD_STORE
+            from persona_scope import persona_of
 
-            note = MOD_STORE.turn_context(user_message)
+            # An avatar speaks only from its own bank, so the owner's standing "talk like…" instructions stay out.
+            avatar_chat = persona_of(self).get("kind") == "avatar"
+            note = MOD_STORE.turn_context(user_message, instructions=not avatar_chat)
         except Exception:
             return ""
         if note:
@@ -922,6 +934,10 @@ If the user asks to change model or provider, or to go local/offline, call switc
             if message.get("role") == "system" and content.startswith(self._PERSONALITY_PREFIX):
                 lean_history.append({"role": "system", "content": content})
                 break
+        from persona_scope import PERSONA_PREFIX
+
+        lean_history += [{"role": "system", "content": m["content"]} for m in self.conversation_history
+                         if m.get("role") == "system" and str(m.get("content", "")).startswith(PERSONA_PREFIX)][:1]
         account = self._account_note()  # so does the account it is working in
         if account:
             lean_history.append({"role": "system", "content": "[This account]\n" + account})

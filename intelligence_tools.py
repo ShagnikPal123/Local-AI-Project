@@ -15,7 +15,14 @@ def tool_brain_recall(query: str, limit: int = 6) -> str:
 
 
 def tool_brain_remember(text: str, source: str = "files") -> str:
+    import avatars
     import super_brain
+
+    avatar_id = avatars._current_avatar_id()
+    if avatar_id:
+        # An avatar's memories go to its own bank, never the brain every other chat reads (persona_scope.py).
+        avatars.add_note(avatar_id, str(text or "")[:400])
+        return "Remembered in your own notes (only you read them)."
 
     super_brain.BRAIN.ingest(text, source=source or "files", kind="remembered")
     return "Remembered — it's in the super brain now."

@@ -794,9 +794,9 @@ def chat(request: ChatRequest, _user=RequireChat) -> ChatResponse:
 
     chat_id = request.chat_id or "default"
     service = _get_service(chat_id)
-    personality = resolve_personality(request.personality_id, request.personality_text)
-    if personality:
-        service.set_personality(personality)
+    from persona_scope import apply_request_personality
+
+    apply_request_personality(service, request.personality_id, request.personality_text)
 
     rag_context = ""
     if request.use_rag:
@@ -2261,8 +2261,12 @@ def set_active_personality(request: PersonalityRequest, _user=RequireChat) -> Di
         # Apply to every live chat, matching /api/speed. A setting that only took
         # effect in whichever conversation happened to be cached would look like
         # it worked and then randomly not.
+        from persona_scope import persona_of
+
         with _services_lock:
             for service in _services.values():
+                if persona_of(service).get("kind") == "avatar":
+                    continue  # an avatar's chat keeps its own personality (persona_scope.py)
                 if wanted:
                     service.set_personality_from_id(wanted)
                 else:
