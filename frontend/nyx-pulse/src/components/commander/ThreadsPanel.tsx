@@ -18,7 +18,18 @@ export interface Thread {
   line: string; approval_id: string; tokens: ThreadTokens; fresh_soon: boolean; messages: number;
 }
 interface Group { id: string; label: string; threads: Thread[] }
-export interface Board { groups: Group[]; total: number; needs_you: number; working: number; tokens: number; sectors: string[] }
+export interface TaskCount { done: number; total: number }
+/** Something a thread sent up to its main chat (commander.sync_asks): a question, an approval, a "Waiting on you"
+ *  line, or a finished result. ``after`` is how many main chat messages came before it, so it is drawn in place. */
+export interface Ask {
+  id: string; thread_id: string; title: string; kind: "question" | "blocked" | "approval" | "result"; line: string;
+  approval_id: string; card: string; after: number; created: number; open: boolean; answer: string;
+  where: "" | "main" | "thread";
+}
+export interface Board {
+  groups: Group[]; total: number; needs_you: number; working: number; tokens: number; sectors: string[];
+  tasks: TaskCount; by_project: Record<string, TaskCount>; asks: Ask[];
+}
 export interface CommanderState {
   board: Board; is_delegator: boolean; settings: { divisions_in_chat: boolean; auto_pick: boolean };
   kinds: { id: string; label: string }[]; efforts: string[]; sectors: string[];
@@ -90,7 +101,8 @@ export function ThreadsPanel({ state, onOpen, onChange, title = "Threads" }: {
   return (
     <aside className="th-panel" aria-label={title}>
       <header className="th-head">
-        <h2>{title} {board ? <span className="th-count">{board.total}</span> : null}</h2>
+        <h2>{title} {board ? <span className="th-count">{board.total}</span> : null}
+          {board && board.tasks.total > 0 && <span className="th-tasks" title="Tasks done out of all">Tasks {board.tasks.done}/{board.tasks.total}</span>}</h2>
         <p>{!board ? "Loading…" : board.total === 0 ? "No threads yet. Ask for something and the work is split into threads here."
           : waiting ? `${waiting} ${waiting === 1 ? "thread needs" : "threads need"} you.`
           : board.working ? `${board.working} working, nothing needs you.` : "Nothing needs you."}</p>

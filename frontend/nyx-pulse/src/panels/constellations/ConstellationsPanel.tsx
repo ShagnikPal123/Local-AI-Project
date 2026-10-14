@@ -40,6 +40,7 @@ export function ProjectsPanel() {
   const [error, setError] = useState("");
   const [view, setView] = useState<"chat" | "setup">("chat");
   const [mainChat, setMainChat] = useState<Record<string, string>>({});
+  const [tasks, setTasks] = useState<Record<string, { done: number; total: number }>>({});
   const project = projects.find((p) => p.id === sel) ?? projects[0];
 
   // A project's main chat (its delegator) is made the first time the project is opened. Once per project: a reload
@@ -60,6 +61,18 @@ export function ProjectsPanel() {
     if (a.ok) setAvatars(a.data.avatars);
   }, []);
   useEffect(() => { void load(); }, [load]);
+
+  // "Tasks 3/7" on each project in the list (the owner's ask, 2026-10-14): its threads done out of all.
+  useEffect(() => {
+    const count = async () => {
+      if (document.hidden) return;
+      const r = await api.get<{ board: { by_project: Record<string, { done: number; total: number }> } }>("/api/commander");
+      if (r.ok) setTasks(r.data.board.by_project);
+    };
+    void count();
+    const timer = window.setInterval(() => void count(), 15000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const act = async (run: () => Promise<{ ok: boolean; error?: string }>) => {
     setError("");
@@ -85,7 +98,7 @@ export function ProjectsPanel() {
           <ul className="cx-list">
             {projects.map((p) => (
               <li key={p.id}><button className={`cx-pick ${project?.id === p.id ? "is-on" : ""}`} onClick={() => setSel(p.id)}>
-                <b>{p.name}</b><span className="cx-muted">{p.tabs.length} tabs · {Object.values(p.members).flat().length} helpers · {p.artifacts.length} artifacts</span>
+                <b>{p.name}</b><span className="cx-muted">{tasks[p.id]?.total ? `Tasks ${tasks[p.id].done}/${tasks[p.id].total} · ` : ""}{p.tabs.length} tabs · {Object.values(p.members).flat().length} helpers · {p.artifacts.length} artifacts</span>
               </button></li>
             ))}
           </ul>
