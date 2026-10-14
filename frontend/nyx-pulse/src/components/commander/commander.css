@@ -26,6 +26,26 @@
   font: inherit; font-size: 14px; color: var(--color-text); background: var(--color-surface-2); box-shadow: inset 0 0 0 1px var(--color-divider); }
 .tv-compose textarea:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
 
+/* What threads sent up to the main chat (AskRow.tsx): open asks stand out, answered ones and results stay quiet */
+.cmd-ask { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 12px; font-size: 13px; line-height: 1.5;
+  background: var(--color-surface-2); box-shadow: inset 0 0 0 1px var(--color-divider); }
+.cmd-ask > p { margin: 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.cmd-ask.is-result, .cmd-ask.is-closed { flex-direction: row; align-items: baseline; gap: 8px; padding: 2px 4px;
+  color: var(--color-neutral-400); background: none; box-shadow: none; }
+.cmd-ask.is-result > p, .cmd-ask.is-closed > p { display: block; }
+.cmd-ask.is-result .th-dot { background: var(--color-accent); }
+.cmd-ask.is-open { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-warn) 55%, transparent); }
+.cmd-ask.is-open > p .th-dot { background: var(--color-warn); margin-top: 0; }
+.cmd-ask-name { padding: 0; border: 0; background: none; font: inherit; font-weight: 600; color: var(--color-text); cursor: pointer;
+  text-decoration: underline; text-decoration-color: var(--color-divider); text-underline-offset: 3px; }
+.cmd-ask-name:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+.cmd-ask-where { color: var(--color-neutral-500); }
+.cmd-ask-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.cmd-ask-row span { flex: 1 1 100%; }
+.cmd-ask-row input { flex: 1; min-width: 160px; min-height: 34px; padding: 6px 10px; border: 0; border-radius: 10px; font: inherit;
+  color: var(--color-text); background: var(--color-surface); box-shadow: inset 0 0 0 1px var(--color-divider); }
+.cmd-ask-row input:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+
 /* One thread */
 .tv-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .tv-title { flex: 1; display: flex; align-items: baseline; gap: 10px; min-width: 0; }
@@ -48,6 +68,7 @@
   background: var(--color-surface); box-shadow: inset 0 0 0 1px var(--color-divider); position: sticky; top: 12px; }
 .th-head h2 { margin: 0; font: 600 15px/1.3 var(--font-heading); display: flex; align-items: center; gap: 8px; }
 .th-head p { margin: 4px 0 0; font-size: 12px; color: var(--color-neutral-500); line-height: 1.45; }
+.th-tasks { margin-left: auto; font: 400 12px/1 var(--font-body); color: var(--color-neutral-400); }
 .th-count { min-width: 20px; padding: 1px 6px; border-radius: 6px; font-size: 12px; text-align: center;
   background: var(--color-surface-2); box-shadow: inset 0 0 0 1px var(--color-divider); }
 .th-group-head { width: 100%; display: flex; align-items: center; gap: 6px; padding: 6px 4px; border: 0; background: none;
