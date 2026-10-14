@@ -267,7 +267,7 @@ def deliver(digest: Dict[str, Any]) -> None:
     try:
         from landscape_tools import tool_ui_notify
 
-        tool_ui_notify("Your morning digest is ready — open Jarvis to hear it.", "info")
+        tool_ui_notify("Your morning digest is ready — open Ichos to hear it.", "info")
     except Exception:  # noqa: BLE001
         pass
     if settings().get("whatsapp"):

@@ -82,3 +82,14 @@ def test_reading_the_offices_for_the_digest_writes_nothing(tmp_path, monkeypatch
         assert saves == [] and office_engine.ENGINE.opened(office.id) is None
     finally:
         library.use_root(None)
+
+
+def test_the_ready_toast_names_the_assistant_ichos_not_jarvis(monkeypatch):
+    """The owner, 2026-10-14: "when you opened Ichos it still calls the assistant Jarvis"."""
+    import landscape_tools
+
+    toasts = []
+    monkeypatch.setattr(landscape_tools, "tool_ui_notify", lambda text, level="info": toasts.append(text))
+    monkeypatch.setattr(md, "settings", lambda: {"whatsapp": False})
+    md.deliver({"text": "Good morning."})
+    assert toasts and "Ichos" in toasts[0] and "jarvis" not in toasts[0].lower()
