@@ -992,6 +992,9 @@ OWNER_ONLY_PROJECT_ROUTES = [
     ("put", "/api/scheduled/sc-1", {"enabled": False}),
     ("delete", "/api/scheduled/sc-1", None),
     ("post", "/api/scheduled/sc-1/run", None),
+    ("get", "/api/scheduled/calendar/week", None),
+    ("get", "/api/scheduled/calendar/look", None),
+    ("put", "/api/scheduled/calendar/look", {"density": "compact"}),
 ]
 
 

@@ -178,6 +178,34 @@ def scheduled_create(body: Dict[str, Any], _o=Depends(_owner)) -> Dict[str, Any]
     return {"task": _call(lambda: scheduled.create(body))}
 
 
+# The week calendar. Under /api/scheduled so the hosted-mode block and the owner-only rule cover it too.
+@router.get("/api/scheduled/calendar/week")
+def calendar_week(day: str = "", _o=Depends(_owner)) -> Dict[str, Any]:
+    from datetime import date
+
+    import calendar_view
+
+    try:
+        chosen = date.fromisoformat(day) if day else None
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail="day must look like 2026-10-14.") from error
+    return calendar_view.week(chosen)
+
+
+@router.get("/api/scheduled/calendar/look")
+def calendar_look(_o=Depends(_owner)) -> Dict[str, Any]:
+    import calendar_view
+
+    return {"look": calendar_view.get_look()}
+
+
+@router.put("/api/scheduled/calendar/look")
+def calendar_look_set(body: Dict[str, Any], _o=Depends(_owner)) -> Dict[str, Any]:
+    import calendar_view
+
+    return {"look": calendar_view.set_look(body)}
+
+
 @router.put("/api/scheduled/{task_id}")
 def scheduled_update(task_id: str, body: Dict[str, Any], _o=Depends(_owner)) -> Dict[str, Any]:
     import scheduled
