@@ -268,3 +268,18 @@ def test_a_tool_whose_own_argument_is_called_name_can_be_called():
     registry.register(name="make_agent", description="test", parameters=[ToolParam("name", "string", "Agent name")],
                       handler=lambda name: f"made {name}")
     assert registry.call_tool("make_agent", name="Scout") == "made Scout"
+
+
+def test_an_oversized_prompt_is_saved_in_the_data_folder_not_the_working_directory(tmp_path, monkeypatch):
+    """A CWD-relative 'attachments' folder split the data in two when Nyx started from the outer folder."""
+    import paths
+
+    elsewhere = tmp_path / "outer"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+    service = ChatService(memory_path=str(tmp_path / "empty_memory.json"))
+    saved = service._save_large_prompt("a very long prompt")
+    assert saved.is_absolute()
+    assert saved.parent == paths.DATA_DIR / "attachments"
+    assert saved.read_text(encoding="utf-8") == "a very long prompt"
+    assert not (elsewhere / "attachments").exists()
