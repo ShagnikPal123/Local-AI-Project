@@ -30,7 +30,6 @@ export const ABILITIES: Ability[] = [
   { id: "predict", label: "Predict", glyph: "◎", hint: "A swarm forecasts it", use: "predict to run a swarm forecast", open: { tab: "predict" } },
   { id: "office", label: "Office & World", glyph: "▦", hint: "Teams of agents", use: "office_create / world_create for a team of agents", open: { window: "office" } },
   { id: "s2c", label: "Screenshot → Code", glyph: "⌘", hint: "Turn a UI image into a page", use: "screenshot_to_code for the attached UI image", open: { window: "s2c" } },
-  { id: "brain", label: "Second Brain", glyph: "◐", hint: "Everything Ichos remembers", use: "brain_recall over the owner's memories", open: { window: "brain" } },
   { id: "computer", label: "Ichos Computer", glyph: "▭", hint: "Its own sandboxed desktop", use: "Ichos's own computer", open: { window: "computer" } },
   { id: "mail", label: "Mail", glyph: "✉", hint: "Your inbox", use: "email tools (read, search, draft)", open: { window: "email" } },
   { id: "texts", label: "Texts", glyph: "✆", hint: "WhatsApp with your phone", use: "WhatsApp messaging", open: { window: "whatsapp" } },
