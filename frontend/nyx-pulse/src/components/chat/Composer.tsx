@@ -15,6 +15,7 @@ import { SlashMenu, useSlashRows, commandsIn } from "./SlashMenu";
 import { usePasteFiles } from "../../files/fileIntake";
 import { ComposerLinks } from "./ComposerLinks";
 import "../windows/windows.css";
+import { toggleAgentsPanel } from "../agents/AgentsSidePanel";
 import { ABILITIES, onBoxes, openBox, offerWindow, pickAbility, removeBox, type Box } from "../../state/abilities";
 
 const BUSY_LABELS: Record<BusyMode, { short: string; long: string }> = {
@@ -522,6 +523,7 @@ function AbilitiesMenu({ disabled, onSkill, onAgent }: { disabled?: boolean; onS
           <div className="plus-menu__title">Skills and agents</div>
           <MenuItem glyph="/" label="Use a skill" hint="Commands and skills Ichos knows" onPick={pick(onSkill)} />
           <MenuItem glyph="@" label="Ask an agent" hint="Hand this to one of your agents" onPick={pick(onAgent)} />
+          <MenuItem glyph="⇆" label="Agents panel" hint="Drag agents onto a chat, this chat or a project" onPick={pick(toggleAgentsPanel)} />
           <div className="plus-menu__title">Abilities — added as a box; double-click a box to open it</div>
           <div className="plus-menu__grid">
             {ABILITIES.filter((a) => a.id !== "s2c").map((a) => (
