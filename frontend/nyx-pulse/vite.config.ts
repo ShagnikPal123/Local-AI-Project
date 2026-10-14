@@ -3,7 +3,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 /**
- * Two entry points:
+ * Entry points:
  *   index.html      -> the public landing page, with the two options
  *   app/index.html  -> the workspace itself, served at /app/
  *
@@ -18,6 +18,8 @@ export default defineConfig({
         app: resolve(import.meta.dirname, "app/index.html"),
         // The Equalize notch's own desktop window (notch_window.py), served at /notch.
         notch: resolve(import.meta.dirname, "notch.html"),
+        // The hands-off sidebar's desktop window (sidebar_window.py), served at /sidebar.
+        sidebar: resolve(import.meta.dirname, "sidebar.html"),
       },
     },
   },

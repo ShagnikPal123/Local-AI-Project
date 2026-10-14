@@ -3,27 +3,8 @@
 
 import { createRoot } from "react-dom/client";
 import { getToken, setToken } from "../api";
+import { hostToken } from "./hostToken";
 import { Notch } from "./Notch";
-
-type Bridge = { token?: () => Promise<string> };
-
-async function hostToken(): Promise<string> {
-  const read = async () => {
-    const api = (window as unknown as { pywebview?: { api?: Bridge } }).pywebview?.api;
-    return api?.token ? await api.token() : "";
-  };
-  // The bridge's functions arrive a moment after the page; a normal browser tab (testing) never gets them.
-  return new Promise((resolve) => {
-    const started = Date.now();
-    const check = () => {
-      const api = (window as unknown as { pywebview?: { api?: Bridge } }).pywebview?.api;
-      if (api?.token) void read().then(resolve);
-      else if (Date.now() - started > 4000) resolve("");
-      else window.setTimeout(check, 50);
-    };
-    check();
-  });
-}
 
 void hostToken().then((token) => {
   if (token) setToken(token);
