@@ -160,6 +160,15 @@ Standing file ownership when delegating:
   `102d659`, with the team that owns it. Two splits: Projects + Commander (the command center, WS2) and the trader as
   its own app (WS1). Each team re-checks the code and `git log` before building, and pushes small commits.
 
+### 2026-10-14 — WS14 desktop app and VS Code (paused by the owner's one-to-three-at-a-time rule)
+- [x] Nyx opens as its own app by default, browser optional: `app_window.py` (WebView2 via pywebview on signed
+  pythonw, no new .exe), signed in through the bridge, one window per app, remembered size. Ichos adds an `APPS` entry.
+- [x] Stay-on: a crash restarts the engine (`launcher.revive_after_crash`, max 3 in 10 minutes, logged in
+  `logs/engine_crashes.json`).
+- [ ] Next: test on the owner's PC (pywebview install, taskbar icon, shortcut while in the tray, crash restart);
+  console windows popping up again (quiet_windows regression); VS Code "watch it code"; browser extension with a
+  Gmail tab icon (Drive doc 1, item 1.10).
+
 ### 2026-10-09 — WhatsApp line + seven update ideas (session c17036a4)
 
 - [x] **WhatsApp line** — text Nyx from the phone, tied to this PC (`docs/WHATSAPP.md`). Real pairing not yet tried
