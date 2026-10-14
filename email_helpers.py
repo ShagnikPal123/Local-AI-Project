@@ -172,6 +172,16 @@ def summarize(result: Dict[str, Any]) -> str:
 # --- the draft queue ----------------------------------------------------------------------------------------
 
 
+def _notify() -> None:
+    """Tell the open Email settings panel the queue changed (a draft written in chat shows up without a reload)."""
+    try:
+        from agent_events import publish_ui
+
+        publish_ui("email.drafts.changed")
+    except Exception:  # noqa: BLE001 - the panel also refreshes on its own actions
+        pass
+
+
 def list_drafts(status: str = "pending") -> List[Dict[str, Any]]:
     drafts = [d for d in _load().get("drafts", []) if isinstance(d, dict)]
     return [d for d in drafts if not status or d.get("status") == status]
@@ -222,6 +232,7 @@ def save_draft(body: str, message_id: str = "", to: str = "", subject: str = "",
         data.setdefault("drafts", []).append(record)
         data["drafts"] = data["drafts"][-200:]
         _save(data)
+    _notify()
     return record
 
 

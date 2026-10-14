@@ -137,3 +137,12 @@ def test_routes_are_owner_only_and_send_is_one_click(helpers, servers):
     assert local.post(f"/api/email/helpers/drafts/{draft['id']}/send").json() == {"ok": True} and len(servers) == 1
     assert local.post(f"/api/email/helpers/drafts/{draft['id']}/send").status_code == 400
     assert local.delete(f"/api/email/helpers/rules/{rule['id']}").json() == {"ok": True}
+
+
+def test_a_draft_written_in_chat_tells_the_open_panel(helpers, monkeypatch):
+    import agent_events
+
+    published = []
+    monkeypatch.setattr(agent_events, "publish_ui", lambda kind, **data: published.append(kind))
+    email_helpers.save_draft("Hello", to="bo@example.com", subject="Hi")
+    assert published == ["email.drafts.changed"]
