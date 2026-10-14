@@ -96,7 +96,8 @@ def gesture_heard(gesture_id: str, _user=RequireChat) -> Dict[str, Any]:
 
 @router.get("/api/voice/greeting")
 def voice_greeting(first: bool = False, _user=RequireChat) -> Dict[str, Any]:
-    """What to say when listening starts — in every mode (N86)."""
+    """What to say when listening starts — in every mode (N86). Empty when it greeted moments ago, so a restart of
+    the microphone or a second window never says it twice."""
     import voice_gestures
 
-    return {"text": voice_gestures.greeting(first_today=first)}
+    return {"text": voice_gestures.greeting_for_start(first_today=first)}

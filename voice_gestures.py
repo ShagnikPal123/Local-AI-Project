@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import re
+import threading
 import time
 import uuid
 from typing import Any, Dict, List, Optional
@@ -48,6 +49,15 @@ GREETINGS = [
     "Ichos here. I've got the mic.",
     "Ichos here, ears on.",
 ]
+
+
+#: Once something has greeted the owner, another greeting inside this many seconds is dropped. The microphone
+#: restarts every few seconds of silence, a second app window starts its own, and a clap that wakes it already
+#: said "I'm here" — each of those used to say the intro again (Fixer Upper S33/S34, the "double intro phrase").
+GREETING_GAP_S = 20.0
+
+_greet_lock = threading.Lock()
+_last_greeting = 0.0
 
 
 def _path():
@@ -198,6 +208,29 @@ def greeting(first_today: bool = False) -> str:
     return GREETINGS[int(time.time() // 60) % len(GREETINGS)]
 
 
+def greeting_for_start(first_today: bool = False, now: float | None = None) -> str:
+    """The greeting for a listening session that just started, or "" if one was said moments ago.
+
+    This is what the browser asks for. ``greeting()`` stays the plain "what would it say" for the settings page.
+    """
+    now = time.time() if now is None else now
+    global _last_greeting
+    with _greet_lock:
+        if now - _last_greeting < GREETING_GAP_S:
+            return ""
+        text = greeting(first_today=first_today)
+        if text:
+            _last_greeting = now
+        return text
+
+
+def note_greeted(now: float | None = None) -> None:
+    """Something else just said hello (a clap that wakes it), so the start of listening stays quiet."""
+    global _last_greeting
+    with _greet_lock:
+        _last_greeting = time.time() if now is None else now
+
+
 def _spoken_status() -> str:
     """A few words about what is going on, for the "tell me where things are" gesture."""
     parts = [f"It's {time.strftime('%I:%M %p').lstrip('0').lower()}."]
@@ -243,6 +276,8 @@ def heard(gesture_id: str) -> Dict[str, Any]:
         speak = (speak + " " if speak else "") + _spoken_status()
     elif found["action"] == "listen" and not speak:
         speak = "I'm listening."
+    if found["action"] == "listen" and speak:
+        note_greeted()  # the listening this starts must not add its own intro on top of this line
     return {"gesture": found, "speak": speak[:400], "action": found["action"], "text": found.get("text", "")}
 
 

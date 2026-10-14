@@ -109,3 +109,35 @@ def test_the_routes_are_behind_the_session_once_the_install_is_claimed(tmp_path,
     assert stranger.get("/api/voice/gestures").status_code in (401, 403)
     assert stranger.post("/api/voice/gestures", json={"name": "x", "kind": "clap"}).status_code in (401, 403)
     assert stranger.post("/api/voice/gestures/clap2/heard").status_code in (401, 403)
+
+
+def test_listening_that_starts_again_moments_later_does_not_greet_twice(monkeypatch):
+    """The mic restarts every few seconds of silence and each restart used to say the intro again (Fixer Upper S33)."""
+    monkeypatch.setattr(voice_gestures, "_last_greeting", 0.0)
+    first = voice_gestures.greeting_for_start(now=1000.0)
+    assert first.lower().startswith("ichos here")
+    assert voice_gestures.greeting_for_start(now=1003.0) == ""          # a restart, or a second window
+    assert voice_gestures.greeting_for_start(now=1000.0 + voice_gestures.GREETING_GAP_S + 1) != ""
+
+
+def test_a_clap_that_already_said_hello_keeps_the_start_quiet(monkeypatch):
+    """Two claps say "I'm here — what do you need?" and turn listening on; the intro must not follow it."""
+    monkeypatch.setattr(voice_gestures, "_last_greeting", 0.0)
+    answer = voice_gestures.heard("clap2")
+    assert answer["action"] == "listen" and answer["speak"]
+    assert voice_gestures.greeting_for_start() == ""
+
+
+def test_the_greeting_route_only_greets_once_per_start(monkeypatch):
+    from fastapi import FastAPI
+
+    import routes_voice_gestures
+    from server_auth import require_session
+
+    monkeypatch.setattr(voice_gestures, "_last_greeting", 0.0)
+    app = FastAPI()
+    app.include_router(routes_voice_gestures.router)
+    app.dependency_overrides[require_session] = lambda: {"role": "owner"}
+    client = TestClient(app)
+    said = [client.get("/api/voice/greeting").json()["text"] for _ in range(3)]
+    assert said[0] and said[1:] == ["", ""]
