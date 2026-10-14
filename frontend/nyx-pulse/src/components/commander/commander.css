@@ -1,0 +1,85 @@
+/* The Commander: a main chat that hands work to threads, and the Threads panel beside it (images p16, p27, 01-d).
+   Monochrome like the rest of the app; colour is spent only on what needs the owner (warn) and what is working
+   (accent). Used by CommanderView.tsx, ThreadsPanel.tsx and ThreadView.tsx. */
+
+.cmd { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 360px); gap: 14px; align-items: start; min-height: 520px; }
+.cmd-main { min-width: 0; }
+.cmd-chat, .tv { display: flex; flex-direction: column; gap: 10px; min-height: 520px; padding: 14px 16px; border-radius: 16px;
+  background: var(--color-surface); box-shadow: inset 0 0 0 1px var(--color-divider); }
+.cmd-log, .tv-log { flex: 1; display: flex; flex-direction: column; gap: 10px; max-height: 62vh; overflow-y: auto; padding-right: 4px; }
+.cmd-intro h2 { margin: 0 0 4px; font: 600 22px/1.25 var(--font-heading); letter-spacing: -0.01em; }
+.cmd-intro p { margin: 0 0 10px; font-size: 13px; line-height: 1.5; color: var(--color-neutral-500); max-width: 60ch; }
+.cmd-context { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 10px 12px; border-radius: 12px; font-size: 12px;
+  background: var(--color-surface-2); color: var(--color-neutral-400); }
+.cmd-context b { color: var(--color-text); }
+.cmd-recent { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+
+/* Messages */
+.tv-msg { max-width: 92%; font-size: 14px; line-height: 1.55; }
+.tv-msg p { margin: 0; white-space: pre-wrap; }
+.tv-msg.is-user { align-self: flex-end; padding: 8px 12px; border-radius: 14px; background: var(--color-surface-2); }
+.tv-msg.is-assistant { align-self: flex-start; }
+.tv-working { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--color-neutral-400); }
+.tv-working .th-dot { background: var(--color-accent); animation: th-pulse 1.4s ease-in-out infinite; }
+.tv-compose { display: flex; gap: 8px; align-items: flex-end; }
+.tv-compose textarea { flex: 1; min-height: 44px; max-height: 160px; resize: vertical; padding: 10px 12px; border: 0; border-radius: 12px;
+  font: inherit; font-size: 14px; color: var(--color-text); background: var(--color-surface-2); box-shadow: inset 0 0 0 1px var(--color-divider); }
+.tv-compose textarea:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+
+/* One thread */
+.tv-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tv-title { flex: 1; display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.tv-title h2 { margin: 0; font: 600 17px/1.3 var(--font-heading); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tv-status { font-size: 12px; color: var(--color-neutral-500); }
+.tv-status.is-needs_you { color: var(--color-warn); }
+.tv-status.is-working { color: var(--color-accent); }
+.tv-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; font-size: 12px; color: var(--color-neutral-500); }
+.tv-pick label { display: inline-flex; align-items: center; gap: 6px; }
+.tv-pick select { min-height: 30px; padding: 4px 8px; border: 0; border-radius: 8px; font: inherit; color: var(--color-text);
+  background: var(--color-surface-2); box-shadow: inset 0 0 0 1px var(--color-divider); }
+.tv-why { flex-basis: 100%; }
+.tv-note { margin: 0; font-size: 12px; color: var(--color-neutral-500); }
+.tv-approve { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 12px; font-size: 13px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-warn) 55%, transparent); }
+.tv-approve span { flex: 1; min-width: 200px; }
+
+/* The Threads panel */
+.th-panel { display: flex; flex-direction: column; gap: 8px; padding: 14px; border-radius: 16px; min-width: 0;
+  background: var(--color-surface); box-shadow: inset 0 0 0 1px var(--color-divider); position: sticky; top: 12px; }
+.th-head h2 { margin: 0; font: 600 15px/1.3 var(--font-heading); display: flex; align-items: center; gap: 8px; }
+.th-head p { margin: 4px 0 0; font-size: 12px; color: var(--color-neutral-500); line-height: 1.45; }
+.th-count { min-width: 20px; padding: 1px 6px; border-radius: 6px; font-size: 12px; text-align: center;
+  background: var(--color-surface-2); box-shadow: inset 0 0 0 1px var(--color-divider); }
+.th-group-head { width: 100%; display: flex; align-items: center; gap: 6px; padding: 6px 4px; border: 0; background: none;
+  font: 600 12px/1 var(--font-body); color: var(--color-neutral-400); cursor: pointer; text-align: left; }
+.th-group-head:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; border-radius: 6px; }
+.th-n { font-weight: 400; color: var(--color-neutral-600); }
+.th-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.th-row { position: relative; display: flex; align-items: stretch; border-radius: 12px; background: var(--color-surface-2);
+  box-shadow: inset 0 0 0 1px var(--color-divider); }
+.th-row:hover { box-shadow: inset 0 0 0 1px var(--color-divider-strong, var(--color-accent)); }
+.th-row.is-resolved { opacity: 0.6; }
+.th-open { flex: 1; min-width: 0; display: grid; grid-template-columns: 10px minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 10px;
+  padding: 9px 10px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: 12px; }
+.th-open:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -2px; }
+.th-dot { width: 8px; height: 8px; margin-top: 6px; border-radius: 50%; background: var(--color-neutral-600); display: inline-block; flex: none; }
+.th-row.is-working .th-dot { background: var(--color-accent); animation: th-pulse 1.4s ease-in-out infinite; }
+.th-row.is-needs_you .th-dot { background: var(--color-warn); }
+.th-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.th-text b { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.th-line { font-size: 12px; color: var(--color-neutral-500); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.th-line em { font-style: normal; color: var(--color-warn); }
+.th-meta { grid-column: 2; margin-top: 4px; display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--color-neutral-600); }
+.th-fill { width: 46px; height: 4px; border-radius: 2px; background: var(--color-divider); overflow: hidden; }
+.th-fill i { display: block; height: 100%; background: var(--color-neutral-500); }
+.th-fill.is-full i { background: var(--color-warn); }
+.th-acts { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 4px; opacity: 0; transition: opacity 120ms ease; }
+.th-row:hover .th-acts, .th-row:focus-within .th-acts { opacity: 1; }
+.th-acts button { width: 26px; height: 22px; border: 0; border-radius: 6px; background: none; color: var(--color-neutral-400); cursor: pointer; font-size: 13px; }
+.th-acts button:hover { background: var(--color-surface-3, var(--color-surface)); color: var(--color-text); }
+.th-acts button:focus-visible { outline: 2px solid var(--color-accent); }
+
+@keyframes th-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .th-row.is-working .th-dot, .tv-working .th-dot { animation: none; } .th-acts { transition: none; } }
+@media (max-width: 900px) { .cmd { grid-template-columns: 1fr; } .th-panel { position: static; } }
+@media (hover: none) { .th-acts { opacity: 1; } }
