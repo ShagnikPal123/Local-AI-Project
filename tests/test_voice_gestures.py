@@ -100,8 +100,8 @@ def test_the_routes_are_behind_the_session_once_the_install_is_claimed(tmp_path,
     from auth import AuthStore
 
     fresh = AuthStore(tmp_path / "auth.json")
-    fresh.bootstrap_owner("shagnikpal@gmail.com")
-    fresh.set_password("shagnikpal@gmail.com", "a-long-enough-passphrase")
+    fresh.bootstrap_owner("owner@example.com")
+    fresh.set_password("owner@example.com", "a-long-enough-passphrase")
     monkeypatch.setattr(server_auth, "AUTH_STORE", fresh)
     monkeypatch.setattr(server, "AUTH_STORE", fresh)
 

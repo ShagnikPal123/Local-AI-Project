@@ -23,7 +23,7 @@ from auth import (
     verify_password,
 )
 
-OWNER_EMAIL = "shagnikpal@gmail.com"
+OWNER_EMAIL = "owner@example.com"
 GOOD_PASSWORD = "a-long-enough-passphrase"
 
 
@@ -110,7 +110,7 @@ def test_bootstrap_is_idempotent(store):
 def test_email_is_case_insensitive(store):
     store.bootstrap_owner(OWNER_EMAIL)
     store.set_password(OWNER_EMAIL, GOOD_PASSWORD)
-    assert store.authenticate("ShagnikPal@Gmail.COM", GOOD_PASSWORD)
+    assert store.authenticate("Owner@Example.COM", GOOD_PASSWORD)
 
 
 # --- login does not leak whether an account exists ------------------------------

@@ -17,7 +17,7 @@ import server
 import server_auth
 from auth import AuthStore, Role
 
-OWNER = "shagnikpal@gmail.com"
+OWNER = "owner@example.com"
 PASSWORD = "a-long-enough-passphrase"
 OTHER_PASSWORD = "another-long-passphrase"
 

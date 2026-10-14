@@ -19,7 +19,7 @@ def _propose(log, title="Add a thing", target="settings", origin=ChangeOrigin.HU
     return log.propose(
         title=title,
         description="does a thing",
-        author="shagnikpal@gmail.com",
+        author="owner@example.com",
         target=target,
         content="new content",
         previous_content="old content",
@@ -53,28 +53,28 @@ def test_a_draft_cannot_be_published_directly(log):
     """The gate that makes self-modification safe to leave switched on."""
     change = _propose(log)
     with pytest.raises(ChangeError):
-        log.publish(change.change_id, "shagnikpal@gmail.com")
+        log.publish(change.change_id, "owner@example.com")
 
 
 def test_a_draft_cannot_be_approved_without_review(log):
     change = _propose(log)
     with pytest.raises(ChangeError):
-        log.approve(change.change_id, "shagnikpal@gmail.com")
+        log.approve(change.change_id, "owner@example.com")
 
 
 def test_an_agent_change_gets_the_same_gate_as_a_human_one(log):
     change = _propose(log, origin=ChangeOrigin.AGENT)
     with pytest.raises(ChangeError):
-        log.publish(change.change_id, "shagnikpal@gmail.com")
+        log.publish(change.change_id, "owner@example.com")
 
 
 def test_the_happy_path_reaches_published(log):
     change = _propose(log)
     log.submit_for_review(change.change_id)
     log.approve(change.change_id, "reviewer@example.com")
-    published = log.publish(change.change_id, "shagnikpal@gmail.com")
+    published = log.publish(change.change_id, "owner@example.com")
     assert published.status is ChangeStatus.PUBLISHED
-    assert published.published_by == "shagnikpal@gmail.com"
+    assert published.published_by == "owner@example.com"
     assert published.published_at is not None
 
 
@@ -87,7 +87,7 @@ def test_a_rejected_change_is_a_dead_end(log):
     with pytest.raises(ChangeError):
         log.approve(change.change_id, "reviewer@example.com")
     with pytest.raises(ChangeError):
-        log.publish(change.change_id, "shagnikpal@gmail.com")
+        log.publish(change.change_id, "owner@example.com")
 
 
 def test_a_published_change_cannot_be_published_twice(log):
