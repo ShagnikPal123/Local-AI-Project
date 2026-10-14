@@ -42,6 +42,7 @@ HELP = (
     "/newavatar Name: what it does — make an avatar\n"
     "/general — back to the main WhatsApp chat\n"
     "/where — who I am answering as right now\n"
+    "/away — I am gone: text me when chats finish or need me; /back to go by how long I have been idle\n"
     "/new — start a fresh conversation in this lane\n"
     "/status — what this line is tied to\n"
     "/pause — stop answering until you resume it on the PC\n"
@@ -58,7 +59,7 @@ class Command:
 
 
 _COMMANDS = frozenset({"help", "status", "pause", "new", "chats", "chat", "avatars", "avatar", "newavatar", "general",
-                       "where"})
+                       "where", "away", "back"})
 
 
 def parse(text: str) -> Optional[Command]:

@@ -31,6 +31,7 @@ TOOL_MODULES: List[Tuple[str, str]] = [
     ("computer_control", "register_computer_tools"),
     ("own_computer", "register_own_computer_tools"),
     ("whatsapp_link", "register_whatsapp_tools"),
+    ("notifications", "register_notification_tools"),
     ("site_preview", "register_preview_tools"),
     ("morning_digest", "register_digest_tools"),
     ("calendar_view", "register_calendar_tools"),

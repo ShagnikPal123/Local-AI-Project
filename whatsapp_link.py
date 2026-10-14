@@ -665,6 +665,13 @@ class WhatsAppLink:
                       + lanes.describe(self.current_lane(), self.lane_name()), origin="nyx")
         elif name == "where":
             self.send(lanes.describe(self.current_lane(), self.lane_name()), origin="nyx")
+        elif name in ("away", "back"):
+            import notifications
+
+            notifications.set_away("on" if name == "away" else "auto")
+            self.send("Got it. I will text you here when a chat finishes or needs you. /back when you are at the PC."
+                      if name == "away" else
+                      "Welcome back. I will only text you if you have been away from the PC for a while.", origin="nyx")
         elif name == "pause":
             # Stays connected so the PC can still text the phone; it just stops answering.
             with self._lock:
@@ -893,23 +900,30 @@ def _notify_pc(text: str) -> None:
         pass
 
 
-def notify(kind: str, text: str) -> bool:
-    """Text the owner about something they switched on (e.g. "office": a job finished). Never raises, never waits:
-    a phone that is off, unlinked or not opted in simply gets nothing."""
+def push(text: str, origin: str = "notice") -> bool:
+    """Text the owner something that is already decided (notifications.py has checked their settings). Never raises,
+    never waits: an unlinked, paused or offline phone simply gets nothing. Returns whether a text was started."""
     current = _LINK
-    if current is None or not (current.state.get("notify") or {}).get(kind):
-        return False
-    if current.state.get("status") != "linked" or not current.connected:
+    if current is None or current.state.get("status") != "linked" or not current.connected:
         return False
 
     def send() -> None:
         try:
-            current.send(text, origin=f"notify:{kind}")
+            current.send(text, origin=origin)
         except Exception:  # noqa: BLE001
             log.info("WhatsApp notice not sent", exc_info=True)
 
     threading.Thread(target=send, name="nyx-whatsapp-notice", daemon=True).start()
     return True
+
+
+def notify(kind: str, text: str) -> bool:
+    """Text the owner about something they switched on in WhatsApp's own settings (e.g. "office": a job finished).
+    Never raises, never waits: a phone that is off, unlinked or not opted in simply gets nothing."""
+    current = _LINK
+    if current is None or not (current.state.get("notify") or {}).get(kind):
+        return False
+    return push(text, origin=f"notify:{kind}")
 
 
 _LINK: Optional[WhatsAppLink] = None
@@ -1018,7 +1032,8 @@ def register_whatsapp_tools(registry: Any) -> None:
     registry.register(
         "whatsapp_send",
         "Text the owner on their phone over WhatsApp. It only ever reaches the owner's own paired phone — use it when "
-        "they ask you to send them something, or to tell them a long job finished. Never for anyone else.",
+        "they ask you to text them, send them something, or ping them when a long job finishes, from ANY chat (not only "
+        "the WhatsApp one). You can do this; do not say you cannot. Never for anyone else.",
         [P("text", "string", "The message")], tool_send, category="whatsapp", label="Texting your phone")
     registry.register(
         "whatsapp_send_file",
