@@ -820,6 +820,23 @@ all trading tests 49 green):
 - Gotchas: `tests/test_server_auth.py` is CRLF, edit it in binary mode; every `npm run build` rewrites the tracked
   `tsconfig.tsbuildinfo`, so `git checkout --` it before committing.
 
+### 2026-10-14 — WS7 notch, hands-off sidebar (Fixer Upper)
+
+- Notch window (`notch_window.py`): opaque black, clipped to the shapes the page reports (`set_shape` → GDI region), Win11
+  corner, border and backdrop off (`FRAME_ATTRIBUTES`, re-applied every second because pywebview turns Mica back on when
+  the Windows theme changes). The dark-mode white cut-out was that Mica backdrop behind a transparent window.
+- Notch controls (`notch_controls.py`): system buttons (closed set), the owner's launchers (app, site, folder, cmd
+  command), the link finder, home views (triple click cycles, H sets the default), weather/calendar/now playing data,
+  and where the notch and sidebar sit ("place", with lock). Looks (`notch_looks.py`): data-only, checked on import.
+- Waiting approvals and question cards pop the notch open; a wake (`/api/notch/wake`, voice on) opens it listening.
+- Hands-off sidebar (`sidebar_window.py`, `/sidebar`, `src/sidebar/`): tabs with waiting badges, search that asks Ichos
+  through the notch's chat, the tab Ichos opens lit up (`landscape_tools._publish` records it), hands-off switch
+  (publishes `voice.toggle`). Show/hide, side and lock in Equalize › Notch controls.
+- Not tried on real hardware: the region clip, drag and lock of both windows, the backdrop fix. Mocked tests in
+  `tests/test_notch*.py`, `tests/test_sidebar_window.py`.
+- Gotchas: the closed pills are measured with `offsetWidth` (not the bounding box) because they animate in scaled.
+  `notch_controls.json` and `notch_looks.json` live in the project folder and are gitignored.
+
 ### 2026-10-14 — WS9 phone, WhatsApp, notifications (Fixer Upper)
 
 - WhatsApp: three lanes on the one line (general, a chosen PC chat, an avatar). `/chats` lists chats and `/chat N`

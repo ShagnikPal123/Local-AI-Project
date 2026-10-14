@@ -1,6 +1,6 @@
 """The Equalize notch's desktop window — its own process, outside the browser (owner, 2026-10-10/11).
 
-A frameless, transparent, always-on-top WebView2 window (pywebview, already installed — no download) at the top
+A frameless, always-on-top WebView2 window (pywebview, already installed — no download) at the top
 centre of the main screen, showing ``/notch`` from the engine. Coucou keeps a fixed panel and toggles click-through
 at 60 Hz; here the window simply *is* the island: the page reports the island's size (``set_hit``) and the window
 grows to it at once and shrinks after the closing animation, so everything outside the island reaches the apps
@@ -172,13 +172,22 @@ def _apply_region(hwnd: int, shapes: list, gdi32=None, user=None) -> bool:
     return bool(user.SetWindowRgn(hwnd, total, True))
 
 
-def _no_frame(hwnd: int) -> None:
-    """Windows 11 rounds and outlines every top-level window with a 1 px border; the notch draws its own shape."""
+#: DWM window attributes the notch sets: corners not rounded, no border, and no backdrop material.
+#: The backdrop is the dark-mode white box (owner, 2026-10-14: "when changing dark to light mode it fixes it"):
+#: pywebview turns on the Mica backdrop (attribute 38 = 2) whenever Windows is in dark mode and the plain one (1) in
+#: light mode. Mica paints a pale material behind every see-through pixel of a transparent window, so in dark mode
+#: the corners and gaps around the island came out light. The notch asks for no backdrop at all.
+FRAME_ATTRIBUTES = ((33, 1), (34, 0xFFFFFFFE), (38, 1))  # corner: square · border colour: none · backdrop: none
+
+
+def _no_frame(hwnd: int, dwm=None) -> None:
+    """Windows 11 rounds, outlines and backs every top-level window; the notch draws its own shape. pywebview puts
+    the backdrop back whenever the Windows theme changes, so this is called again every second."""
     try:
-        dwm = ctypes.windll.dwmapi
-        for attribute, value in ((33, 1), (34, 0xFFFFFFFE)):  # corner: do not round · border colour: none
+        dwm = dwm or ctypes.windll.dwmapi
+        for attribute, value in FRAME_ATTRIBUTES:
             dwm.DwmSetWindowAttribute(hwnd, attribute, ctypes.byref(ctypes.c_uint(value)), 4)
-    except Exception:  # noqa: BLE001 - Windows 10 has neither attribute; nothing to remove there
+    except Exception:  # noqa: BLE001 - Windows 10 has none of these attributes; nothing to remove there
         pass
 
 
@@ -325,6 +334,7 @@ def _watch() -> None:
             shrink_at = 0.0
         if now - last_check > 1.0:
             last_check = now
+            _no_frame(hwnd)  # a dark/light switch makes pywebview turn the backdrop back on
             busy = _fullscreen_app_running()
             if busy != hidden_for_fullscreen:
                 hidden_for_fullscreen = busy
@@ -393,9 +403,9 @@ def _hotkey_setting() -> str:
 
 def main() -> None:
     global _window
-    # WebView2 paints white until the page's own transparent background arrives; a transparent default means no white
-    # flash or box even before the window clip (set_shape) is in place.
-    os.environ.setdefault("WEBVIEW2_DEFAULT_BACKGROUND_COLOR", "00000000")
+    # WebView2 paints white until the page arrives; a black default (the island's colour) means no white flash or box
+    # even before the window clip (set_shape) is in place.
+    os.environ.setdefault("WEBVIEW2_DEFAULT_BACKGROUND_COLOR", "FF000000")
     import webview
 
     try:
@@ -404,8 +414,12 @@ def main() -> None:
     except OSError:
         pass
     width = _screen_width()
+    # Not a transparent window: the window is clipped to the island's shapes (_apply_region), so see-through pixels
+    # are not needed, and a transparent pywebview window leaves its backing colour and the dark-mode backdrop showing
+    # wherever the page is clear (the white cut-out, owner 2026-10-14). Opaque and black, anything the clip misses
+    # by a pixel is the island's own colour.
     _window = webview.create_window(TITLE, URL, js_api=Bridge(), width=240, height=6, x=(width - 240) // 2, y=0,
-                                    frameless=True, transparent=True, on_top=True, resizable=True, easy_drag=False,
+                                    frameless=True, transparent=False, on_top=True, resizable=True, easy_drag=False,
                                     min_size=(1, 1), background_color="#000000", shadow=False)
     _load_place()
     threading.Thread(target=_watch, name="notch-watch", daemon=True).start()

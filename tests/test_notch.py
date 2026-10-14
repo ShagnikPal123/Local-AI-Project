@@ -239,3 +239,18 @@ def test_a_tab_ichos_opens_is_remembered_as_its_pick(monkeypatch):
     monkeypatch.setattr("agent_events.publish_ui", lambda *a, **k: None)
     landscape_tools._publish("ui.open_tab", tab_id="trading")
     assert notch.status()["tab"]["id"] == "trading" and notch.status()["tab"]["by"] == "ai"
+
+
+def test_the_notch_turns_off_the_dark_mode_backdrop():
+    """Dark mode's Mica backdrop showed as a light box around the island; light mode had none (owner, 2026-10-14)."""
+    import notch_window
+
+    calls = []
+
+    class FakeDwm:
+        def DwmSetWindowAttribute(self, hwnd, attribute, value, size):
+            calls.append((attribute, value._obj.value))
+
+    notch_window._no_frame(42, dwm=FakeDwm())
+    assert (38, 1) in calls  # DWMWA_SYSTEMBACKDROP_TYPE = DWMSBT_NONE
+    assert (33, 1) in calls and (34, 0xFFFFFFFE) in calls
