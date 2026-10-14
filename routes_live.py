@@ -180,11 +180,24 @@ def start_turn(body: StreamRequest, user: Any) -> tuple[str, str]:
     with _TURNS_LOCK:
         _TURNS[turn_id] = cancel
 
-    def sink(event: Dict[str, Any]) -> None:
+    def record(event: Dict[str, Any]) -> None:
         event.setdefault("turn_id", turn_id)
         TURNS.append(turn_id, event)
         if event.get("type") in _ACTIVITY_TYPES:
             publish_activity(event["type"], **{k: v for k, v in event.items() if k not in ("type", "data_url")})
+
+    # Active speech: say at once what was understood, a few words while working, and a line at the end.
+    narrator = _narrator(text, record)
+
+    def sink(event: Dict[str, Any]) -> None:
+        if narrator is None:
+            record(event)
+        elif event.get("type") in ("done", "error", "stopped"):
+            narrator.observe(event)   # the closing line goes out before the event that ends the stream
+            record(event)
+        else:
+            record(event)
+            narrator.observe(event)
 
     def work() -> None:
         state = "done"
@@ -212,11 +225,28 @@ def start_turn(body: StreamRequest, user: Any) -> tuple[str, str]:
         finally:
             with _TURNS_LOCK:
                 _TURNS.pop(turn_id, None)
+            # A note the owner added that the turn never read goes back to them to send on its own.
+            left = TURNS.take_notes(turn_id, close=True)
+            if left:
+                record({"type": "notes.leftover", "notes": left})
             TURNS.finish(turn_id, state)
             _notify_finished(chat_id, state, result, time.time() - started)
 
+    if narrator is not None:
+        narrator.start()
     threading.Thread(target=work, name=f"nyx-turn-{turn_id}", daemon=True).start()
     return turn_id, chat_id
+
+
+def _narrator(text: str, record: Any) -> Any:
+    """The turn's Narrator (active_speech.py), or None when active speech is off or cannot start."""
+    try:
+        import active_speech
+
+        narrator = active_speech.Narrator(text, record)
+        return narrator if narrator.on else None
+    except Exception:  # pragma: no cover - a turn never depends on its narration
+        return None
 
 
 def _follow_turn(turn_id: str, since: int):
@@ -269,8 +299,75 @@ def advise_turn(body: AdviseRequest, _user=RequireChat) -> Dict[str, Any]:
 
     record = TURNS.running_for_chat(body.chat_id or "default")
     running = record.message if record else ""
-    return {**turn_advice.advise(body.text, running, use_model=body.use_model and bool(running)),
-            "running": bool(record)}
+    listening = bool(record) and TURNS.listening(record.turn_id)
+    return {**turn_advice.advise(body.text, running, use_model=body.use_model and bool(running), listening=listening),
+            "running": bool(record), "listening": listening}
+
+
+class HeardRequest(BaseModel):
+    text: str
+    chat_id: Optional[str] = None
+    #: What the owner picked (or Nyx suggested) for it; empty lets Nyx decide (a spoken message).
+    mode: str = ""
+
+
+@router.post("/api/turns/heard")
+def heard_mid_turn(body: HeardRequest, _user=RequireChat) -> Dict[str, Any]:
+    """A message arrived while this chat is busy: answer at once, and fold it in when that was the pick.
+
+    The reply (``ack``) is also added to the running turn as a ``speech`` event, so every window shows it
+    and a voice turn says it. ``folded`` False means the client keeps the message and sends it after.
+    """
+    import active_speech
+    import turn_advice
+
+    text = (body.text or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Nothing was heard.")
+    record = TURNS.running_for_chat(body.chat_id or "default")
+    if record is None and (body.chat_id or "default") == "default":
+        # Voice from another tab names no chat: it means the one open now.
+        import server
+
+        active = server._shared_chat_store().data.get("active_chat")
+        record = TURNS.running_for_chat(active) if active else None
+    if record is None:
+        return {"running": False, "mode": "", "ack": "", "folded": False}
+    listening = TURNS.listening(record.turn_id)
+    mode = (body.mode or "").strip().lower()
+    if mode not in turn_advice.MODES:
+        mode = turn_advice.advise(text, record.message, use_model=True, budget_seconds=1.5, listening=listening)["mode"]
+    folded = mode == "fold" and TURNS.add_note(record.turn_id, text)
+    if mode == "fold" and not folded:
+        mode = "queue"
+    ack = active_speech.busy_ack(text, mode) if active_speech.settings()["enabled"] else ""
+    if ack:
+        TURNS.append(record.turn_id, {"type": "speech", "phase": "heard", "text": ack, "mode": mode,
+                                      "note": text[:300], "turn_id": record.turn_id})
+    return {"running": True, "turn_id": record.turn_id, "mode": mode, "ack": ack, "folded": folded}
+
+
+class ActiveSpeechSettings(BaseModel):
+    enabled: Optional[bool] = None
+    model_ack: Optional[bool] = None
+    end_note: Optional[bool] = None
+
+
+@router.get("/api/active-speech")
+def get_active_speech(_user=RequireChat) -> Dict[str, Any]:
+    import active_speech
+
+    return {"settings": active_speech.settings()}
+
+
+@router.post("/api/active-speech")
+def set_active_speech(body: ActiveSpeechSettings, request: Request) -> Dict[str, Any]:
+    """Owner only: how much Nyx says while it works, for everyone on this install."""
+    import active_speech
+    import server
+
+    server.require_local_owner(request, request.headers.get("authorization"))
+    return {"settings": active_speech.save_settings(**body.model_dump())}
 
 
 @router.get("/api/chats/{chat_id}/turn")

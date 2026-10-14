@@ -1233,3 +1233,26 @@ def test_the_presence_drop_route_needs_a_session_once_claimed(client, store):
     assert client.post("/api/presence/drop", json={"label": "x"}).status_code == 401
     ok = client.post("/api/presence/drop", json={"label": "x"}, headers=_auth(_login(client)))
     assert ok.status_code == 200
+
+
+# --- active speech: what Nyx says while it works (active_speech.py) -----------------------------------------------
+
+ACTIVE_SPEECH_ROUTES = [
+    ("post", "/api/turns/heard", {"text": "also make it blue", "chat_id": "x"}),
+    ("get", "/api/active-speech", None),
+    ("post", "/api/active-speech", {"enabled": False}),
+]
+
+
+@pytest.mark.parametrize("method,path,body", ACTIVE_SPEECH_ROUTES)
+def test_active_speech_routes_refuse_anonymous_callers(client, store, method, path, body):
+    _claim(store)
+    call = getattr(client, method)
+    response = call(path, json=body) if body is not None else call(path)
+    assert response.status_code in (401, 403), f"{path} was reachable anonymously"
+
+
+def test_only_the_owner_changes_how_much_nyx_says(client, beta_token):
+    assert client.get("/api/active-speech", headers=_auth(beta_token)).status_code == 200
+    response = client.post("/api/active-speech", json={"enabled": False}, headers=_auth(beta_token))
+    assert response.status_code == 403
