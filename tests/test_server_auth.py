@@ -1073,6 +1073,20 @@ def test_a_beta_tester_cannot_use_proto_voice(client, beta_token, method, path, 
     assert response.status_code == 403, f"beta tester reached {path}"
 
 
+# Listening on the PC (Fixer Upper S33): the microphone's words are the owner's, so no anonymous caller gets them.
+VOICE_EAR_ROUTES = [
+    ("get", "/api/voice/ears", None),
+    ("post", "/api/voice/transcribe", None),
+]
+
+
+@pytest.mark.parametrize("method,path,body", VOICE_EAR_ROUTES)
+def test_listening_routes_refuse_anonymous_callers(client, store, method, path, body):
+    _claim(store)
+    response = getattr(client, method)(path)
+    assert response.status_code in (401, 403), f"{path} was reachable anonymously"
+
+
 # The curiosity machine (N103) is the owner's own; the feature catalog is readable
 # by any signed-in chat caller but only the owner may force a rescan (N100).
 OWNER_ONLY_CURIOSITY_ROUTES = [

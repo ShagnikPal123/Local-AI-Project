@@ -9,7 +9,8 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
@@ -175,3 +176,26 @@ def voice_say(body: SayRequest, _user=RequireChat) -> Dict[str, Any]:
     except tts.TTSError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
     return {k: result[k] for k in ("key", "voice", "engine", "cached", "played_by", "fallback")}
+
+
+@router.get("/api/voice/ears")
+def voice_ears(_user=RequireChat) -> Dict[str, Any]:
+    """What can listen on this PC, so the page knows whether it can record instead of using the browser's recognizer."""
+    import local_stt
+
+    return {"engines": local_stt.engines(), "best": local_stt.best_engine()}
+
+
+@router.post("/api/voice/transcribe")
+async def voice_transcribe(request: Request, engine: str = "", _user=RequireChat) -> Dict[str, Any]:
+    """Words for one spoken sentence, heard on this PC (the body is a 16 kHz mono 16-bit WAV).
+
+    The app window has no browser speech service and the browser's one needs the internet; this works in both.
+    """
+    import local_stt
+
+    data = await request.body()
+    try:
+        return await run_in_threadpool(local_stt.transcribe, data, engine)
+    except local_stt.STTError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
