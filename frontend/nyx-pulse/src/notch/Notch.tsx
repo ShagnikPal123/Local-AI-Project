@@ -300,9 +300,20 @@ export function Notch({ embedded = false }: { embedded?: boolean }) {
       setEmote({ name: "happy", at: Date.now() });
       later(() => { hoverOpened.current = true; openView(homeView()); }, hoverDelay);
     } else {
-      later(() => { hoverOpened.current = true; openView(homeView()); }, 200);
+      // Over the three pills, wait as long as the look says, so a click on a pill opens that pill's view first.
+      later(() => { hoverOpened.current = true; openView(homeView()); }, mode === "trio" ? hoverDelay : 200);
     }
   };
+  // Resting the pointer on a tab opens it, no click needed (owner, 2026-10-14: "add hover so I can hover over and then
+  // access"). A short wait keeps a pointer passing across the header from flipping views.
+  const tabHover = useRef<number>(0);
+  const hoverTab = (wanted: boolean, go: () => void) => ({
+    onMouseEnter: () => {
+      window.clearTimeout(tabHover.current);
+      if (wanted) tabHover.current = window.setTimeout(() => { play("blip"); go(); }, 350);
+    },
+    onMouseLeave: () => window.clearTimeout(tabHover.current),
+  });
   const onLeave = () => {
     clearLater();
     if (embedded) return;
@@ -411,16 +422,16 @@ export function Notch({ embedded = false }: { embedded?: boolean }) {
   // the wrong size.
   const hit = useRef({ w: 240, h: 6 });
   useEffect(() => {
-    if (mode === "trio") {
-      const box = document.querySelector(".nx-trio")?.getBoundingClientRect();
-      hit.current = box ? { w: Math.ceil(box.width) + 8, h: Math.ceil(box.bottom) + 6 } : { w: 360, h: 44 };
-    } else if (mode === "hidden") hit.current = { w: 240, h: 6 };
+    if (mode === "trio") hit.current = trioHit();
+    else if (mode === "hidden") hit.current = { w: 240, h: 6 };
     else hit.current = { w: size.w + 28, h: size.h + (volHover ? 50 : 6) };
     host()?.set_hit?.(0, 0, hit.current.w, hit.current.h);
   }, [mode, size.w, size.h, volHover, pinned.length, activeTimers.length, soundPlaying]);
   useEffect(() => {
     if (embedded) return;
     const id = window.setInterval(() => {
+      // The three pills change width as the clock ticks and timers come and go, so their box is measured again.
+      if (document.querySelector(".nx-trio")) hit.current = trioHit();
       host()?.set_hit?.(0, 0, hit.current.w, hit.current.h);
       reportShapes();
     }, 500);
@@ -633,8 +644,10 @@ export function Notch({ embedded = false }: { embedded?: boolean }) {
           <div className="nx-content" onClick={onTripleClick}>
             <div className="nx-header">
               <div className="nx-tabs" role="tablist">
-                <button className={`nx-tab ${tab === "home" ? "on" : ""}`} onClick={() => { play("blip"); openView(homeView()); }} aria-label="Home" title="Home">{Icon.home()}</button>
-                <button className={`nx-tab ${tab === "chat" ? "on" : ""}`} onClick={() => { play("blip"); openView("chat"); }} aria-label="Chat" title="Chat">{Icon.chat()}</button>
+                <button className={`nx-tab ${tab === "home" ? "on" : ""}`} onClick={() => { play("blip"); openView(homeView()); }} aria-label="Home" title="Home"
+                  {...hoverTab(tab !== "home", () => openView(homeView()))}>{Icon.home()}</button>
+                <button className={`nx-tab ${tab === "chat" ? "on" : ""}`} onClick={() => { play("blip"); openView("chat"); }} aria-label="Chat" title="Chat"
+                  {...hoverTab(tab !== "chat", () => openView("chat"))}>{Icon.chat()}</button>
                 <button className={`nx-tab ${tab === "new" ? "on" : ""}`} onClick={() => { play("blip"); newChat(); }} aria-label="New chat or drop files" title="New chat · drop files">{Icon.plus()}</button>
                 {homeIdOf(view) && (
                   <button className={`nx-tab h ${controls?.home.default === homeIdOf(view) ? "on" : ""}`} onClick={() => void makeDefault()}
@@ -741,7 +754,7 @@ export function Notch({ embedded = false }: { embedded?: boolean }) {
 
   const appWorking = focusApp ? agents.find((a) => a.app === focusApp.id && a.state === "working") : undefined;
   const trio = mode === "trio" && (
-    <div className="nx-trio" onMouseEnter={() => clearLater()} onDragOver={onDragOver} onDrop={onDrop}>
+    <div className="nx-trio" onMouseEnter={onEnter} onMouseLeave={onLeave} onDragOver={onDragOver} onDrop={onDrop}>
       {focusApp ? (
         <button className="nx-pill-top round" title={`${focusApp.name}${appWorking ? " — working" : ""}`}
           onClick={() => { setAppId(focusApp.id); openView("app"); }} aria-label={focusApp.name}>
@@ -783,6 +796,13 @@ function writeSeen(seen: Set<string>): void {
 
 /** The black shapes on the page right now, for the desktop window's outline. Read from the DOM so the island's
  * CSS transition is followed as it runs. */
+/** The window size the three pills need. Measured without transforms: the pills slide apart as they appear
+ * (nx-split, scaled to 92 %), and sizing the window to that first frame cut the outer pills' sides off. */
+function trioHit(): { w: number; h: number } {
+  const el = document.querySelector<HTMLElement>(".nx-trio");
+  return el ? { w: el.offsetWidth + 12, h: el.offsetTop + el.offsetHeight + 6 } : { w: 360, h: 44 };
+}
+
 function measureShapes(): Shape[] {
   const shapes: Shape[] = [];
   const box = (el: Element, kind: Shape["kind"], r: number) => {
