@@ -1007,6 +1007,18 @@ OWNER_ONLY_PROJECT_ROUTES = [
     ("get", "/api/scheduled/calendar/week", None),
     ("get", "/api/scheduled/calendar/look", None),
     ("put", "/api/scheduled/calendar/look", {"density": "compact"}),
+    # The Commander (commander.py): threads run on the owner's keys.
+    ("get", "/api/commander", None),
+    ("get", "/api/commander/attention", None),
+    ("post", "/api/commander/delegators", {"chat_id": "c1"}),
+    ("delete", "/api/commander/delegators/c1", None),
+    ("post", "/api/commander/projects/pr-1/chat", None),
+    ("post", "/api/commander/send", {"chat_id": "c1", "message": "hi"}),
+    ("post", "/api/commander/threads/th-1/message", {"text": "more"}),
+    ("put", "/api/commander/threads/th-1", {"resolved": True}),
+    ("delete", "/api/commander/threads/th-1", None),
+    ("get", "/api/commander/settings", None),
+    ("put", "/api/commander/settings", {"divisions_in_chat": True}),
 ]
 
 
@@ -1029,7 +1041,7 @@ def test_a_beta_tester_cannot_reach_projects_or_scheduled(client, beta_token, me
 def test_project_routes_do_not_exist_on_a_hosted_build():
     import deploy_mode
 
-    for prefix in ("/api/projects", "/api/artifacts", "/api/scheduled"):
+    for prefix in ("/api/projects", "/api/artifacts", "/api/scheduled", "/api/commander"):
         assert prefix in deploy_mode.HOSTED_BLOCKED_PREFIXES
 
 

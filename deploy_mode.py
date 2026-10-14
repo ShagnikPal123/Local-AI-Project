@@ -73,6 +73,8 @@ HOSTED_BLOCKED_PREFIXES = (
     "/api/projects",
     "/api/artifacts",
     "/api/scheduled",
+    # The Commander starts threads that run on the owner's keys and can be handed the owner's files.
+    "/api/commander",
     "/api/local-models",
     # Request S: Big Kahuna sees every answer and opens things on this PC by voice.
     "/api/identity0",
