@@ -30,6 +30,9 @@ def pytest_configure(config: pytest.Config) -> None:
     """
     base = getattr(config.option, "basetemp", None)
     if base and Path(str(base)).name == "local_pytest_tmp":
+        # pytest creates basetemp without its parents, so on a fresh clone (no local_pytest_tmp yet)
+        # every test errored at setup with FileNotFoundError.
+        Path(str(base)).mkdir(parents=True, exist_ok=True)
         config.option.basetemp = Path(str(base)) / f"pid{os.getpid()}"
 
 
