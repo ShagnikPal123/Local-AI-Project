@@ -97,8 +97,10 @@ def test_account(account_id: str, _owner_user=Depends(_owner)) -> Dict[str, Any]
 
 
 class GoogleClientIn(BaseModel):
-    client_id: str
-    client_secret: str
+    client_id: str = ""
+    client_secret: str = ""
+    #: The contents of the ``client_secret_….json`` file from Google Cloud; says Desktop or Web, so the panel can warn.
+    client_json: str = ""
 
 
 class GoogleStartIn(BaseModel):
@@ -118,7 +120,8 @@ def google_status(request: Request, _owner_user=Depends(_owner)) -> Dict[str, An
 
     accounts = dict.fromkeys([*google_oauth.connected(), *google_oauth._read_granted()])
     return {"client_configured": google_oauth.client_configured(), "connected": google_oauth.connected(),
-            "redirect_uri": _redirect_uri(request), "scopes": list(google_oauth.SCOPES),
+            "redirect_uri": _redirect_uri(request), "redirect_help": google_oauth.redirect_help(_redirect_uri(request)),
+            "client_type": google_oauth.client_type(), "scopes": list(google_oauth.SCOPES),
             "products": {address: google_oauth.products_of(address) for address in accounts
                          if google_oauth.products_of(address)}}
 
@@ -128,10 +131,14 @@ def google_client(body: GoogleClientIn, _owner_user=Depends(_owner)) -> Dict[str
     import google_oauth
 
     try:
-        google_oauth.save_client(body.client_id, body.client_secret)
+        if body.client_json.strip():
+            kind = google_oauth.save_client_json(body.client_json)
+        else:
+            google_oauth.save_client(body.client_id, body.client_secret)
+            kind = ""
     except google_oauth.OAuthError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
-    return {"client_configured": True}
+    return {"client_configured": True, "client_type": kind}
 
 
 @router.post("/api/google/oauth/start")
@@ -170,7 +177,7 @@ def google_callback(request: Request, state: str = "", code: str = "", error: st
     if host not in ("127.0.0.1", "::1", "localhost", "testclient"):
         return page("Open this on the PC running Nyx", "Google sign-in finishes on the computer where Nyx runs.", False)
     if error:
-        return page("Google sign-in was cancelled", f"Google said: {error}. Nothing was connected.", False)
+        return page("Google sign-in did not finish", f"{google_oauth.explain_error(error)} Nothing was connected.", False)
     try:
         address = google_oauth.complete(state, code)
     except google_oauth.OAuthError as failure:
