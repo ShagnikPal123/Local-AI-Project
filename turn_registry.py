@@ -54,6 +54,11 @@ class TurnRecord:
     tools_running: int = 0
     events: List[Dict[str, Any]] = field(default_factory=list)
     cancel: threading.Event = field(default_factory=threading.Event)
+    #: Messages the owner added while this turn works (active_speech "fold"). Only a turn in its tool
+    #: loop listens; before it writes its last answer it closes the inbox, so a note is never lost:
+    #: one that comes too late is refused and goes in the queue instead.
+    inbox: List[str] = field(default_factory=list)
+    inbox_open: bool = False
     _cond: threading.Condition = field(default_factory=threading.Condition)
     _last_announce: float = 0.0
 
@@ -71,6 +76,7 @@ class TurnRecord:
             "reply_preview": self.reply_preview[:240],
             "agents": list(self.agents.values()),
             "tools_running": self.tools_running,
+            "listening": self.inbox_open and not self.finished,
             "events": len(self.events),
         }
 
@@ -119,6 +125,41 @@ class TurnRegistry:
                     return record
         return None
 
+    # --- the inbox: notes added while the turn works ----------------------------
+
+    def open_inbox(self, turn_id: str) -> None:
+        record = self.get(turn_id)
+        if record is not None:
+            with record._cond:
+                record.inbox_open = not record.finished
+
+    def add_note(self, turn_id: str, text: str) -> bool:
+        """Hand a running turn a note to fold in; False when it is no longer listening."""
+        record = self.get(turn_id)
+        text = (text or "").strip()
+        if record is None or not text:
+            return False
+        with record._cond:
+            if not record.inbox_open or record.finished:
+                return False
+            record.inbox.append(text[:4000])
+            return True
+
+    def take_notes(self, turn_id: str, close: bool = False) -> List[str]:
+        """The notes not yet read, all at once; ``close`` stops listening in the same step."""
+        record = self.get(turn_id)
+        if record is None:
+            return []
+        with record._cond:
+            notes, record.inbox = record.inbox, []
+            if close:
+                record.inbox_open = False
+            return notes
+
+    def listening(self, turn_id: str) -> bool:
+        record = self.get(turn_id)
+        return bool(record and record.inbox_open and not record.finished)
+
     # --- events ---------------------------------------------------------------
 
     def append(self, turn_id: str, event: Dict[str, Any]) -> None:
@@ -152,6 +193,7 @@ class TurnRegistry:
             if record.state == "running":
                 record.state = state
                 record.finished_at = time.time()
+            record.inbox_open = False
             record._cond.notify_all()
         self._announce(record, force=True)
 

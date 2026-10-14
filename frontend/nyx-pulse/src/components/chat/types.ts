@@ -21,6 +21,7 @@ export type TurnEventType =
   | "approval.request" | "approval.resolved"
   | "answer.delta" | "answer.reset"
   | "cache.hit" | "learning.note" | "model.role" | "prompt.optimized"
+  | "speech" | "notes.leftover"
   | "done" | "error";
 
 export interface TurnEvent {
@@ -173,6 +174,18 @@ export interface SourceLink {
   domain: string;
 }
 
+/** One thing Nyx said to the owner while it worked (active_speech.py): shown in chat, read aloud on voice. */
+export interface SpeechLine {
+  /** start: what it understood · middle: what it is doing · end: done · heard: a message sent mid-task. */
+  phase: "start" | "middle" | "end" | "heard";
+  text: string;
+  /** heard: what happens to that message (queue, fold, parallel, branch, interrupt). */
+  mode?: string;
+  /** heard: the message itself. */
+  note?: string;
+  at: number;
+}
+
 export interface AssistantTurn {
   turnId: string;
   chatId: string;
@@ -218,6 +231,10 @@ export interface AssistantTurn {
   /** The slider was on Auto, and this is why it picked chatMode. */
   chatModeAuto?: boolean;
   chatModeReason?: string;
+  /** Active speech: what Nyx said at the start, while working and at the end. */
+  speech?: SpeechLine[];
+  /** Messages added mid-task that the turn could not take in; the panel sends them next. */
+  notesLeft?: string[];
   /** /auto or @auto (Update 1, U21): the team Auto picked for this job. */
   autoTeam?: {
     skills: { name: string; why: string[] }[];
@@ -344,7 +361,7 @@ export interface ComposerProps {
   busyAdvice?: { mode: BusyMode; reason: string; source?: string } | null;
 }
 
-export type BusyMode = "queue" | "interrupt" | "parallel" | "branch";
+export type BusyMode = "queue" | "interrupt" | "parallel" | "branch" | "fold";
 
 export interface AgentDockProps {
   agents: TeamAgentView[];

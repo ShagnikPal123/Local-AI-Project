@@ -34,6 +34,7 @@ import { ModeSlider, readMode, type ChatMode } from "../components/chat/ModeSlid
 import { ChatRail, type RailMakeKind } from "../components/chat/ChatRail";
 import { ChatTitleMenu } from "../components/chat/ChatTitleMenu";
 import { PersonaBadge } from "../components/chat/PersonaBadge";
+import { WorkQueue, type QueuedItem } from "../components/chat/WorkQueue";
 import type { AvatarState } from "../components/NyxAvatar";
 import {
   AgentDock,
@@ -646,7 +647,7 @@ export function ChatPanel({
 
   // --- typing while Nyx answers (Request G12) ------------------------------------------
 
-  const [queued, setQueued] = useState<{ id: string; text: string; attachmentIds: string[] }[]>([]);
+  const [queued, setQueued] = useState<QueuedItem[]>([]);
   const [busyAdvice, setBusyAdvice] = useState<{ mode: BusyMode; reason: string; source?: string } | null>(null);
   useEffect(() => {
     if (!busy || !draft.trim() || draft.startsWith("/")) { setBusyAdvice(null); return; }
@@ -664,6 +665,21 @@ export function ChatPanel({
     }, 600);
     return () => { alive = false; window.clearTimeout(timer); };
   }, [busy, draft, activeChatId, chatMode]);
+
+  // A message folded into a turn that finished before it could read it comes back here and goes next.
+  const leftHandled = useRef(new Set<string>());
+  useEffect(() => {
+    for (const message of messages) {
+      const turn = message.turn;
+      if (!turn?.notesLeft?.length || turn.state === "streaming" || leftHandled.current.has(turn.turnId)) continue;
+      leftHandled.current.add(turn.turnId);
+      if (Date.now() - turn.startedAt > 10 * 60_000) continue;
+      const notes = turn.notesLeft;
+      setQueued((current) => [...current, ...notes.map((text) => ({
+        id: uid("q"), text, attachmentIds: [], mode: "queue", ack: "That came in just as I finished, so it goes as its own message.",
+      }))]);
+    }
+  }, [messages]);
 
   // Queued messages go out one at a time, as soon as this chat is free again.
   useEffect(() => {
@@ -693,20 +709,27 @@ export function ChatPanel({
   );
 
   const onBusySend = useCallback(
-    async (mode: BusyMode) => {
+    async (picked: BusyMode) => {
       const text = draft.trim();
       if (!text) return;
       const attachmentIds = pending.filter((a) => a.status === "ready" && a.uploadId).map((a) => a.uploadId as string);
       setDraft("");
       for (const attachment of pending) removeAttachment(attachment.localId);
+      // Active speech: Nyx answers a mid-task message at once, and takes it into the running task when it can.
+      let mode: BusyMode = picked === "fold" && attachmentIds.length ? "queue" : picked;
+      const heard = await api.post<{ mode: string; ack: string; folded: boolean }>(
+        "/api/turns/heard", { text, chat_id: activeChatId, mode });
+      const ack = heard.ok ? heard.data.ack : "";
+      if (heard.ok && heard.data.folded) { pushToast(ack || "Added to what it is doing now.", "ok"); return; }
+      if (mode === "fold") mode = "queue";
       if (mode === "queue" || mode === "interrupt") {
-        const item = { id: uid("q"), text, attachmentIds };
+        const item: QueuedItem = { id: uid("q"), text, attachmentIds, mode, ack };
         setQueued((current) => (mode === "interrupt" ? [item, ...current] : [...current, item]));
         if (mode === "interrupt" && runningTurn?.turnId) {
           void stop(runningTurn.turnId);
-          pushToast("Stopping the current answer — your message goes next.", "info");
+          pushToast(ack || "Stopping the current answer — your message goes next.", "info");
         } else {
-          pushToast("Queued — it sends when this answer finishes.", "info");
+          pushToast(ack || "Queued — it sends when this answer finishes.", "info");
         }
         return;
       }
@@ -1115,17 +1138,8 @@ export function ChatPanel({
           </div>
           <div className="chat-home__dock">
             <ActiveTalkBar state={talk} onOff={() => setVoiceMode("off")} />
-            {queued.length > 0 && (
-              <div className="queued-list" aria-live="polite">
-                <span className="queued-list__label">Queued</span>
-                {queued.map((q) => (
-                  <span key={q.id} className="chip queued-list__item" title={q.text}>
-                    {q.text.slice(0, 60)}{q.text.length > 60 ? "…" : ""}
-                    <button aria-label="Remove from queue" onClick={() => setQueued((c) => c.filter((x) => x.id !== q.id))}>✕</button>
-                  </span>
-                ))}
-              </div>
-            )}
+            <WorkQueue items={queued} now={busy ? runningTurn?.status : undefined}
+              onRemove={(id) => setQueued((c) => c.filter((x) => x.id !== id))} />
             {dispatches.length > 0 && (
               <div className="dispatch-tray" aria-label="Agents working in this chat">
                 {dispatches.map((d) => (
@@ -1210,17 +1224,8 @@ export function ChatPanel({
         )}
         <MessageList messages={visibleMessages} onAction={onAction} emptyState={emptyState} />
         <ActiveTalkBar state={talk} onOff={() => setVoiceMode("off")} />
-        {queued.length > 0 && (
-          <div className="queued-list" aria-live="polite">
-            <span className="queued-list__label">Queued</span>
-            {queued.map((q) => (
-              <span key={q.id} className="chip queued-list__item" title={q.text}>
-                {q.text.slice(0, 60)}{q.text.length > 60 ? "…" : ""}
-                <button aria-label="Remove from queue" onClick={() => setQueued((c) => c.filter((x) => x.id !== q.id))}>✕</button>
-              </span>
-            ))}
-          </div>
-        )}
+        <WorkQueue items={queued} now={busy ? runningTurn?.status : undefined}
+          onRemove={(id) => setQueued((c) => c.filter((x) => x.id !== id))} />
         {dispatches.length > 0 && (
           <div className="dispatch-tray" aria-label="Agents working in this chat">
             {dispatches.map((d) => (
@@ -1292,17 +1297,8 @@ export function ChatPanel({
         <MessageList messages={visibleMessages} onAction={onAction} emptyState={emptyState} />
         <ActiveTalkBar state={talk} onOff={() => setVoiceMode("off")} />
 
-        {queued.length > 0 && (
-          <div className="queued-list" aria-live="polite">
-            <span className="queued-list__label">Queued</span>
-            {queued.map((q) => (
-              <span key={q.id} className="chip queued-list__item" title={q.text}>
-                {q.text.slice(0, 60)}{q.text.length > 60 ? "…" : ""}
-                <button aria-label="Remove from queue" onClick={() => setQueued((c) => c.filter((x) => x.id !== q.id))}>✕</button>
-              </span>
-            ))}
-          </div>
-        )}
+        <WorkQueue items={queued} now={busy ? runningTurn?.status : undefined}
+          onRemove={(id) => setQueued((c) => c.filter((x) => x.id !== id))} />
         {dispatches.length > 0 && (
           <div className="dispatch-tray" aria-label="Agents working in this chat">
             {dispatches.map((d) => (

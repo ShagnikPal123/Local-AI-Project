@@ -9,6 +9,7 @@ import type {
   AgentActivity,
   AssistantTurn,
   SkillRef,
+  SpeechLine,
   ToolStep,
   TurnEvent,
   TurnPhase,
@@ -369,6 +370,22 @@ export function reduceTurn(turn: AssistantTurn | undefined, event: TurnEvent): A
         : t;
     }
 
+    // Active speech (active_speech.py): a start line can be replaced by a better-worded one.
+    case "speech": {
+      const text = str(event.text);
+      const phase = str(event.phase) as SpeechLine["phase"];
+      if (!text || !["start", "middle", "end", "heard"].includes(phase)) return t;
+      const line: SpeechLine = { phase, text, at, mode: str(event.mode) || undefined, note: str(event.note) || undefined };
+      const lines = t.speech ?? [];
+      const old = event.replace ? lines.findIndex((l) => l.phase === phase) : -1;
+      return { ...t, speech: old === -1 ? [...lines, line] : lines.map((l, i) => (i === old ? line : l)) };
+    }
+
+    case "notes.leftover": {
+      const notes = Array.isArray(event.notes) ? event.notes.map((n) => str(n)).filter(Boolean) : [];
+      return notes.length ? { ...t, notesLeft: [...(t.notesLeft ?? []), ...notes] } : t;
+    }
+
     case "learning.note": {
       const text = str(event.text) || str(event.note);
       return text ? { ...t, learningNotes: [...(t.learningNotes ?? []), text] } : t;
@@ -411,6 +428,8 @@ export function reduceTurn(turn: AssistantTurn | undefined, event: TurnEvent): A
         state: stopped ? "stopped" : "done",
         status: stopped ? "Stopped" : "Done",
         answer: t.answer || str(event.reply),
+        notesLeft: Array.isArray(event.notes_left)
+          ? [...(t.notesLeft ?? []), ...event.notes_left.map((n) => str(n)).filter(Boolean)] : t.notesLeft,
         sources: Array.isArray(event.sources) ? (event.sources as AssistantTurn["sources"]) : t.sources,
         provider: str(event.provider) || t.provider,
         model: str(event.model) || t.model,

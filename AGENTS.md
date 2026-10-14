@@ -130,6 +130,7 @@ Each has an enforcement point in code. Do not weaken them.
 | `overlay.py` | Published, install-wide changes + checkpoints |
 | `profiles.py` | Per-user layered customization |
 | `dynamic_tabs.py` / `widgets.py` / `skills.py` | The three declarative spec systems |
+| `active_speech.py` | What Nyx says while it works (start, middle, end, and replies to mid-task messages), in chat and voice |
 | `taint_gate.py` | After a turn reads outside content, risky actions in it ask the owner (checked in `tools.call_tool`) |
 | `morning_digest.py` / `claude_sessions.py` | The equalize tab: daily briefing; Claude Code sessions by state |
 | `equalize_assistant.py` | The Equalize notch's state: settings, agents and their live work, fast file reads, mail on Send, timers, voice, avatar |

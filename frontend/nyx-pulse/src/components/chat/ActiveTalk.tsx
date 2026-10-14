@@ -92,6 +92,7 @@ export function useActiveTalk({ enabled, turn }: {
   const spokenSteps = useRef(new Set<string>());
   const lastProgress = useRef(0);
   const progressCount = useRef(0);
+  const spokenSpeech = useRef(0);
   const spokenTurn = useRef("");
   const spokenUpto = useRef(0);
   const spokenChars = useRef(0);
@@ -115,6 +116,7 @@ export function useActiveTalk({ enabled, turn }: {
       spokenChars.current = 0;
       spokenSteps.current.clear();
       progressCount.current = 0;
+      spokenSpeech.current = 0;
     }
 
     // Sentences that are finished get read while the rest is still being written.
@@ -129,7 +131,20 @@ export function useActiveTalk({ enabled, turn }: {
       }
     }
 
-    if (turn.state === "streaming" && !turn.answer) {
+    // Active speech: the lines the chat shows (what it understood, what it is doing, its reply to something
+    // said mid-task, and "done") are the lines it says, so text and voice tell the owner the same thing.
+    const speech = turn.speech ?? [];
+    if (speech.length > spokenSpeech.current) {
+      for (const line of speech.slice(spokenSpeech.current)) {
+        if (line.phase === "middle" && (turn.answer || progressCount.current >= MAX_PROGRESS)) continue;
+        if (line.phase === "middle") progressCount.current += 1;
+        lastProgress.current = Date.now();
+        say(line.text, "narrator");
+      }
+      spokenSpeech.current = speech.length;
+    }
+
+    if (turn.state === "streaming" && !turn.answer && speech.length === 0) {
       const running = turn.steps?.filter((step) => step.status === "running") ?? [];
       const step = running[running.length - 1];
       const now = Date.now();
@@ -148,7 +163,7 @@ export function useActiveTalk({ enabled, turn }: {
         }
       }
     }
-  }, [enabled, turn?.state, turn?.turnId, turn?.steps?.length, turn?.answer, say]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [enabled, turn?.state, turn?.turnId, turn?.steps?.length, turn?.answer, turn?.speech?.length, say]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return useMemo(() => ({
     on: enabled,

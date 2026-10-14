@@ -32,6 +32,16 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from providers.base import ProviderError
 from tool_context import ToolContext, use_context
 from tools import TOOL_REGISTRY
+
+#: How many times one answer is rewritten for notes that arrive while it is being written.
+_MAX_LATE_FOLDS = 2
+
+
+def _owner_notes(notes: List[str]) -> str:
+    """Notes the owner added mid-task, worded so the model treats them as part of the same task."""
+    lines = "\n".join(f"- {note}" for note in notes)
+    return ("[The owner added this while you were working. It is part of the same task: take it into account, "
+            f"and say briefly in your answer that you did.]\n{lines}")
 try:
     from tools import load_custom_vocabulary
 except Exception:  # pragma: no cover - vocabulary loader may not exist in all environments
@@ -297,6 +307,8 @@ class TurnRunner:
         #: Text the answer drew on (tool results), for the Sources drop-down (Request H15).
         self._source_texts: List[str] = []
         self.sources: List[Dict[str, str]] = []
+        #: Owner notes that came after the last chance to use them; the caller queues them as new messages.
+        self._leftover_notes: List[str] = []
 
     # --- events ---------------------------------------------------------------
 
@@ -913,6 +925,9 @@ class TurnRunner:
         #: refusal the owner caused (a blocked screen, a denied permission) is left alone.
         integrity_nudged = False
         seen_results: List[str] = []
+        #: Active speech: the owner can add to this task while it runs ("also make it…"); see _owner_notes.
+        folds = 0
+        self._inbox(open_=True)
 
         for step in range(1, max_steps + 1):
             if self.cancelled():
@@ -979,6 +994,20 @@ class TurnRunner:
                         history.append({"role": "assistant", "content": text})
                         history.append({"role": "user", "_tool_results": True, "content": nudge})
                         continue
+                # Last call for notes the owner added while this was being written: they are part of the task.
+                late = self._inbox(close=True)
+                if late and folds < _MAX_LATE_FOLDS and step < max_steps:
+                    folds += 1
+                    self._inbox(open_=True)
+                    self.emit("answer.reset")
+                    self.emit("speech", phase="middle", text="One more thing from you — updating the answer to cover it.",
+                              source="fold")
+                    history.append({"role": "assistant", "content": text})
+                    history.append({"role": "user", "_tool_results": True, "content": _owner_notes(late) + (
+                        "\n\nUpdate your answer so it covers this too, in this same turn.")})
+                    continue
+                if late:
+                    self._leftover_notes = late
                 reply = visible_answer(text)
                 if len(written_before_tools) >= 400 and len(reply) < 160 and written_before_tools not in reply:
                     self.emit("answer.reset")
@@ -1025,6 +1054,11 @@ class TurnRunner:
                 + "\n\nContinue this same turn: take the next step, or give the final answer if the task is done.",
                 "_tool_results": True,
             }
+            notes = self._inbox()
+            if notes:
+                self.emit("speech", phase="middle", text="Taking in what you just added.", source="fold")
+                follow_up["content"] = follow_up["content"].replace(
+                    "\n\nContinue this same turn:", "\n\n" + _owner_notes(notes) + "\n\nContinue this same turn:")
             images = self.context.take_images()
             if images:
                 follow_up["images"] = images
@@ -1035,6 +1069,9 @@ class TurnRunner:
 
     def _forced_answer(self) -> str:
         service = self.service
+        late = self._inbox(close=True)
+        if late:
+            self._leftover_notes = late
         self.emit("status", phase="answer", text="Step budget reached — writing up what was found")
         service.conversation_history.append({
             "role": "system",
@@ -1047,6 +1084,18 @@ class TurnRunner:
         reply = self._attach_generated(reply)
         self._save_reply(reply)
         return reply
+
+    def _inbox(self, open_: bool = False, close: bool = False) -> List[str]:
+        """Read (and open or close) this turn's inbox of owner notes in turn_registry. Never raises."""
+        try:
+            from turn_registry import TURNS
+
+            if open_:
+                TURNS.open_inbox(self.turn_id)
+                return []
+            return TURNS.take_notes(self.turn_id, close=close)
+        except Exception:  # pragma: no cover - notes are extra; the turn goes on
+            return []
 
     def _last_user_text(self) -> str:
         for message in reversed(self.service.conversation_history):
@@ -1289,6 +1338,10 @@ class TurnRunner:
             "stopped": self.cancelled(),
             "sources": self.sources,
         }
+        # Notes the owner added too late to use go back to them, to be sent as their own messages.
+        left = self._leftover_notes + self._inbox(close=True)
+        if left:
+            result["notes_left"] = left
         self.emit("done", **result)
         return result
 

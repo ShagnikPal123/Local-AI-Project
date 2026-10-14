@@ -253,3 +253,63 @@ def test_plain_questions_and_plan_turns_are_never_nudged():
     assert not _nudges(plain)
     chat = _run(_ScriptedRouter([("Hi! What can I do?", "ollama")]), message="hi there")[2]
     assert not _nudges(chat)
+
+
+def _fold_service(replies, on_step=None):
+    class _Router:
+        step = 0
+
+        def stream(self, history, on_event, **kwargs):
+            _Router.step += 1
+            if on_step:
+                on_step(_Router.step)
+            text = next(replies)
+            on_event({"type": "text", "text": text})
+            return text, "nvidia"
+
+    class _Service:
+        chat_id = "t"
+        enable_tools = True
+        auto_web_search = False
+        conversation_history = [{"role": "user", "content": "build the page"}]
+        router = _Router()
+
+        def _append_assistant_response(self, reply):
+            self.saved = reply
+
+    return _Service()
+
+
+def test_a_note_added_while_tools_run_is_folded_into_the_same_task(monkeypatch):
+    """Active speech: "also make it blue" sent mid-task becomes part of the task, not a second turn."""
+    import turn_registry
+
+    turns = turn_registry.TurnRegistry()
+    monkeypatch.setattr(turn_registry, "TURNS", turns)
+    turns.start("fold-1", "t", "build the page")
+    replies = iter(['<tool_call>\nname: get_time\narguments: {}\n</tool_call>', "Built it, and it is blue."])
+    service = _fold_service(replies, on_step=lambda step: step == 1 and turns.add_note("fold-1", "also make it blue"))
+    events = []
+    reply = TurnRunner(service, "build the page", sink=events.append, turn_id="fold-1")._tool_loop(max_steps=4)
+
+    assert reply == "Built it, and it is blue."
+    tool_results = [m for m in service.conversation_history if m.get("_tool_results")]
+    assert "also make it blue" in tool_results[-1]["content"]
+    assert any(e["type"] == "speech" and e.get("source") == "fold" for e in events)
+    assert not turns.listening("fold-1")          # closed before the last answer went out
+
+
+def test_a_note_that_arrives_while_the_answer_is_written_gets_one_more_pass(monkeypatch):
+    import turn_registry
+
+    turns = turn_registry.TurnRegistry()
+    monkeypatch.setattr(turn_registry, "TURNS", turns)
+    turns.start("fold-2", "t", "write a haiku")
+    replies = iter(["A haiku about rain.", "A haiku about rain, and one about snow."])
+    service = _fold_service(replies, on_step=lambda step: step == 1 and turns.add_note("fold-2", "and one about snow"))
+    events = []
+    reply = TurnRunner(service, "write a haiku", sink=events.append, turn_id="fold-2")._tool_loop(max_steps=4)
+
+    assert reply == "A haiku about rain, and one about snow."
+    assert any("and one about snow" in str(m.get("content")) for m in service.conversation_history)
+    assert [e["type"] for e in events].count("answer.reset") >= 1

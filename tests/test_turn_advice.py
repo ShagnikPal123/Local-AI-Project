@@ -18,3 +18,11 @@ def test_unrelated_tasks_run_alongside_and_alternatives_branch():
 def test_every_answer_carries_a_reason_and_rules_work_offline():
     result = advise("then email it to me", RUNNING, use_model=False)
     assert result["mode"] == "queue" and result["source"] == "rules" and result["reason"]
+
+
+def test_additions_fold_into_the_running_task_unless_it_stopped_listening():
+    """Active speech: "also…" / "make sure…" adds to the task running now instead of waiting for it."""
+    assert rule_advice("also make sure the photos keep their original names in a log", RUNNING)["mode"] == "fold"
+    assert rule_advice("don't forget the png files", RUNNING)["mode"] == "fold"
+    assert advise("also do the png files", RUNNING, use_model=False)["mode"] == "fold"
+    assert advise("also do the png files", RUNNING, use_model=False, listening=False)["mode"] == "queue"
