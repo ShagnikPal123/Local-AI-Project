@@ -9,8 +9,11 @@
 import { useEffect, useRef, useState } from "react";
 import type { TabDef } from "../tabs";
 import type { TabSpec } from "../panels/DynamicTab";
+import type { NavSide } from "../style/appearance";
 
 interface Props {
+  /** Which edge the bar sits on. Left and right stand it up as a column; the menu opens away from the edge. */
+  side?: NavSide;
   tabs: TabDef[];
   userTabs: TabSpec[];
   active: string;
@@ -18,7 +21,7 @@ interface Props {
   onNewTab: () => void;
 }
 
-export function TopTabs({ tabs, userTabs, active, onSelect, onNewTab }: Props) {
+export function TopTabs({ tabs, userTabs, active, onSelect, onNewTab, side = "top" }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -45,8 +48,8 @@ export function TopTabs({ tabs, userTabs, active, onSelect, onNewTab }: Props) {
   const pick = (id: string) => { onSelect(id); setMenuOpen(false); };
 
   return (
-    <div className="top-tabs">
-      <div role="tablist" aria-label="Workspace tabs" className="top-tabs__scroll nyx-tabscroll">
+    <div className={`top-tabs top-tabs--${side}`}>
+      <div role="tablist" aria-orientation={side === "left" || side === "right" ? "vertical" : "horizontal"} aria-label="Workspace tabs" className="top-tabs__scroll nyx-tabscroll">
         {tabs.map((t) => tab(t.id, t.label))}
         {userTabs.length > 0 && (
           <>

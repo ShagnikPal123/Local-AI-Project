@@ -219,3 +219,17 @@ main > :not(.chat-shell):not(.hub):only-child { height: 100%; min-height: 0; ove
 .acct-scrim, .quit-scrim { background: rgba(4, 4, 8, 0.78) !important; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
 .acct-sheet, .quit-dialog { background: #16171f !important; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 30px 80px rgba(0, 0, 0, 0.7) !important; }
 .quit-scrim--solid { background: #0b0b10 !important; }
+
+/* The tab strip on any edge, in every look (S4). Top is the original strip under the header; left and right stand it up
+   as a column beside the whole page; bottom lays it under the page with its menu opening upward. */
+.top-tabs--left, .top-tabs--right { flex-direction: column; width: 208px; box-shadow: none; }
+.top-tabs--left { box-shadow: inset -1px 0 0 var(--color-divider); }
+.top-tabs--right { box-shadow: inset 1px 0 0 var(--color-divider); }
+.top-tabs--left .top-tabs__scroll, .top-tabs--right .top-tabs__scroll { flex-direction: column; align-items: stretch; overflow-x: hidden; overflow-y: auto; padding: 8px; gap: 2px; }
+.top-tabs--left .top-tabs__tab, .top-tabs--right .top-tabs__tab { justify-content: flex-start; width: 100%; }
+.top-tabs--left .top-tabs__tab[aria-selected="true"]::after, .top-tabs--right .top-tabs__tab[aria-selected="true"]::after { left: 0; right: auto; top: 8px; bottom: 8px; width: 3px; height: auto; }
+.top-tabs--left .top-tabs__divider, .top-tabs--right .top-tabs__divider { width: auto; height: 1px; margin: 6px 4px; }
+.top-tabs--left .top-tabs__more, .top-tabs--right .top-tabs__more { display: none; }
+.top-tabs--bottom { box-shadow: inset 0 1px 0 var(--color-divider); }
+.top-tabs--bottom .top-tabs__menu { top: auto; bottom: calc(100% + 4px); }
+.top-tabs--bottom .top-tabs__tab[aria-selected="true"]::after { bottom: auto; top: 0; }

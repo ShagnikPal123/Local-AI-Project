@@ -47,6 +47,7 @@ import { VoiceTopBar } from "./components/voice/VoiceTopBar";
 import { NotchBridge } from "./components/voice/notchBridge";
 import { ParticleField } from "./style/ParticleField";
 import { useStyle } from "./style/styleMix";
+import { useNavSide } from "./style/useNavSide";
 import { StudioRail } from "./components/studio/StudioRail";
 
 // Every tab is its own chunk (2026-09-16). The shell used to import all of them up front,
@@ -272,6 +273,8 @@ export default function App() {
   const tabs = visibleTabs(user?.role);
   // Studio Glass (owner, 2026-10-10): icon rail on the left instead of the tab strip, panels float over the backdrop.
   const studio = useStyle("studio");
+  // Where the navigation bar goes (Settings › Appearance). Every look honours it now, not only Studio Glass.
+  const navSide = useNavSide(studio);
   const who = user
     ? user.role === "owner"
       ? { name: "Shagnik", role: "Owner" }
@@ -307,6 +310,18 @@ export default function App() {
     setActive("nyx");
     await loadUserTabs();
   }
+
+  // The strip, built once so it can sit under the header (top) or beside / below the whole page (any other side).
+  const tabBar = (
+    <TopTabs
+      side={navSide}
+      tabs={tabs}
+      userTabs={userTabs}
+      active={active}
+      onSelect={(id) => setActive(id as TabId)}
+      onNewTab={() => setFinderOpen(true)}
+    />
+  );
 
   const hostTone =
     online === null ? "var(--color-neutral-600)" : online ? "var(--color-ok)" : "var(--color-warn)";
@@ -364,6 +379,7 @@ export default function App() {
           onSettings={() => setSettings({ open: true })}
         />
       )}
+      {!studio && navSide !== "top" && tabBar}
       <div className="app-col">
       <header className="shell-bar">
         <div className="shell-brand">
@@ -412,15 +428,7 @@ export default function App() {
         </div>
       </header>
 
-      {!studio && (
-        <TopTabs
-          tabs={tabs}
-          userTabs={userTabs}
-          active={active}
-          onSelect={(id) => setActive(id as TabId)}
-          onNewTab={() => setFinderOpen(true)}
-        />
-      )}
+      {!studio && navSide === "top" && tabBar}
 
       <main style={{ flex: 1, minWidth: 0, minHeight: 0, background: "var(--color-bg)" }}>
         <TabBoundary key={active} name={tabs.find((t) => t.id === active)?.label ?? "This"}>

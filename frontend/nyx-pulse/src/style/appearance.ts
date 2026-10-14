@@ -3,6 +3,13 @@
  * The accent overrides whatever the style mix set, and its lighter/darker steps are derived so every page follows. */
 
 export type NavSide = "left" | "right" | "top" | "bottom";
+/** "" = the look decides: the left icon rail in Studio Glass, the strip across the top in every other look. */
+export type NavChoice = NavSide | "";
+
+/** Where the navigation bar really goes. Every look now honours the owner's pick (S4: it used to work only in Studio Glass). */
+export function effectiveNav(choice: NavChoice, studio: boolean): NavSide {
+  return choice || (studio ? "left" : "top");
+}
 
 export const ACCENTS: { id: string; label: string; hex: string }[] = [
   { id: "", label: "Style default", hex: "" },
@@ -17,14 +24,17 @@ export const ACCENTS: { id: string; label: string; hex: string }[] = [
 ];
 
 const KEY = "ichos.appearance";
-interface Saved { accent: string; nav: NavSide }
+interface Saved { accent: string; nav: NavChoice }
 
 export function readAppearance(): Saved {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) || "{}");
-    return { accent: typeof raw.accent === "string" ? raw.accent : "", nav: ["left", "right", "top", "bottom"].includes(raw.nav) ? raw.nav : "left" };
+    // `navSet` marks a pick made on purpose. Older saves wrote "left" for everyone who only changed the accent,
+    // and that must not move the strip of a look that never had a rail.
+    const chosen = raw.navSet === true && ["left", "right", "top", "bottom"].includes(raw.nav);
+    return { accent: typeof raw.accent === "string" ? raw.accent : "", nav: chosen ? raw.nav : "" };
   } catch {
-    return { accent: "", nav: "left" };
+    return { accent: "", nav: "" };
   }
 }
 
@@ -39,9 +49,10 @@ const ACCENT_VARS = ["--color-accent", "--color-accent-2", "--color-accent-300",
 
 export function applyAppearance(next: Partial<Saved> = {}): Saved {
   const saved = { ...readAppearance(), ...next };
-  try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch { /* not kept */ }
+  try { localStorage.setItem(KEY, JSON.stringify({ ...saved, navSet: saved.nav !== "" })); } catch { /* not kept */ }
   const root = document.documentElement;
-  root.dataset.nav = saved.nav;
+  // The shell turns this choice into <html data-nav> once it knows the look (style/useNavSide.ts).
+  root.dataset.navChoice = saved.nav;
   if (/^#[0-9a-f]{6}$/i.test(saved.accent)) {
     const a = saved.accent;
     const values = [a, mix(a, 255, 0.25), mix(a, 255, 0.55), mix(a, 255, 0.25), a, mix(a, 0, 0.35), mix(a, 0, 0.78), mix(a, 255, 0.3), a, a];

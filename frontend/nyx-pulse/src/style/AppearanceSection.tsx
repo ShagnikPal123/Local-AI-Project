@@ -1,10 +1,10 @@
 /** Settings › Appearance › Colour and layout: accent colour (swatches or any colour) and where the navigation bar sits. */
 
 import { useState } from "react";
-import { ACCENTS, applyAppearance, readAppearance, type NavSide } from "./appearance";
+import { ACCENTS, applyAppearance, readAppearance, type NavChoice } from "./appearance";
 
-const SIDES: { id: NavSide; label: string }[] = [
-  { id: "left", label: "Left" }, { id: "right", label: "Right" }, { id: "top", label: "Top" }, { id: "bottom", label: "Bottom" },
+const SIDES: { id: NavChoice; label: string }[] = [
+  { id: "", label: "Look default" }, { id: "left", label: "Left" }, { id: "right", label: "Right" }, { id: "top", label: "Top" }, { id: "bottom", label: "Bottom" },
 ];
 
 export function AppearanceSection() {
