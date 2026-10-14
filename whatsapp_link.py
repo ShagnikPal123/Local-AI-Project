@@ -162,7 +162,10 @@ def chunks(text: str, size: int = CHUNK) -> List[str]:
 # ---------------------------------------------------------------------------
 
 #: Tools that stay usable from the phone at the "chat" level even though their category is not.
-PHONE_EXTRA_TOOLS = frozenset({"whatsapp_send", "whatsapp_status", "memory_search", "remember", "set_reminder"})
+PHONE_EXTRA_TOOLS = frozenset({"whatsapp_send", "whatsapp_status", "memory_search", "remember", "set_reminder",
+                               # Mail: reading is safe from a phone, and "email me this" can only reach the owner's own
+                               # connected address. email_send / email_reply to other people stay behind "full".
+                               "email_list", "email_read", "email_accounts", "email_to_me"})
 
 
 def phone_guard(name: str, category: str) -> None:
@@ -675,6 +678,25 @@ def tool_status() -> str:
             f"{'connected' if s['connected'] else 'not connected right now'}; phone access: {s['allow']}.")
 
 
+def tool_email_to_me(subject: str, body: str, attachments: Any = None, account: str = "") -> str:
+    """Email something to the owner's OWN connected address. Never to anyone else, so it is safe from the phone."""
+    import email_client
+
+    try:
+        accounts = email_client.list_accounts()
+        picked = next((a for a in accounts if account and account.strip().lower() in (a["address"].lower(), a["id"])),
+                      accounts[0] if accounts and not account else None)
+        if picked is None:
+            return ("Error: no email account is set up" if not accounts else f"Error: no email account {account!r}") + \
+                ". The owner adds one in Keys → Email or signs in with Google in Connectors."
+        files = [str(path) for path in (attachments or [])]
+        outcome = email_client.send_email(picked["address"], subject or "From Nyx", body or "", account=picked["address"],
+                                          attachments=files, allow_compose=False)
+        return f"Emailed {outcome['to'][0]} (the owner's own address) from {outcome['from']}."
+    except email_client.EmailError as error:
+        return f"Not sent: {error}"
+
+
 def register_whatsapp_tools(registry: Any) -> None:
     from tools import ToolParam as P
 
@@ -685,3 +707,10 @@ def register_whatsapp_tools(registry: Any) -> None:
         [P("text", "string", "The message")], tool_send, category="whatsapp", label="Texting your phone")
     registry.register("whatsapp_status", "Whether the owner's phone is linked to Nyx over WhatsApp.", [],
                       tool_status, category="whatsapp", label="Checking the WhatsApp link")
+    registry.register(
+        "email_to_me", "Email something to the owner's own address (the account they connected). Use it when they ask to "
+        "have a result, summary or file sent to their email. It cannot reach anyone else, so it also works from the phone.",
+        [P("subject", "string", "Subject line"), P("body", "string", "Plain-text body"),
+         P("attachments", "array", "File paths to attach", required=False),
+         P("account", "string", "Which of the owner's accounts to use (default: the first)", required=False)],
+        tool_email_to_me, category="email.send", label="Emailing you")

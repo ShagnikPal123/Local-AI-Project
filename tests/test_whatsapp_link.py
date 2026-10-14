@@ -218,3 +218,42 @@ def test_office_notices_only_when_switched_on_and_never_to_anyone_else(line, mon
     assert wa.notify("world", "x") is False
     line.connected = False
     assert wa.notify("office", "while offline") is False
+
+
+def test_the_phone_can_read_mail_and_email_only_the_owner(monkeypatch):
+    """Gmail from WhatsApp: reading works at "chat" level; sending to other people still needs "full"."""
+    from permissions import PermissionDenied
+
+    for name, category in (("email_list", "email.read"), ("email_read", "email.read"), ("email_to_me", "email.send")):
+        wa.phone_guard(name, category)
+    for name in ("email_send", "email_reply"):
+        with pytest.raises(PermissionDenied):
+            wa.phone_guard(name, "email.send")
+
+
+def test_email_to_me_only_ever_goes_to_the_owners_own_address(monkeypatch):
+    import email_client
+
+    sent = []
+    monkeypatch.setattr(email_client, "list_accounts", lambda: [{"id": "a1", "address": "me@example.com"}])
+    monkeypatch.setattr(email_client, "send_email", lambda to, subject, body, **kw: sent.append((to, subject, kw)) or
+                        {"sent": True, "from": "me@example.com", "to": [to]})
+    assert "me@example.com" in wa.tool_email_to_me("Notes", "the summary")
+    assert sent[0][0] == "me@example.com" and sent[0][2]["allow_compose"] is False   # never a half-sent draft
+    assert wa.tool_email_to_me("x", "y", account="stranger@example.com").startswith("Error")
+    assert len(sent) == 1
+
+    monkeypatch.setattr(email_client, "list_accounts", lambda: [])
+    assert wa.tool_email_to_me("x", "y").startswith("Error: no email account is set up")
+
+
+def test_email_to_me_reports_a_refusal_in_plain_words(monkeypatch):
+    import email_client
+
+    monkeypatch.setattr(email_client, "list_accounts", lambda: [{"id": "a1", "address": "me@example.com"}])
+
+    def refuse(*_args, **_kwargs):
+        raise email_client.EmailError("No way to send: add an email account with an app password.")
+
+    monkeypatch.setattr(email_client, "send_email", refuse)
+    assert wa.tool_email_to_me("x", "y").startswith("Not sent: No way to send")
