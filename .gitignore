@@ -208,3 +208,9 @@ connectors/custom_connections.json
 
 # Skill packs (skill_packs.py): third-party SKILL.md libraries installed locally, not part of the project
 /skill_packs/
+
+# The Equalize notch (equalize_assistant.py, notch_controls.py): the owner's settings, jobs, launchers and looks
+equalize_assistant.json
+equalize_jobs.json
+notch_controls.json
+notch_looks.json
