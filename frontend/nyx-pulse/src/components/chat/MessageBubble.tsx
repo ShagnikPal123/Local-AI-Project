@@ -6,7 +6,7 @@
  * colour-only; every collapsed section has a real heading with a count.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ChatMessageView, MessageBubbleProps, OptimizedRequest, SourceLink } from "./types";
 import { api } from "../../api";
 import { Markdown } from "./Markdown";
@@ -19,6 +19,7 @@ import { Linkified } from "./linkify";
 import { Handoff } from "../agents/Handoff";
 import { MODE_LABELS, type ChatMode } from "./ModeSlider";
 import { IchosOrb, orbStateFor } from "../orbs";
+import { isGenericStatus, thinkingPhrase } from "./phrases";
 
 const cardStyle: React.CSSProperties = {
   background: "var(--color-surface)",
@@ -225,6 +226,13 @@ function AgentRow({ agent }: { agent: NonNullable<ChatMessageView["turn"]>["agen
 export function MessageBubble({ message, onAction, isLatest = false }: MessageBubbleProps) {
   const turn = message.turn;
   const streaming = turn?.state === "streaming";
+  // While nothing more specific is happening, the status line cycles Claude-style thinking words (item 1.15).
+  const [phraseTick, setPhraseTick] = useState(0);
+  useEffect(() => {
+    if (!streaming) return;
+    const id = window.setInterval(() => setPhraseTick((t) => t + 1), 3200);
+    return () => window.clearInterval(id);
+  }, [streaming]);
   const [copied, setCopied] = useState(false);
   const [listening, setListening] = useState<"idle" | "loading" | "playing" | "error">("idle");
 
@@ -283,7 +291,9 @@ export function MessageBubble({ message, onAction, isLatest = false }: MessageBu
           const writing = Boolean(turn?.answer) && !running;
           const orb = writing ? "composing" : orbStateFor(running?.label ?? turn?.status);
           const big = !turn?.answer && steps.length === 0;
-          const text = running ? running.label : turn?.status || (writing ? "Writing the answer" : "Thinking");
+          const text = running ? running.label
+            : !isGenericStatus(turn?.status) ? turn?.status
+            : writing ? "Writing the answer" : `${thinkingPhrase(message.id, phraseTick)}…`;
           return (
             <div className="orb-status" data-big={big} aria-live="polite">
               <IchosOrb state={orb} size={big ? 40 : 20} decorative />

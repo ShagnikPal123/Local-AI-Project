@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import type { MessageListProps } from "./types";
 import { MessageBubble } from "./MessageBubble";
 import { OrbHero } from "../orbs/OrbHero";
+import { greeting, ownerName, setOwnerName } from "./phrases";
 
 const SUGGESTIONS = [
   "What can you do on this computer?",
@@ -21,6 +22,13 @@ const SUGGESTIONS = [
 export function MessageList({ messages, onAction, emptyState }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [pinned, setPinned] = useState(true);
+  // A fresh greeting each time an empty chat opens; the name is asked once, then kept (item 1.15).
+  const [seed] = useState(() => String(Date.now()));
+  const [name, setName] = useState(ownerName);
+  const askName = () => {
+    const next = window.prompt("What should Ichos call you?", name)?.trim();
+    if (next) { setOwnerName(next); setName(next); }
+  };
 
   // Track whether the reader is at the bottom, so streaming never yanks them.
   useEffect(() => {
@@ -47,6 +55,10 @@ export function MessageList({ messages, onAction, emptyState }: MessageListProps
     return (
       <div ref={scrollRef} style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "8px 2px" }}>
         <OrbHero
+          title={<>
+            {greeting(seed, name)}
+            {!name && <button className="orb-hero__name" onClick={askName}>What should I call you?</button>}
+          </>}
           intro={"Simple questions take a fast path; anything needing tools, fresh data or code runs the full "
             + "pipeline, and the orb shows which kind of work is happening. Agents are made right here in the "
             + "chat whenever a task needs one."}
