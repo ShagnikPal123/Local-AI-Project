@@ -182,6 +182,15 @@ Standing file ownership when delegating:
 - [ ] Next: WS10 mounts `ChatTitleMenu` (handoff `ws11-to-ws10-chatpanel.md`); p10 "Where Ichos works" picker with WS4;
   chat rail "hide empty chats" filter; try the loader, drag and drop and desktop sync on the owner's PC.
 
+### 2026-10-14 — WS9 phone, WhatsApp, notifications
+- [x] WhatsApp lanes (`/chats`, `/chat N`, `/avatars`, `@Name`, `/newavatar`, `/away`), files and pictures both ways,
+  email tools from the phone, notifications (corner choice, done / needs-you / text / schedule, phone texts when away),
+  a one-minute phone pairing key and a home-network phone gateway. All mocked-tested; audit in
+  `/mnt/project-files/fixer-upper/ws9/audit.md`.
+- [ ] Next: try it on the owner's PC and phone (real WhatsApp pairing, the Windows notification, the phone page on his
+  Wi-Fi); a number per avatar waits for his OK (paid SIM or eSIM); WhatsApp turns do not use `model_lineup.plan_for_turn`
+  yet (WS5); Gmail send from the phone works only once the Google team fixes OAuth send (WS16).
+
 ### 2026-10-09 — WhatsApp line + seven update ideas (session c17036a4)
 
 - [x] **WhatsApp line** — text Nyx from the phone, tied to this PC (`docs/WHATSAPP.md`). Real pairing not yet tried

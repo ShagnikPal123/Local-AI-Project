@@ -820,6 +820,36 @@ all trading tests 49 green):
 - Gotchas: `tests/test_server_auth.py` is CRLF, edit it in binary mode; every `npm run build` rewrites the tracked
   `tsconfig.tsbuildinfo`, so `git checkout --` it before committing.
 
+### 2026-10-14 — WS9 phone, WhatsApp, notifications (Fixer Upper)
+
+- WhatsApp: three lanes on the one line (general, a chosen PC chat, an avatar). `/chats` lists chats and `/chat N`
+  continues one; `/avatars`, `/avatar Name`, `@Name question`, `/newavatar Name: job` and `/general` do the same for
+  avatars, and replies outside the general lane are tagged with the name. An avatar's phone turn runs under the phone
+  guard and the avatar's own rules, in its own "WhatsApp · Name" chat. Any PC chat can be linked to WhatsApp
+  (`POST /api/whatsapp/link-chat`; `GET /api/whatsapp/chats` carries the `whatsapp` flag WS10 uses for the badge).
+  Code: `whatsapp_lanes.py` (words only), `whatsapp_link.py`, `routes_whatsapp.py`.
+- Files and pictures both ways (`whatsapp_files.py`, helper `send_file` op, `whatsapp_send_file` tool,
+  `POST /api/whatsapp/send-file`). Incoming files go through `uploads.save_upload` and `file_guard` and the inbox copy is
+  deleted; outgoing refuses protected paths, risky files, folders and anything over 50 MB. The AI can text from any chat.
+- Email from the phone: the phone guard allows `email_list`, `email_read`, `email_accounts` and `email_to_me` (only to the
+  owner's own account). Sending depends on the Google sign-in send fix, which is WS16's.
+- Notifications (`notifications.py`, `routes_notifications.py`): kinds done / help / message / schedule; boxes in the
+  app, Windows notification, phone text (never / when away / always, 12 an hour at most). Away is detected from
+  idle time or set by the owner (`/away`, `/back`). A chat linked to WhatsApp always reaches the phone. The corner
+  (six places, bottom right by default) is Settings > Notifications and follows changes live. Hooks: `routes_live.work`,
+  `permissions.ask`, `scheduled.run_now`.
+- Phone connection: `phone_pairing.py` (a key that works once and for 60 seconds, wrong guesses rationed, token stored
+  only as a hash), `phone_gateway.py` (a separate server for home-network addresses only, off until Settings > Phone is
+  switched on, token needed for every chat door, phone messages run under the phone guard), `routes_phone.py`.
+- Not done: a number per avatar (needs the owner's OK, it means paid SIMs); reaching the PC from outside the home
+  network (needs a tunnel and a decision about exposure); WhatsApp turns using `model_lineup.plan_for_turn`
+  (`surface="whatsapp"` exists, WS5 wires it); Google sign-in and Gmail send (WS16).
+- Not tried on real hardware: the WhatsApp helper with a real phone, the Windows notification, the phone page on a real
+  phone. Every part has mocked tests (`tests/test_whatsapp_*.py`, `test_notification*.py`, `test_phone_*.py`,
+  `test_routes_phone.py`).
+- Gotchas: the phone key is shown once and never stored; turning "Allow my phone" off forgets it. The gateway answers only
+  private addresses, so a router port-forward does not expose it.
+
 ---
 
 ## Agent roster
