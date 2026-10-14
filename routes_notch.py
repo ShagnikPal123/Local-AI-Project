@@ -250,3 +250,80 @@ def notch_looks_export(look_id: str, _user=RequireChat) -> Dict[str, Any]:
         return notch_looks.export(look_id)
     except ValueError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
+
+
+# ── The hands-off sidebar, and where the notch and sidebar sit ────────────────
+
+
+@router.post("/api/notch/sidebar/start")
+def notch_sidebar_start(request: Request, _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import notch
+
+    header = request.headers.get("authorization") or ""
+    return notch.start_sidebar(token=header.split(" ", 1)[1] if header.lower().startswith("bearer ") else "")
+
+
+@router.post("/api/notch/sidebar/stop")
+def notch_sidebar_stop(_owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import notch
+
+    return notch.stop_sidebar()
+
+
+class HandsOff(BaseModel):
+    on: bool = True
+
+
+@router.post("/api/notch/hands-off")
+def notch_hands_off(body: HandsOff, _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import notch
+
+    return notch.hands_off(body.on)
+
+
+class AskBody(BaseModel):
+    text: str
+
+
+@router.post("/api/notch/ask")
+def notch_ask(body: AskBody, _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    """Typed in the sidebar; the notch picks it up and sends it in its chat (owner only: it speaks on their PC)."""
+    import notch
+
+    try:
+        return notch.ask(body.text)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+@router.get("/api/notch/place/{part}")
+def notch_place(part: str, _user=RequireChat) -> Dict[str, Any]:
+    import notch_controls as nc
+
+    if part not in ("notch", "sidebar"):
+        raise HTTPException(status_code=404, detail="Only the notch and the sidebar have a place.")
+    return nc.place(part)
+
+
+@router.post("/api/notch/place/{part}")
+def notch_move(part: str, body: Dict[str, Any], _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    """A drag ended or the lock was toggled (the windows call this with the owner's session)."""
+    import notch_controls as nc
+
+    try:
+        return nc.move(part, body or {})
+    except ValueError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+
+
+@router.get("/sidebar", include_in_schema=False)
+def sidebar_page() -> Any:
+    """The hands-off sidebar's page, loaded by its desktop window (sidebar_window.py)."""
+    from pathlib import Path
+
+    from fastapi.responses import FileResponse
+
+    page = Path(__file__).resolve().parent / "frontend" / "nyx-pulse" / "dist" / "sidebar.html"
+    if not page.is_file():
+        raise HTTPException(status_code=404, detail="Build the frontend first (npm run build).")
+    return FileResponse(page, headers={"Cache-Control": "no-cache"})
