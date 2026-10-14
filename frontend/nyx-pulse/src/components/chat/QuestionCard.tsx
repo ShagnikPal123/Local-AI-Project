@@ -11,7 +11,11 @@
  * what was chosen instead of inviting a second, contradictory answer.
  */
 
-import { useState } from "react";
+import { createContext, useContext, useState } from "react";
+
+/** Where an answer goes when the card is not in the main chat: a Commander thread's view provides its own sender, so
+ *  answering a thread's question reaches that thread and not whichever chat is open (commander/ThreadView.tsx). */
+export const QuestionSendContext = createContext<((text: string) => void) | null>(null);
 
 interface Option { label: string; means?: string; recommended?: boolean }
 interface Card { question: string; options: Option[]; multi?: boolean; other?: string }
@@ -108,6 +112,7 @@ export function QuestionCard({ source }: { source: string }) {
 }
 
 function OneQuestion({ card }: { card: Card }) {
+  const sendTo = useContext(QuestionSendContext) ?? send;
   const [picked, setPicked] = useState<string[]>([]);
   const [other, setOther] = useState("");
   const [answered, setAnswered] = useState<string | null>(null);
@@ -131,7 +136,7 @@ function OneQuestion({ card }: { card: Card }) {
     if (typed.trim()) lines.push(`→ My own approach: ${typed.trim()}`);
     const text = lines.join("\n");
     setAnswered(labels.length ? labels.join(", ") + (typed.trim() ? " + my own" : "") : "my own approach");
-    send(text);
+    sendTo(text);
   }
 
   return (
