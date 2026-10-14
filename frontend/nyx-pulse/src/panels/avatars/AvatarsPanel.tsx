@@ -66,12 +66,21 @@ export function scheduleWords(s: Schedule): string {
 /** A small orbit emblem: the initial on a planet, ringed, coloured from the id. */
 function Emblem({ avatar, size = 44 }: { avatar: Pick<Avatar, "id" | "name" | "enabled" | "busy">; size?: number }) {
   const h = hue(avatar.id);
+  const ring = `hsl(${(h + 40) % 360} 80% 74%)`;
+  const ringOpacity = avatar.enabled ? 0.95 : 0.5;
   return (
     <svg className={`av-emblem${avatar.busy ? " is-busy" : ""}`} width={size} height={size} viewBox="0 0 44 44" aria-hidden="true">
-      <circle cx="22" cy="22" r="14" fill={`hsl(${h} 62% ${avatar.enabled ? 58 : 34}%)`} />
-      <ellipse className="av-ring" cx="22" cy="22" rx="20" ry="7" fill="none" stroke={`hsl(${(h + 40) % 360} 80% 74%)`}
-        strokeWidth="1.6" transform="rotate(-24 22 22)" opacity={avatar.enabled ? 0.95 : 0.45} />
-      <text x="22" y="27" textAnchor="middle" fontSize="14" fontWeight="700" fill="#0d0e14">{avatar.name.slice(0, 1).toUpperCase()}</text>
+      {/* The ring's far half goes behind the planet and its near half in front, and the letter sits on top of both
+          with a light fill and a dark edge, so it reads on every hue, on or off (owner, 2026-10-14: "fix the icons"). */}
+      <g className="av-ring" transform="rotate(-24 22 22)" fill="none" stroke={ring} strokeWidth="1.6" opacity={ringOpacity}>
+        <path d="M2 22 A20 7 0 0 1 42 22" />
+      </g>
+      <circle cx="22" cy="22" r="14" fill={`hsl(${h} 62% ${avatar.enabled ? 52 : 30}%)`} />
+      <g className="av-ring" transform="rotate(-24 22 22)" fill="none" stroke={ring} strokeWidth="1.6" opacity={ringOpacity}>
+        <path d="M42 22 A20 7 0 0 1 2 22" />
+      </g>
+      <text x="22" y="27" textAnchor="middle" fontSize="14" fontWeight="700" fill="#f6f7fb" stroke="rgba(13,14,20,.55)"
+        strokeWidth="2.4" paintOrder="stroke">{avatar.name.slice(0, 1).toUpperCase()}</text>
     </svg>
   );
 }
