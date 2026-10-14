@@ -15,6 +15,7 @@ import { notchApi, type AssistantSettings, type CatalogAgent, type NotchAgent } 
 import { MiniIo } from "../../notch/IoView";
 import "./equalize.css";
 import { NotchControlsCard } from "./NotchControlsCard";
+import { NotchLooksCard } from "./NotchLooksCard";
 
 const GESTURE_ORDER = ["clap", "snap", "whistle", "phrase", "knock", "hotkey", "hover"];
 const GESTURE_NAMES: Record<string, string> = { clap: "Clap twice", snap: "Finger snap", whistle: "Whistle",
@@ -121,6 +122,7 @@ export function EqualizePanel() {
         <PinnedCard settings={s} save={save} />
         <UltraCard settings={s} save={save} />
         <NotchControlsCard />
+        <NotchLooksCard />
       </div>
     </div>
   );
