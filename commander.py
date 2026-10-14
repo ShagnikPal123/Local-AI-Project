@@ -575,7 +575,7 @@ def view(thread: Dict[str, Any], *, messages: Optional[List[Dict[str, Any]]] = N
     return {
         **{k: v for k, v in thread.items() if k != "turns"},
         "status": status, "status_label": STATUS_LABELS[status], "kind": live.get("kind", ""),
-        "line": live["line"], "turn_id": live.get("turn_id", ""),
+        "line": live["line"], "turn_id": live.get("turn_id", ""), "approval_id": live.get("approval_id", ""),
         "tier_label": commander_pick.TIER_LABELS.get(thread.get("tier", ""), thread.get("tier", "")),
         "tokens": use, "fresh_soon": use["share"] >= REFRESH_AT,
         "messages": sum(1 for m in messages if m.get("role") in ("user", "assistant")),
