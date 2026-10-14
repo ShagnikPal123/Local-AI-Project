@@ -11,6 +11,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import type { SettingsGroup } from "../../panels/SettingsPanel";
 import { HubContext } from "../Panel";
+import { TabLoading } from "../TabLoading";
 import "./settings.css";
 
 const SettingsPanel = lazy(() => import("../../panels/SettingsPanel").then((m) => ({ default: m.SettingsPanel })));
@@ -118,7 +119,7 @@ export function SettingsWindow({ initial, onClose }: { initial?: SettingsPage; o
           </header>
           <div className="settings-page__body">
             <HubContext.Provider value={true}>
-              <Suspense fallback={<div className="tab-loading" role="status"><span className="tab-loading__dot" />Opening {current.label}…</div>}>
+              <Suspense fallback={<TabLoading what={`Opening ${current.label}`} />}>
                 {(["general", "intelligence", "voice", "appearance", "storage"] as const).includes(page as SettingsGroup)
                   && <SettingsPanel group={page as SettingsGroup} />}
                 {page === "status" && <DashboardPanel />}

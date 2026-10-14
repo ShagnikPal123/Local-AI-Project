@@ -51,6 +51,7 @@ import { ParticleField } from "./style/ParticleField";
 import { useStyle } from "./style/styleMix";
 import { useNavSide } from "./style/useNavSide";
 import { useDesktopSync } from "./style/desktopSync";
+import { TabLoading } from "./components/TabLoading";
 import { StudioRail } from "./components/studio/StudioRail";
 
 // Every tab is its own chunk (2026-09-16). The shell used to import all of them up front,
@@ -472,7 +473,7 @@ export default function App() {
 
       <main style={{ flex: 1, minWidth: 0, minHeight: 0, background: "var(--color-bg)" }}>
         <TabBoundary key={active} name={tabs.find((t) => t.id === active)?.label ?? "This"}>
-        <Suspense fallback={<div className="tab-loading" role="status"><span className="tab-loading__dot" />Opening…</div>}>
+        <Suspense fallback={<TabLoading what="Opening" size={88} />}>
         {active === "nyx" && <ChatHome onActivity={onActivity} provider={provider} onProvider={setProvider} who={who}
           onSearch={() => setFinderOpen(true)} onStatus={() => setSettings({ open: true, page: "status" })} />}
         {active === "notes" && <NotesPanel />}

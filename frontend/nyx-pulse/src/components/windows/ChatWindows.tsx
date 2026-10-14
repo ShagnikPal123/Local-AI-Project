@@ -11,6 +11,7 @@
 
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ComponentType, type LazyExoticComponent } from "react";
 import { HubContext } from "../Panel";
+import { TabLoading } from "../TabLoading";
 import "./windows.css";
 
 export type WindowKind = "game" | "brain" | "screen" | "computer" | "office" | "world" | "court" | "file" | "email" | "whatsapp" | "graph" | "build" | "notes" | "quiz" | "s2c";
@@ -202,7 +203,7 @@ export function ChatWindowPane({ w, containerRef }: { w: Windows; containerRef: 
       </header>
       <div className="chat-window__body">
         <HubContext.Provider value={true}>
-          <Suspense fallback={<div className="tab-loading" role="status"><span className="tab-loading__dot" />Opening {current.title}…</div>}>
+          <Suspense fallback={<TabLoading what={`Opening ${current.title}`} />}>
             <Body key={current.id} {...(current.props ?? {})} />
           </Suspense>
         </HubContext.Provider>

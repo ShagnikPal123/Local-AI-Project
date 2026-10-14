@@ -262,3 +262,11 @@ main > :not(.chat-shell):not(.hub):only-child { height: 100%; min-height: 0; ove
 .top-tabs--left .top-tabs__tab[aria-selected="true"]::after, .top-tabs--right .top-tabs__tab[aria-selected="true"]::after { left: -4px; top: 50%; margin: -9px 0 0; width: 3px; height: 18px; bottom: auto; }
 .top-tabs--bottom .top-tabs__tab[aria-selected="true"]::after { top: -3px; bottom: auto; }
 .appearance__chip { display: inline-block; width: 14px; height: 14px; border-radius: 999px; vertical-align: -2px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25); }
+
+/* The shared big loader (components/TabLoading.tsx): orb, moving bar, words that change with the wait. */
+.tab-loading { padding: 24px; text-align: center; }
+.tab-loading__text { max-width: 36ch; line-height: 1.5; }
+.loading-bar { width: min(260px, 70%); height: 4px; border-radius: 999px; overflow: hidden; background: color-mix(in srgb, var(--color-accent) 18%, transparent); }
+.loading-bar__fill { height: 100%; border-radius: inherit; background: var(--color-accent); transition: width 400ms ease-out; }
+.tab-loading.is-compact { min-height: 0; height: auto; padding: 14px; gap: 8px !important; font-size: 13px !important; }
+@media (prefers-reduced-motion: reduce) { .loading-bar__fill { transition: none; } }

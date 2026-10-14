@@ -10,6 +10,7 @@
 
 import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { HubContext } from "./Panel";
+import { TabLoading } from "./TabLoading";
 
 export interface HubSection {
   id: string;
@@ -71,7 +72,7 @@ export function HubPanel({ id, title, sections }: { id: string; title: string; s
       </header>
       <div className="hub__body" role="tabpanel" aria-label={section.label}>
         <HubContext.Provider value={true}>
-          <Suspense fallback={<div className="tab-loading" role="status"><span className="tab-loading__dot" />Opening {section.label}…</div>}>
+          <Suspense fallback={<TabLoading what={`Opening ${section.label}`} />}>
             {section.render()}
           </Suspense>
         </HubContext.Provider>
