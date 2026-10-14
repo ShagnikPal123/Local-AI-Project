@@ -24,7 +24,63 @@ CORE_TABS = {
     "models": "Models", "keys": "Keys & Models", "store": "Add capability", "settings": "Settings",
     "dashboard": "Dashboard", "power": "Power", "work": "Sessions & Memory", "design_research": "Design Research",
     "games": "Game Studio",
+    # Tabs added since (frontend src/tabs.ts CORE_TABS): they were missing here, so "open Orbits" failed.
+    "predict": "Predict", "projects": "Constellations", "artifacts": "Quasars", "scheduled": "Orbits",
+    "design": "Fractal",
 }
+
+#: Other names people (and the model) use for a tab. Fixer Upper S39 (owner, 2026-10-13): "I ask for it to navigate
+#: me to finances and it has an issue" — the tool only knew "Trading", so "Finances" came back "No tab called".
+#: Keep in step with LEGACY_LABELS in frontend src/tabs.ts.
+TAB_ALIASES = {
+    "finance": "trading", "finances": "trading", "financial": "trading", "money": "trading", "stocks": "trading",
+    "stock market": "trading", "markets": "trading", "invest": "trading", "investing": "trading",
+    "portfolio": "trading", "finance lab": "trading", "trader": "trading",
+    "home": "nyx", "chat": "nyx", "main chat": "nyx", "nyx": "nyx", "ichos": "nyx", "second brain": "nyx",
+    "projects": "projects", "project": "projects", "artifacts": "artifacts", "scheduled": "scheduled",
+    "schedule": "scheduled", "calendar": "scheduled", "routines": "scheduled", "design": "design",
+    "design studio": "design", "studio": "design", "computer": "computer", "nyx's computer": "computer",
+    "my computer": "computer", "screen share": "screen", "connectors": "connectors", "integrations": "connectors",
+    "plugins": "store", "skills": "store", "capabilities": "store", "office": "office", "office space": "office",
+    "court": "office", "settings": "settings", "preferences": "settings", "options": "settings",
+    "models": "models", "keys": "keys", "api keys": "keys", "learning": "learn", "research": "research",
+    "lab": "research", "coding": "code", "editor": "code", "game": "games", "game studio": "games",
+    "kahuna": "kahuna", "big kahuna": "kahuna", "equalizer": "equalize", "notch": "equalize",
+    "forecast": "predict", "predictions": "predict", "avatar": "avatars", "bots": "avatars",
+    "agent": "agents", "sub agents": "subagents", "subagents": "subagents", "power": "power", "storage": "power",
+    "dashboard": "dashboard", "status": "dashboard", "memory": "work", "sessions": "work",
+}
+
+_FILLER = ("the ", "my ", "a ", "to ", "open ", "go to ", "take me to ", "navigate to ", "show me ", "bring up ")
+
+
+def resolve_tab(name: str) -> Optional[str]:
+    """The built-in tab id a spoken or typed name means, or None.
+
+    Forgiving on purpose: "the Finances tab", "finance page", "Trading" and "trading" all land on the same tab,
+    because a model rarely repeats a label exactly and a failed open reads to the owner as Nyx refusing.
+    """
+    wanted = " ".join((name or "").strip().lower().replace("_", " ").replace("-", " ").split())
+    for filler in _FILLER:
+        if wanted.startswith(filler):
+            wanted = wanted[len(filler):]
+    for suffix in (" tab", " page", " section", " panel", " screen", " window"):
+        if wanted.endswith(suffix):
+            wanted = wanted[: -len(suffix)]
+    wanted = wanted.strip(" .!?'\"")
+    if not wanted:
+        return None
+    for core_id, label in CORE_TABS.items():
+        if wanted in (core_id.replace("_", " "), label.lower()):
+            return core_id
+    if wanted in TAB_ALIASES:
+        return TAB_ALIASES[wanted]
+    if wanted.endswith("s") and wanted[:-1] in TAB_ALIASES:
+        return TAB_ALIASES[wanted[:-1]]
+    for core_id, label in CORE_TABS.items():  # "research lab" -> Research Lab, "office and world" -> Office & World
+        if len(wanted) >= 4 and (label.lower().startswith(wanted) or wanted.startswith(label.lower())):
+            return core_id
+    return None
 
 
 def _publish(event_type: str, **payload: Any) -> None:
@@ -107,12 +163,14 @@ def tool_ui_list_tabs() -> str:
 
 
 def tool_ui_open_tab(tab: str) -> str:
-    wanted = (tab or "").strip().lower()
-    for core_id, label in CORE_TABS.items():
-        if wanted in (core_id, label.lower()):
-            _publish("ui.open_tab", tab_id=core_id)
-            return f"Opened the {label} tab."
-    spec = _find_user_tab(tab)
+    spec = _find_user_tab(tab)  # the owner's own tab wins when it has exactly this name
+    if spec is not None and (tab or "").strip().lower() in (spec.tab_id.lower(), spec.label.lower()):
+        _publish("ui.open_tab", tab_id=spec.tab_id)
+        return f"Opened the {spec.label} tab."
+    core_id = resolve_tab(tab)
+    if core_id is not None:
+        _publish("ui.open_tab", tab_id=core_id)
+        return f"Opened the {CORE_TABS.get(core_id, core_id)} tab."
     if spec is not None:
         _publish("ui.open_tab", tab_id=spec.tab_id)
         return f"Opened the {spec.label} tab."
@@ -259,7 +317,7 @@ def register_landscape_tools(registry: Any) -> None:
     registry.register(name="ui_list_tabs", description="List Nyx's built-in tabs and the user's own tabs with their blocks.",
                       parameters=[], handler=tool_ui_list_tabs, category="general", label="Looking at the tabs")
     registry.register(
-        name="ui_open_tab", description="Switch the user's view to a tab (built-in or their own).",
+        name="ui_open_tab", description="Switch the user's view to a tab (built-in or their own). Any common name works: \"finances\" opens Trading, \"calendar\" Orbits, \"projects\" Constellations, \"design\" Fractal.",
         parameters=[ToolParam("tab", "string", "Tab name or id, e.g. Settings, Agents, or a user tab name")],
         handler=tool_ui_open_tab, category="ui", label=lambda a: f"Opening {a.get('tab', '')}",
     )
