@@ -8,6 +8,8 @@
  *    (a linked chat that starts from a summary of this one, so it is light), Duplicate, Delete. A chat made that way
  *    says so under its name, and where it came from.
  *  • Recently deleted at the bottom brings a chat back.
+ *  • "Hide empty chats" (Fixer Upper S25 auto filter) keeps chats with no messages out of the list. The open chat and a
+ *    chat still answering always stay, so a brand-new chat never vanishes the moment it is made. Remembered.
  *  • The Second Brain card at the foot (the owner: "for second mind it seems to be gone ... combine with the screen we
  *    have of nyx chat now") shows the memory field's size and opens it.
  *
@@ -67,9 +69,11 @@ export function ChatRail({ chats, activeId, runningByChat, onSelect, onNew, onRe
   const [draft, setDraft] = useState("");
   const [confirming, setConfirming] = useState<string | null>(null);
   const [deleted, setDeleted] = useState<DeletedChat[] | null>(null);
+  const [hideEmpty, setHideEmpty] = useState(() => { try { return localStorage.getItem("nyx.rail.hideEmpty") === "1"; } catch { return false; } });
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { try { localStorage.setItem("nyx.rail.folded", folded ? "1" : "0"); } catch { /* not kept */ } }, [folded]);
+  useEffect(() => { try { localStorage.setItem("nyx.rail.hideEmpty", hideEmpty ? "1" : "0"); } catch { /* not kept */ } }, [hideEmpty]);
 
   // A click anywhere else closes the open ⋯ menu.
   useEffect(() => {
@@ -80,16 +84,21 @@ export function ChatRail({ chats, activeId, runningByChat, onSelect, onNew, onRe
   }, [menu]);
 
   const titles = useMemo(() => Object.fromEntries(chats.map((c) => [c.id, c.title])), [chats]);
+  // A chat counts as empty only when the engine says it has no messages; an unknown count is kept.
+  const isEmpty = useCallback((chat: ChatSummaryView) =>
+    chat.messageCount === 0 && chat.id !== activeId && !runningByChat[chat.id], [activeId, runningByChat]);
+  const hiddenCount = hideEmpty ? chats.filter(isEmpty).length : 0;
   const groups = useMemo(() => {
     const now = new Date();
     const wanted = query.trim().toLowerCase();
     const out: Record<string, ChatSummaryView[]> = {};
     for (const chat of chats) {
       if (wanted && !chat.title.toLowerCase().includes(wanted)) continue;
+      if (hideEmpty && isEmpty(chat)) continue;
       (out[groupOf(when(chat.updatedAt), now)] ??= []).push(chat);
     }
     return out;
-  }, [chats, query]);
+  }, [chats, query, hideEmpty, isEmpty]);
 
   const loadDeleted = useCallback(async () => {
     const result = await api.get<{ chats: DeletedChat[] }>("/api/chat-trash");
@@ -125,10 +134,16 @@ export function ChatRail({ chats, activeId, runningByChat, onSelect, onNew, onRe
       </div>
       <input className="chat-rail__search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search chats"
              aria-label="Search chats" />
+      <label className="chat-rail__filter" title="Chats with no messages stay out of the list (the open one always shows)">
+        <input type="checkbox" checked={hideEmpty} onChange={(e) => setHideEmpty(e.target.checked)} />
+        Hide empty chats{hiddenCount > 0 ? ` (${hiddenCount} hidden)` : ""}
+      </label>
 
       <div className="chat-rail__list">
         {chats.length === 0 && <p className="chat-rail__empty">Your conversations will appear here.</p>}
-        {chats.length > 0 && GROUPS.every((g) => !groups[g]?.length) && <p className="chat-rail__empty">No chat matches “{query}”.</p>}
+        {chats.length > 0 && GROUPS.every((g) => !groups[g]?.length) && (
+          <p className="chat-rail__empty">{query.trim() ? `No chat matches “${query}”.` : "Every chat here is empty — untick Hide empty chats to see them."}</p>
+        )}
         {GROUPS.filter((g) => groups[g]?.length).map((group) => (
           <section key={group} aria-label={group}>
             <h3 className="chat-rail__group">{group}</h3>
