@@ -17,6 +17,10 @@ import { createContext, useContext, useState } from "react";
  *  answering a thread's question reaches that thread and not whichever chat is open (commander/ThreadView.tsx). */
 export const QuestionSendContext = createContext<((text: string) => void) | null>(null);
 
+/** Set when this card was already answered somewhere else (a later message in the chat, or from a Commander's main
+ *  chat), so the card shows that instead of asking again. The text says where, e.g. "Answered in the main chat". */
+export const QuestionDoneContext = createContext<string | null>(null);
+
 interface Option { label: string; means?: string; recommended?: boolean }
 interface Card { question: string; options: Option[]; multi?: boolean; other?: string }
 
@@ -113,14 +117,16 @@ export function QuestionCard({ source }: { source: string }) {
 
 function OneQuestion({ card }: { card: Card }) {
   const sendTo = useContext(QuestionSendContext) ?? send;
+  const elsewhere = useContext(QuestionDoneContext);
   const [picked, setPicked] = useState<string[]>([]);
   const [other, setOther] = useState("");
   const [answered, setAnswered] = useState<string | null>(null);
 
   if (!card) return null;
+  const closed = answered ?? elsewhere;
 
   const toggle = (label: string) => {
-    if (answered) return;
+    if (closed) return;
     if (!card.multi) { answer([label], ""); return; }
     setPicked((current) => current.includes(label) ? current.filter((l) => l !== label) : [...current, label]);
   };
@@ -140,7 +146,7 @@ function OneQuestion({ card }: { card: Card }) {
   }
 
   return (
-    <section className={`q-card${answered ? " is-answered" : ""}`} aria-label="A question for you">
+    <section className={`q-card${closed ? " is-answered" : ""}`} aria-label="A question for you">
       <p className="q-card__q">{card.question}</p>
       <div className="q-card__options">
         {card.options.map((option) => {
@@ -151,7 +157,7 @@ function OneQuestion({ card }: { card: Card }) {
               type="button"
               className={`q-card__option${chosen ? " is-chosen" : ""}${option.recommended ? " is-first" : ""}`}
               aria-pressed={card.multi ? chosen : undefined}
-              disabled={Boolean(answered)}
+              disabled={Boolean(closed)}
               onClick={() => toggle(option.label)}
             >
               <b>{option.label}{option.recommended && <span className="q-card__tag">would pick</span>}</b>
@@ -160,7 +166,7 @@ function OneQuestion({ card }: { card: Card }) {
           );
         })}
       </div>
-      {!answered && (
+      {!closed && (
         <form
           className="q-card__other"
           onSubmit={(event) => { event.preventDefault(); if (other.trim() || picked.length) answer(picked, other); }}
@@ -176,7 +182,7 @@ function OneQuestion({ card }: { card: Card }) {
           </button>
         </form>
       )}
-      {answered && <p className="q-card__answered">You answered: {answered}</p>}
+      {closed && <p className="q-card__answered">{answered ? `You answered: ${answered}` : elsewhere}</p>}
     </section>
   );
 }
