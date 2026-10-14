@@ -676,3 +676,8 @@
   background: rgba(245, 165, 36, 0.12); padding: 2px 7px; border-radius: 6px; }
 .nx-waiting .more { margin-left: auto; }
 .nx-waiting .opts { flex-wrap: wrap; gap: 6px; }
+
+/* The camera gap doubles as the grip for dragging the notch along the top edge (unless it is locked). */
+.nx-cam.grip { cursor: grab; }
+.nx-cam.grip::after { content: ""; position: absolute; inset: -6px -56px; }
+.nx-cam.grip:active { cursor: grabbing; }

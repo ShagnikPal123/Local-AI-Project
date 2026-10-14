@@ -47,7 +47,16 @@ interface HostApi {
   set_shape?: (shapes: Shape[]) => void;
   open_app?: (tab: string) => void;
   hide?: () => void;
+  drag_start?: () => Promise<boolean>;
+  set_lock?: (locked: boolean) => Promise<boolean>;
+  place?: () => Promise<{ x: number; locked: boolean }>;
 }
+const LockIcon = {
+  on: <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden="true">
+    <rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>,
+  off: <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden="true">
+    <rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 7.5-2" /></svg>,
+};
 const host = (): HostApi | null => (window as unknown as { pywebview?: { api?: HostApi } }).pywebview?.api ?? null;
 
 export function Notch({ embedded = false }: { embedded?: boolean }) {
@@ -170,7 +179,7 @@ export function Notch({ embedded = false }: { embedded?: boolean }) {
     // In the desktop window the voice plays in the app's page; it reports to /api/notch, which we read.
     if (embedded) return;
     const poll = window.setInterval(async () => {
-      const r = await (await import("../api")).api.get<{ state: string; text: string; woke?: number }>("/api/notch", 2000);
+      const r = await (await import("../api")).api.get<{ state: string; text: string; woke?: number; ask?: { at: number; text: string } }>("/api/notch", 2000);
       if (!r.ok) return;
       setVoiceState(r.data.state === "speaking" ? "speaking" : r.data.state === "listening" ? "listening" : "idle");
       setHeard(r.data.state === "listening" ? r.data.text : "");
@@ -183,12 +192,28 @@ export function Notch({ embedded = false }: { embedded?: boolean }) {
         setEmote({ name: "happy", at: Date.now() });
         wakeRef.current();
       }
+      // Typed in the hands-off sidebar: one conversation, so the notch opens on its chat and sends it.
+      const ask = r.data.ask;
+      if (ask && lastAsk.current !== null && ask.at > lastAsk.current) askRef.current(ask.text);
+      if (lastAsk.current === null || (ask && ask.at > lastAsk.current)) lastAsk.current = ask?.at ?? 0;
     }, 700);
     return () => window.clearInterval(poll);
   }, [embedded]);
   const [heard, setHeard] = useState("");
   const lastWoke = useRef<number | null>(null);
   const wakeRef = useRef<() => void>(() => undefined);
+  const lastAsk = useRef<number | null>(null);
+  // Locked where it is along the top edge (Fixer Upper S2: "dragged and locked onto a part of the screen").
+  const [placeLocked, setPlaceLocked] = useState(false);
+  useEffect(() => {
+    const id = window.setTimeout(() => void host()?.place?.().then((p) => setPlaceLocked(!!p.locked)), 600);
+    return () => window.clearTimeout(id);
+  }, []);
+  const lockPlace = async () => {
+    const h = host();
+    if (h?.set_lock) setPlaceLocked(await h.set_lock(!placeLocked));
+  };
+  const askRef = useRef<(text: string) => void>(() => undefined);
   const bands = useRef(new Float32Array(16));
   const voiceLevels = useCallback(() => {
     outputLevels(bands.current);
@@ -369,6 +394,7 @@ export function Notch({ embedded = false }: { embedded?: boolean }) {
   };
 
   wakeRef.current = () => { touch(); openView("chat"); };
+  askRef.current = (text) => { openView("chat"); void sendChat(text); };
 
   // The global shortcut (notch_window.py registers it) opens the chat.
   useEffect(() => {
@@ -615,7 +641,9 @@ export function Notch({ embedded = false }: { embedded?: boolean }) {
                     aria-label="Make this the default view" title={`Make ${VIEW_LABEL[homeIdOf(view)!]} the default view · triple-click to switch views`}>H</button>
                 )}
               </div>
-              <span className="nx-cam" aria-hidden="true" />
+              {/* The camera gap is the grip: drag the notch along the top edge (notch_window drag_start). */}
+              <span className={`nx-cam ${placeLocked ? "" : "grip"}`} aria-hidden="true"
+                onMouseDown={(e) => { if (e.button === 0 && !placeLocked) void host()?.drag_start?.(); }} />
               <div className="nx-actions">
                 <button className={`nx-act ${view === "settings" ? "on" : ""}`} onClick={() => { play("blip"); openView(view === "settings" ? homeView() : "settings"); }} aria-label="Assistant settings" title="Assistant settings">{Icon.gear()}</button>
                 <span className="nx-vol" onMouseEnter={() => setVolHover(true)} onMouseLeave={() => setVolHover(false)}>
@@ -630,6 +658,11 @@ export function Notch({ embedded = false }: { embedded?: boolean }) {
                     </span>
                   )}
                 </span>
+                {host()?.set_lock && (
+                  <button className={`nx-act ${placeLocked ? "on" : ""}`} aria-pressed={placeLocked} onClick={() => void lockPlace()}
+                    aria-label={placeLocked ? "Unlock the notch" : "Lock the notch where it is"}
+                    title={placeLocked ? "Locked · click to move it again" : "Drag the gap in the middle to move · click to lock"}>{placeLocked ? LockIcon.on : LockIcon.off}</button>
+                )}
                 <button className="nx-act" onClick={goBackToChat} aria-label="Back to chat" title="Back to the chat">{Icon.back()}</button>
                 <button className="nx-act close" onClick={closeNotch} aria-label="Close" title="Close">{Icon.close()}</button>
               </div>
