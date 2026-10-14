@@ -342,7 +342,7 @@ def weather(city: str = "", fetch: Optional[Callable[[str, Dict[str, Any]], Dict
         except Exception:  # noqa: BLE001
             city = ""
     if not city:
-        return {"ok": False, "why": "Set a city in the notch settings."}
+        return {"ok": False, "why": "Set a city in Equalize › Notch controls."}
     cached = _cache.get(("weather", city.lower()))
     if cached and now - cached["at"] < WEATHER_TTL:
         return cached["data"]
@@ -399,7 +399,7 @@ def calendar(call: Optional[Callable[..., Dict[str, Any]]] = None, today: Any = 
 
     if call is None:
         if not connector_use.is_connected("google_calendar"):
-            return {"ok": False, "why": "Connect Google Calendar in Connectors to see your day here.", "events": []}
+            return {"ok": False, "why": "Connect Google Calendar in Connectors.", "events": []}
         call = connector_use.call
     start = (today or datetime.now().astimezone()).replace(hour=0, minute=0, second=0, microsecond=0)
     try:
@@ -430,7 +430,7 @@ def now_playing(manager: Any = None) -> Dict[str, Any]:
                 GlobalSystemMediaTransportControlsSessionManager as manager,
             )
         except Exception:  # noqa: BLE001
-            return {"ok": False, "why": "Install winrt-Windows.Media.Control to see what's playing."}
+            return {"ok": False, "why": "Player info needs one package (winrt-Windows.Media.Control)."}
     try:
         import asyncio
 
