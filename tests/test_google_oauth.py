@@ -225,3 +225,32 @@ def test_the_routes_take_a_client_file_and_report_the_type(client_info, tmp_path
     assert local.post("/api/google/oauth/client", json={"client_json": "nope"}).status_code == 400
     denied = local.get("/api/google/oauth/callback?error=redirect_uri_mismatch")
     assert denied.status_code == 400 and "Desktop app" in denied.text
+
+
+# --- one sign-in for every Google app ----------------------------------------------------------------------------
+
+
+def test_one_sign_in_can_ask_for_every_google_app(granted_file):
+    google_oauth.save_client("123-abc.apps.googleusercontent.com", "GOCSPX-secret-value")
+    url = google_oauth.start(URI, products=list(google_oauth.ALL_PRODUCTS))
+    scope = parse_qs(urlsplit(url).query)["scope"][0].split()
+    for needed in ("https://mail.google.com/", "https://www.googleapis.com/auth/calendar",
+                   "https://www.googleapis.com/auth/drive.readonly", "https://www.googleapis.com/auth/documents",
+                   "https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/presentations",
+                   "https://www.googleapis.com/auth/tasks"):
+        assert needed in scope
+    assert len(scope) == len(set(scope))
+    state = parse_qs(urlsplit(url).query)["state"][0]
+    assert google_oauth.complete(state, "auth-code", http=_Google()) == "owner@gmail.com"
+    assert set(google_oauth.products_of("owner@gmail.com")) == set(google_oauth.ALL_PRODUCTS)
+
+
+def test_one_link_enables_every_api_and_the_status_offers_it(client_info):
+    from fastapi.testclient import TestClient
+
+    import server
+
+    assert set(google_oauth.PRODUCT_APIS) == set(google_oauth.ALL_PRODUCTS)
+    assert all(api in google_oauth.ENABLE_ALL_URL for api in google_oauth.PRODUCT_APIS.values())
+    status = TestClient(server.app, client=("127.0.0.1", 50051)).get("/api/google/oauth/status").json()
+    assert status["all_products"] == list(google_oauth.ALL_PRODUCTS) and status["enable_all_url"].startswith("https://console.cloud.google.com/")
