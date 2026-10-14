@@ -49,6 +49,24 @@ def isolate_persistent_stores(tmp_path, monkeypatch):
     one real provider on their own machine saw ``test_router`` fail on an order
     that was correct. Test outcomes must not depend on the machine's config.
     """
+    # Every store that resolves through paths.data_path() at call time lands here instead of the owner's real data
+    # folder (the project folder itself on his PC). Before this, a full run left overlay.json, checkpoints/,
+    # skills.json, widgets.json and more in the project, on top of the owner's own copies.
+    monkeypatch.setattr(paths, "DATA_DIR", tmp_path / "data")
+    # The overlay is a module-level singleton built at import, so the DATA_DIR patch cannot reach it.
+    import overlay
+
+    monkeypatch.setattr(overlay, "OVERLAY", overlay.OverlayStore(tmp_path / "data" / "overlay.json"))
+    # Same for the owner's skills and widgets; reel_skills holds its own reference to the skill store.
+    import reel_skills
+    import skills
+    import widgets
+
+    skill_store = skills.SkillStore(tmp_path / "data" / "skills.json")
+    monkeypatch.setattr(skills, "SKILL_STORE", skill_store)
+    monkeypatch.setattr(reel_skills, "SKILL_STORE", skill_store)
+    monkeypatch.setattr(widgets, "WIDGET_STORE", widgets.WidgetStore(tmp_path / "data" / "widgets.json"))
+
     original_memory_init = memory.MemoryStore.__init__
     original_chat_init = chat_sessions.ChatSessionStore.__init__
     original_spec_init = provider_specs.ProviderSpecStore.__init__

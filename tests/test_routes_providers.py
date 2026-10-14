@@ -24,7 +24,7 @@ import server
 import server_auth
 from auth import AuthStore
 
-OWNER = "shagnikpal@gmail.com"
+OWNER = "owner@example.com"
 PASSWORD = "a-long-enough-passphrase"
 
 _PROVIDER_ENV_KEYS = (

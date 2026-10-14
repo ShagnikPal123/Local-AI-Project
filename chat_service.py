@@ -18,6 +18,7 @@ from fast_response import (
 )
 from knowledge import get_knowledge
 from memory import MemoryStore
+from paths import data_path
 from personalities import PersonalityNotFoundError, resolve_personality
 from providers.base import ProviderError
 from question_cards import FORMAT_RULE as QUESTION_RULE
@@ -503,7 +504,8 @@ If the user asks to change model or provider, or to go local/offline, call switc
 
     def _save_large_prompt(self, text: str) -> Path:
         """Write an oversized prompt to a file the model can read with read_file."""
-        folder = Path("attachments")
+        # Through paths.data_path, not Path("attachments"): a CWD-relative folder split the data in two (AGENTS.md §2).
+        folder = data_path("attachments")
         folder.mkdir(parents=True, exist_ok=True)
         digest = hashlib.sha1(text.encode("utf-8")).hexdigest()[:10]
         path = folder / f"prompt_{digest}.md"
