@@ -78,8 +78,10 @@ export function EqualizePanel() {
   const save = async (changes: Partial<AssistantSettings>) => {
     setSettings((s) => (s ? ({ ...s, ...changes } as AssistantSettings) : s));
     const result = await notchApi.save(changes);
-    if (result.ok) setSettings(result.data);
-    else setMessage(result.error);
+    if (result.ok) {
+      setSettings(result.data);
+      window.dispatchEvent(new CustomEvent("nyx:equalize-changed"));   // the ear (ClapListener) re-reads how to wake
+    } else setMessage(result.error);
   };
 
   const toggleDesktop = async () => {
@@ -183,6 +185,10 @@ function WakeCard({ settings, save }: CardProps) {
       {act.gestures.includes("phrase") && (
         <label className="eq-field"><span>Wake phrase</span>
           <input value={act.phrase} placeholder="e.g. hey Io" onChange={(e) => void save({ activation: { ...act, phrase: e.target.value } })} /></label>
+      )}
+      {act.gestures.includes("phrase") && (
+        <p className="eq-muted">The phrase is heard by your browser's speech recognizer, which needs the internet. Claps and
+          whistles work offline.</p>
       )}
       <label className="eq-field"><span>Sensitivity</span>
         <input type="range" min={10} max={100} value={Math.round(act.sensitivity * 100)}

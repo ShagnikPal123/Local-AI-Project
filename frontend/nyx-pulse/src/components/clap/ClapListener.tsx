@@ -19,6 +19,7 @@ import {
 import { onVoice, setVoiceMode, voiceMode, type VoiceMode } from "../../voice/voiceBus";
 import { speakText } from "../../voice/voicePlayer";
 import { sendToChat } from "../../voice/toChat";
+import { startWakePhrase, stopWakePhrase } from "../../voice/wakePhrase";
 
 interface Gesture {
   id: string; name: string; kind: string; enabled: boolean; when: string[];
@@ -32,6 +33,12 @@ interface ClapState {
 }
 
 const GREETED_KEY = "nyx.voice.greeted";
+
+/** What the Equalize setup says about waking it (equalize_assistant.py): talk on, and which gestures. */
+interface EqualizeWake { talk: boolean; gestures: string[]; phrase: string }
+const NO_WAKE: EqualizeWake = { talk: false, gestures: [], phrase: "" };
+/** The notch window saves these settings too, so they are read again now and then. */
+const EQUALIZE_REFRESH_MS = 30_000;
 
 function greetedToday(): boolean {
   try { return localStorage.getItem(GREETED_KEY) === new Date().toDateString(); } catch { return false; }
@@ -47,6 +54,7 @@ export function ClapListener() {
   const mode = useRef<VoiceMode>(voiceMode());
   /** This listening session has been greeted (or a clap already spoke for it). */
   const greetedSession = useRef(false);
+  const equalize = useRef<EqualizeWake>(NO_WAKE);
 
   useEffect(() => {
     let alive = true;
@@ -61,22 +69,52 @@ export function ClapListener() {
       decide();
     };
 
+    const loadEqualize = async () => {
+      const result = await api.get<{ settings: { talk: boolean; activation: { gestures: string[]; phrase: string } } }>(
+        "/api/equalize/assistant");
+      if (!alive || !result.ok) return;
+      const s = result.data.settings;
+      equalize.current = { talk: Boolean(s.talk), gestures: s.activation?.gestures ?? [], phrase: s.activation?.phrase ?? "" };
+      decide();
+    };
+
+    /** Equalize's "Talk: yes" with a wake sound chosen, and voice is off: a clap or whistle should turn it on. */
+    const equalizeWakesOn = (kind: string): boolean => {
+      const eq = equalize.current;
+      if (!eq.talk || mode.current !== "off") return false;
+      return (kind === "double_clap" && eq.gestures.includes("clap")) || (kind === "whistle" && eq.gestures.includes("whistle"));
+    };
+
+    /** Voice on from a wake gesture. Words said right after the phrase go to the chat as the first thing heard. */
+    const wake = (rest = "") => {
+      setVoiceMode("talk");
+      if (rest.split(/\s+/).filter(Boolean).length >= 2) {
+        window.setTimeout(() => sendToChat("nyx:voice-send", { text: rest }), 300);
+      }
+    };
+
     /** Should the ear be open right now? */
     const decide = () => {
       const current = state.current;
-      if (!current?.enabled) { if (clapListening()) stopClapListening(); return; }
+      const eq = equalize.current;
+      const wakeBySound = eq.talk && mode.current === "off" && (eq.gestures.includes("clap") || eq.gestures.includes("whistle"));
+      // The wake phrase needs the recognizer, which the voice engine holds while voice is on.
+      if (eq.talk && mode.current === "off" && eq.gestures.includes("phrase") && eq.phrase.trim()) startWakePhrase(eq.phrase, wake);
+      else stopWakePhrase();
+      if (!current?.enabled && !wakeBySound) { if (clapListening()) stopClapListening(); return; }
       const offline = !navigator.onLine;
-      const active = current.gestures.some((gesture) => gesture.enabled && gesture.when.some((when) =>
+      const active = wakeBySound || Boolean(current?.enabled && current.gestures.some((gesture) => gesture.enabled && gesture.when.some((when) =>
         when === "always"
         || (when === "away" && away.current)
         || (when === "offline" && offline)
         || (when === "proto" && mode.current === "proto")
-        || (when === "talk" && mode.current === "talk")));
+        || (when === "talk" && mode.current === "talk"))));
       if (active && !clapListening()) void startClapListening();
       if (!active && clapListening()) stopClapListening();
     };
 
     const heard = onClap((event) => {
+      if (event.kind !== "taught" && equalizeWakesOn(event.kind)) { wake(); return; }
       const current = state.current;
       if (!current) return;
       const gesture = current.gestures.find((g) => g.enabled && (
@@ -126,7 +164,11 @@ export function ClapListener() {
     window.addEventListener("offline", online);
     const refresh = () => void load();
     window.addEventListener("nyx:clap-changed", refresh);
+    const refreshEqualize = () => void loadEqualize();
+    window.addEventListener("nyx:equalize-changed", refreshEqualize);
+    const poll = window.setInterval(refreshEqualize, EQUALIZE_REFRESH_MS);
     void load();
+    void loadEqualize();
 
     return () => {
       alive = false;
@@ -135,6 +177,9 @@ export function ClapListener() {
       window.removeEventListener("online", online);
       window.removeEventListener("offline", online);
       window.removeEventListener("nyx:clap-changed", refresh);
+      window.removeEventListener("nyx:equalize-changed", refreshEqualize);
+      window.clearInterval(poll);
+      stopWakePhrase();
       stopClapListening();
     };
   }, []);
