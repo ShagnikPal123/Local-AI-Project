@@ -160,6 +160,13 @@ Standing file ownership when delegating:
   `102d659`, with the team that owns it. Two splits: Projects + Commander (the command center, WS2) and the trader as
   its own app (WS1). Each team re-checks the code and `git log` before building, and pushes small commits.
 
+### 2026-10-14 — WS6 voice and the Equalize assistant
+- [x] One intro, voice reaches the chat from any tab, no doubled answers, Equalize wake and avatar wired, sphere
+  thinking, streamed voices, listening on the PC (`local_stt.py`, `voice/localEar.ts`) for the app window and offline.
+- [ ] Next: on the owner's PC, run `voice_bench.py` and the voice tests, and listen for one intro and single answers.
+  With his yes, `pip install faster-whisper` for better listening. Later: face recognition (vannu07's LBPH idea) and
+  an offline neural voice (Qwen3-TTS 0.6B as a sidecar), see `docs/VOICE_REFERENCES.md`.
+
 ### 2026-10-14 — WS14 desktop app and VS Code (paused by the owner's one-to-three-at-a-time rule)
 - [x] Nyx opens as its own app by default, browser optional: `app_window.py` (WebView2 via pywebview on signed
   pythonw, no new .exe), signed in through the bridge, one window per app, remembered size. Ichos adds an `APPS` entry.

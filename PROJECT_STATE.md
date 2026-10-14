@@ -132,6 +132,22 @@ more false positives cost.
 
 ## Session log
 
+### Session — 2026-10-14 (Fixer Upper WS6, Voice and Equalize assistant)
+
+Fixes for S33/S34 and Drive doc 1's "intro said twice, then no answer". One intro: the recognizer restarts every few
+seconds and each restart announced "start", which replayed the greeting; now "start" goes out once per session and
+`voice_gestures.greeting_for_start` will not greet twice within 20 s. No answer off the Chat tab: `voice/toChat.ts`
+opens the Chat tab and waits for it before sending. Doubled answers: the model's `speak` tool played the answer while
+ActiveTalk read it too; voice turns now carry `ToolContext.voice` and `speak` declines on them. Equalize's talk, wake
+sound and phrase (`voice/wakePhrase.ts`) and avatar personality are read now (they were saved and never used).
+Clap + command goes to Ultra Fast first. Thinking is a sphere of rings (VoiceFace). New neural lines stream
+(`tts.stream`, MediaSource in `voicePlayer`): the first sound came at 76 ms of a 2.4 s download in headless Chromium.
+`voice_bench.py` times voice tests, first sound, voice to action and the spoken answer. The app window (WebView2) has
+no speech service, so listening moves to the PC there (and when a browser's recognizer breaks, or "local" is chosen):
+`voice/localEar.ts` records one sentence per pause and `local_stt.py` (`/api/voice/transcribe`) hears it with
+faster-whisper if installed, else Windows dictation. Each spoken progress line is said once per answer. Not yet
+checked by ear or timed on the owner's PC. Licences: `docs/VOICE_REFERENCES.md`.
+
 ### Session — 2026-10-10 (Claude Opus 5.5, session 99acc5bf) — Avatars, then several chats on one screen
 
 Avatars (`avatars.py`, `routes_avatars.py`, Avatars tab, `docs/AVATARS.md`): always-on helpers modelled on OpenAI Dots,
