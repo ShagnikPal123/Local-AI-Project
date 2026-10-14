@@ -127,3 +127,58 @@ def open_app(tab: str = "chat") -> Dict[str, Any]:
 
         webbrowser.open(f"http://127.0.0.1:{os.environ.get('NYX_PORT', '8000')}/app")
     return {"ok": True, "tab": tab, "page_open": bool(listening)}
+
+
+# ── What is waiting on the owner: the notch pops open for it ──────────────────
+# Fixer Upper (WS7, left open by the rebuild): "agents' approvals and questions don't pop the notch open yet";
+# Drive document 1: "when a question card or approval is waiting, pop the notch open".
+
+QUESTION_WINDOW_S = 6 * 3600  # a question older than this is not news any more
+
+
+def open_questions(store: Any = None, now: Optional[float] = None) -> list:
+    """Chats whose last word is a question card from the assistant, not answered yet (newest first)."""
+    from datetime import datetime
+
+    import question_cards
+
+    if store is None:
+        from server import _shared_chat_store
+
+        store = _shared_chat_store()
+    now = time.time() if now is None else now
+    items = []
+    for chat in store.summaries()[:30]:
+        try:
+            when = datetime.fromisoformat(str(chat.get("updated_at") or "")).timestamp()
+        except ValueError:
+            continue
+        if now - when > QUESTION_WINDOW_S:
+            break  # summaries are newest first
+        messages = [m for m in store.messages(chat["id"]) if m.get("role") in ("user", "assistant")]
+        if not messages or messages[-1]["role"] != "assistant":
+            continue
+        cards = question_cards.find_all(str(messages[-1].get("content") or ""))
+        if not cards:
+            continue
+        card = cards[0]
+        items.append({"kind": "question", "id": f"q:{chat['id']}:{len(messages)}", "title": card["question"],
+                      "detail": str(chat.get("title") or ""), "where": "chat", "chat_id": chat["id"], "since": when,
+                      "card": card})
+    return items
+
+
+def waiting(store: Any = None, now: Optional[float] = None) -> list:
+    """Approvals, trades and Claude Code sessions that need the owner, plus unanswered question cards. Never raises."""
+    items: list = []
+    try:
+        from routes_equalize import needs_you
+
+        items.extend(needs_you())
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        items.extend(open_questions(store, now))
+    except Exception:  # noqa: BLE001
+        pass
+    return sorted(items, key=lambda i: -float(i.get("since") or 0))

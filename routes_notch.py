@@ -179,3 +179,11 @@ def notch_home_data(view: str, _user=RequireChat) -> Dict[str, Any]:
     import notch_controls as nc
 
     return nc.home_data(view)
+
+
+@router.get("/api/notch/waiting")
+def notch_waiting(_owner_user=Depends(_owner)) -> Dict[str, Any]:
+    """What needs the owner (approvals, trades, Claude Code, question cards); a new one pops the notch open."""
+    import notch
+
+    return {"items": notch.waiting()}

@@ -96,3 +96,52 @@ def test_region_is_built_and_handed_to_the_window(monkeypatch):
     # No shapes (an older page) → the clip is removed, not left stale.
     assert notch_window._apply_region(42, [], gdi32=gdi, user=user)
     assert user.calls[-1][1] == (42, None, True)
+
+
+# ── Approvals and question cards pop the notch open ──────────────────────────
+
+
+class _FakeChats:
+    def __init__(self, chats):
+        self.chats = chats
+
+    def summaries(self):
+        return [{"id": cid, "title": c["title"], "updated_at": c["at"]} for cid, c in self.chats.items()]
+
+    def messages(self, chat_id):
+        return self.chats[chat_id]["messages"]
+
+
+CARD = '```question\n{"question": "Which folder?", "options": [{"label": "Desktop"}, {"label": "Documents"}]}\n```'
+
+
+def test_an_unanswered_question_card_is_waiting():
+    store = _FakeChats({
+        "a1": {"title": "Sort files", "at": "2026-10-14T10:00:00+00:00",
+               "messages": [{"role": "user", "content": "sort"}, {"role": "assistant", "content": "Sure.\n" + CARD}]},
+        "b2": {"title": "Answered", "at": "2026-10-14T09:59:00+00:00",
+               "messages": [{"role": "assistant", "content": CARD}, {"role": "user", "content": "Desktop"}]},
+        "c3": {"title": "Plain", "at": "2026-10-14T09:58:00+00:00", "messages": [{"role": "assistant", "content": "Hi"}]},
+    })
+    from datetime import datetime
+
+    now = datetime.fromisoformat("2026-10-14T10:05:00+00:00").timestamp()
+    items = notch.open_questions(store, now)
+    assert [i["chat_id"] for i in items] == ["a1"]
+    assert items[0]["title"] == "Which folder?" and items[0]["id"] == "q:a1:2" and len(items[0]["card"]["options"]) == 2
+    # Hours later it is no longer news.
+    assert notch.open_questions(store, now + notch.QUESTION_WINDOW_S + 600) == []
+
+
+def test_waiting_merges_approvals_and_questions_newest_first(monkeypatch):
+    import routes_equalize
+
+    monkeypatch.setattr(routes_equalize, "needs_you", lambda: [{"kind": "approval", "id": "p1", "title": "Run it?", "since": 50}])
+    monkeypatch.setattr(notch, "open_questions", lambda store=None, now=None: [{"kind": "question", "id": "q", "since": 90}])
+    assert [i["id"] for i in notch.waiting()] == ["q", "p1"]
+
+    def broken(*_a, **_k):
+        raise RuntimeError("store missing")
+
+    monkeypatch.setattr(notch, "open_questions", broken)
+    assert [i["id"] for i in notch.waiting()] == ["p1"]  # one broken source never hides the others
