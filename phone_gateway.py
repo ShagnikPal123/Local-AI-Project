@@ -299,9 +299,14 @@ class Gateway:
             return self.status()
 
     def stop(self) -> Dict[str, Any]:
+        """The owner turned it off: stop serving and stay off after a restart."""
         with self._lock:
-            saved = self.saved()
-            self._save(False, saved["port"])
+            self._save(False, self.saved()["port"])
+        return self.halt()
+
+    def halt(self) -> Dict[str, Any]:
+        """Stop serving without changing the owner's choice (engine shutdown: it comes back if it was on)."""
+        with self._lock:
             if self._server is not None:
                 self._server.should_exit = True
             if self._thread is not None:
