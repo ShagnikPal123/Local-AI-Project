@@ -47,6 +47,9 @@ class FakeIMAP:
         self.host, self.port = host, port
         FakeIMAP.instances.append(self)
 
+    def authenticate(self, mechanism, callback):
+        self.user = "xoauth2"
+
     def login(self, user, password):
         if FakeIMAP.fail_login:
             raise email_client.imaplib.IMAP4.error(f"[AUTHENTICATIONFAILED] bad {password}")
@@ -205,6 +208,48 @@ def test_reply_keeps_the_thread_and_reply_all_skips_yourself(mailbox, servers):
     assert message["Subject"] == "Re: Lunch?" and message["In-Reply-To"] == "<m1@example.com>"
     assert "me@gmail.com" not in servers[0]["to"]
     assert "> Are you free at noon?" in message.get_content()
+
+
+class _OAuthSMTP(FakeSMTP):
+    """Gmail's SMTP with the XOAUTH2 step the Google sign-in path performs."""
+
+    def ehlo(self):
+        pass
+
+    def auth(self, mechanism, callback):
+        self.mechanism, self.token = mechanism, callback()
+
+
+@pytest.fixture()
+def google_account(mailbox, servers, monkeypatch):
+    """A Gmail account connected by Google sign-in: a refresh token and no app password at all."""
+    import google_oauth
+
+    mailbox["secrets"]["GOOGLE_OAUTH_REFRESH:me@gmail.com"] = ["1//refresh"]
+    monkeypatch.setattr(google_oauth, "xoauth2", lambda address, http=None: f"user={address}\x01auth=Bearer ya29.x\x01\x01")
+    monkeypatch.setattr(email_client.smtplib, "SMTP_SSL", _OAuthSMTP)
+    return email_client.add_oauth_account("me@gmail.com")
+
+
+def test_a_google_sign_in_account_sends_without_an_app_password(google_account, servers):
+    outcome = email_client.send_email("a@x.com", "Hi", "Body")
+    assert outcome == {"sent": True, "via": "smtp", "from": "me@gmail.com", "to": ["a@x.com"]}
+    assert servers[0]["host"] == "smtp.gmail.com" and servers[0]["message"]["Subject"] == "Hi"
+    assert email_client.tool_email_send("a@x.com", "Hi", "Body").startswith("Sent to a@x.com")
+
+
+def test_a_google_sign_in_account_replies_without_an_app_password(google_account, servers):
+    result = email_client.tool_email_reply("9", "Yes, noon works.")
+    assert result.startswith("Replied to ana@example.com")
+    assert servers[0]["message"]["In-Reply-To"] == "<m1@example.com>"
+
+
+def test_a_signed_out_google_account_still_falls_back_to_a_draft(google_account, mailbox, servers):
+    mailbox["secrets"]["GOOGLE_OAUTH_REFRESH:me@gmail.com"] = []
+    assert email_client.send_email("a@x.com", "Hi", "Body")["sent"] is False
+    assert servers == []
+    with pytest.raises(email_client.EmailError, match="sign"):
+        email_client.reply_email("9", "Yes.")
 
 
 def test_tools_register_with_the_contract_categories():

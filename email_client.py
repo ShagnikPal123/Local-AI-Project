@@ -150,6 +150,14 @@ def public_account(account: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _can_send_directly(account: Optional[Dict[str, Any]]) -> bool:
+    """An app password, or a Google sign-in token: either one logs in to SMTP (the latter with XOAUTH2).
+
+    Sending used to look only for a password, so a Gmail connected by Google sign-in (which has none)
+    fell through to "NOT SENT YET" even though ``_smtp_send`` already knew how to use its token."""
+    return bool(account) and (bool(_password(account)) or (_is_oauth(account) and _oauth_ready(account)))
+
+
 def _oauth_ready(account: Dict[str, Any]) -> bool:
     try:
         from secret_store import get_keys
@@ -224,7 +232,7 @@ def _pick_account(account: str = "") -> Optional[Dict[str, Any]]:
             if wanted in (item["id"].lower(), item["address"].lower()):
                 return item
         raise EmailError(f"No email account {account!r} is set up. Accounts: {', '.join(a['address'] for a in accounts) or 'none'}.")
-    with_password = [a for a in accounts if _password(a) or (_is_oauth(a) and _oauth_ready(a))]
+    with_password = [a for a in accounts if _can_send_directly(a)]
     return (with_password or accounts or [None])[0]
 
 
@@ -516,7 +524,7 @@ def send_email(to: Any, subject: str, body: str, cc: Any = "", bcc: Any = "", ac
         raise EmailError("Who should it go to?")
     cc_list, bcc_list, files = _split(cc), _split(bcc), [str(a) for a in (attachments or [])]
     picked = _pick_account(account)
-    if picked is not None and _password(picked):
+    if picked is not None and _can_send_directly(picked):
         message = _build_message(picked["address"], recipients, subject, body, cc_list, bcc_list, files)
         _smtp_send(picked, message, recipients + cc_list + bcc_list)
         return {"sent": True, "via": "smtp", "from": picked["address"], "to": recipients}
@@ -550,8 +558,9 @@ def reply_email(message_id: str, body: str, account: str = "", reply_all: bool =
     subject = original["subject"] if original["subject"].lower().startswith("re:") else f"Re: {original['subject']}"
     quoted = "\n".join(f"> {line}" for line in original["body"].splitlines()[:40])
     full_body = f"{body}\n\nOn {original['date']}, {original['from']} wrote:\n{quoted}"
-    if picked is None or not _password(picked):
-        raise EmailError("Replying needs the account's app password (it has to read the original).")
+    if picked is None or not _can_send_directly(picked):
+        raise EmailError("Replying needs the account's app password, or a Google sign-in (it has to read the original). "
+                         "Add one in Keys → Email, or sign in again with Google.")
     message = _build_message(picked["address"], to, subject, full_body, cc, [], [], reply_to=original)
     _smtp_send(picked, message, to + cc)
     return {"sent": True, "via": "smtp", "to": to, "cc": cc, "subject": subject}
@@ -576,7 +585,7 @@ def tool_email_send(to: str, subject: str, body: str, cc: str = "", bcc: str = "
         outcome = send_email(to, subject, body, cc=cc, bcc=bcc, account=account, attachments=files)
         if outcome["sent"]:
             return f"Sent to {', '.join(outcome['to'])} via {outcome['via']} from {outcome['from']}."
-        return f"NOT SENT YET. {outcome['note']} (Tell the user plainly; to send directly next time they can add an app password in Keys → Email.)"
+        return f"NOT SENT YET. {outcome['note']} (Tell the user plainly; to send directly next time they can sign in with Google or add an app password in Keys → Email.)"
     return _tool(run)
 
 
@@ -635,7 +644,7 @@ def tool_email_accounts() -> str:
 def register_email_tools(registry: Any) -> None:
     from tools import ToolParam as P
 
-    registry.register("email_send", "Send an email. Uses the user's added account (app password) or Outlook; if neither "
+    registry.register("email_send", "Send an email. Uses the user's added account (Google sign-in or app password) or Outlook; if neither "
                       "exists it opens a ready draft and the result says NOT SENT YET — report that honestly.",
                       [P("to", "string", "Recipient address(es), comma-separated"), P("subject", "string", "Subject"),
                        P("body", "string", "Plain-text body"), P("cc", "string", "CC addresses", required=False),
@@ -643,7 +652,7 @@ def register_email_tools(registry: Any) -> None:
                        P("account", "string", "Which of the user's accounts to send from", required=False),
                        P("attachments", "array", "File paths to attach", required=False)],
                       tool_email_send, category="email.send", label=lambda a: f"Emailing {str(a.get('to', ''))[:50]}")
-    registry.register("email_list", "List or search recent emails (needs an account with an app password).",
+    registry.register("email_list", "List or search recent emails (needs an account with a Google sign-in or app password).",
                       [P("account", "string", "Account address (default: the first)", required=False),
                        P("folder", "string", "Folder, default INBOX", required=False),
                        P("query", "string", "Search sender, subject and body", required=False),
