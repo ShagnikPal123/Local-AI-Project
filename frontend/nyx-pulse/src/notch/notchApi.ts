@@ -166,6 +166,17 @@ export const controlsApi = {
   day: () => api.get<DayPlan>("/api/notch/home/calendar", 12_000),
 };
 
+// ── The hands-off sidebar (sidebar_window.py) and where the windows sit ─────
+
+export interface SidebarPlace { enabled: boolean; edge: "left" | "right" | "free"; x: number; y: number; locked: boolean; collapsed: boolean }
+
+export const sidebarApi = {
+  place: () => api.get<SidebarPlace>("/api/notch/place/sidebar"),
+  move: (changes: Partial<SidebarPlace>) => api.post<SidebarPlace>("/api/notch/place/sidebar", changes),
+  start: () => api.post<{ running: boolean }>("/api/notch/sidebar/start"),
+  stop: () => api.post<{ running: boolean }>("/api/notch/sidebar/stop"),
+};
+
 // ── What is waiting on the owner (notch.waiting) ────────────────────────────
 
 export interface QuestionCard { question: string; options: { label: string; means: string; recommended?: boolean }[]; multi: boolean; other: string }

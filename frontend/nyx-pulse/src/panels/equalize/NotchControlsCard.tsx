@@ -5,7 +5,7 @@
  * web address, or a web search as the last guess (shown so it can be checked before saving). */
 
 import { useEffect, useState } from "react";
-import { controlsApi, type HomeViewId, type Launcher, type NotchControls } from "../../notch/notchApi";
+import { controlsApi, sidebarApi, type HomeViewId, type Launcher, type NotchControls, type SidebarPlace } from "../../notch/notchApi";
 import { VIEW_LABEL } from "../../notch/controls";
 
 const EMPTY = { name: "", kind: "app" as Launcher["kind"], target: "", command: "", folder: "" };
@@ -14,8 +14,10 @@ export function NotchControlsCard() {
   const [c, setC] = useState<NotchControls | null>(null);
   const [draft, setDraft] = useState(EMPTY);
   const [note, setNote] = useState("");
+  const [side, setSide] = useState<SidebarPlace | null>(null);
 
   useEffect(() => { void controlsApi.get().then((r) => r.ok && setC(r.data)); }, []);
+  useEffect(() => { void sidebarApi.place().then((r) => r.ok && setSide(r.data)); }, []);
   if (!c) return null;
 
   const save = async (changes: Partial<Pick<NotchControls, "system" | "launchers" | "home">>) => {
@@ -42,6 +44,17 @@ export function NotchControlsCard() {
     setC({ ...c, ...r.data });
     setDraft(EMPTY);
     setNote("Added. It shows on the right of the notch.");
+  };
+  // The hands-off sidebar: shown beside the notch, and back after a restart while it is on.
+  const showSidebar = async (on: boolean) => {
+    const r = on ? await sidebarApi.start() : await sidebarApi.stop();
+    if (!r.ok) { setNote(r.error); return; }
+    const place = await sidebarApi.place();
+    if (place.ok) setSide(place.data);
+  };
+  const moveSidebar = async (changes: Partial<SidebarPlace>) => {
+    const r = await sidebarApi.move(changes);
+    if (r.ok) setSide(r.data);
   };
   const remove = async (id: string) => {
     const r = await controlsApi.removeLauncher(id);
@@ -116,6 +129,19 @@ export function NotchControlsCard() {
             onChange={(e) => setC({ ...c, home: { ...c.home, city: e.target.value } })}
             onBlur={() => void save({ home: c.home })} /></label>
       </div>
+
+      {side && (<>
+        <p className="eq-muted">Hands-off sidebar: your tabs beside the notch; Ichos lights up the one it opens. Drag its top to move it.</p>
+        <div className="eq-row">
+          <button className="eq-btn" onClick={() => void showSidebar(!side.enabled)}>{side.enabled ? "Hide the sidebar" : "Show the sidebar"}</button>
+          <label className="eq-field" style={{ flex: "0 0 140px" }}><span>Side</span>
+            <select className="eq-input" value={side.edge} onChange={(e) => void moveSidebar({ edge: e.target.value as SidebarPlace["edge"] })}>
+              <option value="right">Right</option><option value="left">Left</option><option value="free">Where I drop it</option>
+            </select></label>
+          <button className="eq-chip" aria-pressed={side.locked} onClick={() => void moveSidebar({ locked: !side.locked })}
+            style={side.locked ? { outline: "2px solid var(--color-accent)" } : undefined}>{side.locked ? "Locked" : "Lock in place"}</button>
+        </div>
+      </>)}
     </section>
   );
 }
