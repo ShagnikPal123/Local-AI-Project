@@ -10,6 +10,7 @@
  */
 
 import { offerWindow } from "./abilities";
+import { applyAccent, readAppearance } from "../style/appearance";
 import { api } from "../api";
 import { createStore, useStore } from "./store";
 import { onWorkspaceEvent } from "./workspaceEvents";
@@ -123,6 +124,8 @@ function applyTheme(theme: Record<string, unknown>, defaults: Record<string, unk
     const changed = typeof value === "string" && value !== defaults[token];
     vars.forEach((name) => (changed ? root.setProperty(name, value as string) : root.removeProperty(name)));
   }
+  // An accent the AI did not change stays the owner's own pick from Settings › Appearance.
+  if (!(typeof theme.accent === "string" && theme.accent !== defaults.accent)) applyAccent(readAppearance().accent);
   const radius = theme.radius;
   if (typeof radius === "number" && radius !== defaults.radius) {
     root.setProperty("--radius", `${radius}px`);

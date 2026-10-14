@@ -47,19 +47,26 @@ function mix(hex: string, target: number, share: number): string {
 const ACCENT_VARS = ["--color-accent", "--color-accent-2", "--color-accent-300", "--color-accent-400", "--color-accent-500",
   "--color-accent-700", "--color-accent-900", "--color-link", "--pop-violet", "--studio-orange"];
 
+/** Paint the accent (or hand it back to the look when empty). The shell's theme loader calls this too: an untouched
+ * server theme clears inline colours on load, which used to wipe the owner's pick until the next change. */
+export function applyAccent(accent: string): void {
+  const root = document.documentElement;
+  if (/^#[0-9a-f]{6}$/i.test(accent)) {
+    const a = accent;
+    const values = [a, mix(a, 255, 0.25), mix(a, 255, 0.55), mix(a, 255, 0.25), a, mix(a, 0, 0.35), mix(a, 0, 0.78), mix(a, 255, 0.3), a, a];
+    ACCENT_VARS.forEach((name, i) => root.style.setProperty(name, values[i]));
+  } else {
+    ACCENT_VARS.forEach((name) => root.style.removeProperty(name));
+  }
+}
+
 export function applyAppearance(next: Partial<Saved> = {}): Saved {
   const saved = { ...readAppearance(), ...next };
   try { localStorage.setItem(KEY, JSON.stringify({ ...saved, navSet: saved.nav !== "" })); } catch { /* not kept */ }
   const root = document.documentElement;
   // The shell turns this choice into <html data-nav> once it knows the look (style/useNavSide.ts).
   root.dataset.navChoice = saved.nav;
-  if (/^#[0-9a-f]{6}$/i.test(saved.accent)) {
-    const a = saved.accent;
-    const values = [a, mix(a, 255, 0.25), mix(a, 255, 0.55), mix(a, 255, 0.25), a, mix(a, 0, 0.35), mix(a, 0, 0.78), mix(a, 255, 0.3), a, a];
-    ACCENT_VARS.forEach((name, i) => root.style.setProperty(name, values[i]));
-  } else {
-    ACCENT_VARS.forEach((name) => root.style.removeProperty(name));
-  }
+  applyAccent(saved.accent);
   window.dispatchEvent(new CustomEvent("ichos:appearance", { detail: saved }));
   return saved;
 }
