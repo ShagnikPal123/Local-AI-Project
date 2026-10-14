@@ -92,7 +92,8 @@ VOICE_NOTE = (
     "Answer in at most three short sentences of plain spoken English: no markdown, no bullet lists, no headings, no code "
     "blocks and no links unless they ask for them. Say numbers the way they are spoken. If the answer is long, say the "
     "short version and offer the rest. If you are about to use a tool, say in a few words what you are doing first. "
-    "Never say your own name in a spoken answer unless you are asked who you are."
+    "Never say your own name in a spoken answer unless you are asked who you are. Your answer is read aloud for you, "
+    "so never call the speak tool to say it."
 )
 
 
@@ -180,6 +181,7 @@ def start_turn(body: StreamRequest, user: Any) -> tuple[str, str]:
                 provider=body.provider,
                 voice_session=body.voice_session,
                 mode=body.mode,
+                voice=body.voice,
             )
             if cancel.is_set() or (isinstance(result, dict) and result.get("stopped")):
                 state = "stopped"

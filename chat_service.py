@@ -975,6 +975,7 @@ If the user asks to change model or provider, or to go local/offline, call switc
         provider: Optional[str] = None,
         voice_session: str = "",
         mode: Optional[str] = None,
+        voice: bool = False,
     ) -> Dict[str, Any]:
         """Run one turn while streaming every step to ``sink`` (see turn_runner.py).
 
@@ -999,6 +1000,7 @@ If the user asks to change model or provider, or to go local/offline, call switc
                 provider=provider,
                 voice_session=voice_session,
                 mode=mode,
+                voice=voice,
             )
             return runner.run()
 

@@ -241,6 +241,7 @@ class TurnRunner:
         provider: Optional[str] = None,
         voice_session: str = "",
         mode: Optional[str] = None,
+        voice: bool = False,
     ) -> None:
         self.service = service
         self.message = message or ""
@@ -258,6 +259,7 @@ class TurnRunner:
             self.context.cancelled = cancel_event
         # A conversation can carry its own gate for tools (the Free Will tab: freewill.prepare puts it there).
         self.context.guard = getattr(service, "tool_guard", None)
+        self.context.voice = bool(voice or self.voice_session)
         self.provider = ""
         self.model = ""
         self.tools_used: List[str] = []

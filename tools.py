@@ -179,6 +179,11 @@ class ToolRegistry:
         from tool_context import current
 
         ctx = current()
+        if name == "speak" and ctx is not None and getattr(ctx, "voice", False):
+            # On a spoken turn the answer is already read aloud; saying it again through this tool doubled every
+            # reply (Fixer Upper S33). Nothing is played, and the model is told where the words belong.
+            return ("Not said separately: the owner is talking to you by voice and your written answer is read aloud. "
+                    "Put what you want to say in your answer.")
         call_id = uuid.uuid4().hex[:10]
         label = tool.describe_call(kwargs)
         previous_call = ""

@@ -60,6 +60,9 @@ class ToolContext:
     #: Set when this turn read outside content (a web page, an email, a download) — what it was, in words. Risky
     #: actions later in the turn ask the owner first (taint_gate.py).
     tainted_by: str = ""
+    #: The owner spoke this turn and hears the answer read aloud. The ``speak`` tool is refused then: the model
+    #: used it to say its answer while the chat read the same answer out, so every reply was heard twice.
+    voice: bool = False
 
     def emit(self, event_type: str, **payload: Any) -> None:
         if self.sink is None:
