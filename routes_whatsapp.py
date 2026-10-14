@@ -81,6 +81,14 @@ def whatsapp_settings(body: SettingsBody, _owner_user=Depends(_owner)) -> Dict[s
                                                          notify_office=body.notify_office))
 
 
+@router.post("/api/whatsapp/clear")
+def whatsapp_clear(_owner_user=Depends(_owner)) -> Dict[str, Any]:
+    """Clear the phone line's chats and log; the pairing stays."""
+    import whatsapp_link
+
+    return _run(lambda: whatsapp_link.link().clear_chat())
+
+
 @router.post("/api/whatsapp/unlink")
 def whatsapp_unlink(_owner_user=Depends(_owner)) -> Dict[str, Any]:
     import whatsapp_link
