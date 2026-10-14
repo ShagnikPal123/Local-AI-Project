@@ -70,6 +70,27 @@ CATALOG: Dict[str, Dict[str, Any]] = {
         "needs_ok": False,
         "paths": ["skills/find-skills/SKILL.md"],
     },
+    "transitions": {
+        "title": "transitions.dev skills (motion, thinking states). Licence: install as skills; never copy the library",
+        "repo": "Jakubantalik/transitions.dev",
+        "needs_ok": False,
+        "paths": [f"skills/{n}/SKILL.md" for n in ("transitions-dev", "transitions-polish", "transitions-ui-generation")],
+    },
+    "ultimate-guide": {
+        "title": "Claude Code ultimate guide skills (handoff, session, QA). CC BY-SA 4.0: credit the source, keep local",
+        "repo": "FlorianBruniaux/claude-code-ultimate-guide",
+        "needs_ok": False,
+        "paths": [f"examples/skills/{n}/SKILL.md" for n in (
+            "handoff-create", "handoff-resume", "handoff-update", "session-save", "catchup", "plan-pipeline",
+            "audit-codebase", "validate-changes", "qa", "review-pr", "eval-skills")] + [
+            "examples/skills/token-audit/skill.md"],
+    },
+    "claude-howto": {
+        "title": "claude-howto skills (CLAUDE.md upkeep, review, refactor, docs)",
+        "repo": "luongnv89/claude-howto",
+        "needs_ok": False,
+        "paths": [f"03-skills/{n}/SKILL.md" for n in ("claude-md", "code-review-specialist", "refactor", "doc-generator")],
+    },
     "strix": {
         "title": "Strix penetration testing (Docker + Kali; only against the owner's own targets)",
         "repo": "tghastings/strix-claude-code",

@@ -8,7 +8,7 @@ FAKE_KEY = "sk-" + "a1B2c3D4e5F6g7H8i9J0k1L2"          # built in pieces so this
 
 
 def test_finds_keys_and_personal_details_and_masks_them():
-    text = f'key = "{FAKE_KEY}"\nmail me at jane.doe@gmail.com\nC:\\Users\\janedoe\\Desktop\\x'
+    text = f'key = "{FAKE_KEY}"\nmail me at jane.doe@mail-test.org\nC:\\Users\\janedoe\\Desktop\\x'
     kinds = {f["kind"] for f in stros.scan_text("a.py", text)}
     assert {"api key", "email address", "local user path"} <= kinds
     assert all(FAKE_KEY not in str(f) for f in stros.scan_text("a.py", text)), "findings must not hold the secret"

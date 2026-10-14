@@ -37,3 +37,9 @@ def test_plan_marks_needs_ok():
     rows = {r["pack"]: r for r in skill_catalog.plan()}
     assert rows["strix"]["skipped"] and not rows["agent-reach"]["skipped"]
     assert not {r["pack"]: r for r in skill_catalog.plan(include_needs_ok=True)}["strix"]["skipped"]
+
+
+def test_new_packs_are_listed_with_their_licence_notes():
+    rows = {r["pack"]: r for r in skill_catalog.plan()}
+    assert {"transitions", "ultimate-guide", "claude-howto"} <= set(rows)
+    assert "CC BY-SA" in skill_catalog.CATALOG["ultimate-guide"]["title"]
