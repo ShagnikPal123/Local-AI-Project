@@ -231,3 +231,59 @@ def test_attention_covers_every_chat(world):
 def test_settings_round_trip(world):
     assert world.cm.settings()["divisions_in_chat"] is False
     assert world.cm.save_settings(divisions_in_chat=True)["divisions_in_chat"] is True
+
+
+def test_routes_show_the_board_and_change_threads(world, monkeypatch, tmp_path):
+    from fastapi.testclient import TestClient
+
+    import server
+    import server_auth
+    from auth import AuthStore
+
+    unclaimed = AuthStore(tmp_path / "auth.json")  # this machine's real install may be claimed
+    monkeypatch.setattr(server_auth, "AUTH_STORE", unclaimed)
+    monkeypatch.setattr(server, "AUTH_STORE", unclaimed)
+    client = TestClient(server.app, client=("127.0.0.1", 50000))
+    thread = world.cm.start_thread(world.main, "Login bug", "Fix the crash in login")
+    world.store.say(thread["chat_id"], "assistant", "Waiting on you: which login page?")
+
+    body = client.get(f"/api/commander?delegator={world.main}").json()
+    assert body["is_delegator"] is True and body["board"]["needs_you"] == 1
+    assert [k["label"] for k in body["kinds"]] == ["Pico", "Monolith", "Crescendo", "Zencode"]
+    assert client.get("/api/commander/attention").json()["needs_you"] == 1
+
+    changed = client.put(f"/api/commander/threads/{thread['id']}", json={"pinned": True, "effort": "high"})
+    assert changed.status_code == 200, changed.text
+    assert changed.json()["thread"]["pinned"] and changed.json()["thread"]["effort"] == "high"
+    assert client.put(f"/api/commander/threads/{thread['id']}", json={"tier": "huge"}).status_code == 400
+    assert client.put("/api/commander/threads/th-nope", json={"resolved": True}).status_code == 400
+
+    sent = client.post(f"/api/commander/threads/{thread['id']}/message", json={"text": "The admin one"})
+    assert sent.status_code == 200 and world.sent[-1]["text"] == "The admin one"
+
+    other = world.store.create("Plain chat")
+    assert client.post("/api/commander/send", json={"chat_id": other, "message": "hi"}).status_code == 400
+    assert client.post("/api/commander/delegators", json={"chat_id": other}).status_code == 200
+    assert client.delete(f"/api/commander/delegators/{other}").json()["ok"] is True
+    assert client.put("/api/commander/settings", json={"divisions_in_chat": True}).json()["settings"]["divisions_in_chat"]
+    assert client.delete(f"/api/commander/threads/{thread['id']}").json()["ok"] is True
+
+
+def test_a_projects_main_chat_route(world, monkeypatch, tmp_path):
+    from fastapi.testclient import TestClient
+
+    import projects
+    import server
+    import server_auth
+    from auth import AuthStore
+
+    unclaimed = AuthStore(tmp_path / "auth.json")
+    monkeypatch.setattr(server_auth, "AUTH_STORE", unclaimed)
+    monkeypatch.setattr(server, "AUTH_STORE", unclaimed)
+    monkeypatch.setattr(projects, "_path", lambda: tmp_path / "projects.json")
+    client = TestClient(server.app, client=("127.0.0.1", 50000))
+    project = projects.create("Moon base")
+    first = client.post(f"/api/commander/projects/{project['id']}/chat").json()["chat_id"]
+    assert client.post(f"/api/commander/projects/{project['id']}/chat").json()["chat_id"] == first
+    assert world.store.chats[first]["title"] == "Moon base · Commander"
+    assert client.post("/api/commander/projects/pr-nope/chat").status_code == 404
