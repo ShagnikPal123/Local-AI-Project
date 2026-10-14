@@ -44,6 +44,8 @@ export function ClapListener() {
   const state = useRef<ClapState | null>(null);
   const away = useRef(false);
   const mode = useRef<VoiceMode>(voiceMode());
+  /** This listening session has been greeted (or a clap already spoke for it). */
+  const greetedSession = useRef(false);
 
   useEffect(() => {
     let alive = true;
@@ -85,7 +87,8 @@ export function ClapListener() {
         if (!answer.ok) return;
         const { speak, action, text } = answer.data;
         if (speak) void speakText(speak, { role: "reply" });
-        if (action === "listen") setVoiceMode("talk");
+        // The clap's own line is the hello; the listening it starts must not add the intro on top.
+        if (action === "listen") { if (speak) greetedSession.current = true; setVoiceMode("talk"); }
         if (action === "command" && text.trim()) {
           window.dispatchEvent(new CustomEvent("nyx:chat-send", { detail: { text: text.trim() } }));
         }
@@ -96,6 +99,11 @@ export function ClapListener() {
     const voice = onVoice((event) => {
       if (event.type === "start") {
         mode.current = event.mode;
+        // Turning voice on announces "start" twice (the switch, then the microphone); greet on the first only.
+        // The server also drops a greeting asked for moments after the last one, which covers a second window.
+        const repeat = greetedSession.current;
+        greetedSession.current = true;
+        if (repeat) { decide(); return; }
         void (async () => {
           const first = !greetedToday();
           const result = await api.get<{ text: string }>(`/api/voice/greeting?first=${first ? "true" : "false"}`);
@@ -106,7 +114,7 @@ export function ClapListener() {
         })();
         decide();
       }
-      if (event.type === "stop") { mode.current = "off"; decide(); }
+      if (event.type === "stop") { mode.current = "off"; greetedSession.current = false; decide(); }
       if (event.type === "away") { away.current = event.on; decide(); }
       // Never answer its own voice.
       if (event.type === "speaking") muteClap(event.text !== null);

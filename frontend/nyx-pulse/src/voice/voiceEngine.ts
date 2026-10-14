@@ -276,6 +276,9 @@ export function useVoiceEngine({ mode, busy, chatId, onSend, onCommand }: {
     void api.post("/api/identity0/warm", { keep_minutes: 20 }).catch(() => undefined);
     let stopped = false;
     let engine: Recognition | null = null;
+    // "start" goes out once per listening session. Chrome and Edge end the recognizer after a few seconds of
+    // silence and it is restarted below; announcing every restart made the greeting play again each time.
+    let announced = false;
     newUtterance();
 
     const start = () => {
@@ -349,7 +352,7 @@ export function useVoiceEngine({ mode, busy, chatId, onSend, onCommand }: {
         recognition.start();
         setListening(true);
         setError("");
-        emitVoice({ type: "start", mode });
+        if (!announced) { announced = true; emitVoice({ type: "start", mode }); }
       } catch {
         /* already running */
       }
