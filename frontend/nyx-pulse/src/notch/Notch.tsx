@@ -166,11 +166,25 @@ export function Notch({ embedded = false }: { embedded?: boolean }) {
     // In the desktop window the voice plays in the app's page; it reports to /api/notch, which we read.
     if (embedded) return;
     const poll = window.setInterval(async () => {
-      const r = await (await import("../api")).api.get<{ state: string }>("/api/notch", 2000);
-      if (r.ok) setVoiceState(r.data.state === "speaking" ? "speaking" : r.data.state === "listening" ? "listening" : "idle");
+      const r = await (await import("../api")).api.get<{ state: string; text: string; woke?: number }>("/api/notch", 2000);
+      if (!r.ok) return;
+      setVoiceState(r.data.state === "speaking" ? "speaking" : r.data.state === "listening" ? "listening" : "idle");
+      setHeard(r.data.state === "listening" ? r.data.text : "");
+      // A wake (a clap, the wake phrase, voice switched on) opens the notch on its chat, listening (Fixer Upper S2).
+      const woke = r.data.woke ?? 0;
+      if (lastWoke.current === null) lastWoke.current = woke;
+      else if (woke > lastWoke.current) {
+        lastWoke.current = woke;
+        play("peek");
+        setEmote({ name: "happy", at: Date.now() });
+        wakeRef.current();
+      }
     }, 700);
     return () => window.clearInterval(poll);
   }, [embedded]);
+  const [heard, setHeard] = useState("");
+  const lastWoke = useRef<number | null>(null);
+  const wakeRef = useRef<() => void>(() => undefined);
   const bands = useRef(new Float32Array(16));
   const voiceLevels = useCallback(() => {
     outputLevels(bands.current);
@@ -349,6 +363,8 @@ export function Notch({ embedded = false }: { embedded?: boolean }) {
     if (host()?.open_app) host()!.open_app!(tab);
     else void notchApi.openApp();
   };
+
+  wakeRef.current = () => { touch(); openView("chat"); };
 
   // The global shortcut (notch_window.py registers it) opens the chat.
   useEffect(() => {
@@ -636,7 +652,8 @@ export function Notch({ embedded = false }: { embedded?: boolean }) {
               {view === "waiting" && <WaitingView items={waiting} onAnswer={(i, l) => void answer(i, l)} onOpen={openWaiting} onLater={putAway} />}
               {view === "empty" && <EmptyView ioState={ioState} ioImage={ioImage} onClick={() => openView("chat")} />}
               {view === "chat" && (
-                <ChatView log={log} busy={Boolean(sending || runningTurn)} ultrafast={settings.ultrafast} files={files} ioState={ioState}
+                <ChatView log={voiceState === "listening" && heard ? [...log, { role: "user", text: `${heard}…` }] : log}
+                  busy={Boolean(sending || runningTurn)} ultrafast={settings.ultrafast} files={files} ioState={ioState}
                   ioImage={ioImage} ioName={ioName} onSend={(t) => void sendChat(t)} onActivity={touch} levels={voiceLevels}
                   onToggleUltra={() => void save({ ultrafast: !settings.ultrafast })} />
               )}
