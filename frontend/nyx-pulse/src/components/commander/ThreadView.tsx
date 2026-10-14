@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../api";
 import { Markdown } from "../chat/Markdown";
-import { QuestionSendContext } from "../chat/QuestionCard";
+import { QuestionDoneContext, QuestionSendContext } from "../chat/QuestionCard";
 import { tokensText, type CommanderState, type Thread } from "./ThreadsPanel";
 
 interface Message { role: "user" | "assistant"; content: string }
@@ -96,7 +96,12 @@ export function ThreadView({ thread, state, onBack, onChange, onFollow }: {
       <div className="tv-log">
         {messages.map((m, i) => (
           <div key={i} className={`tv-msg is-${m.role}`}>
-            {m.role === "assistant" ? <Markdown text={m.content} /> : <p>{shown(m.content)}</p>}
+            {m.role === "assistant" ? (
+              // A card answered later (here, or relayed from the main chat) shows as answered, not as a fresh ask.
+              <QuestionDoneContext.Provider value={messages.slice(i + 1).some((n) => n.role === "user") ? "Answered below" : null}>
+                <Markdown text={m.content} />
+              </QuestionDoneContext.Provider>
+            ) : <p>{shown(m.content)}</p>}
           </div>
         ))}
         {working && <p className="tv-working"><span className="th-dot" aria-hidden="true" /> {thread.line || "Working"}</p>}

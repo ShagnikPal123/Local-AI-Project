@@ -3,10 +3,11 @@
  *  thread swaps the middle for that thread; "Main chat" comes back. Used by a project's page (Constellations), and
  *  ready for the chat's Commander mode. */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../api";
 import { Markdown } from "../chat/Markdown";
-import { QuestionSendContext } from "../chat/QuestionCard";
+import { QuestionDoneContext, QuestionSendContext } from "../chat/QuestionCard";
+import { AskRow } from "./AskRow";
 import { ThreadView } from "./ThreadView";
 import { ThreadsPanel, useCommander, type Thread } from "./ThreadsPanel";
 
@@ -17,6 +18,7 @@ export function CommanderView({ chatId, projectId = "", name }: { chatId: string
   const { state, error: boardError, reload } = useCommander(chatId, projectId);
   const [open, setOpen] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
+  const [offset, setOffset] = useState(0);  // how many older messages are not shown, so asks land in the right place
   const [text, setText] = useState("");
   const [turn, setTurn] = useState("");
   const [status, setStatus] = useState("");
@@ -25,7 +27,10 @@ export function CommanderView({ chatId, projectId = "", name }: { chatId: string
 
   const load = useCallback(async () => {
     const r = await api.get<{ messages: Message[] }>(`/api/chats/${chatId}/messages`);
-    if (r.ok) setMessages(r.data.messages.slice(-40));
+    if (!r.ok) return;
+    const talk = r.data.messages.filter((m) => m.role === "user" || m.role === "assistant");
+    setOffset(Math.max(0, talk.length - 40));
+    setMessages(talk.slice(-40));
   }, [chatId]);
   useEffect(() => { void load(); setOpen(""); }, [load]);
   useEffect(() => { end.current?.scrollIntoView({ block: "end" }); }, [messages.length, status]);
@@ -56,6 +61,9 @@ export function CommanderView({ chatId, projectId = "", name }: { chatId: string
   const thread = all.find((t) => t.id === open);
   const recent = [...all].sort((a, b) => b.updated - a.updated).slice(0, 3);
   const board = state?.board;
+  const asks = board?.asks ?? [];
+  const asksAt = (k: number, first: boolean) => asks.filter((a) => (first ? a.after <= k : a.after === k));
+  const ask = (a: (typeof asks)[number]) => <AskRow key={a.id} ask={a} onOpen={setOpen} onChange={() => void reload()} />;
 
   return (
     <div className="cmd">
@@ -73,7 +81,7 @@ export function CommanderView({ chatId, projectId = "", name }: { chatId: string
                   stays clean and tells you who is doing what.</p>
                 {board && board.total > 0 && (
                   <div className="cmd-context">
-                    <span><b>{board.total}</b> threads</span>
+                    <span><b>{board.tasks.done}/{board.tasks.total}</b> tasks done</span>
                     <span><b>{board.needs_you}</b> need you</span>
                     <span><b>{board.working}</b> working</span>
                     {board.sectors.length > 0 && <span>Sectors: {board.sectors.join(", ")}</span>}
@@ -87,10 +95,18 @@ export function CommanderView({ chatId, projectId = "", name }: { chatId: string
                 )}
               </div>
               {messages.map((m, i) => (
-                <div key={i} className={`tv-msg is-${m.role}`}>
-                  {m.role === "assistant" ? <Markdown text={m.content} /> : <p>{m.content}</p>}
-                </div>
+                <Fragment key={offset + i}>
+                  {asksAt(offset + i, i === 0).map(ask)}
+                  <div className={`tv-msg is-${m.role}`}>
+                    {m.role === "assistant" ? (
+                      <QuestionDoneContext.Provider value={messages.slice(i + 1).some((n) => n.role === "user") ? "Answered below" : null}>
+                        <Markdown text={m.content} />
+                      </QuestionDoneContext.Provider>
+                    ) : <p>{m.content}</p>}
+                  </div>
+                </Fragment>
               ))}
+              {asks.filter((a) => a.after >= offset + messages.length).map(ask)}
               {turn && <p className="tv-working"><span className="th-dot" aria-hidden="true" /> {status || "Handing it out"}</p>}
               <div ref={end} />
             </div>
