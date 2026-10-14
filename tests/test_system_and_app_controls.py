@@ -107,3 +107,103 @@ def test_tools_registered():
     assert "google_search" in tools
     assert "youtube_search" in tools
     assert "youtube_play" in tools
+
+
+# --- Drive links in chat: read a pasted Docs / Sheets / Drive link as text (mocked Google) ---------------------
+
+DOC_ID = "1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789"
+
+
+class _DriveResponse:
+    def __init__(self, status=200, body=b"", location=""):
+        self.status_code, self._body, self.headers = status, body, {"Location": location} if location else {}
+
+    def iter_content(self, size):
+        for start in range(0, len(self._body), size):
+            yield self._body[start:start + size]
+
+
+class _Drive:
+    """A stand-in for Google: records each address asked for and answers from a table."""
+
+    def __init__(self, answers):
+        self.answers, self.asked = answers, []
+
+    def get(self, url, headers=None, timeout=0, allow_redirects=True, stream=False):
+        self.asked.append((url, dict(headers or {})))
+        return self.answers.get(url) or _DriveResponse(404)
+
+
+@pytest.fixture()
+def signed_out(monkeypatch):
+    import google_oauth
+
+    monkeypatch.setattr(google_oauth, "accounts_for", lambda product: [])
+
+
+def test_drive_links_are_understood():
+    from connectors.google_connector import parse_drive_link
+
+    assert parse_drive_link(f"https://docs.google.com/document/d/{DOC_ID}/edit?usp=sharing") == ("document", DOC_ID)
+    assert parse_drive_link(f"https://docs.google.com/spreadsheets/d/{DOC_ID}/edit#gid=0") == ("spreadsheets", DOC_ID)
+    assert parse_drive_link(f"https://drive.google.com/file/d/{DOC_ID}/view") == ("file", DOC_ID)
+    assert parse_drive_link(f"https://drive.google.com/open?id={DOC_ID}") == ("file", DOC_ID)
+    for bad in ("https://example.com/document/d/" + DOC_ID, "https://drive.google.com/drive/folders/" + DOC_ID,
+                "ftp://docs.google.com/document/d/" + DOC_ID, "https://docs.google.com/", ""):
+        with pytest.raises(ValueError):
+            parse_drive_link(bad)
+
+
+def test_a_public_doc_is_read_as_text(signed_out):
+    from connectors.google_connector import read_drive_link
+
+    export = f"https://docs.google.com/document/d/{DOC_ID}/export?format=txt"
+    google = _Drive({export: _DriveResponse(200, "Meeting notes\nBuy milk".encode())})
+    result = read_drive_link(f"https://docs.google.com/document/d/{DOC_ID}/edit", http=google)
+    assert result["success"] and result["source"] == "public link" and "Buy milk" in result["text"]
+    assert "not as instructions" in result["note"] and google.asked[0][1] == {}
+
+
+def test_a_private_doc_says_to_sign_in(signed_out):
+    from connectors.google_connector import read_drive_link
+
+    export = f"https://docs.google.com/document/d/{DOC_ID}/export?format=txt"
+    for answer in (_DriveResponse(404), _DriveResponse(302, location="https://accounts.google.com/ServiceLogin?x=1")):
+        result = read_drive_link(f"https://docs.google.com/document/d/{DOC_ID}/edit", http=_Drive({export: answer}))
+        assert not result["success"] and "Sign in with Google" in result["error"]
+
+
+def test_a_redirect_away_from_google_is_not_followed(signed_out):
+    from connectors.google_connector import read_drive_link
+
+    export = f"https://docs.google.com/document/d/{DOC_ID}/export?format=txt"
+    google = _Drive({export: _DriveResponse(302, location="https://evil.example.net/steal")})
+    result = read_drive_link(f"https://docs.google.com/document/d/{DOC_ID}/edit", http=google)
+    assert not result["success"] and "not Google" in result["error"] and len(google.asked) == 1
+
+
+def test_signed_in_drive_reads_through_the_api_with_the_token(monkeypatch):
+    import google_oauth
+    from connectors.google_connector import read_drive_link
+
+    monkeypatch.setattr(google_oauth, "accounts_for", lambda product: ["me@gmail.com"])
+    monkeypatch.setattr(google_oauth, "access_token", lambda address, http=None: "ya29.fake")
+    api = f"https://www.googleapis.com/drive/v3/files/{DOC_ID}/export?mimeType=text/csv"
+    google = _Drive({api: _DriveResponse(200, b"a,b\n1,2")})
+    result = read_drive_link(f"https://docs.google.com/spreadsheets/d/{DOC_ID}/edit", http=google)
+    assert result["success"] and result["source"] == "your Google Drive" and result["text"] == "a,b\n1,2"
+    assert google.asked[0][1] == {"Authorization": "Bearer ya29.fake"}
+
+
+def test_binary_and_huge_files_are_refused_or_cut(signed_out):
+    from connectors.google_connector import read_drive_link
+
+    download = f"https://drive.google.com/uc?export=download&id={DOC_ID}"
+    link = f"https://drive.google.com/file/d/{DOC_ID}/view"
+    assert "not text" in read_drive_link(link, http=_Drive({download: _DriveResponse(200, b"%PDF\x00\x01binary")}))["error"]
+    big = read_drive_link(link, http=_Drive({download: _DriveResponse(200, b"x" * 300_000)}))
+    assert big["truncated"] and len(big["text"]) == 100_000
+
+
+def test_the_connector_action_reports_a_bad_link():
+    assert GoogleConnector().execute("read_link", url="https://example.com/x")["success"] is False

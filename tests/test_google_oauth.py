@@ -146,3 +146,82 @@ def test_the_start_route_refuses_an_unknown_app(tmp_path, monkeypatch):
 
     client = TestClient(server.app, client=("127.0.0.1", 50001))
     assert client.post("/api/google/oauth/start", json={"products": ["minesweeper"]}).status_code == 400
+
+
+# --- redirect_uri_mismatch: tell Desktop and Web clients apart and say what to do -------------------------------
+
+URI = "http://127.0.0.1:8000/api/google/oauth/callback"
+
+
+def _client_file(kind, redirect_uris=None):
+    body = {"client_id": "123-abc.apps.googleusercontent.com", "client_secret": "GOCSPX-secret-value"}
+    if redirect_uris is not None:
+        body["redirect_uris"] = redirect_uris
+    return json.dumps({kind: body})
+
+
+@pytest.fixture()
+def client_info(secrets_and_mail, tmp_path, monkeypatch):
+    monkeypatch.setattr(google_oauth, "_client_info_path", lambda: tmp_path / "google_client.json")
+    return secrets_and_mail
+
+
+def test_a_desktop_client_file_is_saved_and_needs_no_redirect_address(client_info):
+    assert google_oauth.save_client_json(_client_file("installed", ["http://localhost"])) == "desktop"
+    assert google_oauth.client_configured() and google_oauth.client_type() == "desktop"
+    assert google_oauth.redirect_help(URI)["needs_registration"] is False
+
+
+def test_a_web_client_file_warns_and_names_the_exact_address(client_info):
+    assert google_oauth.save_client_json(_client_file("web", [])) == "web"
+    help_ = google_oauth.redirect_help(URI)
+    assert help_["needs_registration"] is True and URI in help_["message"] and "Desktop app" in help_["steps"][0]
+
+
+def test_a_web_client_that_already_lists_the_address_is_fine(client_info):
+    google_oauth.save_client_json(_client_file("web", [URI]))
+    assert google_oauth.redirect_help(URI)["needs_registration"] is False
+
+
+def test_a_hand_pasted_client_has_an_unknown_type_and_still_gets_the_hint(client_info):
+    google_oauth.save_client_json(_client_file("installed"))
+    google_oauth.save_client("456-def.apps.googleusercontent.com", "GOCSPX-another-secret")
+    help_ = google_oauth.redirect_help(URI)
+    assert google_oauth.client_type() == "" and help_["needs_registration"] and "redirect_uri_mismatch" in help_["message"]
+
+
+@pytest.mark.parametrize("text", ["not json", "{}", json.dumps({"other": {}}), ""])
+def test_a_wrong_client_file_is_explained(client_info, text):
+    with pytest.raises(google_oauth.OAuthError, match="JSON"):
+        google_oauth.parse_client_json(text)
+
+
+def test_googles_error_codes_come_back_in_plain_words(client_info):
+    assert "Desktop app" in google_oauth.explain_error("redirect_uri_mismatch")
+    assert "test user" in google_oauth.explain_error("access_denied")
+    assert google_oauth.explain_error("something_new") == "something_new"
+
+    class Refusing:
+        def post(self, url, data=None, timeout=0):
+            return _Response(401, {"error": "invalid_client"})
+
+    with pytest.raises(google_oauth.OAuthError, match="client ID and secret"):
+        google_oauth._post(google_oauth.TOKEN_URL, {}, Refusing())
+
+
+def test_the_routes_take_a_client_file_and_report_the_type(client_info, tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    import server
+
+    local = TestClient(server.app, client=("127.0.0.1", 50031))
+    saved = local.post("/api/google/oauth/client", json={"client_json": _client_file("web", [])})
+    assert saved.status_code == 200 and saved.json()["client_type"] == "web"
+    assert "GOCSPX" not in saved.text
+    status = local.get("/api/google/oauth/status").json()
+    assert status["client_type"] == "web" and status["redirect_help"]["needs_registration"] is True
+    assert status["redirect_help"]["redirect_uri"] == status["redirect_uri"]
+    assert "GOCSPX" not in json.dumps(status)
+    assert local.post("/api/google/oauth/client", json={"client_json": "nope"}).status_code == 400
+    denied = local.get("/api/google/oauth/callback?error=redirect_uri_mismatch")
+    assert denied.status_code == 400 and "Desktop app" in denied.text

@@ -85,6 +85,102 @@ def save_client(client_id: str, client_secret: str) -> None:
         raise OAuthError("Paste the client secret shown next to that client ID.")
     set_keys(CLIENT_ID_KEY, [client_id])
     set_keys(CLIENT_SECRET_KEY, [client_secret])
+    try:  # a hand-pasted client has an unknown type; do not keep the last client's answer
+        _client_info_path().unlink()
+    except OSError:
+        pass
+
+
+def _client_info_path():
+    from paths import data_path
+
+    return data_path("google_client.json")
+
+
+def _read_client_info() -> Dict[str, Any]:
+    """What kind of OAuth client this is. Not secret (no ID, no secret), so it lives beside the other Google notes."""
+    try:
+        data = json.loads(_client_info_path().read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def client_type() -> str:
+    """"desktop", "web", or "" when unknown (the owner pasted the ID and secret by hand, so nobody said)."""
+    return str(_read_client_info().get("type") or "")
+
+
+def parse_client_json(text: str) -> Dict[str, Any]:
+    """Read the file Google lets you download for an OAuth client (``client_secret_….json``).
+
+    It wraps the details in ``installed`` for a Desktop app and ``web`` for a Web application. That wrapper is the
+    only reliable way to tell the two apart, and the two behave very differently at sign-in: a Desktop client accepts
+    this engine's loopback address as is, a Web client refuses it unless the exact address was listed in Google Cloud
+    (``Error 400: redirect_uri_mismatch``)."""
+    try:
+        data = json.loads(text or "")
+    except ValueError as error:
+        raise OAuthError("That is not the JSON file from Google Cloud. Open the client, choose Download JSON, and paste its contents.") from error
+    kind, body = next(((k, data[k]) for k in ("installed", "web") if isinstance(data, dict) and isinstance(data.get(k), dict)), ("", {}))
+    if not body:
+        raise OAuthError("That JSON has no \"installed\" or \"web\" section. Download it from Google Cloud → Clients → your client.")
+    return {"client_id": str(body.get("client_id") or ""), "client_secret": str(body.get("client_secret") or ""),
+            "type": "desktop" if kind == "installed" else "web",
+            "redirect_uris": [str(u) for u in body.get("redirect_uris") or [] if isinstance(u, str)]}
+
+
+def save_client_json(text: str) -> str:
+    """Save a downloaded client file (ID, secret and type). Returns the client type."""
+    parsed = parse_client_json(text)
+    save_client(parsed["client_id"], parsed["client_secret"])
+    _client_info_path().write_text(json.dumps({"type": parsed["type"], "redirect_uris": parsed["redirect_uris"]}, indent=1),
+                                   encoding="utf-8")
+    return parsed["type"]
+
+
+def redirect_help(redirect_uri: str) -> Dict[str, Any]:
+    """What the owner must do in Google Cloud so the sign-in address is accepted.
+
+    Google shows ``redirect_uri_mismatch`` on its own page, so the engine never receives that error and cannot explain
+    it afterwards. The only chance to help is before the Sign In click."""
+    kind = client_type()
+    registered = [u for u in _read_client_info().get("redirect_uris") or []]
+    if kind == "desktop":
+        return {"client_type": kind, "needs_registration": False, "redirect_uri": redirect_uri,
+                "message": "This is a Desktop app client, which accepts Nyx's local address without listing it."}
+    if kind == "web" and redirect_uri in registered:
+        return {"client_type": kind, "needs_registration": False, "redirect_uri": redirect_uri,
+                "message": "This Web client already lists Nyx's address."}
+    steps = ["Easiest: in Google Cloud → Clients, create a new client of type Desktop app and paste its JSON here instead.",
+             f"Or keep your Web application client and add this exact address under Authorized redirect URIs: {redirect_uri}"]
+    if kind == "web":
+        message = (f"This is a Web application client. Google refuses sign-in with Error 400: redirect_uri_mismatch "
+                   f"until {redirect_uri} is listed under its Authorized redirect URIs.")
+    else:
+        message = (f"If Google shows Error 400: redirect_uri_mismatch, your client is a Web application. {redirect_uri} "
+                   "must be listed under its Authorized redirect URIs, or use a Desktop app client.")
+    return {"client_type": kind, "needs_registration": True, "redirect_uri": redirect_uri, "message": message, "steps": steps}
+
+
+#: Google's own error codes, in words the owner can act on. Looked up when Google sends the browser back with
+#: ``error=`` or refuses the code exchange.
+GOOGLE_ERRORS: Dict[str, str] = {
+    "redirect_uri_mismatch": "Google does not list Nyx's address for this client. Use a Desktop app client, or add the "
+                             "redirect address shown in Keys & Models under Authorized redirect URIs.",
+    "access_denied": "Google said no: the sign-in was cancelled, or this address is not a test user. Add it under "
+                     "Google Auth Platform → Audience → Test users.",
+    "invalid_client": "Google does not recognise this client ID and secret. Copy them again from Google Cloud → Clients.",
+    "invalid_grant": "That sign-in link expired or was already used. Start again from Keys & Models.",
+    "org_internal": "This client is Internal to a Google Workspace organisation. Make it External, or sign in with an account from that organisation.",
+    "disallowed_useragent": "Google refuses sign-in inside an embedded window. Open the link in your normal browser.",
+    "admin_policy_enforced": "A Google Workspace admin has blocked this sign-in for that account.",
+}
+
+
+def explain_error(code: str) -> str:
+    """The plain-words version of a Google error code, or the code itself when it is one we have not seen."""
+    return GOOGLE_ERRORS.get((code or "").strip().lower(), code or "unknown error")
 
 
 def connected() -> List[str]:
@@ -170,7 +266,8 @@ def _post(url: str, data: Dict[str, str], http: Any = None) -> Dict[str, Any]:
     except ValueError:
         body = {}
     if response.status_code != 200:
-        reason = body.get("error_description") or body.get("error") or f"HTTP {response.status_code}"
+        code = str(body.get("error") or "")
+        reason = GOOGLE_ERRORS.get(code) or body.get("error_description") or code or f"HTTP {response.status_code}"
         raise OAuthError(f"Google refused: {reason}")
     return body
 
