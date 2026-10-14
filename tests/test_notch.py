@@ -230,3 +230,12 @@ def test_a_locked_notch_does_not_start_a_drag(monkeypatch):
     assert bridge.drag_start() is False and notch_window._drag["on"] is False
     bridge.set_lock(False)
     assert bridge.place()["locked"] is False
+
+
+def test_a_tab_ichos_opens_is_remembered_as_its_pick(monkeypatch):
+    import landscape_tools
+    import notch
+
+    monkeypatch.setattr("agent_events.publish_ui", lambda *a, **k: None)
+    landscape_tools._publish("ui.open_tab", tab_id="trading")
+    assert notch.status()["tab"]["id"] == "trading" and notch.status()["tab"]["by"] == "ai"

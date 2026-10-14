@@ -90,6 +90,14 @@ def _publish(event_type: str, **payload: Any) -> None:
         publish_ui(event_type, **payload)
     except Exception:
         pass
+    if event_type == "ui.open_tab":
+        # The hands-off sidebar lights up the tab Ichos picked, even when it opens after the pick (Fixer Upper S2).
+        try:
+            import notch
+
+            notch.picked_tab(str(payload.get("tab_id") or ""), "ai")
+        except Exception:
+            pass
 
 
 def _find_user_tab(name: str) -> Optional[Any]:
