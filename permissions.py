@@ -309,6 +309,12 @@ def ask(category: str, summary: str, detail: str = "") -> None:
             publish_ui("approval.request", **pending.as_dict())
         except Exception:
             pass
+        try:
+            import notifications
+
+            notifications.help_needed(pending.summary, chat_id=ctx.chat_id)   # the owner may be away from the window
+        except Exception:
+            pass
 
         deadline = time.monotonic() + APPROVAL_TIMEOUT_SECONDS
         while not pending.event.wait(timeout=0.5):

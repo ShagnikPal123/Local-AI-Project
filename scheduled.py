@@ -197,6 +197,12 @@ def run_now(task_id: str, wait: float = 0) -> Dict[str, Any]:
     except avatars.AvatarError as error:
         ok, reply = False, str(error)
     _record(task_id, ok, reply)
+    try:
+        import notifications
+
+        notifications.task_ran(task["title"], ok, reply)
+    except Exception:  # noqa: BLE001 - a missed notice never fails the task
+        pass
     return {"id": task_id, "ok": ok, "reply": reply}
 
 

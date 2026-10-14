@@ -36,6 +36,17 @@ _TURNS_LOCK = threading.Lock()
 _SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"}
 
 #: Events worth recording in the workspace-wide activity log (the rest are too chatty).
+def _notify_finished(chat_id: str, state: str, result: Any, seconds: float) -> None:
+    """Tell the owner a chat finished or needs them (notifications.py decides if it is worth a notice). Never raises."""
+    try:
+        import notifications
+
+        reply = str(result.get("reply") or "") if isinstance(result, dict) else ""
+        notifications.turn_finished(chat_id, state, reply, seconds)
+    except Exception:  # noqa: BLE001 - a missed notice must not cost the turn
+        pass
+
+
 _ACTIVITY_TYPES = {"turn.start", "tool.start", "tool.end", "agent.update", "skill.created", "done", "error",
                    "approval.request"}
 
@@ -178,6 +189,8 @@ def start_turn(body: StreamRequest, user: Any) -> tuple[str, str]:
 
     def work() -> None:
         state = "done"
+        result: Any = None
+        started = time.time()
         try:
             result = service.chat_turn(
                 text,
@@ -201,6 +214,7 @@ def start_turn(body: StreamRequest, user: Any) -> tuple[str, str]:
             with _TURNS_LOCK:
                 _TURNS.pop(turn_id, None)
             TURNS.finish(turn_id, state)
+            _notify_finished(chat_id, state, result, time.time() - started)
 
     threading.Thread(target=work, name=f"nyx-turn-{turn_id}", daemon=True).start()
     return turn_id, chat_id
