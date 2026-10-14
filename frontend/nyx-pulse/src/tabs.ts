@@ -36,6 +36,7 @@ export type TabId =
   | "projects"
   | "artifacts"
   | "scheduled"
+  | "calendar"
   | "design"
   | "design_research"
   | "computer"
@@ -128,6 +129,7 @@ export const REDIRECTS: Record<string, Redirect> = {
   // Merged on 2026-10-14 (doc 1, "fewer tabs"): each lives on as a section of the tab named here.
   artifacts: { kind: "hub", tab: "projects", section: "artifacts" },
   scheduled: { kind: "hub", tab: "projects", section: "scheduled" },
+  calendar: { kind: "hub", tab: "projects", section: "calendar" },
   design: { kind: "hub", tab: "projects", section: "design" },
   kahuna: { kind: "hub", tab: "agents", section: "kahuna" },
   predict: { kind: "hub", tab: "research", section: "predict" },
@@ -146,7 +148,7 @@ export const LEGACY_LABELS: { id: string; label: string }[] = [
   { id: "computer", label: "Nyx's Computer" }, { id: "world", label: "World" }, { id: "office", label: "Office Space" },
   { id: "projects", label: "Projects" }, { id: "artifacts", label: "Artifacts" }, { id: "scheduled", label: "Scheduled" },
   { id: "design", label: "Design" }, { id: "court", label: "Court" }, { id: "nyx", label: "Nyx" }, { id: "nyx", label: "Second Brain" },
-  { id: "projects", label: "Constellations" }, { id: "artifacts", label: "Quasars" }, { id: "scheduled", label: "Orbits" },
+  { id: "projects", label: "Constellations" }, { id: "artifacts", label: "Quasars" }, { id: "scheduled", label: "Orbits" }, { id: "calendar", label: "Calendar" },
   { id: "design", label: "Fractal" }, { id: "kahuna", label: "Big Kahuna" }, { id: "predict", label: "Predict" },
   { id: "collab", label: "Collab" }, { id: "collab", label: "Collab · WIP" }, { id: "learn", label: "Learn" }, { id: "freewill", label: "Free Will" },
 ];

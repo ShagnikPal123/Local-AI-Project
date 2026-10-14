@@ -85,6 +85,7 @@ const constellations = () => import("./panels/constellations/ConstellationsPanel
 const ProjectsPanel = lazy(() => constellations().then((m) => ({ default: m.ProjectsPanel })));
 const ArtifactsPanel = lazy(() => constellations().then((m) => ({ default: m.ArtifactsPanel })));
 const ScheduledPanel = lazy(() => constellations().then((m) => ({ default: m.ScheduledPanel })));
+const CalendarPanel = lazy(() => import("./panels/calendar/CalendarPanel").then((m) => ({ default: m.CalendarPanel })));
 const DesignPanel = lazy(() => constellations().then((m) => ({ default: m.DesignPanel })));
 const AdminPanel = lazy(() => import("./panels/AdminPanel").then((m) => ({ default: m.AdminPanel })));
 const StorePanel = lazy(() => import("./panels/StorePanel").then((m) => ({ default: m.StorePanel })));
@@ -533,6 +534,7 @@ export default function App() {
             { id: "projects", label: "Constellations", purpose: "Your projects: a folder of chats, helpers and files that belong together.", render: () => <ProjectsPanel /> },
             { id: "artifacts", label: "Quasars", purpose: "Things Ichos made for you, kept in one place.", render: () => <ArtifactsPanel /> },
             { id: "scheduled", label: "Orbits", purpose: "Tasks that run on a repeat.", render: () => <ScheduledPanel /> },
+            { id: "calendar", label: "Calendar", purpose: "Your week: when Orbits run, plus Google Calendar.", render: () => <CalendarPanel /> },
             { id: "design", label: "Fractal", purpose: "Design templates to start from.", render: () => <DesignPanel /> },
           ]} />
         )}

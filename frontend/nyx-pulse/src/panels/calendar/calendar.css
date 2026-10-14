@@ -1,0 +1,47 @@
+/* Week calendar. Everything reads theme tokens; --cal-accent follows the saved look, else the app accent. */
+.cal { --cal-accent: var(--color-accent); display: flex; flex-direction: column; gap: 10px; padding: 16px 20px; min-height: 0; }
+.cal-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cal-range { margin: 0 0 0 8px; font-size: 16px; font-weight: 600; }
+.cal-spacer { flex: 1; }
+.cal-look { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 12px 14px; border-radius: var(--radius-lg);
+  background: var(--color-surface); box-shadow: inset 0 0 0 1px var(--color-divider); font-size: 13px; }
+.cal-look label { display: inline-flex; align-items: center; gap: 6px; }
+.cal-look input[type="number"] { width: 60px; }
+.cal-look .cal-muted { flex-basis: 100%; margin: 0; }
+.cal-muted { color: var(--color-neutral-500); font-size: 13px; margin: 0; }
+.cal-error { color: var(--color-danger); font-size: 13px; margin: 0; }
+
+.cal-grid { display: grid; grid-template-columns: 52px repeat(var(--cal-cols), minmax(0, 1fr)); border-radius: var(--radius-lg); overflow: auto;
+  background: var(--color-surface); box-shadow: inset 0 0 0 1px var(--color-divider); max-height: calc(100vh - 220px); }
+.cal-corner, .cal-allday-label, .cal-hours { background: var(--color-surface); }
+.cal-dayhead { position: sticky; top: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; padding: 6px 0;
+  background: var(--color-surface); border-bottom: 1px solid var(--color-divider); border-left: 1px solid var(--color-divider); }
+.cal-dayhead small { color: var(--color-neutral-500); text-transform: uppercase; font-size: 11px; letter-spacing: 0.04em; }
+.cal-dayhead b { font-size: 18px; font-weight: 600; }
+.cal-dayhead.is-today b { display: grid; place-items: center; min-width: 30px; height: 30px; border-radius: 50%; color: #fff; background: var(--cal-accent); }
+.cal-allday-label { display: flex; align-items: center; justify-content: center; border-bottom: 1px solid var(--color-divider); color: var(--color-neutral-500); }
+.cal-allday { display: flex; flex-direction: column; gap: 2px; padding: 3px; min-height: 28px; border-left: 1px solid var(--color-divider); border-bottom: 1px solid var(--color-divider); }
+.cal-hours { display: flex; flex-direction: column; }
+.cal-hours span { box-sizing: border-box; padding: 2px 6px 0 0; text-align: right; font-size: 11px; color: var(--color-neutral-500); border-top: 1px solid var(--color-divider); }
+.cal-col { position: relative; border-left: 1px solid var(--color-divider);
+  background-image: linear-gradient(var(--color-divider) 1px, transparent 1px); background-size: 100% var(--cal-row); }
+.cal-col.is-today { background-color: color-mix(in srgb, var(--cal-accent) 7%, transparent); }
+
+.cal-event, .cal-chip { --cal-colour: var(--cal-accent); box-sizing: border-box; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px;
+  border-radius: 6px; padding: 2px 6px; color: var(--color-text, inherit);
+  background: color-mix(in srgb, var(--cal-colour) 24%, var(--color-surface)); box-shadow: inset 3px 0 0 var(--cal-colour); }
+.cal-event { position: absolute; min-height: 22px; }
+.cal-chip { display: block; }
+.cal-event b, .cal-chip b { font-weight: 600; margin-right: 4px; font-variant-numeric: tabular-nums; }
+.is-paused { opacity: 0.5; text-decoration: line-through; }
+.is-idle { border: 1px dashed var(--color-neutral-500); }
+
+.cal[data-density="compact"] .cal-event, .cal[data-density="compact"] .cal-chip { font-size: 11px; padding: 1px 4px; }
+.cal[data-density="roomy"] .cal-event, .cal[data-density="roomy"] .cal-chip { font-size: 13px; padding: 4px 8px; }
+
+.cal-agenda { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.cal-agenda__day { display: flex; flex-direction: column; gap: 4px; padding: 10px; border-radius: var(--radius-lg); background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-divider); }
+.cal-agenda__day.is-today { box-shadow: inset 0 0 0 2px var(--cal-accent); }
+.cal-agenda__day h3 { margin: 0 0 4px; font-size: 13px; color: var(--color-neutral-500); }
+.cal-agenda__day h3 b { color: var(--color-text, inherit); font-size: 16px; }
