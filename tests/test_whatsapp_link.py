@@ -40,7 +40,7 @@ def line(tmp_path, monkeypatch):
     monkeypatch.setattr(wa, "pc_name", lambda: "DESKTOP-A")
     turns = []
 
-    def turn(text):
+    def turn(text, lane=None):
         turns.append(text)
         return f"**Answer** to {text}"
 
@@ -257,3 +257,190 @@ def test_email_to_me_reports_a_refusal_in_plain_words(monkeypatch):
 
     monkeypatch.setattr(email_client, "send_email", refuse)
     assert wa.tool_email_to_me("x", "y").startswith("Not sent: No way to send")
+
+
+# ---------------------------------------------------------------------------
+# Lanes: other chats and avatars on the same line
+# ---------------------------------------------------------------------------
+
+
+class FakeChats:
+    def __init__(self):
+        self.items = [{"id": "c1", "title": "Trip to Lisbon", "preview": "Book the 9am train."},
+                      {"id": "c2", "title": "Taxes 2026", "preview": ""}]
+
+    def recent(self, limit=9):
+        return self.items[:limit]
+
+    def exists(self, chat_id):
+        return any(c["id"] == chat_id for c in self.items)
+
+    def title(self, chat_id):
+        return next((c["title"] for c in self.items if c["id"] == chat_id), "")
+
+
+class FakeAvatars:
+    def __init__(self):
+        self.items = {"a1": {"id": "a1", "name": "Mira", "does": "Watches the inbox", "enabled": True}}
+
+    def list(self):
+        return list(self.items.values())
+
+    def get(self, avatar_id):
+        return self.items.get(avatar_id)
+
+    def find(self, name):
+        wanted = name.strip().lstrip("@").lower()
+        return next((a for a in self.items.values() if a["name"].lower() == wanted), None)
+
+    def create(self, name, does):
+        if not name.strip():
+            raise ValueError("An avatar needs a name.")
+        made = {"id": f"a{len(self.items) + 1}", "name": name, "does": does, "enabled": False}
+        self.items[made["id"]] = made
+        return made
+
+
+@pytest.fixture
+def lanes_line(line):
+    line.chats, line.avatars = FakeChats(), FakeAvatars()
+    line.turn_lanes = []
+    inner = line._turn
+
+    def turn(text, lane=None):
+        line.turn_lanes.append(dict(lane or {}))
+        return inner(text, lane=lane)
+
+    line._turn = turn
+    _pair(line)
+    return line
+
+
+def _last(link):
+    return link.transport.sent()[-1]
+
+
+def test_chats_lists_recent_chats_and_chat_n_continues_one(lanes_line):
+    lanes_line.handle_incoming("/chats")
+    assert "1. Trip to Lisbon" in _last(lanes_line) and lanes_line.state["listing"] == ["c1", "c2"]
+    lanes_line.handle_incoming("/chat 1")
+    assert "Continuing “Trip to Lisbon”" in _last(lanes_line) and "Book the 9am train." in _last(lanes_line)
+    assert lanes_line.state["lane"] == {"kind": "chat", "id": "c1"}
+    assert lanes_line.status()["linked_chats"] == ["c1"] and lanes_line.is_chat_linked("c1")
+    lanes_line.handle_incoming("what time again?")
+    assert lanes_line.turn_lanes[-1] == {"kind": "chat", "id": "c1"}
+    assert _last(lanes_line).startswith(wa.REPLY_PREFIX + "*Trip to Lisbon*\n")      # the owner can tell where it came from
+
+
+def test_a_vague_chat_name_never_lands_in_the_wrong_chat(lanes_line):
+    lanes_line.handle_incoming("/chat nothing like it")
+    assert "could not tell which chat" in _last(lanes_line)
+    assert lanes_line.state["lane"] == {"kind": "general", "id": ""} and lanes_line.state["linked_chats"] == []
+
+
+def test_avatar_switches_the_line_and_general_comes_back(lanes_line):
+    lanes_line.handle_incoming("/avatars")
+    assert "Mira" in _last(lanes_line)
+    lanes_line.handle_incoming("/avatar mira")
+    assert lanes_line.state["lane"] == {"kind": "avatar", "id": "a1"} and "I am Mira" in _last(lanes_line)
+    lanes_line.handle_incoming("what is on today?")
+    assert lanes_line.turn_lanes[-1] == {"kind": "avatar", "id": "a1"}
+    assert _last(lanes_line).startswith(wa.REPLY_PREFIX + "*Mira*\n")
+    lanes_line.handle_incoming("/where")
+    assert "avatar Mira" in _last(lanes_line)
+    lanes_line.handle_incoming("/general")
+    lanes_line.handle_incoming("hello")
+    assert lanes_line.turn_lanes[-1] == {"kind": "general", "id": ""}
+    assert "*Mira*" not in _last(lanes_line)                                          # the main chat has no name tag
+
+
+def test_an_at_name_asks_one_avatar_once_without_switching(lanes_line):
+    lanes_line.handle_incoming("@Mira what is on today?")
+    assert lanes_line.turns[-1] == "what is on today?"                                 # the @Mira part is not sent on
+    assert lanes_line.turn_lanes[-1] == {"kind": "avatar", "id": "a1"}
+    assert lanes_line.state["lane"] == {"kind": "general", "id": ""}
+    assert _last(lanes_line).startswith(wa.REPLY_PREFIX + "*Mira*\n")
+    lanes_line.handle_incoming("@someone-else hi")                                       # not an avatar: ordinary text
+    assert lanes_line.turns[-1] == "@someone-else hi" and lanes_line.turn_lanes[-1]["kind"] == "general"
+
+
+def test_an_unknown_avatar_lists_the_real_ones(lanes_line):
+    lanes_line.handle_incoming("/avatar Zed")
+    assert "No avatar called" in _last(lanes_line) and "Mira" in _last(lanes_line)
+    assert lanes_line.state["lane"]["kind"] == "general"
+
+
+def test_newavatar_makes_one_and_moves_the_line_to_it(lanes_line):
+    lanes_line.handle_incoming("/newavatar Orion: tracks my flights")
+    made = lanes_line.avatars.find("Orion")
+    assert made["does"] == "tracks my flights" and lanes_line.state["lane"] == {"kind": "avatar", "id": made["id"]}
+    assert "switched off" in _last(lanes_line)
+    lanes_line.handle_incoming("/newavatar nonsense")
+    assert "Say it like this" in _last(lanes_line)
+    lanes_line.avatars.create = lambda *_a: (_ for _ in ()).throw(ValueError("That is a lot of avatars."))
+    lanes_line.handle_incoming("/newavatar Extra: one more")
+    assert "Could not make that avatar: That is a lot of avatars." in _last(lanes_line)
+
+
+def test_a_deleted_chat_or_avatar_sends_the_phone_back_to_the_main_chat(lanes_line):
+    lanes_line.set_lane("avatar", "a1")
+    del lanes_line.avatars.items["a1"]
+    assert lanes_line.current_lane() == {"kind": "general", "id": ""}
+    lanes_line.set_lane("chat", "c2")
+    lanes_line.chats.items = []
+    assert lanes_line.current_lane() == {"kind": "general", "id": ""}
+
+
+def test_the_pc_can_connect_and_disconnect_a_chat(lanes_line):
+    lanes_line.link_chat("c2")
+    assert lanes_line.state["lane"] == {"kind": "chat", "id": "c2"} and lanes_line.is_chat_linked("c2")
+    lanes_line.unlink_chat("c2")
+    assert not lanes_line.is_chat_linked("c2") and lanes_line.state["lane"]["kind"] == "general"
+    with pytest.raises(wa.WhatsAppError):
+        lanes_line.link_chat("missing")
+    with pytest.raises(wa.WhatsAppError):
+        lanes_line.set_lane("avatar", "missing")
+
+
+def test_new_starts_a_fresh_conversation_in_the_current_lane(lanes_line):
+    lanes_line.state["chat_id"] = "abc"
+    lanes_line.state["lane_chats"] = {"avatar:a1": "xyz"}
+    lanes_line.set_lane("avatar", "a1")
+    lanes_line.handle_incoming("/new")
+    assert lanes_line.state["lane_chats"] == {} and lanes_line.state["chat_id"] == "abc"   # only Mira's chat was reset
+    lanes_line.set_lane("general")
+    lanes_line.handle_incoming("/new")
+    assert lanes_line.state["chat_id"] == ""
+
+
+def test_the_avatar_turn_runs_under_both_the_phone_guard_and_the_avatars_own(monkeypatch):
+    from permissions import PermissionDenied
+
+    seen = []
+    both = wa._all_of([lambda name, cat: seen.append(("phone", name)) or wa.phone_guard(name, cat),
+                       lambda name, cat: seen.append(("avatar", name))])
+    both("web_search", "web")
+    assert [who for who, _ in seen] == ["phone", "avatar"]
+    with pytest.raises(PermissionDenied):
+        both("run_command", "machine")                                   # the phone says no before the avatar is asked
+
+
+def test_the_routes_show_the_badge_and_move_the_phone(lanes_line, monkeypatch):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    import routes_whatsapp
+
+    app = FastAPI()
+    app.include_router(routes_whatsapp.router)
+    app.dependency_overrides[routes_whatsapp._owner] = lambda: object()
+    monkeypatch.setattr(wa, "_LINK", lanes_line)
+    client = TestClient(app)
+
+    assert client.post("/api/whatsapp/link-chat", json={"chat_id": "c2"}).json()["linked_chats"] == ["c2"]
+    listing = client.get("/api/whatsapp/chats").json()
+    assert [(c["id"], c["whatsapp"]) for c in listing["chats"]] == [("c1", False), ("c2", True)]
+    assert client.post("/api/whatsapp/lane", json={"kind": "avatar", "id": "a1"}).json()["lane_name"] == "Mira"
+    assert client.post("/api/whatsapp/lane", json={"kind": "nonsense"}).status_code == 400
+    assert client.post("/api/whatsapp/lane", json={"kind": "chat", "id": "missing"}).status_code == 409
+    assert client.post("/api/whatsapp/link-chat", json={"chat_id": "c2", "linked": False}).json()["linked_chats"] == []

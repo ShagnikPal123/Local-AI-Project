@@ -86,3 +86,46 @@ def whatsapp_unlink(_owner_user=Depends(_owner)) -> Dict[str, Any]:
     import whatsapp_link
 
     return _run(lambda: whatsapp_link.link().unlink())
+
+
+@router.get("/api/whatsapp/chats")
+def whatsapp_chats(_owner_user=Depends(_owner)) -> Dict[str, Any]:
+    """The PC's chats with a ``whatsapp`` flag on the ones connected to the phone (the chat list shows it as a badge)."""
+    import whatsapp_link
+
+    current = whatsapp_link.link()
+    linked = set(current.state.get("linked_chats") or [])
+    return {"lane": current.current_lane(), "chats": [{**chat, "whatsapp": chat["id"] in linked}
+                                                      for chat in current.chats.recent(200)]}
+
+
+class LaneBody(BaseModel):
+    kind: str = "general"
+    id: str = ""
+
+
+@router.post("/api/whatsapp/lane")
+def whatsapp_lane(body: LaneBody, _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    """Point the phone at the main chat, one PC chat, or one avatar (the same thing /chat and /avatar do from the phone)."""
+    import whatsapp_link
+    import whatsapp_lanes
+
+    if body.kind not in whatsapp_lanes.LANE_KINDS:
+        raise HTTPException(status_code=400, detail="kind is general, chat or avatar.")
+    return _run(lambda: whatsapp_link.link().set_lane(body.kind, body.id))
+
+
+class LinkChatBody(BaseModel):
+    chat_id: str
+    linked: bool = True
+
+
+@router.post("/api/whatsapp/link-chat")
+def whatsapp_link_chat(body: LinkChatBody, _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    """Connect any PC chat to WhatsApp (or take it off): connected chats carry the badge and can be continued by /chat."""
+    import whatsapp_link
+
+    current = whatsapp_link.link()
+    if body.linked:
+        return _run(lambda: current.link_chat(body.chat_id, switch=False))
+    return _run(lambda: current.unlink_chat(body.chat_id))

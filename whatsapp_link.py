@@ -41,6 +41,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
+import whatsapp_lanes as lanes
 from paths import data_path
 
 log = logging.getLogger("nyx.whatsapp")
@@ -54,6 +55,9 @@ REPLY_PREFIX = "🌙 "
 CHUNK = 3500
 LOG_KEEP = 40
 ALLOW_LEVELS = ("chat", "full")
+#: What survives pairing again (a new phone) or unlinking: the owner's choices and their chats, never the keys.
+KEEP_ON_PAIR = ("allow", "chat_id", "log", "notify", "lane", "listing", "lane_chats", "linked_chats")
+KEEP_ON_UNLINK = ("allow", "chat_id", "log", "lane_chats", "linked_chats")
 _NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 PHONE_NOTE = (
@@ -62,13 +66,7 @@ PHONE_NOTE = (
     "(a file, an app, a long document), say so briefly and offer to have it ready on the PC."
 )
 
-HELP = (
-    "Nyx on WhatsApp. Just text me.\n"
-    "/new — start a fresh conversation\n"
-    "/status — what this line is tied to\n"
-    "/pause — stop answering until you resume it on the PC\n"
-    "/help — this list"
-)
+HELP = lanes.HELP
 
 
 class WhatsAppError(RuntimeError):
@@ -290,6 +288,9 @@ def _now() -> str:
 def _blank() -> Dict[str, Any]:
     return {"status": "unpaired", "phone": "", "mode": "self", "nyx_number": "", "device": "", "pc": "",
             "paired_at": "", "enabled": True, "allow": "chat", "chat_id": "", "log": [],
+            # Where the next text goes (see whatsapp_lanes.py), the chat ids behind the last /chats list, the phone's own
+            # chat per avatar, and the PC chats the owner connected to WhatsApp (shown as a badge on those chats).
+            "lane": lanes.lane(), "listing": [], "lane_chats": {}, "linked_chats": [],
             # Things Nyx may text the owner about without being asked (all off until they switch one on).
             "notify": {"office": False}}
 
@@ -297,11 +298,13 @@ def _blank() -> Dict[str, Any]:
 class WhatsAppLink:
     """One line between this PC and the owner's phone. ``transport`` and ``turn`` are swapped for fakes in tests."""
 
-    def __init__(self, transport: Any = None, turn: Optional[Callable[[str], str]] = None,
-                 state_path: Optional[Path] = None) -> None:
+    def __init__(self, transport: Any = None, turn: Optional[Callable[..., str]] = None,
+                 state_path: Optional[Path] = None, chats: Any = None, avatars: Any = None) -> None:
         self.transport = transport or WorkerTransport()
         self.transport.on_event = self._on_event
         self._turn = turn
+        self.chats = chats or ServerChats()
+        self.avatars = avatars or AvatarBook()
         self._path = state_path or data_path(STATE_FILE)
         self._lock = threading.RLock()
         self._busy = threading.Lock()
@@ -357,6 +360,9 @@ class WhatsAppLink:
             "allow": state.get("allow", "chat"),
             "notify": dict(state.get("notify") or {"office": False}),
             "chat_id": state.get("chat_id", ""),
+            "lane": dict(state.get("lane") or lanes.lane()),
+            "lane_name": self.lane_name(),
+            "linked_chats": list(state.get("linked_chats") or []),
             "log": list(state.get("log") or [])[-20:],
             "error": self.last_error,
             "moved": moved,
@@ -378,7 +384,7 @@ class WhatsAppLink:
         if session.exists():               # an old link's keys: kept aside, never reused for a new pairing
             os.replace(session, session.with_suffix(".sqlite3.old"))
         with self._lock:
-            keep = {k: self.state.get(k) for k in ("allow", "chat_id", "log", "notify") if self.state.get(k) is not None}
+            keep = {k: self.state.get(k) for k in KEEP_ON_PAIR if self.state.get(k) is not None}
             self.state = {**_blank(), **keep, "status": "pairing", "phone": owner, "mode": mode,
                           "nyx_number": nyx if mode == "number" else "", "device": device_fingerprint(),
                           "pc": pc_name()}
@@ -434,7 +440,7 @@ class WhatsAppLink:
         if session.exists():
             os.replace(session, session.with_suffix(".sqlite3.old"))
         with self._lock:
-            keep = {k: self.state.get(k) for k in ("allow", "chat_id", "log")}
+            keep = {k: self.state.get(k) for k in KEEP_ON_UNLINK if self.state.get(k) is not None}
             self.state = {**_blank(), **keep}
             self._save()
         self.pair_code = ""
@@ -517,34 +523,26 @@ class WhatsAppLink:
         return {"sent": True, "to": masked(to), "parts": len(chunks(text)), "origin": origin}
 
     def handle_incoming(self, text: str) -> None:
-        """One message from the owner's phone: a shortcut, or a turn in the WhatsApp chat whose answer goes back."""
+        """One message from the owner's phone: a shortcut, a question for one avatar, or a turn in the current lane."""
         text = (text or "").strip()
         if not text or not self.state.get("enabled", True) or not self.device_ok():
             return
         self._note("in", text)
         _notify_pc(text)
-        command = text.lower().split()[0] if text.startswith("/") else ""
         try:
-            if command == "/help":
-                self.send(HELP, origin="nyx")
-            elif command == "/status":
-                self.send(f"Tied to {self.state.get('pc') or pc_name()}. Phone access: {self.state.get('allow')}."
-                          f" Linked {str(self.state.get('paired_at', ''))[:10]}.", origin="nyx")
-            elif command == "/pause":
-                # Stays connected so the PC can still text the phone; it just stops answering.
-                with self._lock:
-                    self.state["enabled"] = False
-                    self._save()
-                self.send("Paused. Resume it in Connectors → WhatsApp on the PC.", origin="nyx")
-            elif command == "/new":
-                with self._lock:
-                    self.state["chat_id"] = ""
-                    self._save()
-                self.send("Fresh conversation started.", origin="nyx")
-            else:
-                with self._busy:                       # one phone turn at a time, in the order sent
-                    reply = (self._turn or self._run_turn)(text)
-                self.send(reply or "(I had nothing to say to that — try asking another way.)", origin="nyx")
+            command = lanes.parse(text)
+            if command is not None:
+                self._shortcut(command)
+                return
+            target = self.current_lane()
+            mention = lanes.split_mention(text)
+            avatar = self.avatars.find(mention[0]) if mention else None
+            if avatar is not None:                     # "@Mira …": answered by Mira, the lane stays where it was
+                target, text = lanes.lane(lanes.AVATAR, avatar["id"]), mention[1]
+            with self._busy:                           # one phone turn at a time, in the order sent
+                speaker, reply = self._answer(text, target)
+            self.send(lanes.tag(speaker, reply or "(I had nothing to say to that — try asking another way.)"),
+                      origin="nyx")
         except WhatsAppError as error:
             self.last_error = str(error)
         except Exception as error:  # noqa: BLE001 - the phone gets a plain message, the log the detail
@@ -554,26 +552,267 @@ class WhatsAppLink:
             except WhatsAppError:
                 pass
 
-    def _run_turn(self, text: str) -> str:
+    # -- lanes: which chat or avatar the next text goes to ------------------------------
+
+    def current_lane(self) -> Dict[str, str]:
+        """Where the next text goes. A chat or avatar that has been deleted falls back to the main chat."""
+        saved = self.state.get("lane") or {}
+        current = lanes.lane(str(saved.get("kind") or lanes.GENERAL), str(saved.get("id") or ""))
+        if current["kind"] == lanes.CHAT and not self.chats.exists(current["id"]):
+            return lanes.lane()
+        if current["kind"] == lanes.AVATAR and self.avatars.get(current["id"]) is None:
+            return lanes.lane()
+        return current
+
+    def lane_name(self, current: Optional[Dict[str, str]] = None) -> str:
+        current = current or self.current_lane()
+        if current["kind"] == lanes.AVATAR:
+            return str((self.avatars.get(current["id"]) or {}).get("name") or "")
+        if current["kind"] == lanes.CHAT:
+            return self.chats.title(current["id"])
+        return ""
+
+    def set_lane(self, kind: str, ident: str = "") -> Dict[str, Any]:
+        """Point the phone at the main chat, one PC chat, or one avatar (also what the PC's own buttons call)."""
+        if kind == lanes.CHAT:
+            if not self.chats.exists(ident):
+                raise WhatsAppError("There is no such chat.")
+            self.link_chat(ident, switch=False)
+        elif kind == lanes.AVATAR:
+            if self.avatars.get(ident) is None:
+                raise WhatsAppError("There is no such avatar.")
+        with self._lock:
+            self.state["lane"] = lanes.lane(kind, ident)
+            self._save()
+        return self.status()
+
+    def link_chat(self, chat_id: str, switch: bool = True) -> Dict[str, Any]:
+        """Connect a PC chat to WhatsApp: it shows the WhatsApp badge, and the phone can continue it with /chat."""
+        if not self.chats.exists(chat_id):
+            raise WhatsAppError("There is no such chat.")
+        with self._lock:
+            linked = list(self.state.get("linked_chats") or [])
+            if chat_id not in linked:
+                self.state["linked_chats"] = linked + [chat_id]
+            if switch:
+                self.state["lane"] = lanes.lane(lanes.CHAT, chat_id)
+            self._save()
+        return self.status()
+
+    def unlink_chat(self, chat_id: str) -> Dict[str, Any]:
+        with self._lock:
+            self.state["linked_chats"] = [c for c in (self.state.get("linked_chats") or []) if c != chat_id]
+            lane = self.state.get("lane") or {}
+            if lane.get("kind") == lanes.CHAT and lane.get("id") == chat_id:
+                self.state["lane"] = lanes.lane()
+            self._save()
+        return self.status()
+
+    def is_chat_linked(self, chat_id: str) -> bool:
+        return chat_id in (self.state.get("linked_chats") or [])
+
+    def _shortcut(self, command: "lanes.Command") -> None:
+        name, arg = command.name, command.arg
+        if name == "help":
+            self.send(HELP, origin="nyx")
+        elif name == "status":
+            self.send(f"Tied to {self.state.get('pc') or pc_name()}. Phone access: {self.state.get('allow')}."
+                      f" Linked {str(self.state.get('paired_at', ''))[:10]}. "
+                      + lanes.describe(self.current_lane(), self.lane_name()), origin="nyx")
+        elif name == "where":
+            self.send(lanes.describe(self.current_lane(), self.lane_name()), origin="nyx")
+        elif name == "pause":
+            # Stays connected so the PC can still text the phone; it just stops answering.
+            with self._lock:
+                self.state["enabled"] = False
+                self._save()
+            self.send("Paused. Resume it in Connectors → WhatsApp on the PC.", origin="nyx")
+        elif name == "new":
+            self._fresh_conversation()
+        elif name == "general":
+            self.set_lane(lanes.GENERAL)
+            self.send("Back in the main WhatsApp chat.", origin="nyx")
+        elif name == "chats":
+            text, ids = lanes.format_chats(self.chats.recent(lanes.CHATS_SHOWN), self._current_chat_id(),
+                                           self.state.get("linked_chats") or [])
+            with self._lock:
+                self.state["listing"] = ids
+                self._save()
+            self.send(text, origin="nyx")
+        elif name == "chat":
+            self._continue_chat(arg)
+        elif name == "avatars":
+            current = self.current_lane()
+            self.send(lanes.format_avatars(self.avatars.list(), current["id"] if current["kind"] == lanes.AVATAR else ""),
+                      origin="nyx")
+        elif name == "avatar":
+            self._switch_avatar(arg)
+        elif name == "newavatar":
+            self._make_avatar(arg)
+
+    def _current_chat_id(self) -> str:
+        current = self.current_lane()
+        return current["id"] if current["kind"] == lanes.CHAT else (self.state.get("chat_id") or "")
+
+    def _fresh_conversation(self) -> None:
+        current = self.current_lane()
+        with self._lock:
+            if current["kind"] == lanes.AVATAR:
+                (self.state.get("lane_chats") or {}).pop(f"avatar:{current['id']}", None)
+            else:
+                self.state["chat_id"] = ""
+                self.state["lane"] = lanes.lane()
+            self._save()
+        self.send("Fresh conversation started.", origin="nyx")
+
+    def _continue_chat(self, arg: str) -> None:
+        if not arg:
+            self.send("Which chat? Text /chats to see the list, then /chat 2.", origin="nyx")
+            return
+        chats = self.chats.recent(200)
+        chat = lanes.pick_chat(arg, self.state.get("listing") or [], chats)
+        if chat is None:
+            self.send(f"I could not tell which chat “{arg[:40]}” is. Text /chats, then /chat and its number.", origin="nyx")
+            return
+        self.link_chat(chat["id"])
+        said = f" The last thing in it: {chat['preview']}" if chat.get("preview") else ""
+        self.send(f"Continuing “{chat.get('title') or chat['id']}”.{said}", origin="nyx")
+
+    def _switch_avatar(self, arg: str) -> None:
+        if not arg:
+            self.send(lanes.describe(self.current_lane(), self.lane_name()), origin="nyx")
+            return
+        avatar = self.avatars.find(arg)
+        if avatar is None:
+            names = ", ".join(a["name"] for a in self.avatars.list()) or "none yet"
+            self.send(f"No avatar called “{arg[:40]}”. Your avatars: {names}.", origin="nyx")
+            return
+        self.set_lane(lanes.AVATAR, avatar["id"])
+        self.send(lanes.tag(avatar["name"], f"Hi, I am {avatar['name']}. Everything you text now goes to me. "
+                                            "/general takes you back."), origin="nyx")
+
+    def _make_avatar(self, arg: str) -> None:
+        parsed = lanes.split_new_avatar(arg)
+        if parsed is None:
+            self.send("Say it like this: /newavatar Mira: watches my inbox and tells me what matters", origin="nyx")
+            return
+        try:
+            avatar = self.avatars.create(parsed[0], parsed[1])
+        except Exception as error:  # noqa: BLE001 - avatars.AvatarError and friends: the owner reads the reason
+            self.send(f"Could not make that avatar: {error}", origin="nyx")
+            return
+        self.set_lane(lanes.AVATAR, avatar["id"])
+        self.send(lanes.tag(avatar["name"], f"Made. {lanes.NEW_AVATAR_NOTE} You are talking to {avatar['name']} now."),
+                  origin="nyx")
+
+    # -- the turn itself ---------------------------------------------------------------
+
+    def _answer(self, text: str, target: Dict[str, str]) -> "tuple[str, str]":
+        """Run one turn in ``target`` and return (who is speaking, the reply). The speaker is blank in the main chat."""
+        speaker = self.lane_name(target) if target["kind"] != lanes.GENERAL else ""
+        if self._turn is not None:
+            return speaker, self._turn(text, lane=target)
+        return speaker, self._run_turn(text, target)
+
+    def _run_turn(self, text: str, target: Optional[Dict[str, str]] = None) -> str:
         import server
 
+        target = target or lanes.lane()
         store = server._shared_chat_store()
-        chat_id = self.state.get("chat_id") or ""
+        avatar = self.avatars.get(target["id"]) if target["kind"] == lanes.AVATAR else None
+        if target["kind"] == lanes.CHAT:
+            chat_id = target["id"]
+        elif avatar is not None:
+            chat_id = (self.state.get("lane_chats") or {}).get(f"avatar:{avatar['id']}") or ""
+        else:
+            chat_id = self.state.get("chat_id") or ""
         if not chat_id or not store.exists(chat_id):
-            chat_id = store.create(title="WhatsApp", activate=False)
+            chat_id = store.create(title=f"WhatsApp · {avatar['name']}" if avatar else "WhatsApp", activate=False)
             with self._lock:
-                self.state["chat_id"] = chat_id
+                if avatar is not None:
+                    self.state.setdefault("lane_chats", {})[f"avatar:{avatar['id']}"] = chat_id
+                else:
+                    self.state["chat_id"] = chat_id
                 self._save()
         service = server._get_service(chat_id)
         guard_before = getattr(service, "tool_guard", None)
-        if self.state.get("allow", "chat") != "full":
-            service.tool_guard = phone_guard
+        guards = [] if self.state.get("allow", "chat") == "full" else [phone_guard]
+        if avatar is not None:
+            guards.append(self.avatars.guard(avatar))     # the avatar's own Allow / Ask / Never rules still apply
+        if guards:
+            service.tool_guard = _all_of(guards)
         try:
-            service.set_turn_context(PHONE_NOTE)
-            result = service.chat_turn(text, sink=lambda _event: None, role="local", turn_id=uuid.uuid4().hex[:12])
+            service.set_turn_context(PHONE_NOTE + (("\n\n" + self.avatars.note(avatar)) if avatar is not None else ""))
+            result = service.chat_turn(text, sink=lambda _event: None, role="local", turn_id=uuid.uuid4().hex[:12],
+                                       provider="ollama" if avatar is not None and avatar.get("model") == "local" else None)
         finally:
             service.tool_guard = guard_before
         return str((result or {}).get("reply") or "") if isinstance(result, dict) else str(result or "")
+
+
+def _all_of(guards: List[Callable[[str, str], None]]) -> Callable[[str, str], None]:
+    """One tool guard from several: a tool runs only if every guard lets it through."""
+    def guard(name: str, category: str) -> None:
+        for each in guards:
+            each(name, category)
+    return guard
+
+
+class ServerChats:
+    """The PC's chat list, reached lazily so importing this file never loads the server (tests replace the whole thing)."""
+
+    @staticmethod
+    def _store() -> Any:
+        import server
+
+        return server._shared_chat_store()
+
+    def recent(self, limit: int = 9) -> List[Dict[str, Any]]:
+        return [c for c in self._store().summaries() if c.get("kind", "chat") == "chat"][:limit]
+
+    def exists(self, chat_id: str) -> bool:
+        return bool(chat_id) and bool(self._store().exists(chat_id))
+
+    def title(self, chat_id: str) -> str:
+        for chat in self._store().summaries():
+            if chat["id"] == chat_id:
+                return str(chat.get("title") or chat_id)
+        return ""
+
+
+class AvatarBook:
+    """The owner's avatars as the phone needs them. All of it is ``avatars.py``'s public surface; nothing here edits
+    that module, so the Avatars team can change its insides freely."""
+
+    @staticmethod
+    def _module() -> Any:
+        import avatars
+
+        return avatars
+
+    def list(self) -> List[Dict[str, Any]]:
+        return self._module().list_avatars()
+
+    def get(self, avatar_id: str) -> Optional[Dict[str, Any]]:
+        return self._module().get(avatar_id) if avatar_id else None
+
+    def find(self, name: str) -> Optional[Dict[str, Any]]:
+        try:
+            return self._module().find(name)
+        except Exception:  # noqa: BLE001 - "@someone" that is not an avatar is just text
+            return None
+
+    def create(self, name: str, does: str) -> Dict[str, Any]:
+        module = self._module()
+        return module.create({"name": name, "does": does, "main": "custom",
+                              "schedule": {"mode": "on_call", "every_minutes": 60},
+                              "functions": {"talk": "allow", "web": module.FUNCTIONS["web"]["default"]}})
+
+    def guard(self, avatar: Dict[str, Any]) -> Callable[[str, str], None]:
+        return self._module().AvatarGuard(avatar)
+
+    def note(self, avatar: Dict[str, Any]) -> str:
+        return self._module().note_for(avatar)
 
 
 def _notify_pc(text: str) -> None:
