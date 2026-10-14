@@ -6,7 +6,9 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { controlsApi, type DayPlan, type HomeViewId, type Launcher, type NotchControls, type Playing, type Timer, type Weather } from "./notchApi";
+import {
+  controlsApi, type DayPlan, type HomeViewId, type Launcher, type NotchControls, type Playing, type Timer, type WaitingItem, type Weather,
+} from "./notchApi";
 
 const svg = (d: React.ReactNode, size = 15, fill = false) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill={fill ? "currentColor" : "none"} stroke={fill ? "none" : "currentColor"}
@@ -219,6 +221,35 @@ export function SingleView({ view, controls, onSaid }: { view: HomeViewId; contr
     <div className="nx-dash">
       <ControlsStrip controls={controls} onSaid={onSaid} />
       <div className="nx-cards one">{SINGLE[view]?.()}</div>
+    </div>
+  );
+}
+
+// ── Waiting on you: approvals, trades, Claude Code, question cards ──────────
+
+const WHERE: Record<string, string> = { chat: "Chat", trading: "Trading", claude: "Claude Code" };
+
+export function WaitingView({ items, onAnswer, onOpen, onLater }: {
+  items: WaitingItem[]; onAnswer: (item: WaitingItem, label: string) => void; onOpen: (item: WaitingItem) => void;
+  onLater: (item: WaitingItem) => void;
+}) {
+  const item = items[0];
+  if (!item) return <div className="nx-card nx-wcard"><div className="nx-sub">Nothing is waiting on you.</div></div>;
+  return (
+    <div className="nx-card wash nx-waiting" style={{ ["--wash" as string]: item.kind === "question" ? "rgba(165,148,255,.28)" : "rgba(245,165,36,.28)" }}>
+      <div className="head">
+        <span className="tag">{item.kind === "question" ? "Question" : item.kind === "trade" ? "Trade" : item.kind === "claude" ? "Claude Code" : "Approval"}</span>
+        <span className="nx-sub nx-ellipsis">{item.detail || WHERE[item.where] || item.where}</span>
+        {items.length > 1 ? <span className="nx-sub more">+{items.length - 1} more</span> : null}
+      </div>
+      <div className="nx-title">{item.title}</div>
+      <div className="nx-row opts">
+        {item.kind === "question" && item.card ? item.card.options.slice(0, 4).map((o) => (
+          <button key={o.label} className={`nx-btn small ${o.recommended ? "primary" : ""}`} title={o.means}
+            onClick={() => onAnswer(item, o.label)}>{o.label}</button>
+        )) : <button className="nx-btn small primary" onClick={() => onOpen(item)}>Open {WHERE[item.where] ?? ""}</button>}
+        <button className="nx-btn small" onClick={() => onLater(item)}>Later</button>
+      </div>
     </div>
   );
 }

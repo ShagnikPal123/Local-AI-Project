@@ -659,3 +659,12 @@
 .nx-tab.h { font: 700 11px var(--font); width: 24px; }
 .nx-wcard .nx-sub { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .nx-wcard .nx-sub.nx-ellipsis { display: block; }
+
+/* ── Waiting on you (approvals, question cards) ─────────────────────────── */
+.nx-waiting { display: flex; flex-direction: column; justify-content: center; gap: 8px; padding: 12px 16px; box-sizing: border-box; }
+.nx-waiting > * { position: relative; z-index: 1; }
+.nx-waiting .head { display: flex; align-items: center; gap: 8px; }
+.nx-waiting .tag { font: 600 10.5px var(--font); letter-spacing: 0.4px; text-transform: uppercase; color: var(--amber);
+  background: rgba(245, 165, 36, 0.12); padding: 2px 7px; border-radius: 6px; }
+.nx-waiting .more { margin-left: auto; }
+.nx-waiting .opts { flex-wrap: wrap; gap: 6px; }

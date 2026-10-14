@@ -20,8 +20,8 @@ import {
   notchApi, type AssistantSettings, type CatalogAgent, type FileRead, type NotchAgent, type Work, type WorkStep,
 } from "./notchApi";
 import { play, setSfxVolume } from "./sfx";
-import { AppsView, SingleView, VIEW_LABEL, useControls } from "./controls";
-import { controlsApi, type HomeViewId } from "./notchApi";
+import { AppsView, SingleView, VIEW_LABEL, WaitingView, useControls } from "./controls";
+import { answerMessage, controlsApi, waitingApi, type HomeViewId, type WaitingItem } from "./notchApi";
 import {
   AgentsView, AppView, ChatView, ChooseView, DropView, EmptyView, HomeView, Icon, MailView, NoteView, SettingsView,
   SoundView, TimerView, UploadingView, WorkView, agentIoState, formatLeft, type ChatEntry,
@@ -30,16 +30,16 @@ import "./notch.css";
 
 type Mode = "hidden" | "peek" | "compact" | "trio" | "expanded";
 type View = "home" | "empty" | "chat" | "drop" | "uploading" | "choose" | "mail" | "note" | "work" | "agents"
-  | "settings" | "timer" | "sound" | "app" | "apps" | "now_playing" | "weather" | "calendar";
+  | "settings" | "timer" | "sound" | "app" | "apps" | "now_playing" | "weather" | "calendar" | "waiting";
 type Tab = "home" | "chat" | "new";
 
 const NOTCH_W = 184, NOTCH_H = 32, COMPACT_W = 288, PEEK_W = NOTCH_W + 64, EXPANDED_W = 640;
 const HEIGHTS: Record<View, number> = {
   home: 160, empty: 150, chat: 176, drop: 176, uploading: 150, choose: 176, mail: 248, note: 136, work: 256,
-  agents: 240, settings: 280, timer: 184, sound: 176, app: 210, apps: 196, now_playing: 186, weather: 186, calendar: 186,
+  agents: 240, settings: 280, timer: 184, sound: 176, app: 210, apps: 196, now_playing: 186, weather: 186, calendar: 186, waiting: 176,
 };
 const TAB_OF: Partial<Record<View, Tab>> = { home: "home", empty: "home", work: "home", agents: "home", app: "home",
-  timer: "home", sound: "home", apps: "home", now_playing: "home", weather: "home", calendar: "home", chat: "chat", drop: "new", uploading: "new", choose: "new", mail: "new", note: "new" };
+  timer: "home", sound: "home", apps: "home", waiting: "home", now_playing: "home", weather: "home", calendar: "home", chat: "chat", drop: "new", uploading: "new", choose: "new", mail: "new", note: "new" };
 
 interface Shape { kind: "island" | "box"; x: number; y: number; w: number; h: number; r: number }
 interface HostApi {
@@ -303,6 +303,51 @@ export function Notch({ embedded = false }: { embedded?: boolean }) {
     setNote({ text, tone });
     openView("note");
     later(() => setView((v) => (v === "note" ? homeView() : v)), 2400);
+  };
+
+  // Something waiting on the owner (an approval, a trade, Claude Code, a question card in any chat) pops the notch
+  // open once; "Later" or answering it puts it away. What was already shown is remembered across restarts.
+  const [waiting, setWaiting] = useState<WaitingItem[]>([]);
+  const seenWaiting = useRef<Set<string>>(new Set(readSeen()));
+  const waitingShown = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (embedded) return;
+    const check = async () => {
+      const r = await waitingApi.list();
+      if (!r.ok) return;
+      const fresh = r.data.items.filter((i) => !seenWaiting.current.has(i.id));
+      setWaiting(r.data.items.filter((i) => !seenWaiting.current.has(i.id) || waitingShown.current.has(i.id)));
+      if (fresh.length) {
+        fresh.forEach((i) => { seenWaiting.current.add(i.id); waitingShown.current.add(i.id); });
+        writeSeen(seenWaiting.current);
+        play("open");
+        setEmote({ name: "surprised", at: Date.now() });
+        openView("waiting");
+      }
+    };
+    void check();
+    const id = window.setInterval(check, 4000);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [embedded]);
+  const putAway = (item: WaitingItem) => {
+    waitingShown.current.delete(item.id);
+    const left = waiting.filter((w) => w.id !== item.id);
+    setWaiting(left);
+    if (!left.length) openView(homeView());
+  };
+  const answer = async (item: WaitingItem, label: string) => {
+    if (!item.card || !item.chat_id) return;
+    play("send");
+    putAway(item);
+    await send({ message: answerMessage(item.card, label), chatId: item.chat_id });
+    showNote(`Answered “${label}” in ${item.detail || "the chat"}.`, "good");
+  };
+  const openWaiting = (item: WaitingItem) => {
+    const tab = item.where === "claude" ? "equalize" : item.where;
+    putAway(item);
+    if (host()?.open_app) host()!.open_app!(tab);
+    else void notchApi.openApp();
   };
 
   // The global shortcut (notch_window.py registers it) opens the chat.
@@ -588,6 +633,7 @@ export function Notch({ embedded = false }: { embedded?: boolean }) {
               {(view === "now_playing" || view === "weather" || view === "calendar") && controls && (
                 <SingleView view={view} controls={controls} onSaid={said} />
               )}
+              {view === "waiting" && <WaitingView items={waiting} onAnswer={(i, l) => void answer(i, l)} onOpen={openWaiting} onLater={putAway} />}
               {view === "empty" && <EmptyView ioState={ioState} ioImage={ioImage} onClick={() => openView("chat")} />}
               {view === "chat" && (
                 <ChatView log={log} busy={Boolean(sending || runningTurn)} ultrafast={settings.ultrafast} files={files} ioState={ioState}
@@ -671,6 +717,14 @@ export function Notch({ embedded = false }: { embedded?: boolean }) {
       <IoClickCatcher onSlap={slap} islandRef={islandRef} />
     </div>
   );
+}
+
+/** Ids of waiting items already shown, kept in the notch window's own storage (it persists between runs). */
+function readSeen(): string[] {
+  try { return JSON.parse(localStorage.getItem("nx-seen-waiting") ?? "[]") as string[]; } catch { return []; }
+}
+function writeSeen(seen: Set<string>): void {
+  try { localStorage.setItem("nx-seen-waiting", JSON.stringify([...seen].slice(-200))); } catch { /* storage off */ }
 }
 
 /** The black shapes on the page right now, for the desktop window's outline. Read from the DOM so the island's

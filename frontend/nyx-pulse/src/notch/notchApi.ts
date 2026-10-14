@@ -165,3 +165,19 @@ export const controlsApi = {
   playing: () => api.get<Playing>("/api/notch/home/now_playing", 4000),
   day: () => api.get<DayPlan>("/api/notch/home/calendar", 12_000),
 };
+
+// ── What is waiting on the owner (notch.waiting) ────────────────────────────
+
+export interface QuestionCard { question: string; options: { label: string; means: string; recommended?: boolean }[]; multi: boolean; other: string }
+export interface WaitingItem { kind: "approval" | "trade" | "claude" | "question"; id: string; title: string; detail?: string;
+  where: string; since: number; chat_id?: string; card?: QuestionCard }
+
+export const waitingApi = {
+  list: () => api.get<{ items: WaitingItem[] }>("/api/notch/waiting", 5000),
+};
+
+/** The message a click on a card's answer sends — the same words question_cards.answer_message writes. */
+export function answerMessage(card: QuestionCard, label: string): string {
+  const means = card.options.find((o) => o.label === label)?.means ?? "";
+  return `**${card.question}**\n→ ${label}${means ? ` (${means})` : ""}`;
+}
