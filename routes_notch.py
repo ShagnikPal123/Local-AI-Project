@@ -199,3 +199,54 @@ def notch_wake(body: WakeBody, _user=RequireChat) -> Dict[str, Any]:
     import notch
 
     return notch.wake(body.source)
+
+
+# ── Looks (notch_looks.py): data only, checked before it is kept ─────────────
+
+
+@router.get("/api/notch/looks")
+def notch_looks_list(_user=RequireChat) -> Dict[str, Any]:
+    import notch_looks
+
+    return notch_looks.looks()
+
+
+@router.post("/api/notch/looks/import")
+def notch_looks_import(body: Dict[str, Any], _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import notch_looks
+
+    try:
+        return notch_looks.import_look(body)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+class LookId(BaseModel):
+    id: str
+
+
+@router.post("/api/notch/looks/use")
+def notch_looks_use(body: LookId, _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import notch_looks
+
+    try:
+        return notch_looks.use(body.id)
+    except ValueError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+
+
+@router.delete("/api/notch/looks/{look_id}")
+def notch_looks_remove(look_id: str, _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import notch_looks
+
+    return notch_looks.remove(look_id)
+
+
+@router.get("/api/notch/looks/{look_id}/export")
+def notch_looks_export(look_id: str, _user=RequireChat) -> Dict[str, Any]:
+    import notch_looks
+
+    try:
+        return notch_looks.export(look_id)
+    except ValueError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error

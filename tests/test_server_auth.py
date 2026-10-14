@@ -222,6 +222,8 @@ def test_a_beta_tester_cannot_reach_admin_routes(client, beta_token, method, pat
     ("/api/notch/controls", {"system": ["cmd"]}),
     ("/api/notch/launchers", {"name": "x", "kind": "command", "command": "whoami"}),
     ("/api/notch/launchers/suggest", {"name": "x"}),
+    ("/api/notch/looks/import", {"name": "x", "colors": {"island": "#000000"}}),
+    ("/api/notch/looks/use", {"id": "ember"}),
 ])
 def test_a_beta_tester_cannot_run_or_change_the_notchs_controls(client, beta_token, path, body):
     """The notch's buttons open apps and cmd windows on the owner's PC; an invited tester only gets to look."""
