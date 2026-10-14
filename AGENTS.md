@@ -133,6 +133,7 @@ Each has an enforcement point in code. Do not weaken them.
 | `taint_gate.py` | After a turn reads outside content, risky actions in it ask the owner (checked in `tools.call_tool`) |
 | `morning_digest.py` / `claude_sessions.py` | The equalize tab: daily briefing; Claude Code sessions by state |
 | `equalize_assistant.py` | The Equalize notch's state: settings, agents and their live work, fast file reads, mail on Send, timers, voice, avatar |
+| `app_window.py` | Nyx's own desktop window (pywebview on WebView2, signed pythonw): the default way Nyx opens; one window per app, remembered size, session via the bridge |
 | `notch.py` / `notch_window.py` | Starts the desktop notch window (its own pywebview process, sized to the island) and carries Back to chat |
 | `ultrafast.py` | Ultra Fast mode (Jev's pattern): one choice over closed sets, then code does the desktop action; judge-before-reply |
 | `system_audio.py` | The speaker peak meter (COM, no recording) for the notch's sound pill |
