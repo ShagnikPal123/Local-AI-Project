@@ -129,7 +129,9 @@ def scan_diff(diff: str) -> List[Finding]:
 def _diff(base: Optional[str]) -> str:
     args = ["git", "diff", "-U0", "--no-color"]
     args += [f"{base}...HEAD"] if base else ["--cached"]
-    return subprocess.run(args, capture_output=True, text=True, encoding="utf-8", errors="replace", check=True).stdout
+    # CREATE_NO_WINDOW keeps a console from flashing on Windows (0 elsewhere); see quiet_windows.py.
+    return subprocess.run(args, capture_output=True, text=True, encoding="utf-8", errors="replace", check=True,
+                          creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout
 
 
 def main(argv: Iterable[str]) -> int:

@@ -1,0 +1,4 @@
+# Windows batch files break (labels, goto, multi-line blocks) with LF endings. Force CRLF on checkout so a
+# clone made with core.autocrlf=false still starts. The index keeps LF; only the working copy changes.
+*.bat text eol=crlf
+*.cmd text eol=crlf

@@ -10,6 +10,10 @@ uvicorn
 # --- Numerics / audio buffers (voice.py, graph_engine.py) ---
 numpy
 
+# routes_workbench.py: symbolic maths (derivatives, integrals, solving). Imported on demand, but a fresh
+# install without it fails tests/test_workbench.py and the Workbench's symbolic tools.
+sympy
+
 # --- Machine access (2026-09-12 overhaul) ---
 # system_info.py: live CPU/RAM/disk/network readings and accurate specs.
 psutil
