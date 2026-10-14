@@ -175,6 +175,15 @@ def isolate_persistent_stores(tmp_path, monkeypatch):
     except Exception:
         pass
 
+    # Active speech: its settings are the owner's, and its first line may ask a small online model.
+    try:
+        import active_speech
+
+        monkeypatch.setattr(active_speech, "_settings_path", lambda: tmp_path / "active_speech.json")
+        monkeypatch.setattr(active_speech, "_default_ask", lambda prompt, budget: None)
+    except Exception:
+        pass
+
     # The owner's mods reach every prompt and can block tools; a mod's theme writes the owner's look.
     try:
         import mods
