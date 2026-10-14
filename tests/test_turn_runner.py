@@ -204,3 +204,52 @@ def test_a_swarm_turn_that_answers_alone_is_asked_once_to_use_its_swarm(monkeypa
 
     plain = _run(_ScriptedRouter([("Hi!", "ollama")]), message="hi there", mode="normal")[2]
     assert not any(str(m.get("content", "")).startswith("You are in Swarm mode") for m in plain.conversation_history)
+
+
+# --- Integrity (Fixer Upper S26): act instead of refusing -------------------------------------------------------
+
+
+def _nudges(service):
+    return [m for m in service.conversation_history if str(m.get("content", "")).startswith("You stopped without doing")]
+
+
+def test_a_turn_that_refuses_the_keyboard_is_asked_once_to_do_it():
+    """The Google Docs transcript (2026-10-13): qwen3.5:9b said it could not type, with keyboard_type one step away."""
+    router = _ScriptedRouter([
+        ("I can't control your mouse or keyboard to type for you.", "ollama"),
+        ("I can't control your mouse or keyboard to type for you.", "ollama"),
+    ])
+    result, events, service = _run(router, message="open google docs and type hi in a fresh document")
+
+    assert len(_nudges(service)) == 1, "asked once, never in a loop"
+    assert any(e["type"] == "status" and "Not giving up" in e["text"] for e in events)
+    assert result["reply"].startswith("I can't"), "a model that still refuses is accepted the second time"
+
+
+def test_a_typing_request_answered_without_the_keyboard_is_nudged_even_without_refusal_words():
+    router = _ScriptedRouter([("The doc is open. Click in it and type hi.", "ollama"), ("Typed hi.", "ollama")])
+    result, _, service = _run(router, message="type hi in a fresh google doc")
+
+    assert len(_nudges(service)) == 1
+    assert result["reply"] == "Typed hi."
+
+
+def test_a_refusal_the_owner_caused_is_left_alone(monkeypatch):
+    """When the owner's screen is set to "never", saying so is honest, not lazy."""
+    monkeypatch.setattr(turn_runner.TOOL_REGISTRY, "call_tool",
+                        lambda name, **kw: "Not on the owner's screen: The owner's screen is off-limits (keyboard type).")
+    router = _ScriptedRouter([
+        ("<tool_call>\nname: keyboard_type\narguments: {\"text\": \"hi\"}\n</tool_call>", "ollama"),
+        ("I can't type on your screen: it is set to off-limits in the Computer tab.", "ollama"),
+    ])
+    result, _, service = _run(router, message="type hi in the open document")
+
+    assert not _nudges(service)
+    assert "off-limits" in result["reply"]
+
+
+def test_plain_questions_and_plan_turns_are_never_nudged():
+    plain = _run(_ScriptedRouter([("Use the menu: File, then New.", "ollama")]), message="how do I type a new doc?")[2]
+    assert not _nudges(plain)
+    chat = _run(_ScriptedRouter([("Hi! What can I do?", "ollama")]), message="hi there")[2]
+    assert not _nudges(chat)

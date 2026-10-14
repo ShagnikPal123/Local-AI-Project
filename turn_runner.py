@@ -157,6 +157,16 @@ def chat_modes_swarm_nudge() -> str:
         return "Swarm mode: hand the parts to agents with dispatch_agents, then merge their reports."
 
 
+def chat_modes_integrity_nudge(user_text: str, reply: str, tools_used: List[str], results: str) -> str:
+    """The one reminder a turn gets when it ended without acting (chat_modes.integrity_nudge), or ""."""
+    try:
+        import chat_modes
+
+        return chat_modes.integrity_nudge(user_text, reply, tools_used, results)
+    except Exception:  # pragma: no cover - a reminder never breaks a turn
+        return ""
+
+
 def mentioned_agents(text: str) -> List[str]:
     """Roster agents the user @mentioned, in the order written.
 
@@ -888,6 +898,10 @@ class TurnRunner:
         #: (Request H9: "the text and the speech bubble disappear after a long time of thinking").
         written_before_tools = ""
         swarm_nudged = False
+        #: Integrity (Fixer Upper S26): a turn that gave up gets one reminder to act. Tool results are kept so a
+        #: refusal the owner caused (a blocked screen, a denied permission) is left alone.
+        integrity_nudged = False
+        seen_results: List[str] = []
 
         for step in range(1, max_steps + 1):
             if self.cancelled():
@@ -944,6 +958,16 @@ class TurnRunner:
                     history.append({"role": "assistant", "content": text})
                     history.append({"role": "user", "_tool_results": True, "content": chat_modes_swarm_nudge()})
                     continue
+                if not integrity_nudged and service.enable_tools and not self.mode_switches.get("read_only"):
+                    nudge = chat_modes_integrity_nudge(self._last_user_text(), visible_answer(text),
+                                                       self.tools_used, "\n".join(seen_results))
+                    if nudge:
+                        integrity_nudged = True
+                        self.emit("answer.reset")
+                        self.emit("status", phase="think", text="Not giving up — doing it instead")
+                        history.append({"role": "assistant", "content": text})
+                        history.append({"role": "user", "_tool_results": True, "content": nudge})
+                        continue
                 reply = visible_answer(text)
                 if len(written_before_tools) >= 400 and len(reply) < 160 and written_before_tools not in reply:
                     self.emit("answer.reset")
@@ -980,6 +1004,7 @@ class TurnRunner:
                 except Exception as error:  # noqa: BLE001 - one broken call must not end the turn
                     result = f"Error calling tool '{name}': {type(error).__name__}: {error}"
                 outputs.append(f"Tool '{name}' returned:\n{result}")
+                seen_results.append(str(result)[:400])
                 self._note_sources(arguments, result)
             self.emit("status", phase="think", text="Reviewing what the tools returned")
 

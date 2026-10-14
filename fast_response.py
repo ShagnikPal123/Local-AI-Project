@@ -206,6 +206,11 @@ _CAPABILITY_REFUSAL = re.compile(
 )
 
 
+def refuses_to_act(response: str) -> bool:
+    """True when a reply says it cannot do something Nyx has a tool for (used by the full pipeline too)."""
+    return bool(_CAPABILITY_REFUSAL.search(response or ""))
+
+
 def wants_escalation(response: str) -> bool:
     """True when a fast-path reply signalled, or showed, that it needs the full pipeline."""
     text = response or ""

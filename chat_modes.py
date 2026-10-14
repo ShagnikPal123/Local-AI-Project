@@ -55,7 +55,10 @@ PLAN_TOOLS = frozenset({
 #: Never in a planning turn, whatever their category says.
 PLAN_BLOCKED = frozenset({"run_command", "run_python", "write_file", "delete_file", "move_file", "copy_file",
                           "improve_self", "self_patch", "trading_order", "send_email", "email_reply",
-                          "create_tab", "update_tab", "set_background", "click", "type_text", "press_keys"})
+                          "create_tab", "update_tab", "set_background", "click", "type_text", "press_keys",
+                          # The real names of the mouse and keyboard tools (computer_control, own_computer).
+                          "mouse_click", "mouse_move", "mouse_drag", "mouse_scroll", "keyboard_type", "keyboard_keys",
+                          "own_computer_click", "own_computer_type", "own_computer_keys", "own_computer_shell"})
 
 
 NORMAL_NOTE = (
@@ -126,6 +129,64 @@ ULTRAFAST_NOTE = (
     f"{PREFIX} Ultra Fast — speed first. Answer in one or two short sentences, no preamble, no thinking lines. Use a "
     "tool only when the answer truly needs one; for a quick computer action use ultrafast_command."
 )
+
+
+# ---------------------------------------------------------------------------
+# Integrity: act instead of refusing (Fixer Upper S39, S26)
+# ---------------------------------------------------------------------------
+# The owner, 2026-10-13: "I can say anything and it won't just say yes or no, it will try it … Integrity is the name
+# of this aspect and we want to remember that." In the Google Docs transcript the model opened the page and then told
+# the owner to type "hi" himself, three times, while keyboard_type sat one step away. A turn that ends like that gets
+# one reminder, the same way a Swarm turn that answered alone does.
+
+#: Tools that put hands on a computer: the owner's (computer_control) or Nyx's own (own_computer).
+HANDS_TOOLS = frozenset({
+    "mouse_click", "mouse_move", "mouse_drag", "mouse_scroll", "keyboard_type", "keyboard_keys", "screen_view",
+    "find_on_screen", "focus_window", "own_computer_click", "own_computer_type", "own_computer_keys",
+    "own_computer_scroll", "own_computer_open", "ultrafast_command",
+})
+
+#: An ask that only hands can do: type into something, click, press a key, fill a form, scroll.
+_HANDS_ON_ASK = re.compile(
+    r"\btyp(?:e|ing)\b(?!\s+of\b)|\bclick\b|\bpress\b[^.?!]{0,20}\b(?:key|enter|button)\b|\bfill (?:in|out)\b"
+    r"|\bscroll\b|\bdrag\b|\bsign (?:me )?in\b|\blog (?:me )?in\b", re.I)
+
+#: A tool result that means the owner (or a guard) said no: then a refusal is the honest answer, not laziness.
+_BLOCKED_RESULT = re.compile(
+    r"Not on the owner's screen|off-limits|Permission denied|PermissionDenied|Blocked in Plan mode|refused by|"
+    r"the owner (?:said no|declined|blocked)|not allowed", re.I)
+
+INTEGRITY_NUDGE = (
+    "You stopped without doing what was asked. Nyx is not limited to text: it has the owner's mouse and keyboard "
+    "(screen_view, mouse_click, keyboard_type, keyboard_keys, focus_window, list_windows), its own computer "
+    "(own_computer_*), the browser (open_link), the app itself (ui_open_tab, ui_create_tab) and the web. Never hand "
+    "the job back to the owner. Do it now, one step at a time: open or focus the right window, look with screen_view, "
+    "click the field, type, then look again to check it worked. If no tool fits, find one first — search_skills, then "
+    "connectors_available — and use it. Only if a tool result says the owner blocked it, say which setting blocks it "
+    "and stop. If you truly tried every route, say what you tried and what is missing."
+)
+
+
+def integrity_nudge(user_text: str, reply: str, tools_used: List[str], results: str = "") -> str:
+    """The reminder to send when a turn ended without acting, or "" when the ending is fair.
+
+    Two signs it gave up: the reply says it cannot act (the same check the quick path uses), or the owner asked for
+    something only hands can do and no hands tool ran. A tool result that shows the owner blocked it makes the
+    refusal honest, so then nothing is sent.
+    """
+    if _BLOCKED_RESULT.search(results or ""):
+        return ""
+    try:
+        from fast_response import refuses_to_act
+    except Exception:  # pragma: no cover - the check is a helper, never a reason a turn fails
+        return ""
+    if refuses_to_act(reply):
+        return INTEGRITY_NUDGE
+    # "How do I sign in?" asks for directions, not hands; "can you type hi?" is a request wearing a question mark.
+    asking_how = bool(_QUESTION_START.match(user_text or "")) and not _POLITE_ASK.match(user_text or "")
+    if _HANDS_ON_ASK.search(user_text or "") and not asking_how and not HANDS_TOOLS.intersection(tools_used or []):
+        return INTEGRITY_NUDGE
+    return ""
 
 
 def normalize(mode: Optional[str]) -> str:

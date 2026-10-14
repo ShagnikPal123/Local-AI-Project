@@ -229,3 +229,29 @@ def test_swarm_gets_room_to_work_and_is_told_its_size(monkeypatch):
     chat_modes.prepare(service, "normal")
     notes = [m for m in service.conversation_history if str(m.get("content", "")).startswith(chat_modes.PREFIX)]
     assert len(notes) == 1 and "Normal" in notes[0]["content"]
+
+
+# --- Integrity (Fixer Upper S26, S39) ------------------------------------------------------------------------------
+
+
+def test_integrity_nudge_fires_on_a_refusal_or_an_unused_keyboard():
+    assert chat_modes.integrity_nudge("go on", "I'm unable to directly control the browser or simulate typing.", [])
+    assert chat_modes.integrity_nudge("type hi in the doc", "The doc is ready for you.", ["open_link"])
+    assert chat_modes.integrity_nudge("can you click the blue button?", "Sure, it's on the right.", [])
+
+
+def test_integrity_nudge_stays_quiet_when_the_work_was_done_or_blocked():
+    assert not chat_modes.integrity_nudge("type hi in the doc", "Typed hi.", ["screen_view", "keyboard_type"])
+    assert not chat_modes.integrity_nudge("type hi", "I can't: your screen is off-limits.", ["keyboard_type"],
+                                          "Not on the owner's screen: The owner's screen is off-limits")
+    assert not chat_modes.integrity_nudge("how do I sign in to gmail?", "Open gmail.com and press Sign in.", [])
+    assert not chat_modes.integrity_nudge("hello", "Hi! How can I help?", [])
+
+
+def test_plan_mode_blocks_the_real_mouse_and_keyboard_tool_names():
+    guard = chat_modes.plan_guard()
+    from permissions import PermissionDenied
+
+    for name in ("keyboard_type", "mouse_click", "own_computer_type"):
+        with pytest.raises(PermissionDenied):
+            guard(name, "general")
