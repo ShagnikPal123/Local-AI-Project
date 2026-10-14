@@ -606,11 +606,15 @@ def _chat_turn(avatar: Dict[str, Any], text: str) -> str:
             chat_id = store.create(title=f"Avatar · {avatar['name']}", activate=False)
             rt["chat_id"] = chat_id
             _save(state)
+    from persona_scope import badge_avatar_chat
+
+    # The badge is what makes the turn speak from this avatar's bank (persona_scope.prepare_turn) — and only here.
+    badge_avatar_chat(store, chat_id, avatar)
     service = server._get_service(chat_id)
     guard_before = getattr(service, "tool_guard", None)
     service.tool_guard = AvatarGuard(avatar)
     try:
-        service.set_turn_context(note_for(avatar))
+        service.set_turn_context("")
         result = service.chat_turn(text, sink=lambda _event: None, role="local", turn_id=uuid.uuid4().hex[:12],
                                    provider="ollama" if avatar.get("model") == "local" else None)
     finally:
@@ -883,7 +887,11 @@ def tool_avatar_ask(avatar: str, message: str) -> str:
     if _current_avatar_id() == found["id"]:
         return "Error: that is you."
     result = run(found["id"], message, kind="talk")
-    return f"{found['name']} answered:\n{result['reply']}" if result["ok"] else f"{found['name']} failed: {result['reply']}"
+    if not result["ok"]:
+        return f"{found['name']} failed: {result['reply']}"
+    # Relayed, not adopted: the avatar's voice stays in its own chat (persona_scope.py).
+    return (f"{found['name']} answered in its own chat (quote or sum it up in your own voice; do not take on its "
+            f"personality):\n{result['reply']}")
 
 
 @_tool

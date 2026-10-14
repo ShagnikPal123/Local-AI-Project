@@ -17,9 +17,13 @@
 .av :is(input, textarea, select):focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
 
 .av-body { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 16px; align-items: start; }
-.av-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; position: sticky; top: 8px; }
+/* min-width 0 all the way down: a long "what it does" line (nowrap) used to widen the list past its 280px column and
+   lay the cards over the settings beside it. */
+.av-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px;
+  position: sticky; top: 8px; min-width: 0; }
+.av-list > li { min-width: 0; }
 .av-list__foot { padding-top: 4px; }
-.av-card { display: flex; align-items: center; gap: 6px; padding: 4px 10px 4px 4px; border-radius: 12px;
+.av-card { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 4px 10px 4px 4px; border-radius: 12px;
   background: var(--color-surface); box-shadow: inset 0 0 0 1px var(--color-divider); }
 .av-card.is-selected { box-shadow: inset 0 0 0 1.5px var(--color-accent); background: var(--color-surface-2); }
 .av-card__main { display: flex; flex: 1; min-width: 0; align-items: center; gap: 10px; padding: 6px; border: 0; border-radius: 10px;

@@ -458,11 +458,12 @@ class ModStore:
                                 "origin": "mod", "mod": mod["id"]})
         return out
 
-    def turn_context(self, user_text: str) -> str:
+    def turn_context(self, user_text: str, instructions: bool = True) -> str:
         """The system note for one turn: which mods exist, and the instructions in force now.
 
         Listing the mods, not only their instructions, is what lets the model edit
         the right one when the owner says "change that reminder to 30 minutes".
+        ``instructions=False`` is an avatar's chat: an avatar speaks only from its own bank (persona_scope.py).
         """
         mods = self.list()
         if not mods:
@@ -477,7 +478,7 @@ class ModStore:
             lines.append(f"- {mod['name']} (id {mod['id']}, {state}): {mod['summary']}")
         lowered = (user_text or "").lower()
         rules: List[str] = []
-        for mod in mods:
+        for mod in mods if instructions else []:
             if not mod.get("enabled", True):
                 continue
             for part in mod["parts"]:
@@ -581,7 +582,33 @@ def tool_mod_list() -> str:
                      + "\n  parts: " + json.dumps(m["parts"], ensure_ascii=False) for m in mods)
 
 
+def _instruction_texts(parts: Any) -> List[str]:
+    return [str(p.get("text", "")) for p in parts or [] if isinstance(p, dict) and p.get("kind") == "instructions"]
+
+
+def _ask_before_instructions(texts: List[str], name: str) -> None:
+    """Standing instructions change how Ichos talks in every chat, so the owner approves them in an approval box first
+    (owner, 2026-10-14: a "talk like…" change spread one persona's voice everywhere). Raises PermissionDenied on a no."""
+    if not texts:
+        return
+    from permissions import ask
+
+    ask("persona", f"Change how Ichos talks in every chat? (mod: {name[:60]})",
+        "New standing instructions:\n" + "\n".join(f"- {t[:400]}" for t in texts[:4])
+        + "\nApprove to save them. To change only one chat, decline and ask for it in that chat instead.")
+
+
 def tool_mod_save(name: str, parts: Any, description: str = "", mod_id: str = "", request: str = "") -> str:
+    from permissions import PermissionDenied
+
+    try:
+        before = MOD_STORE.get(mod_id) if mod_id else None
+        old = set(_instruction_texts((before or {}).get("parts")))
+        _ask_before_instructions([t for t in _instruction_texts(validate_parts(parts)) if t not in old], name)
+    except ModError as error:
+        return f"Error: {error}\nCall mod_help for every part and its fields."
+    except PermissionDenied as error:
+        return f"Not saved: {error}"
     try:
         mod = MOD_STORE.save(name, parts, description=description, mod_id=mod_id, author="assistant", request=request)
     except ModError as error:
@@ -592,7 +619,15 @@ def tool_mod_save(name: str, parts: Any, description: str = "", mod_id: str = ""
 
 
 def tool_mod_toggle(mod: str, enabled: Any = True) -> str:
+    from permissions import PermissionDenied
+
     on = enabled if isinstance(enabled, bool) else str(enabled).strip().lower() not in ("false", "0", "off", "no")
+    found_before = MOD_STORE.get(mod)
+    if on and found_before is not None and not found_before.get("enabled", True):
+        try:
+            _ask_before_instructions(_instruction_texts(found_before.get("parts")), found_before["name"])
+        except PermissionDenied as error:
+            return f"Not switched on: {error}"
     try:
         found = MOD_STORE.set_enabled(mod, on)
     except ModError as error:

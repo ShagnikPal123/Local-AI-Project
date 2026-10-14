@@ -464,12 +464,17 @@ def _chat_turn(agent: Dict[str, Any], task: str, sink: Callable[[Dict[str, Any]]
     if agent.get("kind") == "avatar":
         import avatars
 
+        from persona_scope import badge_avatar_chat
+
         record = avatars.get(agent["id"].split(":", 1)[1])
         if record is not None:
             service.tool_guard = avatars.AvatarGuard(record)
-            note = avatars.note_for(record)
+            badge_avatar_chat(store, chat_id, record)  # its bank comes from the badge (persona_scope.prepare_turn)
+            note = ""
+    # The notch's own voice only when the owner picked one for it ("selected as main"), for this task only.
+    service.turn_persona = None
     if agent.get("kind") == "ichos" and personality_note():
-        note = f"{note} {personality_note()}"
+        service.turn_persona = {"display_name": agent["name"], "system_guidance": personality_note()}
     try:
         service.set_turn_context(note)
         result = service.chat_turn(task, sink=sink, role="local", turn_id=uuid.uuid4().hex[:12])

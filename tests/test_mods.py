@@ -119,7 +119,8 @@ def test_view_carries_what_the_app_draws():
     assert store().view() == {"banners": [], "statuses": [], "reminders": [], "start_tab": ""}
 
 
-def test_tools_report_errors_the_model_can_act_on():
+def test_tools_report_errors_the_model_can_act_on(monkeypatch):
+    monkeypatch.setattr("permissions.ask", lambda *a, **k: None)  # the owner approves the new instructions
     reply = mods.tool_mod_save("Oops", '[{"kind": "status"}]')
     assert reply.startswith("Error:") and "`text` is required" in reply and "mod_help" in reply
     reply = mods.tool_mod_save("Short", [{"kind": "instructions", "text": "Be brief."}], request="keep it short")

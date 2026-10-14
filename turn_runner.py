@@ -411,6 +411,12 @@ class TurnRunner:
             self.emit("status", phase="route", text=f"Reading {names} first")
 
         skills = service._attach_skills(user_text) or []
+        try:
+            import persona_scope
+
+            persona_scope.prepare_turn(service)  # who speaks this turn: Ichos, or this chat's own persona and its bank
+        except Exception:  # pragma: no cover - a badge problem must not stop the turn
+            pass
         attach_mods = getattr(service, "_attach_mods", None)  # the owner's mods: what exists, the instructions in force
         if attach_mods is not None:
             attach_mods(user_text)
@@ -778,6 +784,11 @@ class TurnRunner:
             if message.get("role") == "system" and content.startswith(service._PERSONALITY_PREFIX):
                 lean.append({"role": "system", "content": content})
                 break
+        from persona_scope import PERSONA_PREFIX, speaks_as_persona
+
+        if speaks_as_persona(service):  # an avatar's quick turn still speaks from its own bank; plain Ichos stays lean
+            lean += [{"role": "system", "content": m["content"]} for m in service.conversation_history
+                     if m.get("role") == "system" and str(m.get("content", "")).startswith(PERSONA_PREFIX)][:1]
         mods_note = service.mods_note() if hasattr(service, "mods_note") else ""  # "answer in French" holds on quick turns too
         if mods_note:
             lean.append({"role": "system", "content": mods_note})
@@ -1089,9 +1100,11 @@ class TurnRunner:
         try:
             from config import SETTINGS
 
+            from persona_scope import context_key as persona_key
+
             personality = (getattr(self.service, "personality", None) or {}).get("id", "default")
             provider = self.prefer_provider or SETTINGS.preferred_online_provider
-            return f"{personality}|{provider}|{getattr(SETTINGS, 'gemini_model', '')}"
+            return f"{personality}|{persona_key(self.service)}|{provider}|{getattr(SETTINGS, 'gemini_model', '')}"
         except Exception:
             return "default"
 
@@ -1104,7 +1117,7 @@ class TurnRunner:
                                 context_key=self._context_key(), attachments=records)
         except Exception:
             return {}
-        if fresh or self._in_command_zone():
+        if fresh or self._in_command_zone() or not self._learns_globally():
             hooks["cache_hit"] = None  # a command is work to hand out again, never a remembered reply
         return hooks
 
@@ -1180,8 +1193,19 @@ class TurnRunner:
         self.provider, self.model = "ultrafast", ("jev" if via == "jev" else "local")
         return self._finish(reply)
 
+    def _learns_globally(self) -> bool:
+        """A persona's turns teach nothing shared — the brain, Nyx Core and the answer cache are read by every chat."""
+        try:
+            from persona_scope import learns_globally
+
+            return learns_globally(self.service)
+        except Exception:  # pragma: no cover
+            return True
+
     def _grow_brain(self, reply: str, elapsed_ms: int) -> None:
         """Super learn: every turn feeds the knowledge graph and trains Nyx Core (both in the background)."""
+        if not self._learns_globally():
+            return
         try:
             import nyx_core
             import super_brain
@@ -1196,7 +1220,7 @@ class TurnRunner:
 
     def _learning_after(self, reply: str, elapsed_ms: int) -> None:
         self._grow_brain(reply, elapsed_ms)
-        if getattr(self, "from_cache", False):
+        if getattr(self, "from_cache", False) or not self._learns_globally():
             return
         try:
             from learning import TurnSummary

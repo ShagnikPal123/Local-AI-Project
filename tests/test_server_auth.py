@@ -321,6 +321,12 @@ DATA_ROUTES = [
 ]
 
 
+def test_chat_reset_refuses_anonymous_callers_once_claimed(client, store):
+    """The chat reset (chat_reset.py) moves chats to Recently deleted, so it is never open to an anonymous caller."""
+    _claim(store)
+    assert client.post("/api/chat-reset", json={"parts": ["voice"]}).status_code == 401
+
+
 @pytest.mark.parametrize("path", DATA_ROUTES)
 def test_data_routes_are_open_on_an_unclaimed_install(client, path):
     """A fresh local install must not demand an account to be useful."""
@@ -924,6 +930,7 @@ OWNER_ONLY_WHATSAPP_ROUTES = [
     ("post", "/api/whatsapp/send", {"text": "hello"}),
     ("post", "/api/whatsapp/settings", {"allow": "full"}),
     ("post", "/api/whatsapp/unlink", None),
+    ("post", "/api/whatsapp/clear", None),
 ]
 
 

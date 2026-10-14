@@ -452,6 +452,25 @@ class WhatsAppLink:
         self.pair_code = ""
         return self.status()
 
+    def clear_chat(self) -> Dict[str, Any]:
+        """Start the phone line over (owner, 2026-10-14: "add a clear for whatsapp chat as well").
+
+        The WhatsApp chats (the main one and each avatar's) move to Recently deleted, where they can be restored for
+        30 days, and the message log empties. The pairing, the PC tie and the allow level stay, so nothing needs
+        linking again.
+        """
+        with self._lock:
+            ids = [self.state.get("chat_id") or ""] + list((self.state.get("lane_chats") or {}).values())
+            self.state.update(chat_id="", lane_chats={}, log=[], lane=lanes.lane(), listing=[])
+            self._save()
+        moved = 0
+        for chat_id in [c for c in ids if c]:
+            try:
+                moved += bool(self.chats.delete(chat_id))
+            except Exception:  # noqa: BLE001 - a chat already gone is already clear
+                pass
+        return {**self.status(), "cleared": True, "chats_moved": moved}
+
     def update(self, *, enabled: Optional[bool] = None, allow: Optional[str] = None,
                notify_office: Optional[bool] = None) -> Dict[str, Any]:
         with self._lock:
@@ -808,6 +827,10 @@ class WhatsAppLink:
                 else:
                     self.state["chat_id"] = chat_id
                 self._save()
+        if avatar is not None:
+            from persona_scope import badge_avatar_chat
+
+            badge_avatar_chat(store, chat_id, avatar)  # the avatar speaks from its own bank, in its own chat only
         service = server._get_service(chat_id)
         guard_before = getattr(service, "tool_guard", None)
         guards = [] if self.state.get("allow", "chat") == "full" else [phone_guard]
@@ -816,7 +839,7 @@ class WhatsAppLink:
         if guards:
             service.tool_guard = _all_of(guards)
         try:
-            service.set_turn_context(PHONE_NOTE + (("\n\n" + self.avatars.note(avatar)) if avatar is not None else ""))
+            service.set_turn_context(PHONE_NOTE)
             result = service.chat_turn(text, sink=lambda _event: None, role="local", turn_id=uuid.uuid4().hex[:12],
                                        attachments=attachments or None,
                                        provider="ollama" if avatar is not None and avatar.get("model") == "local" else None)
@@ -844,6 +867,10 @@ class ServerChats:
 
     def recent(self, limit: int = 9) -> List[Dict[str, Any]]:
         return [c for c in self._store().summaries() if c.get("kind", "chat") == "chat"][:limit]
+
+    def delete(self, chat_id: str) -> bool:
+        """To Recently deleted; what it learned is not promoted into shared memory."""
+        return self._store().delete(chat_id, retain_memory=False)
 
     def exists(self, chat_id: str) -> bool:
         return bool(chat_id) and bool(self._store().exists(chat_id))

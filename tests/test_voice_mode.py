@@ -19,6 +19,14 @@ class _FakeService:
     def set_personality(self, p):
         self.seen.append(f"personality={(p or {}).get('system_guidance', '')}")
 
+    @property
+    def turn_persona(self):
+        return None
+
+    @turn_persona.setter
+    def turn_persona(self, p):  # a spoken turn's voice lasts that turn only (persona_scope.apply_request_personality)
+        self.seen.append(f"turn_persona={(p or {}).get('system_guidance', '')}")
+
     def set_turn_context(self, context):
         self.seen.append(context)
 
@@ -107,7 +115,8 @@ def test_talking_out_loud_uses_the_avatar_chosen_for_equalize(client, monkeypatc
     monkeypatch.setattr(equalize_assistant, "voice_personality", lambda: "You are Io. Warm and quick.")
     with client.stream("POST", "/api/chat/stream", json={"message": "hello there", "use_rag": False, "voice": True}) as response:
         response.read()
-    assert "personality=You are Io. Warm and quick." in client.seen
+    assert "turn_persona=You are Io. Warm and quick." in client.seen
+    assert not any(line.startswith("personality=You are Io") for line in client.seen), "never kept by the chat"
 
     client.seen.clear()
     with client.stream("POST", "/api/chat/stream", json={"message": "hello there", "use_rag": False}) as response:

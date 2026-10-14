@@ -280,7 +280,11 @@ export interface ChatSummaryView {
   /** A turn is running in this chat right now (possibly started in another window). */
   running?: boolean;
   status?: string;
+  /** The persona this chat speaks as (persona_scope.py): an avatar, or a voice approved for this chat. None is Ichos. */
+  persona?: ChatPersona;
 }
+
+export interface ChatPersona { kind: "avatar" | "custom"; id?: string; name: string }
 
 // ---------------------------------------------------------------------------
 // Callbacks

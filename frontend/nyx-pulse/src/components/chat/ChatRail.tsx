@@ -20,6 +20,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../api";
 import { Spinner } from "./AgentDisc";
 import type { ChatSummaryView } from "./types";
+import { PersonaBadge } from "./PersonaBadge";
 import { openChatPane, startChatDrag } from "./panes/paneDrag";
 
 export type RailMakeKind = "branch" | "fork" | "duplicate";
@@ -164,6 +165,7 @@ export function ChatRail({ chats, activeId, runningByChat, onSelect, onNew, onRe
                               aria-current={chat.id === activeId ? "page" : undefined}
                               title={made && parent ? `${made} of “${parent}”` : chat.title}>
                         <span className="chat-rail__title">{chat.title || "New chat"}</span>
+                        <PersonaBadge persona={chat.persona} small />
                         {made && <span className="chat-rail__made">{made}{parent ? ` of ${parent}` : ""}</span>}
                       </button>
                     )}

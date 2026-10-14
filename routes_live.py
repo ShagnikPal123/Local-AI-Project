@@ -123,7 +123,6 @@ def start_turn(body: StreamRequest, user: Any) -> tuple[str, str]:
     """
     import server
     from agent_events import publish_activity
-    from personalities import resolve_personality
 
     text = (body.message or "").strip()
     if not text and not body.attachments:
@@ -158,9 +157,9 @@ def start_turn(body: StreamRequest, user: Any) -> tuple[str, str]:
             personality_text = equalize_assistant.voice_personality() or personality_text
         except Exception:  # pragma: no cover - the turn goes on with the chat's own personality
             pass
-    personality = resolve_personality(body.personality_id, personality_text)
-    if personality:
-        service.set_personality(personality)
+    from persona_scope import apply_request_personality
+
+    apply_request_personality(service, body.personality_id, personality_text)
     context = ""
     if body.use_rag:
         try:
@@ -436,6 +435,21 @@ def restore_chat(chat_id: str, _user=RequireChat) -> Dict[str, Any]:
     if not restored:
         raise HTTPException(status_code=404, detail="That chat is no longer in Recently deleted.")
     return {"ok": True, "id": chat_id}
+
+
+class ChatResetRequest(BaseModel):
+    parts: List[str] = ["voice", "mods"]
+
+
+@router.post("/api/chat-reset")
+def reset_chats(body: ChatResetRequest, _user=RequireChat) -> Dict[str, Any]:
+    """Settings → Chats → "Chats gotten out of hand?" (chat_reset.py). Backs up first; nothing is purged."""
+    import chat_reset
+
+    try:
+        return chat_reset.reset(body.parts)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
 
 
 class AutoCleanRequest(BaseModel):
