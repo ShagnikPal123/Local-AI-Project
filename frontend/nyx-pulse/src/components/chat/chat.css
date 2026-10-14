@@ -656,3 +656,4 @@ select option, select optgroup { background-color: #15151c; color: #f5f5f7; }
 .msg-image { padding: 0; border: none; background: none; cursor: zoom-in; border-radius: 10px; overflow: hidden; line-height: 0;
   box-shadow: 0 0 0 1px var(--color-divider); }
 .msg-image img { max-width: 240px; max-height: 200px; object-fit: cover; display: block; }
+.chat-switcher__row.is-risk .chat-switcher__name { color: var(--color-danger); }
