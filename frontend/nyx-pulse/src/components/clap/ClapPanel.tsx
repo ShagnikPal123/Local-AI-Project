@@ -13,6 +13,7 @@ import { api } from "../../api";
 import { pushToast } from "../../state/toastStore";
 import { averageTemplates, startClapListening, startTeaching, stopClapListening, stopTeaching, clapListening } from "../../voice/clapDetector";
 import "./clap.css";
+import { Loading } from "../Panel";
 
 interface Gesture {
   id: string; name: string; kind: string; enabled: boolean; when: string[];
@@ -117,7 +118,7 @@ export function ClapPanel() {
     changed();
   }
 
-  if (!state) return <p className="clap__loading">Loading…</p>;
+  if (!state) return <Loading what="Loading the clap trigger" />;
 
   return (
     <div className="clap">

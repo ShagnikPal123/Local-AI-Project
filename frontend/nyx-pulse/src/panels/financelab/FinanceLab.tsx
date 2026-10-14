@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../api";
 import "./financelab.css";
+import { Loading } from "../../components/Panel";
 
 type Pot = {
   allocated: number; earned: number; total: number; invested: number; cash: number; peak: number;
@@ -112,7 +113,7 @@ export function FinanceLab() {
     void load();
   }, [load]);
 
-  if (!data) return <div className="fl"><p className="fl-muted">{error || "Loading…"}</p></div>;
+  if (!data) return <div className="fl">{error ? <p className="fl-muted">{error}</p> : <Loading what="Loading Finance Lab" />}</div>;
   const { pot, focus: focusState } = data;
 
   return (

@@ -16,6 +16,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../../api";
 import { onWorkspaceEvent } from "../../state/workspaceEvents";
 import { DiffSummary, type LineStats } from "../../components/DiffSummary";
+import { Loading } from "../../components/Panel";
 
 interface Implement {
   state: "running" | "applied" | "failed" | "blocked" | "approved_only"; message?: string; diff?: string; at?: number;
@@ -119,7 +120,7 @@ export function ReviewQueue({ onChanged }: { onChanged?: () => void }) {
     onChanged?.();
   };
 
-  if (!queue) return <div className="card"><div className="section-title">Review changes</div><p className="field-row__hint">Loading…</p></div>;
+  if (!queue) return <div className="card"><div className="section-title">Review changes</div><Loading what="Loading the review queue" compact /></div>;
   const { counts, job } = queue;
   const running = job?.status === "running";
   const allShownSelected = items.length > 0 && items.slice(0, limit).every((i) => selected.has(i.id));

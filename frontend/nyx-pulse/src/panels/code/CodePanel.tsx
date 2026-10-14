@@ -19,6 +19,7 @@ import { Toasts } from "../../components/chat";
 import { pushToast, useToasts, dismissToast } from "../../state/toastStore";
 import { PreviewBar } from "./PreviewBar";
 import "./code.css";
+import { Loading } from "../../components/Panel";
 
 interface Workspace { id: string; path: string; name: string; file: string }
 interface Entry { name: string; path: string; dir: boolean; size: number }
@@ -53,7 +54,7 @@ function Tree({ root, onOpen, activePath, onFolder, targetDir, refresh }: {
   useEffect(() => {
     void api.get<{ entries: Entry[] }>(`/api/code/tree?path=${encodeURIComponent(root)}`).then((r) => setEntries(r.ok ? r.data.entries : []));
   }, [root, refresh]);
-  if (!entries) return <div className="code-tree__loading">Loading…</div>;
+  if (!entries) return <div className="code-tree__loading"><Loading what="Reading the folder" compact /></div>;
   if (entries.length === 0) return <div className="code-tree__loading">Empty folder</div>;
   return (
     <ul className="code-tree" role="group">

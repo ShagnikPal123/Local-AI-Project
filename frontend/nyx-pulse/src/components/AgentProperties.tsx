@@ -14,6 +14,7 @@ import { api } from "../api";
 import { useProviders } from "./ProviderPicker";
 import { pushToast } from "../state/toastStore";
 import { ConsultFields } from "../panels/SubAgentsPanel";
+import { Loading } from "./Panel";
 
 interface AgentProps {
   name: string;
@@ -156,7 +157,7 @@ export function AgentProperties({ name, onClose, onRenamed }: {
         </header>
 
         {error && <div className="agent-props__error" role="alert">{error}</div>}
-        {!draft && !error && <div className="agent-props__body muted">Loading…</div>}
+        {!draft && !error && <div className="agent-props__body"><Loading what="Loading this agent" compact /></div>}
 
         {draft && agent && (
           <div className="agent-props__body">

@@ -12,6 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, authHeaders } from "../../api";
 import { Icon } from "../../components/chat/Icon";
 import "./screen.css";
+import { Loading } from "../../components/Panel";
 
 type Pace = "show" | "ask";
 
@@ -142,7 +143,7 @@ export function ScreenSharePanel() {
         </div>
       </header>
       {error && <p className="ss-error" role="alert">{error}</p>}
-      {!state ? <p className="ss-muted">Loading…</p>
+      {!state ? <Loading what="Checking screen sharing" compact />
         : sharing ? <LiveView state={state} onState={setState} />
         : <StartView state={state} onState={setState} />}
     </div>

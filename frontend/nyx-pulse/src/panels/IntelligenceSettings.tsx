@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api";
 import { UpdatesSection } from "./UpdatesSection";
+import { Loading } from "../components/Panel";
 
 interface OptimizerSettings {
   enabled: boolean; online: boolean; strength: number; show_in_chat: boolean;
@@ -88,7 +89,7 @@ export function IntelligenceSettings() {
           (or structures a long one), the other checks nothing you said was lost. Simple requests are never touched, and
           Nyx always sees your own words first.
         </div>
-        {!optimizer ? <div className="muted">Loading…</div> : (
+        {!optimizer ? <Loading what="Loading" compact /> : (
           <>
             <Toggle label="Refine my requests" hint="Off: Nyx gets exactly what you type." checked={optimizer.enabled}
               onChange={(v) => void saveOptimizer({ enabled: v })} />
@@ -139,7 +140,7 @@ export function IntelligenceSettings() {
         <div className="field-row__hint" style={{ marginBottom: 8 }}>
           Predictions are learned on this PC from how you use Nyx. The last group lets Nyx do quiet work while you're away.
         </div>
-        {!predict ? <div className="muted">Loading…</div> : (
+        {!predict ? <Loading what="Loading" compact /> : (
           <>
             <Toggle label="Predictions" hint="The master switch for everything below it in this group." checked={predict.predictions} onChange={(v) => void savePredict({ predictions: v })} />
             <Toggle label="Predictive text" hint="Suggests your next word while you type (Tab accepts)." checked={predict.predictive_text} disabled={!predict.predictions} onChange={(v) => void savePredict({ predictive_text: v })} />
