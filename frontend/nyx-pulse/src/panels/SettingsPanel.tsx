@@ -13,6 +13,7 @@ import { VoicesSection } from "./VoicesSection";
 import { ClapPanel } from "../components/clap/ClapPanel";
 import { BackgroundsSection } from "./BackgroundsSection";
 import { StorageSection } from "./StorageSection";
+import { NotificationsSection } from "./NotificationsSection";
 import { ContentModeSection } from "./ContentModeSection";
 import { IntelligenceSettings } from "./IntelligenceSettings";
 import { ModsSection } from "./ModsSection";
@@ -304,6 +305,7 @@ export function SettingsPanel({ group = "general" }: { group?: SettingsGroup }) 
           <EngineSection />
           <ViewSection />
           <SafetySection />
+          <NotificationsSection />
           <Section
             title="Response speed"
             hint="Auto decides per turn. The other two are useful when you know what you want, and each costs something."
