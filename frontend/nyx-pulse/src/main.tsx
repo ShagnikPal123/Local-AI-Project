@@ -14,6 +14,7 @@ bootMix();
 bootAppearance();
 startMotion();
 import { registerShellCache } from "./engine";
+import { setToken } from "./api";
 
 // A rebuild — an update, Apply or Improve — replaces the hashed chunks while this page is open. The next tab
 // that loads lazily then fails to import, React unmounts the whole app, and the window goes blank. Load the
@@ -51,9 +52,23 @@ async function reloadWhenServed(): Promise<void> {
   window.location.reload();
 }
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode><App /></StrictMode>
-);
+/** Inside Nyx's own desktop window (app_window.py, marked by ?shell=app) the window hands over the owner's session
+ * through pywebview's bridge, so the app opens signed in like a desktop app. A browser tab never waits for it. */
+async function appWindowSession(): Promise<void> {
+  if (new URLSearchParams(window.location.search).get("shell") !== "app") return;
+  type Bridge = { token?: () => Promise<string> };
+  const bridge = () => (window as unknown as { pywebview?: { api?: Bridge } }).pywebview?.api;
+  const started = Date.now();
+  while (!bridge()?.token && Date.now() - started < 3000) await new Promise((resolve) => setTimeout(resolve, 50));
+  const token = bridge()?.token ? await bridge()!.token!() : "";
+  if (token) setToken(token);
+}
+
+void appWindowSession().finally(() => {
+  createRoot(document.getElementById("root")!).render(
+    <StrictMode><App /></StrictMode>
+  );
+});
 
 // Lets the page load, and offer "Turn on Nyx", even while the engine is off.
 registerShellCache();
