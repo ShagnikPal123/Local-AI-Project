@@ -13,6 +13,10 @@ from typing import Any, Dict, Optional
 
 _lock = threading.Lock()
 _state: Dict[str, Any] = {"last_active": 0.0, "source": "", "tab": ""}
+# What the owner last dragged onto a tab or app (S23): the assistant reads it so "help me with this" has an object.
+_DROP_KINDS = {"avatar", "chat", "assistant", "agent", "calendar", "item"}
+_DROP_MAX_AGE = 300.0
+_drop: Dict[str, Any] = {}
 
 
 def mark_active(source: str = "input", tab: str = "", now: Optional[float] = None) -> None:
@@ -21,6 +25,27 @@ def mark_active(source: str = "input", tab: str = "", now: Optional[float] = Non
         _state["source"] = source[:40]
         if tab:
             _state["tab"] = tab[:60]
+
+
+def note_drop(kind: str, item_id: str, label: str, tab: str = "", now: Optional[float] = None) -> Dict[str, Any]:
+    """Remember the latest drag-and-drop. Values are trimmed and the kind is from a fixed list: this text goes into a prompt."""
+    clean = {"kind": kind if kind in _DROP_KINDS else "item", "id": " ".join(str(item_id).split())[:80],
+             "label": " ".join(str(label).split())[:80], "tab": " ".join(str(tab).split())[:60],
+             "at": now if now is not None else time.time()}
+    with _lock:
+        _drop.clear()
+        _drop.update(clean)
+    mark_active("drop", tab=clean["tab"], now=now)
+    return clean
+
+
+def recent_drop(now: Optional[float] = None) -> Optional[Dict[str, Any]]:
+    """The last drop if it was within five minutes, else None (an old drop no longer says what they want)."""
+    with _lock:
+        drop = dict(_drop)
+    if not drop or ((now if now is not None else time.time()) - drop["at"]) > _DROP_MAX_AGE:
+        return None
+    return drop
 
 
 def idle_seconds(now: Optional[float] = None) -> float:
@@ -43,3 +68,4 @@ def snapshot(now: Optional[float] = None) -> Dict[str, Any]:
 def reset() -> None:
     with _lock:
         _state.update(last_active=0.0, source="", tab="")
+        _drop.clear()

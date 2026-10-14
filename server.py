@@ -2738,6 +2738,21 @@ def presence_ping(body: PresencePing, _user=RequireChat) -> Dict[str, Any]:
     return presence.snapshot()
 
 
+class PresenceDrop(BaseModel):
+    kind: str = "item"
+    id: str = ""
+    label: str = ""
+    tab: str = ""
+
+
+@app.post("/api/presence/drop")
+def presence_drop(body: PresenceDrop, _user=RequireChat) -> Dict[str, Any]:
+    """The owner dragged something (an avatar, a chat, the assistant) onto a tab; the next turn's prompt mentions it."""
+    import presence
+
+    return presence.note_drop(body.kind, body.id, body.label, body.tab)
+
+
 @app.get("/api/presence")
 def presence_state(_user=RequireChat) -> Dict[str, Any]:
     import presence
