@@ -132,6 +132,19 @@ more false positives cost.
 
 ## Session log
 
+### Session — 2026-10-14 (Active speech, text and voice)
+
+The owner asked for "active speech": confirm the ask at once, talk at the start, middle and end, and answer a message
+sent mid-task, then split, run alongside or fold it in. `active_speech.py` adds `speech` turn events (start = what it
+understood, rules at once, a small model's line if it is quick; middle = tools/agents/long waits, ≥6 s apart, max 4;
+end = done line on longer turns). `routes_live.start_turn` wraps every turn's sink with a `Narrator`. New mode `fold` in
+`turn_advice.py`; a turn's inbox in `turn_registry.py` takes notes only while `_tool_loop` runs and closes it before the
+last answer (a late note gets one more pass, or comes back as `notes_left` and is queued). `POST /api/turns/heard`
+answers a mid-task message and adds the reply to the running turn; `GET/POST /api/active-speech` (POST owner only).
+Chat: `TurnTalk.tsx` shows the lines, `WorkQueue.tsx` replaces the queued chips with each message and its reply,
+Composer has "Add to this". Voice: `ActiveTalk.tsx` says the same lines; `voiceEngine.ts` posts what it hears while busy.
+Tests: `tests/test_active_speech.py` plus additions to the turn, advice, registry and auth tests.
+
 ### Session — 2026-10-14 (Fixer Upper WS6, Voice and Equalize assistant)
 
 Fixes for S33/S34 and Drive doc 1's "intro said twice, then no answer". One intro: the recognizer restarts every few
