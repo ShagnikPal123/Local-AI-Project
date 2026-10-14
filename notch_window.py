@@ -172,13 +172,22 @@ def _apply_region(hwnd: int, shapes: list, gdi32=None, user=None) -> bool:
     return bool(user.SetWindowRgn(hwnd, total, True))
 
 
-def _no_frame(hwnd: int) -> None:
-    """Windows 11 rounds and outlines every top-level window with a 1 px border; the notch draws its own shape."""
+#: DWM window attributes the notch sets: corners not rounded, no border, and no backdrop material.
+#: The backdrop is the dark-mode white box (owner, 2026-10-14: "when changing dark to light mode it fixes it"):
+#: pywebview turns on the Mica backdrop (attribute 38 = 2) whenever Windows is in dark mode and the plain one (1) in
+#: light mode. Mica paints a pale material behind every see-through pixel of a transparent window, so in dark mode
+#: the corners and gaps around the island came out light. The notch asks for no backdrop at all.
+FRAME_ATTRIBUTES = ((33, 1), (34, 0xFFFFFFFE), (38, 1))  # corner: square · border colour: none · backdrop: none
+
+
+def _no_frame(hwnd: int, dwm=None) -> None:
+    """Windows 11 rounds, outlines and backs every top-level window; the notch draws its own shape. pywebview puts
+    the backdrop back whenever the Windows theme changes, so this is called again every second."""
     try:
-        dwm = ctypes.windll.dwmapi
-        for attribute, value in ((33, 1), (34, 0xFFFFFFFE)):  # corner: do not round · border colour: none
+        dwm = dwm or ctypes.windll.dwmapi
+        for attribute, value in FRAME_ATTRIBUTES:
             dwm.DwmSetWindowAttribute(hwnd, attribute, ctypes.byref(ctypes.c_uint(value)), 4)
-    except Exception:  # noqa: BLE001 - Windows 10 has neither attribute; nothing to remove there
+    except Exception:  # noqa: BLE001 - Windows 10 has none of these attributes; nothing to remove there
         pass
 
 
@@ -325,6 +334,7 @@ def _watch() -> None:
             shrink_at = 0.0
         if now - last_check > 1.0:
             last_check = now
+            _no_frame(hwnd)  # a dark/light switch makes pywebview turn the backdrop back on
             busy = _fullscreen_app_running()
             if busy != hidden_for_fullscreen:
                 hidden_for_fullscreen = busy

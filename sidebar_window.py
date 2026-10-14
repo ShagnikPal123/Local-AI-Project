@@ -204,6 +204,7 @@ def _watch() -> None:
         now = time.time()
         if now - last_check > 1.0:
             last_check = now
+            nw._no_frame(hwnd)  # pywebview turns the backdrop back on after a dark/light switch
             _follow_settings()
             busy = nw._fullscreen_app_running()
             if busy != hidden_for_fullscreen:
