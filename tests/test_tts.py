@@ -136,3 +136,32 @@ def test_routes_return_audio_and_roles(voices):
     assert client.post("/api/voice/tts", json={"text": "   "}).status_code == 400
     assert client.put("/api/voice/roles/reply", json={"voice": "en-GB-SoniaNeural"}).json()["roles"]["reply"] == "en-GB-SoniaNeural"
     assert client.get("/api/voice/neural-voices?locale=en-GB").json()["count"] == 1
+
+
+def test_a_new_neural_line_streams_first_chunk_first_and_is_cached_at_the_end(voices):
+    """The first sound arrives before the whole clip is made (Fixer Upper S33: voices were slow to test)."""
+    live = tts.stream("Hello there", role="reply")
+    assert live is not None and live["first"] == b"ID3fake-"
+    assert tts.cached_audio(live["key"]) is None, "nothing is cached until the clip is whole"
+    rest = b"".join(live["rest"])
+    assert rest == b"en-US-AvaMultilingualNeural"
+    path, mime = tts.cached_audio(live["key"])
+    assert path.read_bytes() == b"ID3fake-en-US-AvaMultilingualNeural" and mime == "audio/mpeg"
+    assert tts.stream("Hello there", role="reply") is None, "a cached line is served whole, not streamed again"
+
+
+def test_a_windows_voice_or_a_broken_neural_voice_does_not_stream(voices):
+    assert tts.stream("Hello", voice_id="Microsoft Zira Desktop") is None
+    with pytest.raises(tts.TTSError):
+        tts.stream("Hello", voice_id="xx-BrokenNeural")
+
+
+def test_the_tts_route_streams_a_new_line_and_serves_it_whole_the_second_time(voices):
+    import server
+
+    client = TestClient(server.app, client=("127.0.0.1", 50032))
+    first = client.post("/api/voice/tts", json={"text": "Streaming now", "role": "reply"})
+    assert first.status_code == 200 and first.headers.get("x-audio-stream") == "1"
+    assert first.content == b"ID3fake-" + tts.voice_for("reply").encode()
+    again = client.post("/api/voice/tts", json={"text": "Streaming now", "role": "reply"})
+    assert "x-audio-stream" not in again.headers and again.content == first.content

@@ -356,6 +356,83 @@ def synthesize(text: str, voice_id: str = "", rate: str = "+0%", pitch: str = "+
             "chars": len(spoken), "fallback": fallback}
 
 
+def _edge_chunks(text: str, voice_id: str, rate: str, pitch: str) -> Any:
+    """Neural voice audio as it is made, chunk by chunk (edge-tts streams mp3 over a websocket)."""
+    import queue
+
+    import edge_tts
+
+    pipe: "queue.Queue[Any]" = queue.Queue()
+    done = object()
+
+    async def run() -> None:
+        async for chunk in edge_tts.Communicate(text, voice_id, rate=rate, pitch=pitch).stream():
+            if chunk.get("type") == "audio":
+                pipe.put(chunk["data"])
+
+    def worker() -> None:
+        try:
+            asyncio.run(run())
+        except BaseException as error:  # noqa: BLE001 - handed to the reader below
+            pipe.put(error)
+        pipe.put(done)
+
+    threading.Thread(target=worker, name="tts-stream", daemon=True).start()
+    while True:
+        item = pipe.get()
+        if item is done:
+            return
+        if isinstance(item, BaseException):
+            raise TTSError(f"Neural voice {voice_id} failed ({type(item).__name__}: {str(item)[:120]}). "
+                           "It needs internet; the Windows voices work offline.") from item
+        yield item
+
+
+def stream(text: str, voice_id: str = "", rate: str = "+0%", pitch: str = "+0Hz", role: str = "",
+           chunks: Any = None) -> Optional[Dict[str, Any]]:
+    """The first sound sooner: a neural voice line handed over while it is still being made.
+
+    ``synthesize`` waits for the whole clip, so every spoken sentence started only once all of it existed — the
+    slowness the owner heard when testing voices (Fixer Upper S33). Qwen3-TTS and VoxCPM get their speed the same
+    way: play the first packet while the rest is generated. Returns ``{key, voice, first, rest}`` where ``first`` is
+    the first chunk (already fetched, so a failure surfaces before anything is sent) and ``rest`` yields the others
+    and saves the whole clip to the cache at the end. Returns None when a stream would not help: the line is cached
+    already, or the voice is a Windows voice (made locally, in one go). ``chunks`` stands in for edge-tts in tests.
+    """
+    spoken = _clean_text(text)
+    if not spoken:
+        raise TTSError("Nothing to say.")
+    chosen = voice_id or voice_for(role or "reply")
+    rate = rate if _RATE.match(rate or "") else "+0%"
+    pitch = pitch if _PITCH.match(pitch or "") else "+0Hz"
+    if not chosen.endswith("Neural") or (chunks is None and not edge_available()):
+        return None
+    key = cache_key("edge", chosen, rate, pitch, spoken)
+    if cached_audio(key):
+        return None
+    source = iter(chunks if chunks is not None else _edge_chunks(spoken, chosen, rate, pitch))
+    try:
+        first = next(source)
+    except StopIteration:
+        raise TTSError(f"Neural voice {chosen} returned no audio — check the voice name.") from None
+
+    def rest() -> Any:
+        parts = [first]
+        for chunk in source:
+            parts.append(chunk)
+            yield chunk
+        path = _cache_dir() / f"{key}.mp3"
+        tmp = path.with_suffix(".part")
+        try:
+            tmp.write_bytes(b"".join(parts))
+            os.replace(tmp, path)
+            _trim_cache()
+        except OSError:
+            pass
+
+    return {"key": key, "voice": chosen, "first": first, "rest": rest()}
+
+
 def say(text: str, role: str = "reply", voice_id: str = "", rate: str = "+0%", pitch: str = "+0Hz") -> Dict[str, Any]:
     """Speak to the user: the open Nyx window plays it; with no window, the PC speakers do."""
     result = synthesize(text, voice_id=voice_id, rate=rate, pitch=pitch, role=role)

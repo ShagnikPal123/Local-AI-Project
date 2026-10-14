@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Any, Dict
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
 from server_auth import RequireChat
@@ -45,14 +45,29 @@ class TTSRequest(BaseModel):
 
 
 @router.post("/api/voice/tts")
-def voice_tts(body: TTSRequest, _user=RequireChat) -> FileResponse:
-    """Synthesize and return the audio (mp3 for neural voices, wav for Windows voices)."""
+def voice_tts(body: TTSRequest, _user=RequireChat) -> Any:
+    """Synthesize and return the audio (mp3 for neural voices, wav for Windows voices); a new neural line streams."""
     import tts
     import equalize_voice
 
     # A spoken reply says the assistant's own name at most once per session (equalize). A voice sample, which has
     # no role, is read exactly as written so the owner hears the voice, not an edited line.
     spoken = equalize_voice.clean(body.text, body.session or "default") if body.role == "reply" else body.text
+    if body.engine in ("", "edge"):
+        # A neural voice not made before streams: the browser starts playing at the first chunk instead of waiting
+        # for the whole clip. A failure before the first chunk falls through to the normal path (and its fallback).
+        try:
+            live = tts.stream(spoken, voice_id=body.voice, rate=body.rate, pitch=body.pitch, role=body.role)
+        except tts.TTSError:
+            live = None
+        if live is not None:
+            def body_bytes():
+                yield live["first"]
+                yield from live["rest"]
+
+            return StreamingResponse(body_bytes(), media_type="audio/mpeg", headers={
+                "X-Voice": live["voice"], "X-Voice-Engine": "edge", "X-Audio-Key": live["key"],
+                "X-Audio-Stream": "1", "Cache-Control": "no-store"})
     try:
         result = tts.synthesize(spoken, voice_id=body.voice, rate=body.rate, pitch=body.pitch,
                                 engine=body.engine, role=body.role)

@@ -50,6 +50,43 @@ async function fetchAudio(path: string, init?: RequestInit): Promise<string> {
   return URL.createObjectURL(await response.blob());
 }
 
+/** Like `fetchAudio`, but a line the engine streams (`X-Audio-Stream`) starts playing at its first chunk.
+ *
+ * The engine makes a neural voice line in pieces; waiting for the whole clip before the first word was most of the
+ * delay the owner heard (Fixer Upper S33). The URL comes back as soon as the response starts, backed by a
+ * MediaSource that the rest of the mp3 is appended to as it arrives. Where MediaSource cannot take mp3, or the line
+ * came from the cache whole, it is the plain blob as before. A stream that breaks ends the clip with an error, so
+ * the queue moves on instead of waiting on silence. */
+async function fetchAudioLive(path: string, init?: RequestInit): Promise<string> {
+  const response = await fetch(path, { ...init, headers: { ...authHeaders(), ...(init?.headers ?? {}) } });
+  if (!response.ok) {
+    let detail = `${response.status}`;
+    try { detail = (await response.json()).detail ?? detail; } catch { /* not JSON */ }
+    throw new Error(detail);
+  }
+  const Media = window.MediaSource;
+  if (!response.headers.get("X-Audio-Stream") || !response.body || !Media || !Media.isTypeSupported("audio/mpeg")) {
+    return URL.createObjectURL(await response.blob());
+  }
+  const source = new Media();
+  const reader = response.body.getReader();
+  source.addEventListener("sourceopen", () => {
+    const buffer = source.addSourceBuffer("audio/mpeg");
+    const finish = (error?: "network") => {
+      try { if (source.readyState === "open") source.endOfStream(error); } catch { /* already ended */ }
+    };
+    const pump = async (): Promise<void> => {
+      if (source.readyState !== "open") { void reader.cancel().catch(() => undefined); return; }   // stopped
+      const { done, value } = await reader.read();
+      if (done) { finish(); return; }
+      buffer.addEventListener("updateend", () => { void pump().catch(() => finish("network")); }, { once: true });
+      buffer.appendBuffer(value);
+    };
+    void pump().catch(() => finish("network"));
+  }, { once: true });
+  return URL.createObjectURL(source);
+}
+
 // --- how loud Ichos is right now, for the speaking face ------------------------------------------------------------
 // `captureStream` copies the element's sound without rerouting it, so playback never depends on this AudioContext
 // (a suspended context would otherwise mute the voice). Where it is missing, the face gets a speech-like envelope.
@@ -182,7 +219,7 @@ export function stopSpeaking(): void {
 /** Speak `text` in this window only, in a role's voice or an exact voice id. Resolves once the audio is fetched
  * and queued (clips keep the order they were asked in); rejects when the engine could not make it. */
 export async function speakText(text: string, options: { role?: string; voice?: string; rate?: string } = {}): Promise<void> {
-  const load = fetchAudio("/api/voice/tts", {
+  const load = fetchAudioLive("/api/voice/tts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text, role: options.role ?? "reply", voice: options.voice ?? "", rate: options.rate ?? "+0%", session: "voice" }),
