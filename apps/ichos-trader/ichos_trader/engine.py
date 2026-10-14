@@ -98,9 +98,12 @@ class Engine:
 
     def _loop(self) -> None:
         """The supervisor: run a cycle, wait the pace, and back off (never die) on errors."""
-        while self.running():
+        while True:
             try:
-                self.run_cycle()
+                with self._lock:  # checked under the lock, so a stop can never be followed by one more cycle
+                    if not self.running():
+                        return
+                    self.run_cycle()
                 wait = float(settings_mod.effective().get("pace_seconds", 60))
             except Exception as error:  # noqa: BLE001 - the loop must outlive any one bad cycle
                 with self._lock:
@@ -230,6 +233,29 @@ class Engine:
         self.team.notes.add(bot, f"{'Bought' if fill.side == 'buy' else 'Sold'} {fill.qty:.6g} {fill.symbol} at "
                                  f"{fill.price:,.4g} (${fill.value:,.2f}, practice money).", "trade", fill.symbol)
         return fill.to_dict()
+
+    def speedtest(self) -> Dict[str, Any]:
+        """A timed cycle on the current markets that places nothing and writes nothing to the feed."""
+        with self._lock:
+            cfg = settings_mod.effective()
+            watch = Stopwatch()
+            quiet = _QuietTeam(self.team)
+            with watch.stage("fetch"):
+                snaps = [s for s in self._scout(cfg) if not s.error and s.quote]
+            with watch.stage("rank"):
+                rows = {r["symbol"]: r for r in ranking.rank(snaps)}
+            with watch.stage("decide"):
+                advice = advisor.advise_all([s for s in snaps if s.symbol in rows][:120], quiet)
+                positions, account = self.broker.positions(), self.broker.account()
+                taken = {p["symbol"] for p in positions}
+                for trader in quiet.traders():
+                    traders.decide(trader, rows, advice, positions, account, cfg, taken, quiet)
+            decision_ms = (watch.stages["rank"] + watch.stages["decide"]) / max(1, len(rows))
+            self.recorder.add(watch.total_ms, decision_ms, dict(watch.stages), len(snaps))
+            summary = self.recorder.summary()
+            return {"grade": summary["grade"], "words": summary["words"], "stages": summary["stages"],
+                    "decision_ms": round(decision_ms, 2), "cycle_ms": round(watch.total_ms, 1), "markets": len(snaps),
+                    "targets": {k: {"fast": v[0], "ok": v[1]} for k, v in summary["targets"].items()}}
 
     # --- predictions, research and the plan ---------------------------------------------------
 
@@ -381,3 +407,24 @@ class Engine:
 
     def _save(self) -> None:
         store.write("engine", {**self.state, "cycle_ms": list(self._cycle_ms)})
+
+
+class _QuietTeam:
+    """The team as the speed test sees it: same roster, but nothing is written to the thinking feed."""
+
+    class _Silent:
+        def add(self, *_args: Any, **_kwargs: Any) -> None:
+            return None
+
+    def __init__(self, team: Team) -> None:
+        self._team = team
+        self.notes = self._Silent()
+
+    def one(self, role: str) -> Dict[str, Any]:
+        return dict(self._team.one(role))
+
+    def traders(self) -> List[Dict[str, Any]]:
+        return [dict(t) for t in self._team.traders()]
+
+    def set_doing(self, *_args: Any, **_kwargs: Any) -> None:
+        return None

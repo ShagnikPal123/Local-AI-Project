@@ -103,7 +103,7 @@ apps/ichos-trader/
     markets/               feeds: simulated, stocks, crypto, currencies; the hub; the universe
     ranking.py latency.py
     team/                  scout, strategist, advisor, traders, skeptic, manager, researcher
-    paper.py risk.py learn.py watchdog.py engine.py
+    paper.py risk.py settings.py watchdog.py engine.py
     access/                logins and saved keys
     connectors/            brokers, local and free cloud models, Claude (only when asked)
     server.py              the web API
