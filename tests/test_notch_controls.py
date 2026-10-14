@@ -191,3 +191,12 @@ def test_places_are_clamped_and_a_locked_window_stays_put():
     assert nc.move("notch", {"locked": False, "x": 300}) == {"x": 300, "locked": False}
     with pytest.raises(ValueError):
         nc.move("taskbar", {"x": 1})
+
+
+def test_home_is_the_io_view_and_an_untouched_old_home_moves_to_it():
+    assert nc.settings()["home"]["default"] == "agents"
+    nc.STORE.write_text('{"home": {"default": "apps", "views": ["apps", "now_playing", "weather", "calendar"]}}', encoding="utf-8")
+    home = nc.settings()["home"]
+    assert home["default"] == "agents" and home["views"][0] == "agents"
+    nc.STORE.write_text('{"home": {"default": "weather", "views": ["apps", "weather"]}}', encoding="utf-8")
+    assert nc.settings()["home"] == {"default": "weather", "views": ["apps", "weather"], "city": "", "triple_click": True}

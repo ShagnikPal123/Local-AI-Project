@@ -7,7 +7,7 @@
 <meta name="description" content="Nyx Ichos is a personal AI that runs on your own Windows PC. It remembers, talks, researches and works with a team of agents. Free to download.">
 <link rel="canonical" href="https://nyx-ichos.vercel.app/">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-<link rel="apple-touch-icon" href="/ichnos-96.webp">
+<link rel="apple-touch-icon" href="/ichos-icon-96.webp">
 <meta name="theme-color" content="#000000">
 <meta name="color-scheme" content="dark">
 <meta property="og:type" content="website">
@@ -101,7 +101,10 @@
   .icon-btn { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 999px;
     color: var(--n300); background: var(--surface-2); box-shadow: var(--lift);
     transition: background 140ms ease, color 140ms ease, transform 90ms var(--ease-out); }
-  .icon-btn:hover { background: var(--surface-3); color: var(--text); }
+  /* Every button: hover only lights the edge and lifts it a little; the fill comes on the press (owner, 2026-10-14). */
+  .icon-btn:hover { color: var(--text); transform: translateY(-1px);
+    box-shadow: inset 0 0 0 1.5px var(--accent), 0 6px 18px rgba(0, 0, 0, .45); }
+  .icon-btn:active { background: var(--surface-3); }
   .icon-btn:active { transform: translateY(1px) scale(.96); box-shadow: var(--press); }
 
   /* --- Buttons: tactile, with a press that sinks (theme.css) ---------------------- */
@@ -111,7 +114,9 @@
     transition: background 140ms ease, color 140ms ease, box-shadow 140ms ease, transform 90ms var(--ease-out); }
   .btn:active { transform: translateY(1px) scale(.975); box-shadow: var(--press); }
   .btn-secondary { background: var(--surface-2); color: var(--n300); box-shadow: var(--lift); }
-  .btn-secondary:hover { background: var(--surface-3); color: var(--text); }
+  .btn-secondary:hover { color: var(--text); transform: translateY(-1px);
+    box-shadow: inset 0 0 0 1.5px var(--accent), 0 6px 18px rgba(0, 0, 0, .45); }
+  .btn-secondary:active { background: var(--surface-3); transform: translateY(1px) scale(.975); box-shadow: var(--press); }
   .btn-small { min-height: 36px; padding: 0 14px; font-size: 14px; gap: 8px; }
 
   /* --- The download button ----------------------------------------------------------
@@ -128,7 +133,8 @@
     box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 80%, transparent);
     transition: --fill 340ms var(--ease-out), transform 90ms var(--ease-out), box-shadow 140ms ease, color 140ms ease; }
   /* Hover and focus brighten the outline; the inside stays empty until the download starts. */
-  .dl:hover, .dl:focus-visible { color: var(--text); box-shadow: inset 0 0 0 2px var(--accent), 0 0 24px color-mix(in srgb, var(--accent) 25%, transparent); }
+  .dl:hover, .dl:focus-visible { color: var(--text); transform: translateY(-1px);
+    box-shadow: inset 0 0 0 2px var(--accent), 0 8px 24px color-mix(in srgb, var(--accent) 28%, transparent); }
   .dl:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
   .dl:active { transform: translateY(1px) scale(.975); }
   .dl[data-state="downloading"] { transition: --fill 160ms linear, transform 90ms var(--ease-out); cursor: progress; }
@@ -286,7 +292,7 @@
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
     .btn, .icon-btn, .dl, .bar::before, summary::after, .tag { transition: none; }
-    .btn:active, .icon-btn:active, .dl:active { transform: none; }
+    .btn:active, .icon-btn:active, .dl:active, .btn-secondary:hover, .icon-btn:hover, .dl:hover { transform: none; }
     .dl[data-state="downloading"] .dl__arrow { animation: none; }
   }
 </style>
@@ -297,7 +303,7 @@
 <header class="bar" id="bar">
   <div class="page bar__in">
     <a class="brand" href="/" aria-label="Nyx Ichos, home">
-      <img src="/ichnos-96.webp" alt="" width="34" height="34">
+      <img src="/ichos-icon-96.webp" alt="" width="34" height="34">
       <span class="brand__name"><b>NYX ICHOS</b><span>CREATED BY SHAGNIK</span></span>
     </a>
     <nav aria-label="On this page">

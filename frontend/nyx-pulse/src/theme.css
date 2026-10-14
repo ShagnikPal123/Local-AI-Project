@@ -150,16 +150,21 @@ button {
   transition: background 140ms ease, color 140ms ease, box-shadow 140ms ease, transform 90ms var(--ease-out);
   user-select: none;
 }
-.btn:active:not(:disabled) { transform: translateY(1px) scale(0.975); box-shadow: var(--press); }
 .btn:disabled { opacity: 0.45; cursor: default; }
 .btn-primary { background: var(--color-accent); color: var(--color-on-accent); box-shadow: var(--lift); }
-.btn-primary:hover:not(:disabled) { background: var(--color-accent-300); }
 .btn-secondary { background: var(--color-surface-2); color: var(--color-neutral-300); box-shadow: inset 0 0 0 1px var(--color-divider), var(--lift); }
-.btn-secondary:hover:not(:disabled) { background: var(--color-surface-3); color: var(--color-text); }
 .btn-plain { background: #fff; color: #000; box-shadow: var(--lift); }
 .btn-ghost { background: transparent; color: var(--color-neutral-400); }
-.btn-ghost:hover:not(:disabled) { background: var(--color-surface-3); color: var(--color-text); }
-.btn-plain:hover:not(:disabled) { background: #e5e5ea; }
+/* Hover only lights the edge and lifts the button a little; the fill comes on the press (owner, 2026-10-14). */
+.btn:hover:not(:disabled) { transform: translateY(-1px); color: var(--color-text);
+  box-shadow: inset 0 0 0 1.5px var(--color-accent), 0 6px 18px rgba(0, 0, 0, 0.35); }
+.btn-plain:hover:not(:disabled) { color: #000; }
+.btn-primary:hover:not(:disabled) { color: var(--color-on-accent);
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.6), 0 6px 18px rgba(0, 0, 0, 0.35); }
+.btn:active:not(:disabled) { transform: translateY(1px) scale(0.975); box-shadow: var(--press); }
+.btn-primary:active:not(:disabled) { background: var(--color-accent-300); }
+.btn-secondary:active:not(:disabled), .btn-ghost:active:not(:disabled) { background: var(--color-surface-3); }
+.btn-plain:active:not(:disabled) { background: #e5e5ea; }
 
 .card {
   background: var(--color-surface);
@@ -306,7 +311,7 @@ input[type="range"].slider::-moz-range-thumb { width: 22px; height: 22px; border
 }
 @media (prefers-reduced-motion: reduce) {
   .btn, .switch, .switch::after, .segmented button { transition: none; }
-  .btn:active:not(:disabled) { transform: none; }
+  .btn:active:not(:disabled), .btn:hover:not(:disabled) { transform: none; }
 }
 
 @keyframes nyxpulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
