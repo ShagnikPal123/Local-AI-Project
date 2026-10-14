@@ -16,8 +16,20 @@ import { ErrorState, Loading } from "../components/Panel";
 import { onWorkspaceEvent } from "../state/workspaceEvents";
 import { useReducedMotion } from "../useReducedMotion";
 
-const SERIES_1 = "#3987e5";
-const SERIES_2 = "#d95926";
+// Colours come from the theme, so a new accent or look reaches the charts too (S4). SVG accepts var() in its colour
+// attributes; the canvas below cannot, so it reads the same tokens once with `themeColor`.
+const SERIES_1 = "var(--color-accent)";
+const SERIES_2 = "var(--pop-coral)";
+
+/** A theme token as "r,g,b" for canvas drawing, with a fallback for tests and odd values. */
+function themeColor(token: string, fallback: string): string {
+  try {
+    const v = getComputedStyle(document.documentElement).getPropertyValue(token).trim();
+    const hex = /^#([0-9a-f]{6})$/i.exec(v);
+    if (hex) { const n = parseInt(hex[1], 16); return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`; }
+  } catch { /* fall through */ }
+  return fallback;
+}
 
 interface Core {
   level: number; name: string; like: string; parameters: number; next_name: string | null; next_at: number | null; progress: number;
@@ -79,19 +91,19 @@ function LineChart({ values, format, height = 150, label }: { values: number[]; 
         {[0, 0.5, 1].map((t) => (
           <g key={t}>
             <line x1={pad.l} x2={width - pad.r} y1={y(t)} y2={y(t)} stroke="rgba(255,255,255,.08)" strokeWidth={1} />
-            <text x={pad.l - 6} y={y(t) + 4} textAnchor="end" fontSize="10" fill="#8e8e96">{format(t)}</text>
+            <text x={pad.l - 6} y={y(t) + 4} textAnchor="end" fontSize="10" fill="var(--color-neutral-600)">{format(t)}</text>
           </g>
         ))}
         <path d={`${path} L${x(values.length - 1)},${y(0)} L${x(0)},${y(0)} Z`} fill={SERIES_1} opacity={0.1} />
         <path d={path} fill="none" stroke={SERIES_1} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
-        <circle cx={x(values.length - 1)} cy={y(values[values.length - 1])} r={4} fill={SERIES_1} stroke="#0e0e13" strokeWidth={2} />
-        <text x={x(values.length - 1) - 6} y={y(values[values.length - 1]) - 9} textAnchor="end" fontSize="11" fill="#f5f5f7">
+        <circle cx={x(values.length - 1)} cy={y(values[values.length - 1])} r={4} fill={SERIES_1} stroke="var(--color-surface)" strokeWidth={2} />
+        <text x={x(values.length - 1) - 6} y={y(values[values.length - 1]) - 9} textAnchor="end" fontSize="11" fill="var(--color-text)">
           {format(values[values.length - 1])}
         </text>
         {hover !== null && (
           <g>
             <line x1={x(hover)} x2={x(hover)} y1={pad.t} y2={height - pad.b} stroke="rgba(255,255,255,.35)" strokeWidth={1} />
-            <circle cx={x(hover)} cy={y(values[hover])} r={4} fill={SERIES_1} stroke="#0e0e13" strokeWidth={2} />
+            <circle cx={x(hover)} cy={y(values[hover])} r={4} fill={SERIES_1} stroke="var(--color-surface)" strokeWidth={2} />
           </g>
         )}
       </svg>
@@ -123,7 +135,7 @@ function DailyColumns({ daily }: { daily: Core["daily"] }) {
         {ticks.map((t) => (
           <g key={t}>
             <line x1={pad.l} x2={width - pad.r} y1={height - pad.b - yv(t)} y2={height - pad.b - yv(t)} stroke="rgba(255,255,255,.08)" />
-            <text x={pad.l - 6} y={height - pad.b - yv(t) + 4} textAnchor="end" fontSize="10" fill="#8e8e96">{t}</text>
+            <text x={pad.l - 6} y={height - pad.b - yv(t) + 4} textAnchor="end" fontSize="10" fill="var(--color-neutral-600)">{t}</text>
           </g>
         ))}
         {days.map((day, i) => {
@@ -138,7 +150,7 @@ function DailyColumns({ daily }: { daily: Core["daily"] }) {
               {local > 0 && <rect x={cx - bar / 2} y={base - hLocal} width={bar} height={hLocal} rx={outside ? 0 : 4} fill={SERIES_1} />}
               {outside > 0 && <path d={roundedTop(cx - bar / 2, base - hLocal - gap - hApi, bar, hApi)} fill={SERIES_2} />}
               {(i === days.length - 1 || days.length <= 7) && (
-                <text x={cx} y={height - 8} textAnchor="middle" fontSize="10" fill="#8e8e96">{day.slice(5)}</text>
+                <text x={cx} y={height - 8} textAnchor="middle" fontSize="10" fill="var(--color-neutral-600)">{day.slice(5)}</text>
               )}
             </g>
           );
@@ -190,6 +202,9 @@ function NetworkCanvas({ view, reduced }: { view: Network | null; reduced: boole
     outputs.forEach((o, j) => positions.set(`out:${o.head}:${o.label}`, { x: colX(columns.length - 1), y: 18 + ((j + 0.5) / outputs.length) * (h - 36), a: o.v }));
 
     let frame = 0;
+    const accentRgb = themeColor("--color-accent", "165,148,255");
+    const textRgb = themeColor("--color-text", "245,245,247");
+    const mutedRgb = themeColor("--color-neutral-600", "142,142,150");
     const draw = (t: number) => {
       ctx.clearRect(0, 0, w, h);
       for (const link of view.links) {
@@ -207,7 +222,7 @@ function NetworkCanvas({ view, reduced }: { view: Network | null; reduced: boole
         outputs.forEach((o) => {
           const b = positions.get(`out:${o.head}:${o.label}`)!;
           if (o.v < 0.15) return;
-          ctx.strokeStyle = `rgba(245,245,247,${0.03 + o.v * 0.12})`;
+          ctx.strokeStyle = `rgba(${textRgb},${0.03 + o.v * 0.12})`;
           ctx.lineWidth = 0.5;
           ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
         });
@@ -216,11 +231,11 @@ function NetworkCanvas({ view, reduced }: { view: Network | null; reduced: boole
       positions.forEach((p, key) => {
         const isOut = key.startsWith("out:");
         const r = isOut ? 3.5 : 2.5 + p.a * 3.5;
-        ctx.fillStyle = `rgba(165,148,255,${(0.25 + p.a * 0.75) * (isOut ? 1 : pulse)})`;
+        ctx.fillStyle = `rgba(${accentRgb},${(0.25 + p.a * 0.75) * (isOut ? 1 : pulse)})`;
         ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
       });
       ctx.font = "10px ui-monospace, SF Mono, Consolas, monospace";
-      ctx.fillStyle = "#8e8e96";
+      ctx.fillStyle = `rgb(${mutedRgb})`;
       columns.forEach((name, i) => {
         const layer = view.layers[i];
         ctx.textAlign = "center";
@@ -229,7 +244,7 @@ function NetworkCanvas({ view, reduced }: { view: Network | null; reduced: boole
       ctx.textAlign = "left";
       outputs.forEach((o) => {
         const p = positions.get(`out:${o.head}:${o.label}`)!;
-        if (o.v >= 0.2) { ctx.fillStyle = "#f5f5f7"; ctx.fillText(`${o.label} ${Math.round(o.v * 100)}%`, p.x + 8, p.y + 3); }
+        if (o.v >= 0.2) { ctx.fillStyle = `rgb(${textRgb})`; ctx.fillText(`${o.label} ${Math.round(o.v * 100)}%`, p.x + 8, p.y + 3); }
       });
       if (!reduced) frame = requestAnimationFrame(draw);
     };
