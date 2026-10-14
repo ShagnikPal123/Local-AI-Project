@@ -12,6 +12,7 @@ import type { TabSpec } from "../panels/DynamicTab";
 import type { NavSide } from "../style/appearance";
 import type { DragItem } from "../state/dragItems";
 import { useTabDnd } from "./useTabDnd";
+import { TabGlyph } from "./TabGlyph";
 
 interface Props {
   /** Which edge the bar sits on. Left and right stand it up as a column; the menu opens away from the edge. */
@@ -48,6 +49,7 @@ export function TopTabs({ tabs, userTabs, active, onSelect, onNewTab, onReorder,
 
   const tab = (id: string, label: string) => (
     <button key={id} type="button" role="tab" aria-selected={active === id} className={`top-tabs__tab ${dnd.marks(id)}`} onClick={() => onSelect(id)} {...dnd.props(id)}>
+      <TabGlyph id={id} label={label} size={16} />
       {label}
     </button>
   );

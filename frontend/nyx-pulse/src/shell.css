@@ -248,3 +248,16 @@ main > :not(.chat-shell):not(.hub):only-child { height: 100%; min-height: 0; ove
   box-shadow: 0 0 0 2px var(--color-accent), 0 0 18px color-mix(in srgb, var(--color-accent) 40%, transparent);
 }
 .appearance__hint { font-size: 13px; color: var(--color-neutral-600); }
+
+/* Less boxy tabs (owner: "too boxy"; Drive doc 1, "tabs look unique"): rounded pills with a small icon, the active one
+   tinted with the accent, and a short rounded bar in place of the full-width underline. The same icons draw the studio
+   rail, so the strip and the rail read as one family. */
+.top-tabs__tab { border-radius: 999px; gap: 8px; padding: 0 14px 0 12px; transition: background-color 160ms var(--ease-out, ease), color 160ms var(--ease-out, ease); }
+.top-tabs__tab svg { flex: none; opacity: 0.85; }
+.top-tabs__tab .studio-rail__letter { width: 16px; text-align: center; font-size: 12px; }
+.top-tabs__tab[aria-selected="true"] { background: color-mix(in srgb, var(--color-accent) 18%, var(--color-surface-2)); }
+.top-tabs__tab[aria-selected="true"] svg { opacity: 1; color: var(--color-accent-2, var(--color-accent)); }
+.top-tabs__tab[aria-selected="true"]::after { left: 50%; right: auto; width: 18px; margin-left: -9px; bottom: -3px; }
+.top-tabs--left .top-tabs__tab, .top-tabs--right .top-tabs__tab { border-radius: 14px; }
+.top-tabs--left .top-tabs__tab[aria-selected="true"]::after, .top-tabs--right .top-tabs__tab[aria-selected="true"]::after { left: -4px; top: 50%; margin: -9px 0 0; width: 3px; height: 18px; bottom: auto; }
+.top-tabs--bottom .top-tabs__tab[aria-selected="true"]::after { top: -3px; bottom: auto; }
