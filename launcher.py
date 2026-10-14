@@ -809,7 +809,8 @@ def _tray_image():
     from PIL import Image
 
     brand = project_dir() / "assets" / "brand"
-    for name in ("ichnos-64.png", "nyx.ico", "ichnos-32.png"):
+    # The Ichos mark first (Fixer Upper S1); the old wizard art stays as a fallback for an older checkout.
+    for name in ("ichos-icon-64.png", "nyx.ico", "ichnos-64.png", "ichnos-32.png"):
         candidate = brand / name
         if candidate.is_file():
             try:

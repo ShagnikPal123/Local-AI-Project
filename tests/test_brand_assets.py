@@ -51,3 +51,23 @@ def test_windows_icon_has_small_and_large_sizes():
     with Image.open(BRAND / "nyx.ico") as im:
         sizes = im.info.get("sizes", set())
     assert (16, 16) in sizes and (256, 256) in sizes
+
+
+def test_tray_uses_the_new_mark(monkeypatch, tmp_path):
+    """The tray picks the Ichos icon before the old wizard art."""
+    import launcher
+
+    (tmp_path / "assets" / "brand").mkdir(parents=True)
+    for name in ("ichos-icon-64.png", "ichnos-64.png"):
+        src = BRAND / name
+        (tmp_path / "assets" / "brand" / name).write_bytes(src.read_bytes())
+    monkeypatch.setattr(launcher, "project_dir", lambda: tmp_path)
+    image = launcher._tray_image()
+    assert Path(image.filename).name == "ichos-icon-64.png"
+
+
+def test_favicons_are_the_mark():
+    root = Path(__file__).resolve().parent.parent
+    mark = (BRAND / "ichos-mark-small.svg").read_text()
+    for favicon in ("frontend/nyx-pulse/public/favicon.svg", "site/favicon.svg"):
+        assert (root / favicon).read_text() == mark
