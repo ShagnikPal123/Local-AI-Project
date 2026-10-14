@@ -33,6 +33,7 @@ import { ContextBar } from "../components/chat/ContextBar";
 import { ModeSlider, readMode, type ChatMode } from "../components/chat/ModeSlider";
 import { ChatRail, type RailMakeKind } from "../components/chat/ChatRail";
 import { ChatTitleMenu } from "../components/chat/ChatTitleMenu";
+import { PersonaBadge } from "../components/chat/PersonaBadge";
 import type { AvatarState } from "../components/NyxAvatar";
 import {
   AgentDock,
@@ -48,6 +49,7 @@ import {
 import type {
   AttachmentRef,
   ChatMessageView,
+  ChatPersona,
   ChatSummaryView,
   PendingAttachment,
   TeamAgentView,
@@ -351,7 +353,7 @@ export function ChatPanel({
   // --- chat list ----------------------------------------------------------------
 
   const loadChats = useCallback(async () => {
-    const result = await api.get<{ active?: string | null; chats: { id: string; title: string; message_count?: number; updated_at?: number | string; agent?: string; parent_id?: string | null; kind?: string }[] }>(
+    const result = await api.get<{ active?: string | null; chats: { id: string; title: string; message_count?: number; updated_at?: number | string; agent?: string; parent_id?: string | null; kind?: string; persona?: ChatPersona | null }[] }>(
       "/api/chats/summaries",
     );
     if (!result.ok) return;
@@ -377,6 +379,7 @@ export function ChatPanel({
         updatedAt: c.updated_at,
         parentId: c.parent_id || undefined,
         kind: c.kind && c.kind !== "chat" ? c.kind : undefined,
+        persona: c.persona ?? undefined,
         running: Boolean(runningByChat[c.id]),
       })),
     );
@@ -1077,6 +1080,7 @@ export function ChatPanel({
           <header className="chat-home__head">
             {headExtra}
             <h2 className="chat-home__title" title={title}>{title}</h2>
+            <PersonaBadge persona={chats.find((c) => c.id === activeChatId)?.persona} />
             <ChatActions onMake={(kind) => void makeChat(kind)} />
             <ChatTitleMenu chatId={activeChatId} title={title} disabled={activeChatId === "default"}
               onRename={(id, next) => void onRenameChat(id, next).then(() => pushToast(`Renamed to “${next}”.`, "ok"))}
@@ -1179,6 +1183,7 @@ export function ChatPanel({
           />
           <button className="btn btn-secondary" onClick={() => void onNewChat()} aria-label="New chat" title="New chat">＋</button>
           <ChatActions onMake={(kind) => void makeChat(kind)} />
+          <PersonaBadge persona={chats.find((c) => c.id === activeChatId)?.persona} />
           <ChatTitleMenu chatId={activeChatId} title={chats.find((c) => c.id === activeChatId)?.title || "New chat"} disabled={activeChatId === "default"}
             onRename={(id, next) => void onRenameChat(id, next).then(() => pushToast(`Renamed to “${next}”.`, "ok"))}
             onDelete={(id) => void onDeleteChat(id)} />
