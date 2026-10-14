@@ -179,3 +179,15 @@ def test_now_playing_reads_the_current_media_session():
 
     assert nc.now_playing(Manager) == {"ok": True, "playing": True, "title": "Low Tide", "artist": "Nova Lane",
                                        "app": "Spotify.exe"}
+
+
+def test_places_are_clamped_and_a_locked_window_stays_put():
+    state = nc.update({"place": {"sidebar": {"edge": "top", "y": -50, "x": "12.7", "bogus": 1}, "notch": {"x": 99999}}})
+    assert state["place"]["sidebar"]["edge"] == "right" and state["place"]["sidebar"]["y"] == 0
+    assert state["place"]["sidebar"]["x"] == 12 and "bogus" not in state["place"]["sidebar"]
+    assert state["place"]["notch"]["x"] == 4000
+    assert nc.move("notch", {"x": -120, "locked": True}) == {"x": -120, "locked": True}
+    assert nc.move("notch", {"x": 300})["x"] == -120  # locked: the drag does not move it
+    assert nc.move("notch", {"locked": False, "x": 300}) == {"x": 300, "locked": False}
+    with pytest.raises(ValueError):
+        nc.move("taskbar", {"x": 1})
