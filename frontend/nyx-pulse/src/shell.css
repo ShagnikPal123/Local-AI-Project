@@ -247,3 +247,4 @@ main > :not(.chat-shell):not(.hub):only-child { height: 100%; min-height: 0; ove
   background: color-mix(in srgb, var(--color-accent) 22%, transparent);
   box-shadow: 0 0 0 2px var(--color-accent), 0 0 18px color-mix(in srgb, var(--color-accent) 40%, transparent);
 }
+.appearance__hint { font-size: 13px; color: var(--color-neutral-600); }

@@ -1,6 +1,7 @@
 /** Settings › Appearance › Colour and layout: accent colour (swatches or any colour) and where the navigation bar sits. */
 
 import { useState } from "react";
+import { clearTabOrder } from "../state/tabOrder";
 import { ACCENTS, applyAppearance, readAppearance, type NavChoice } from "./appearance";
 
 const SIDES: { id: NavChoice; label: string }[] = [
@@ -35,6 +36,12 @@ export function AppearanceSection() {
               onClick={() => set({ nav: s.id })}>{s.label}</button>
           ))}
         </div>
+      </div>
+      <div className="appearance__row">
+        <span className="appearance__label">Tab order</span>
+        <span className="appearance__hint">Drag a tab to move it.</span>
+        <button type="button" className="btn btn-secondary"
+          onClick={() => { clearTabOrder(); window.dispatchEvent(new CustomEvent("ichos:tab-order")); }}>Reset order</button>
       </div>
     </div>
   );
