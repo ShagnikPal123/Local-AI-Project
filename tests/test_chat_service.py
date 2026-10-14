@@ -283,3 +283,12 @@ def test_an_oversized_prompt_is_saved_in_the_data_folder_not_the_working_directo
     assert saved.parent == paths.DATA_DIR / "attachments"
     assert saved.read_text(encoding="utf-8") == "a very long prompt"
     assert not (elsewhere / "attachments").exists()
+
+
+@patch("chat_service.Router")
+def test_the_standing_instructions_say_act_instead_of_refusing(_router):
+    """Fixer Upper S39: the old rule 9 ("say so plainly and stop") taught a small model to give up first."""
+    prompt = ChatService(enable_tools=True)._default_system_prompt()
+    assert "Integrity: you act, you do not refuse" in prompt
+    assert "keyboard_type" in prompt and "search_skills" in prompt
+    assert "say so plainly and stop" not in prompt
