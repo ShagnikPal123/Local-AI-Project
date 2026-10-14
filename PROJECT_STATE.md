@@ -783,6 +783,27 @@ all trading tests 49 green):
 - **Tests:** 62 new world tests and the world auth block. Full suite **2476 passed**. `npm run build` green.
 - Not committed (AGENTS.md: only when asked).
 
+### 2026-10-14 — WS11 UI fixes, drag and drop, loading (Fixer Upper)
+
+- Tabs: the nav bar can sit left, right, top or bottom in every look; tabs drag to reorder (saved, with a reset) and
+  accept drops of chats, avatars and the assistant (`POST /api/presence/drop`, told to the AI in the next prompt);
+  19 tabs merged to 12 with old ids still redirecting; rounded pill tabs.
+- Theme: Code, Research Lab, Absorb, Apply and Learn use theme tokens, so accent and style mix reach them. The accent
+  no longer vanishes on reload (`modsStore` calls `paintTheme`). "Sync with desktop" reads the Windows accent, light or
+  dark and wallpaper average (`desktop_theme.py`, `GET /api/desktop-theme`).
+- Loading: one big `TabLoading` (orb, creeping bar, words that change with the wait) for every tab, hub, settings and
+  chat-window fallback and for the panels that only said "Loading…". Left alone (other teams' files): Trading,
+  Free Will, Equalize panels.
+- Chat: pasted pictures show as 84 px previews and as thumbnails in sent messages; opt-in auto clean-up of the chat list
+  (`ChatSessionStore.auto_clean`, `/api/chat-auto-clean`, Settings > Storage > Old chats), always into Recently deleted.
+  `ChatTitleMenu` (rename and delete beside the chat name) is built; mounting it in `ChatPanel.tsx` is WS10's, handoff in
+  `/mnt/project-files/fixer-upper/handoffs/ws11-to-ws10-chatpanel.md`.
+- Calendar: Orbits > Calendar, a week grid or agenda of Orbit runs plus Google events when connected (`calendar_view.py`,
+  `/api/scheduled/calendar/*`). Its look is a checked spec; the AI changes it with the `restyle_calendar` tool.
+- Not done: p10 "Where Ichos works" picker (overlaps WS4); auto filter in the chat rail (needs `ChatRail.tsx`).
+- Gotchas: `tests/test_server_auth.py` is CRLF, edit it in binary mode; every `npm run build` rewrites the tracked
+  `tsconfig.tsbuildinfo`, so `git checkout --` it before committing.
+
 ---
 
 ## Agent roster

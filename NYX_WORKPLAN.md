@@ -169,6 +169,12 @@ Standing file ownership when delegating:
   console windows popping up again (quiet_windows regression); VS Code "watch it code"; browser extension with a
   Gmail tab icon (Drive doc 1, item 1.10).
 
+### 2026-10-14 — WS11 UI fixes, drag and drop, loading
+- [x] Nav in every look, tab reorder and drops, 12 merged tabs, theme-following panels, desktop colour sync, big loader,
+  picture previews, chat auto clean-up, week calendar (Orbits > Calendar). Status table: `/mnt/project-files/fixer-upper/ws11-status.md`.
+- [ ] Next: WS10 mounts `ChatTitleMenu` (handoff `ws11-to-ws10-chatpanel.md`); p10 "Where Ichos works" picker with WS4;
+  chat rail "hide empty chats" filter; try the loader, drag and drop and desktop sync on the owner's PC.
+
 ### 2026-10-09 — WhatsApp line + seven update ideas (session c17036a4)
 
 - [x] **WhatsApp line** — text Nyx from the phone, tied to this PC (`docs/WHATSAPP.md`). Real pairing not yet tried
