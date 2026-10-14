@@ -192,6 +192,9 @@ export function ActiveTalkBar({ state, onOff }: { state: ActiveTalkState; onOff:
 /** The switch in the chat bar: off → talk → proto. */
 export function VoiceSwitch({ mode, onMode }: { mode: VoiceMode; onMode: (mode: VoiceMode) => void }) {
   const [open, setOpen] = useState(false);
+  // In the chat header there is no room above, and the menu used to open up behind the
+  // header modules. Open it below whenever the space above is too small for it.
+  const [down, setDown] = useState(false);
   const label = mode === "proto" ? "Proto" : "Talk";
   const title = mode === "off" ? "Voice: speak instead of typing"
     : mode === "talk" ? "Active talk is on — speak and it sends by itself"
@@ -204,13 +207,16 @@ export function VoiceSwitch({ mode, onMode }: { mode: VoiceMode; onMode: (mode: 
         <span className="chat-talk__dot" aria-hidden="true" />{label}
       </button>
       <button className="voice-switch__more" aria-label="Voice mode" aria-expanded={open}
-              onClick={() => setOpen((v) => !v)} title="Choose how it listens">
+              onClick={(e) => {
+                setDown(e.currentTarget.getBoundingClientRect().top < 220);
+                setOpen((v) => !v);
+              }} title="Choose how it listens">
         <svg width="9" height="9" viewBox="0 0 10 10" aria-hidden="true">
           <path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
         </svg>
       </button>
       {open && (
-        <div className="voice-switch__menu" role="menu">
+        <div className={`voice-switch__menu${down ? " is-down" : ""}`} role="menu">
           {([
             ["off", "Off", "Nothing is listening"],
             ["talk", "Talk", "Speak, and it answers out loud"],
