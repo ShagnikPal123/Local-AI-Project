@@ -6,7 +6,8 @@ import os
 import subprocess
 import time
 
-OLLAMA_EXE = r"C:\Users\shagn\AppData\Local\Programs\Ollama\ollama.exe"
+# Built from LOCALAPPDATA so no one's username is written into the code; same path Ollama installs to.
+OLLAMA_EXE = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "Ollama", "ollama.exe")
 DEFAULT_MODEL = "llama3.2"
 
 #: Ollama and winget are console programs: without this they open a black window
