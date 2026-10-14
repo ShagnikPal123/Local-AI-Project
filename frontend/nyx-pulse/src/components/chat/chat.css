@@ -642,3 +642,17 @@ select option, select optgroup { background-color: #15151c; color: #f5f5f7; }
   .chat-home__head, .chat-home__meta, .chat-home__dock { padding: 0 12px; }
 }
 .chat-home { position: relative; }
+
+/* Pictures in the composer and in sent messages show as pictures. */
+.composer-image { position: relative; display: inline-block; width: 84px; height: 84px; border-radius: 10px; overflow: hidden;
+  box-shadow: inset 0 0 0 1px var(--color-divider); background: var(--color-surface); }
+.composer-image img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.composer-image.is-error { box-shadow: inset 0 0 0 2px var(--color-danger); }
+.composer-image__state { position: absolute; left: 0; right: 0; bottom: 0; padding: 2px 6px; font-size: 11px; text-align: center;
+  background: color-mix(in srgb, var(--color-bg) 80%, transparent); color: var(--color-neutral-300); }
+.composer-image__remove { position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; display: grid; place-items: center; padding: 0; cursor: pointer;
+  border: none; border-radius: 50%; color: var(--color-neutral-200); background: color-mix(in srgb, var(--color-bg) 75%, transparent); }
+.composer-image__remove:hover { background: var(--color-danger); color: #fff; }
+.msg-image { padding: 0; border: none; background: none; cursor: zoom-in; border-radius: 10px; overflow: hidden; line-height: 0;
+  box-shadow: 0 0 0 1px var(--color-divider); }
+.msg-image img { max-width: 240px; max-height: 200px; object-fit: cover; display: block; }

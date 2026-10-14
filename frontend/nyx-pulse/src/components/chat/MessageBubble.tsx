@@ -242,9 +242,14 @@ export function MessageBubble({ message, onAction, isLatest = false }: MessageBu
           <Linkified text={message.content} />
           {message.attachments && message.attachments.length > 0 && (
             <div style={{ marginTop: 6, display: "flex", gap: 6, flexWrap: "wrap" }}>
-              {message.attachments.map((a) => (
+              {message.attachments.map((a) => a.kind === "image" ? (
+                <button key={a.id} type="button" className="msg-image" title={a.name}
+                  onClick={() => onAction({ type: "openImage", src: `/api/uploads/${a.id}` })}>
+                  <img src={`/api/uploads/${a.id}`} alt={a.name} loading="lazy" />
+                </button>
+              ) : (
                 <span key={a.id} style={{ fontSize: 12, color: "var(--color-neutral-500)" }}>
-                  {a.kind === "image" ? "🖼" : "📄"} {a.name}
+                  📄 {a.name}
                 </span>
               ))}
             </div>

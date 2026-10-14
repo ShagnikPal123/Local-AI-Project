@@ -62,6 +62,19 @@ function AttachmentChip({
   attachment: PendingAttachment;
   onRemove: () => void;
 }) {
+  // A picture gets a real preview tile (owner: pasted images should show as images, not a 16 px speck).
+  if (attachment.mime.startsWith("image/") && attachment.previewUrl) {
+    return (
+      <span className={`composer-image${attachment.status === "error" ? " is-error" : ""}`} title={attachment.error || attachment.name}>
+        <img src={attachment.previewUrl} alt={attachment.name} />
+        {attachment.status === "uploading" && <span className="composer-image__state">uploading…</span>}
+        {attachment.status === "error" && <span className="composer-image__state">failed</span>}
+        <button type="button" onClick={onRemove} aria-label={`Remove ${attachment.name}`} className="composer-image__remove">
+          <Icon name="close" size={11} />
+        </button>
+      </span>
+    );
+  }
   return (
     <span
       style={{
