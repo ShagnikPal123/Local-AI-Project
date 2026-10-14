@@ -1,0 +1,9 @@
+# The trader's own data: the practice account, settings, saved keys and logs. Never committed.
+data/
+*.log
+# Built dashboard and its packages (rebuilt with `npm run build` in web/).
+web/dist/
+web/node_modules/
+# Keys live in environment variables or data/secrets.json, never in a file in git.
+.env
+.env.*
