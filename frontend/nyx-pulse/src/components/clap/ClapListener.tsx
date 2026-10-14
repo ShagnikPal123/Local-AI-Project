@@ -18,6 +18,7 @@ import {
 } from "../../voice/clapDetector";
 import { onVoice, setVoiceMode, voiceMode, type VoiceMode } from "../../voice/voiceBus";
 import { speakText } from "../../voice/voicePlayer";
+import { sendToChat } from "../../voice/toChat";
 
 interface Gesture {
   id: string; name: string; kind: string; enabled: boolean; when: string[];
@@ -90,7 +91,7 @@ export function ClapListener() {
         // The clap's own line is the hello; the listening it starts must not add the intro on top.
         if (action === "listen") { if (speak) greetedSession.current = true; setVoiceMode("talk"); }
         if (action === "command" && text.trim()) {
-          window.dispatchEvent(new CustomEvent("nyx:chat-send", { detail: { text: text.trim() } }));
+          sendToChat("nyx:chat-send", { text: text.trim() });
         }
         pushToast(`Heard “${gesture.name}”.`, "info");
       })();

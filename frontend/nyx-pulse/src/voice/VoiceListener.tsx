@@ -13,6 +13,7 @@ import { useStore } from "../state/store";
 import { turnsStore } from "../state/turnStore";
 import { useVoiceEngine } from "./voiceEngine";
 import { onVoiceMode, voiceMode, type VoiceMode } from "./voiceBus";
+import { sendToChat } from "./toChat";
 
 /** The chat the owner is in, as the chat panel remembers it. */
 function activeChat(): string {
@@ -27,7 +28,7 @@ export function VoiceListener() {
   const busy = Object.keys(running ?? {}).length > 0;
 
   const send = useCallback((text: string, sessionId: string) => {
-    window.dispatchEvent(new CustomEvent("nyx:voice-send", { detail: { text, sessionId } }));
+    sendToChat("nyx:voice-send", { text, sessionId });
   }, []);
 
   useVoiceEngine({ mode, busy, chatId, onSend: send });
