@@ -2,13 +2,14 @@
  *
  *  • **Listening** — a swarm of particles held in a sphere. It stirs when you talk: the louder you are, the further
  *    the particles push out to the shell and the faster they shiver (the echo-cancelled microphone level, `micVad`).
- *  • **Thinking** — several Möbius strips turning inside each other, light running along each band, the half-twist
- *    itself rolling round.
+ *  • **Thinking** — a sphere of light with three rings sweeping over it from pole to pole on different tilts, like a
+ *    gyroscope working something out (Fixer Upper S33: "change how it looks to something more spherical"; it replaced
+ *    the Möbius strips).
  *  • **Speaking** — Equalize's sphere as it was, now an equalizer wrapped on a globe: each latitude is a frequency
  *    band of Ichos's own voice (`outputLevels`), so the sphere moves with what it says.
  *
  * The three live in one WebGL scene and cross-fade, because voice2 does them at once: while you talk it is already
- * drafting the answer (the strips show inside the swarm as `drafting` rises), and while it speaks it still listens
+ * drafting the answer (the thinking sphere shows inside the swarm as `drafting` rises), and while it speaks it still listens
  * (the swarm blooms when you talk over it). Everything moves on the GPU; the CPU only sets a handful of uniforms.
  */
 
@@ -24,7 +25,6 @@ export const FACE_WORDS: Record<FaceState, string> = { idle: "Ready", listening:
 
 const BANDS = 16;
 const COLOURS = { idle: 0xa594ff, listening: 0x60cdff, thinking: 0xfce100, speaking: 0x6ccb5f };
-const STRIP_COLOURS = [0xfce100, 0xffb547, 0xff8a65, 0xa594ff];
 
 // --- shaders --------------------------------------------------------------------------------------------------------
 
@@ -76,30 +76,29 @@ const GLOBE_VERTEX = /* glsl */ `
     vAlpha = 0.55 + 0.45 * band + 0.2 * fract(aSeed * 7.13);
   }`;
 
-/** A Möbius strip built from a flat grid: u runs round the loop, v across the band. The half-twist rolls with uPhase,
- * which stays seamless because turning u by 2π flips v. */
-const STRIP_VERTEX = /* glsl */ `
-  uniform float uRadius, uWidth, uPhase, uScale;
-  varying vec2 vUv;
+/** The thinking sphere: an even shell of points, lit where three rings sweep across it. Each ring is the band of the
+ * sphere at one height along its own tilted axis, and that height swings pole to pole, so the light keeps crossing the
+ * whole ball without ever leaving its round outline. */
+const THINK_VERTEX = /* glsl */ `
+  uniform float uTime, uSize, uPixel, uScale, uPace;
+  attribute float aSeed;
+  varying float vAlpha;
+  float ring(vec3 p, vec3 axis, float speed, float offset) {
+    float height = dot(p, normalize(axis));
+    float target = sin(uTime * speed * uPace + offset) * 0.92;
+    float d = (height - target) * 7.0;
+    return exp(-d * d);
+  }
   void main() {
-    float u = uv.x * 6.2831853;
-    float v = (uv.y - 0.5) * 2.0 * uWidth;
-    float half_ = u * 0.5 + uPhase;
-    float ring = uRadius + v * cos(half_);
-    vec3 p = vec3(ring * cos(u), ring * sin(u), v * sin(half_)) * uScale;
-    vUv = uv;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
-  }`;
-
-const STRIP_FRAGMENT = /* glsl */ `
-  uniform vec3 uColor; uniform float uOpacity, uTime, uSpeed;
-  varying vec2 vUv;
-  void main() {
-    float flow = 0.5 + 0.5 * sin(vUv.x * 6.2831853 * 3.0 - uTime * uSpeed);
-    float edge = smoothstep(0.0, 0.18, vUv.y) * smoothstep(1.0, 0.82, vUv.y);
-    float rim = smoothstep(0.42, 0.5, abs(vUv.y - 0.5));
-    float a = (0.12 + 0.88 * flow * flow) * edge + rim * 0.6;
-    gl_FragColor = vec4(uColor * (0.75 + 0.5 * flow), a * uOpacity);
+    float lit = max(max(ring(position, vec3(0.2, 1.0, 0.1), 1.3, 0.0),
+                        ring(position, vec3(1.0, 0.3, -0.4), 1.7, 2.1)),
+                        ring(position, vec3(-0.3, 0.4, 1.0), 2.2, 4.2));
+    float breathe = 1.0 + 0.025 * sin(uTime * 2.0 * uPace + aSeed * 6.2831853);
+    vec3 p = position * (0.9 + 0.06 * lit) * breathe * uScale;
+    vec4 mv = modelViewMatrix * vec4(p, 1.0);
+    gl_Position = projectionMatrix * mv;
+    gl_PointSize = max(1.2, uSize * uPixel / -mv.z * (0.8 + 1.4 * lit));
+    vAlpha = 0.18 + 0.82 * lit;
   }`;
 
 // --- the scene ------------------------------------------------------------------------------------------------------
@@ -151,34 +150,6 @@ function globe(count: number): THREE.BufferGeometry {
   return geometry;
 }
 
-type Strip = { mesh: THREE.Mesh; material: THREE.ShaderMaterial; spin: THREE.Vector3; phaseSpeed: number };
-
-function strips(scene: THREE.Scene): Strip[] {
-  const grid = new THREE.PlaneGeometry(1, 1, 220, 6);  // only its uvs are used; the shader bends it
-  const specs = [
-    { radius: 0.62, width: 0.2, tilt: [0.3, 0, 0.2], spin: [0.5, 0.9, 0.1], phase: 0.6, speed: 3.2 },
-    { radius: 0.8, width: 0.16, tilt: [1.2, 0.4, 0], spin: [-0.4, 0.3, 0.7], phase: -0.45, speed: 2.6 },
-    { radius: 0.48, width: 0.14, tilt: [-0.7, 1.1, 0.5], spin: [0.8, -0.5, 0.3], phase: 0.9, speed: 4.1 },
-    { radius: 0.95, width: 0.1, tilt: [0.2, -0.9, 1.3], spin: [0.2, 0.6, -0.5], phase: -0.3, speed: 2.1 },
-  ];
-  return specs.map((spec, i) => {
-    const material = new THREE.ShaderMaterial({
-      vertexShader: STRIP_VERTEX,
-      fragmentShader: STRIP_FRAGMENT,
-      uniforms: {
-        uRadius: { value: spec.radius }, uWidth: { value: spec.width }, uPhase: { value: 0 }, uScale: { value: 1 },
-        uColor: { value: new THREE.Color(STRIP_COLOURS[i]) }, uOpacity: { value: 0 }, uTime: { value: 0 },
-        uSpeed: { value: spec.speed },
-      },
-      transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
-    });
-    const mesh = new THREE.Mesh(grid, material);
-    mesh.rotation.set(spec.tilt[0], spec.tilt[1], spec.tilt[2]);
-    scene.add(mesh);
-    return { mesh, material, spin: new THREE.Vector3(...spec.spin), phaseSpeed: spec.phase };
-  });
-}
-
 /** How much of each face to show for a state. `drafting` (0–1) is voice2 thinking while you are still talking. */
 function targets(state: FaceState, drafting: number, micLevel: number) {
   switch (state) {
@@ -216,8 +187,9 @@ export function VoiceFace({ state, drafting = 0, label }: { state: FaceState; dr
     const globeBands = new Array<number>(BANDS).fill(0);
     const globeMat = pointsMaterial(GLOBE_VERTEX, COLOURS.idle, 0.034, { uBands: { value: globeBands } });
     const globePts = new THREE.Points(globe(2400), globeMat);
-    scene.add(swarmPts, globePts);
-    const loops = strips(scene);
+    const thinkMat = pointsMaterial(THINK_VERTEX, COLOURS.thinking, 0.04, { uPace: { value: 1 } });
+    const thinkPts = new THREE.Points(globe(1800), thinkMat);
+    scene.add(swarmPts, globePts, thinkPts);
 
     const resize = () => {
       const size = Math.max(48, Math.min(el.clientWidth || 96, el.clientHeight || el.clientWidth || 96, 520));
@@ -227,6 +199,7 @@ export function VoiceFace({ state, drafting = 0, label }: { state: FaceState; dr
       const pixel = (size * renderer.getPixelRatio()) / (2 * Math.tan((camera.fov * Math.PI) / 360));
       swarmMat.uniforms.uPixel.value = pixel;
       globeMat.uniforms.uPixel.value = pixel;
+      thinkMat.uniforms.uPixel.value = pixel;
     };
     resize();
     const observer = new ResizeObserver(resize);
@@ -284,18 +257,15 @@ export function VoiceFace({ state, drafting = 0, label }: { state: FaceState; dr
       globePts.rotation.y += dt * (0.25 + voice * 0.6) * (reduced ? 0.15 : 1);
       globePts.rotation.x = Math.sin(clock * 0.3) * 0.15;
 
+      // Drafting while you still talk turns it slowly; really thinking turns it at full pace.
       const thinkHard = face === "thinking" ? 1 : 0.6;
-      for (const loop of loops) {
-        loop.material.uniforms.uTime.value = clock;
-        loop.material.uniforms.uOpacity.value = weights.think * 0.85;
-        loop.material.uniforms.uScale.value = 0.7 + 0.3 * weights.think;
-        loop.material.uniforms.uPhase.value = clock * loop.phaseSpeed * thinkHard;
-        loop.mesh.visible = weights.think > 0.01;
-        const turn = dt * thinkHard * (reduced ? 0.15 : 1);
-        loop.mesh.rotation.x += loop.spin.x * turn;
-        loop.mesh.rotation.y += loop.spin.y * turn;
-        loop.mesh.rotation.z += loop.spin.z * turn;
-      }
+      thinkMat.uniforms.uTime.value = clock;
+      thinkMat.uniforms.uPace.value = thinkHard;
+      thinkMat.uniforms.uOpacity.value = weights.think * 0.9;
+      thinkMat.uniforms.uScale.value = 0.72 + 0.28 * weights.think;
+      thinkPts.visible = weights.think > 0.01;
+      thinkPts.rotation.y += dt * 0.35 * thinkHard * (reduced ? 0.15 : 1);
+      thinkPts.rotation.x = Math.sin(clock * 0.4) * 0.2;
 
       renderer.render(scene, camera);
       frame = requestAnimationFrame(draw);
@@ -307,8 +277,7 @@ export function VoiceFace({ state, drafting = 0, label }: { state: FaceState; dr
       observer.disconnect();
       swarmPts.geometry.dispose(); swarmMat.dispose();
       globePts.geometry.dispose(); globeMat.dispose();
-      loops.forEach((loop) => loop.material.dispose());
-      loops[0]?.mesh.geometry.dispose();
+      thinkPts.geometry.dispose(); thinkMat.dispose();
       renderer.dispose();
       renderer.domElement.remove();
     };
