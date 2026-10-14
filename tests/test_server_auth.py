@@ -297,6 +297,8 @@ DATA_ROUTES = [
     "/api/model-roles/auto-assign",
     # The owner's mods (mods.py).
     "/api/mods",
+    # Settings > Appearance > Sync with desktop (desktop_theme.py).
+    "/api/desktop-theme",
 ]
 
 
@@ -1167,3 +1169,11 @@ def test_a_beta_tester_sees_no_owner_addresses_in_connectors(client, beta_token,
     monkeypatch.setattr(catalog, "_mail_accounts", lambda provider="": ["owner@gmail.com"])
     body = client.get("/api/connectors/catalog", headers=_auth(beta_token)).json()
     assert "owner@gmail.com" not in str(body)
+
+
+def test_the_presence_drop_route_needs_a_session_once_claimed(client, store):
+    """What the owner dragged onto a tab goes into the next prompt, so only a signed-in owner may set it."""
+    _claim(store)
+    assert client.post("/api/presence/drop", json={"label": "x"}).status_code == 401
+    ok = client.post("/api/presence/drop", json={"label": "x"}, headers=_auth(_login(client)))
+    assert ok.status_code == 200

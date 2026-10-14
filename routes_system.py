@@ -31,3 +31,11 @@ def system_live(_user=RequireChat) -> Dict[str, Any]:
     from system_info import collect_live
 
     return collect_live()
+
+
+@router.get("/api/desktop-theme")
+def desktop_theme(_user=RequireChat) -> Dict[str, Any]:
+    """The Windows accent colour, dark/light mode and wallpaper colour, for Settings › Appearance › Sync with desktop."""
+    from desktop_theme import read_desktop_theme
+
+    return read_desktop_theme()
