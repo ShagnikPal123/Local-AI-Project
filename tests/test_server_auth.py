@@ -217,6 +217,18 @@ def test_a_beta_tester_cannot_reach_admin_routes(client, beta_token, method, pat
     assert response.status_code == 403, f"beta tester reached {path}"
 
 
+@pytest.mark.parametrize("path,body", [
+    ("/api/notch/run", {"id": "cmd"}),
+    ("/api/notch/controls", {"system": ["cmd"]}),
+    ("/api/notch/launchers", {"name": "x", "kind": "command", "command": "whoami"}),
+    ("/api/notch/launchers/suggest", {"name": "x"}),
+])
+def test_a_beta_tester_cannot_run_or_change_the_notchs_controls(client, beta_token, path, body):
+    """The notch's buttons open apps and cmd windows on the owner's PC; an invited tester only gets to look."""
+    response = client.post(path, json=body, headers=_auth(beta_token))
+    assert response.status_code in (401, 403), f"beta tester reached {path}"
+
+
 def test_a_beta_tester_cannot_promote_themselves(client, beta_token):
     response = client.post(
         "/api/admin/grant",
