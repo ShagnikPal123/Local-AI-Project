@@ -54,6 +54,22 @@ function speechRecognition(): (new () => Recognition) | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
+/** Recognizer errors that mean it cannot work here at all, as opposed to a quiet moment. */
+const BROKEN_RECOGNIZER = new Set(["network", "service-not-allowed", "language-not-supported", "audio-capture"]);
+
+/** Inside Nyx's own app window (WebView2) rather than Edge or Chrome. */
+export function inAppWindow(): boolean {
+  return Boolean((window as unknown as { chrome?: { webview?: unknown } }).chrome?.webview)
+    || Boolean((window as unknown as { pywebview?: unknown }).pywebview);
+}
+
+function recognizerProblem(code: string): string {
+  if (code === "audio-capture") return "No microphone was found. Plug one in or pick it in Windows sound settings.";
+  if (inAppWindow()) return "The app window can't turn speech into words (its WebView2 has no speech service). Open Ichos in Edge or Chrome to talk for now.";
+  if (!navigator.onLine) return "Listening needs the internet in this browser. You're offline right now.";
+  return "This browser's speech service isn't answering. Try again in a moment, or use Edge or Chrome.";
+}
+
 export function voiceSupported(): boolean {
   return speechRecognition() !== null;
 }
@@ -276,6 +292,7 @@ export function useVoiceEngine({ mode, busy, chatId, onSend, onCommand }: {
     void api.post("/api/identity0/warm", { keep_minutes: 20 }).catch(() => undefined);
     let stopped = false;
     let engine: Recognition | null = null;
+    let failures = 0;
     // "start" goes out once per listening session. Chrome and Edge end the recognizer after a few seconds of
     // silence and it is restarted below; announcing every restart made the greeting play again each time.
     let announced = false;
@@ -296,6 +313,7 @@ export function useVoiceEngine({ mode, busy, chatId, onSend, onCommand }: {
         }
         const fresh = `${finals}${interim}`.trim();
         if (!fresh) return;
+        failures = 0;
 
         // Nyx's own voice coming back through the microphone is never a message — while it plays, and for the
         // tail after it stops (the recognizer reports a second or so late).
@@ -342,6 +360,13 @@ export function useVoiceEngine({ mode, busy, chatId, onSend, onCommand }: {
       recognition.onerror = (event) => {
         if (event?.error === "not-allowed") { setError("The microphone is blocked for this page."); stopped = true; }
         else if (event?.error === "no-speech") setError("");
+        else if (event?.error && BROKEN_RECOGNIZER.has(event.error)) {
+          // The recognizer itself is not working here (no speech service: offline, or inside the app window, whose
+          // WebView2 has none). Restarting it every 300 ms only loops, so after a couple of failures with nothing
+          // heard it stops and says why.
+          failures += 1;
+          if (failures >= 2) { stopped = true; setError(recognizerProblem(event.error)); emitVoice({ type: "error", message: event.error }); }
+        }
       };
       recognition.onend = () => {
         setListening(false);

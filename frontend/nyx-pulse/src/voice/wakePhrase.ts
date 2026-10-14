@@ -43,6 +43,7 @@ let engine: Recognition | null = null;
 let wanted = "";
 let onWake: ((rest: string) => void) | null = null;
 let stopped = true;
+let failures = 0;
 
 /** Listen for `phrase` until it is heard or `stopWakePhrase` is called. Safe to call again to change the phrase. */
 export function startWakePhrase(phrase: string, woke: (rest: string) => void): boolean {
@@ -53,6 +54,7 @@ export function startWakePhrase(phrase: string, woke: (rest: string) => void): b
   onWake = woke;
   if (engine) return true;
   stopped = false;
+  failures = 0;
   const begin = () => {
     if (stopped) return;
     const recognition = new Speech();
@@ -62,13 +64,21 @@ export function startWakePhrase(phrase: string, woke: (rest: string) => void): b
     recognition.onresult = (event) => {
       let heard = "";
       for (let i = event.resultIndex; i < event.results.length; i += 1) heard += event.results[i][0].transcript;
+      failures = 0;
       const hit = findWake(heard, wanted);
       if (!hit.found) return;
       const callback = onWake;
       stopWakePhrase();
       callback?.(hit.rest);
     };
-    recognition.onerror = (event) => { if (event?.error === "not-allowed") stopWakePhrase(); };
+    recognition.onerror = (event) => {
+      // Blocked, or no speech service here (offline, or the app window): stop instead of retrying forever.
+      if (event?.error === "not-allowed") stopWakePhrase();
+      else if (event?.error && ["network", "service-not-allowed", "language-not-supported", "audio-capture"].includes(event.error)) {
+        failures += 1;
+        if (failures >= 3) stopWakePhrase();
+      }
+    };
     recognition.onend = () => {
       engine = null;
       if (!stopped) window.setTimeout(begin, 400);       // the recognizer ends itself after a quiet spell
