@@ -187,3 +187,15 @@ def notch_waiting(_owner_user=Depends(_owner)) -> Dict[str, Any]:
     import notch
 
     return {"items": notch.waiting()}
+
+
+class WakeBody(BaseModel):
+    source: str = ""
+
+
+@router.post("/api/notch/wake")
+def notch_wake(body: WakeBody, _user=RequireChat) -> Dict[str, Any]:
+    """A wake sound or phrase was heard (the Voice side calls this): the notch opens, listening."""
+    import notch
+
+    return notch.wake(body.source)

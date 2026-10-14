@@ -17,7 +17,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-_state: Dict[str, Any] = {"state": "idle", "text": "", "voice": False, "at": 0.0}
+_state: Dict[str, Any] = {"state": "idle", "text": "", "voice": False, "at": 0.0, "woke": 0.0}
 _process: Optional[subprocess.Popen] = None
 _lock = threading.Lock()
 
@@ -25,9 +25,20 @@ WORDS = {"idle": "Ichos", "listening": "Listening…", "thinking": "Thinking…"
 
 
 def set_state(state: str, text: str = "", voice: bool = False) -> None:
+    """The app page's voice state. Voice switching on (a clap, the wake phrase, the Talk button) counts as a wake."""
     with _lock:
+        if voice and not _state["voice"]:
+            _state["woke"] = time.time()
         _state.update(state=state if state in WORDS else "idle", text=str(text or "")[:160], voice=bool(voice),
                       at=time.time())
+
+
+def wake(source: str = "") -> Dict[str, Any]:
+    """Something woke the assistant (owner, Fixer Upper S2: "say a phrase or make a sound … the notch expands and
+    shows that the ai is listening"). The notch page sees ``woke`` move and opens on its chat, listening."""
+    with _lock:
+        _state.update(woke=time.time(), state="listening", source=str(source or "")[:40], at=time.time())
+        return dict(_state)
 
 
 def running() -> bool:

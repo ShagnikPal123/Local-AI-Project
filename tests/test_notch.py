@@ -145,3 +145,23 @@ def test_waiting_merges_approvals_and_questions_newest_first(monkeypatch):
 
     monkeypatch.setattr(notch, "open_questions", broken)
     assert [i["id"] for i in notch.waiting()] == ["p1"]  # one broken source never hides the others
+
+
+# ── Waking opens the notch ───────────────────────────────────────────────────
+
+
+def test_voice_switching_on_is_a_wake_but_staying_on_is_not():
+    notch.set_state("idle", "", False)
+    before = notch.status()["woke"]
+    notch.set_state("listening", "", True)
+    first = notch.status()["woke"]
+    assert first > before
+    notch.set_state("thinking", "hi", True)
+    assert notch.status()["woke"] == first  # still on: no second wake
+    notch.set_state("idle", "", False)
+
+
+def test_a_heard_wake_phrase_opens_it_listening():
+    state = notch.wake("phrase: wake up")
+    assert state["state"] == "listening" and state["woke"] > 0 and state["source"] == "phrase: wake up"
+    notch.set_state("idle")
