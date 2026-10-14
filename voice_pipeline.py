@@ -313,9 +313,10 @@ def roles() -> Dict[str, Any]:
             "engine": config["listening"],
             "label": "Your browser's speech model" if config["listening"] == "browser" else "A model on this PC",
             "local": config["listening"] != "browser",
-            "note": ("Chrome and Edge send the audio to their own speech service. "
-                     "A local listening model can replace it once one is installed."
-                     if config["listening"] == "browser" else ""),
+            "note": ("Chrome and Edge send the audio to their own speech service. The app window, a browser that is "
+                     "offline, or choosing local listens on this PC instead (Whisper if installed, else Windows dictation)."
+                     if config["listening"] == "browser" else
+                     "Each sentence is recorded at the pause and turned into words on this PC (local_stt.py)."),
         },
     }
     try:
