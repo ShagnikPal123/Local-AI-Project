@@ -113,6 +113,21 @@ def _save(changes: dict) -> None:
         pass
 
 
+def _follow_settings() -> None:
+    """A side or lock picked in Equalize (Notch controls) applies to the open window without a restart."""
+    if _drag["on"]:
+        return
+    try:
+        saved = _request("/api/notch/place/sidebar")
+    except Exception:  # noqa: BLE001
+        return
+    with _lock:
+        changed = any(saved.get(k) != _place[k] for k in ("edge", "x", "y", "locked") if k in saved)
+        _place.update({k: saved[k] for k in ("edge", "x", "y", "locked") if k in saved})
+    if changed:
+        _move()
+
+
 class Bridge:
     """What the page can ask of this window (window.pywebview.api.*)."""
 
@@ -189,6 +204,7 @@ def _watch() -> None:
         now = time.time()
         if now - last_check > 1.0:
             last_check = now
+            _follow_settings()
             busy = nw._fullscreen_app_running()
             if busy != hidden_for_fullscreen:
                 hidden_for_fullscreen = busy
