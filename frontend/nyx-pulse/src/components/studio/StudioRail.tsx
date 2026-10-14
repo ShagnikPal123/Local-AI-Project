@@ -8,7 +8,8 @@
 import { useRef, useState, type FocusEvent, type MouseEvent } from "react";
 import type { TabDef } from "../../tabs";
 import type { TabSpec } from "../../panels/DynamicTab";
-import { NyxAvatar, type AvatarState } from "../NyxAvatar";
+import type { AvatarState } from "../NyxAvatar";
+import ichosLogo from "../../assets/ichos-logo.png";
 import type { DragItem } from "../../state/dragItems";
 import type { NavSide } from "../../style/appearance";
 import { useTabDnd } from "../useTabDnd";
@@ -47,7 +48,11 @@ export function StudioRail({ tabs, userTabs, active, avatar, onSelect, onNewTab,
   return (
     <nav ref={railRef} className="studio-rail" aria-label="Workspace" onScroll={hide}>
       {tip && <span className="studio-rail__tip" style={{ top: tip.top }} aria-hidden="true">{tip.text}</span>}
-      <div className="studio-rail__logo" title="Ichos — created by Shagnik"><NyxAvatar state={avatar} size={30} /></div>
+      {/* The owner's own icon (2026-10-14: "for the icon in app change to the icon I gave"); the same art as the
+          window, taskbar and pinned icon. data-state keeps the agent's state for styling. */}
+      <div className="studio-rail__logo" title="Ichos — created by Shagnik" data-state={avatar}>
+        <img className="studio-rail__logo-img" src={ichosLogo} alt="Ichos" width={30} height={30} draggable={false} />
+      </div>
       <div role="tablist" aria-orientation="vertical" aria-label="Workspace tabs" className="studio-rail__list">
         {tabs.map((t) => item(t.id, t.label))}
         {userTabs.length > 0 && <span className="studio-rail__sep" aria-hidden="true" />}
