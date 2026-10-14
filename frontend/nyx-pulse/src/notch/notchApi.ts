@@ -123,3 +123,45 @@ export const notchApi = {
   openApp: () => api.post<{ ok: boolean }>("/api/notch/open-app"),
   hide: () => api.post<{ ok: boolean }>("/api/notch/stop"),
 };
+
+// ── Controls, launchers and home views (notch_controls.py) ──────────────────
+
+export type HomeViewId = "apps" | "now_playing" | "weather" | "calendar" | "timer" | "agents";
+
+export interface Launcher {
+  id: string;
+  name: string;
+  kind: "app" | "site" | "folder" | "command";
+  target: string;
+  command: string;
+  folder: string;
+  color: string;
+}
+
+export interface NotchControls {
+  system: string[];
+  launchers: Launcher[];
+  home: { default: HomeViewId; views: HomeViewId[]; city: string; triple_click: boolean };
+  available: { id: string; label: string; icon: string }[];
+  views: HomeViewId[];
+}
+
+export interface Weather { ok: boolean; why?: string; city?: string; now?: number; high?: number; low?: number; sky?: string; stale?: boolean }
+export interface Playing { ok: boolean; why?: string; playing?: boolean; title?: string; artist?: string; app?: string }
+export interface DayPlan { ok: boolean; why?: string; day?: string; date?: number;
+  events: { title: string; start: string; end: string; all_day: boolean }[] }
+
+export const controlsApi = {
+  get: () => api.get<NotchControls>("/api/notch/controls"),
+  save: (changes: Partial<Pick<NotchControls, "system" | "launchers" | "home">>) =>
+    api.post<NotchControls>("/api/notch/controls", changes),
+  addLauncher: (body: Partial<Launcher> & { name: string }) => api.post<NotchControls>("/api/notch/launchers", body),
+  removeLauncher: (id: string) => api.del<NotchControls>(`/api/notch/launchers/${encodeURIComponent(id)}`),
+  suggest: (name: string) =>
+    api.post<{ name: string; kind: Launcher["kind"]; target: string; how: string }>("/api/notch/launchers/suggest", { name }),
+  run: (id: string, kind: "system" | "launcher") => api.post<{ ok: boolean; said: string }>("/api/notch/run", { id, kind }),
+  setDefault: (view: HomeViewId) => api.post<NotchControls>("/api/notch/home/default", { view }),
+  weather: () => api.get<Weather>("/api/notch/home/weather", 12_000),
+  playing: () => api.get<Playing>("/api/notch/home/now_playing", 4000),
+  day: () => api.get<DayPlan>("/api/notch/home/calendar", 12_000),
+};

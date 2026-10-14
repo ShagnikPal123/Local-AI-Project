@@ -580,3 +580,82 @@
 .nx-big-clock { font: 700 34px var(--font); font-variant-numeric: tabular-nums; letter-spacing: -1px; }
 .nx-meter { display: flex; align-items: center; gap: 3px; height: 44px; }
 .nx-meter i { width: 4px; border-radius: 2px; background: linear-gradient(to top, #a594ff, #22d3ee); transition: height 0.08s linear; }
+
+/* ── Controls strip and home cards (Fixer Upper S30, reference p05) ─────── */
+
+.nx-dash { display: flex; flex-direction: column; gap: 8px; height: 100%; }
+.nx-strip { display: flex; align-items: center; height: 26px; flex: 0 0 26px; padding: 0 6px; }
+.nx-strip .side { display: flex; align-items: center; gap: 10px; flex: 1 1 0; min-width: 0; }
+.nx-strip .side.right { justify-content: flex-end; gap: 8px; }
+.nx-strip .gap { flex: 0 0 120px; }
+.nx-strip .hint { font-size: 11px; color: var(--dim-4); }
+.nx-ctl {
+  border: 0;
+  background: transparent;
+  color: var(--dim-2);
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  transition: color 0.12s, background 0.12s, transform 0.08s;
+}
+.nx-ctl:hover { color: var(--ink); background: rgba(255, 255, 255, 0.07); }
+.nx-ctl:active { transform: scale(0.92); }
+.nx-launch {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  padding: 0;
+  border-radius: 7px;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--lc) 70%, #fff 10%), color-mix(in srgb, var(--lc) 55%, #000));
+  color: #fff;
+  display: grid;
+  place-items: center;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  transition: transform 0.1s;
+}
+.nx-launch:hover { transform: translateY(-1px) scale(1.06); }
+.nx-launch .glyph { font: 700 11px var(--font); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }
+.nx-launch .kind {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  background: #0b0c0e;
+  display: grid;
+  place-items: center;
+  color: var(--dim-2);
+}
+.nx-launch .kind svg { width: 9px; height: 9px; }
+.nx-cards { display: flex; gap: 8px; flex: 1 1 auto; min-height: 0; }
+.nx-cards > .slot { flex: 1 1 0; min-width: 0; }
+.nx-cards > .slot.now_playing { flex: 1.5 1 0; }
+.nx-cards > .timer { flex: 0 0 110px; }
+.nx-cards.one > * { flex: 1 1 auto; }
+.nx-wcard { display: flex; align-items: center; gap: 12px; padding: 12px 14px; height: 100%; box-sizing: border-box; }
+.nx-wcard .nx-sub.small { font-size: 11px; margin-top: 6px; }
+.nx-wcard.music .art {
+  flex: 0 0 auto;
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #2d3a6b 0%, #2d3a6b 55%, #4a5d86 55%);
+  position: relative;
+}
+.nx-wcard.music .art span { position: absolute; right: 18px; top: 18px; width: 12px; height: 12px; border-radius: 50%; background: #eef; }
+.nx-wcard.music.wide .art { width: 84px; height: 84px; }
+.nx-wcard .transport { gap: 6px; margin-top: 8px; }
+.nx-wcard.weather .sky { color: #cfd5e6; flex: 0 0 auto; align-self: flex-start; }
+.nx-wcard.day .date { display: flex; flex-direction: column; align-items: center; flex: 0 0 auto; }
+.nx-wcard.day .dow { font: 600 10.5px var(--font); color: var(--dim-2); letter-spacing: 0.5px; }
+.nx-wcard.day .num { font: 600 30px var(--font); line-height: 1.1; }
+.nx-wcard.timer { flex-direction: column; justify-content: center; gap: 8px; border: 0; color: var(--ink); cursor: pointer; }
+.nx-wcard.timer .nx-big { font-size: 20px; font-variant-numeric: tabular-nums; }
+.nx-tab.h { font: 700 11px var(--font); width: 24px; }
+.nx-wcard .nx-sub { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.nx-wcard .nx-sub.nx-ellipsis { display: block; }

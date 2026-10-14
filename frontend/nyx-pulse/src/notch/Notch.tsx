@@ -20,6 +20,8 @@ import {
   notchApi, type AssistantSettings, type CatalogAgent, type FileRead, type NotchAgent, type Work, type WorkStep,
 } from "./notchApi";
 import { play, setSfxVolume } from "./sfx";
+import { AppsView, SingleView, VIEW_LABEL, useControls } from "./controls";
+import { controlsApi, type HomeViewId } from "./notchApi";
 import {
   AgentsView, AppView, ChatView, ChooseView, DropView, EmptyView, HomeView, Icon, MailView, NoteView, SettingsView,
   SoundView, TimerView, UploadingView, WorkView, agentIoState, formatLeft, type ChatEntry,
@@ -28,16 +30,16 @@ import "./notch.css";
 
 type Mode = "hidden" | "peek" | "compact" | "trio" | "expanded";
 type View = "home" | "empty" | "chat" | "drop" | "uploading" | "choose" | "mail" | "note" | "work" | "agents"
-  | "settings" | "timer" | "sound" | "app";
+  | "settings" | "timer" | "sound" | "app" | "apps" | "now_playing" | "weather" | "calendar";
 type Tab = "home" | "chat" | "new";
 
 const NOTCH_W = 184, NOTCH_H = 32, COMPACT_W = 288, PEEK_W = NOTCH_W + 64, EXPANDED_W = 640;
 const HEIGHTS: Record<View, number> = {
   home: 160, empty: 150, chat: 176, drop: 176, uploading: 150, choose: 176, mail: 248, note: 136, work: 256,
-  agents: 240, settings: 280, timer: 184, sound: 176, app: 210,
+  agents: 240, settings: 280, timer: 184, sound: 176, app: 210, apps: 196, now_playing: 186, weather: 186, calendar: 186,
 };
 const TAB_OF: Partial<Record<View, Tab>> = { home: "home", empty: "home", work: "home", agents: "home", app: "home",
-  timer: "home", sound: "home", chat: "chat", drop: "new", uploading: "new", choose: "new", mail: "new", note: "new" };
+  timer: "home", sound: "home", apps: "home", now_playing: "home", weather: "home", calendar: "home", chat: "chat", drop: "new", uploading: "new", choose: "new", mail: "new", note: "new" };
 
 interface Shape { kind: "island" | "box"; x: number; y: number; w: number; h: number; r: number }
 interface HostApi {
@@ -84,6 +86,7 @@ export function Notch({ embedded = false }: { embedded?: boolean }) {
   const clicks = useRef<number[]>([]);
   const prevStates = useRef<Record<string, string>>({});
   const islandRef = useRef<HTMLDivElement>(null);
+  const { controls, reload: reloadControls } = useControls();
 
   const later = (fn: () => void, ms: number) => timers.current.push(window.setTimeout(fn, ms));
   const clearLater = () => { timers.current.forEach(clearTimeout); timers.current = []; };
@@ -215,7 +218,34 @@ export function Notch({ embedded = false }: { embedded?: boolean }) {
     hoverOpened.current = false;
   }, [embedded, open]);
 
-  const homeView = (): View => (agents.length <= 1 && !pinned.length ? "empty" : "home");
+  // The view the notch rests on is the owner's choice (notch_controls.py: apps, now playing, weather, calendar,
+  // timer or the agents overview); "agents" keeps Coucou's overview, or its empty sky when nobody is working.
+  const agentsView = (): View => (agents.length <= 1 && !pinned.length ? "empty" : "home");
+  const viewOf = (id: HomeViewId): View => (id === "agents" ? agentsView() : id);
+  const homeView = (): View => viewOf(controls?.home.default ?? "agents");
+  const homeIdOf = (v: View): HomeViewId | null =>
+    v === "home" || v === "empty" ? "agents" : (["apps", "now_playing", "weather", "calendar", "timer"] as View[]).includes(v) ? v as HomeViewId : null;
+  // Triple click on an empty part of the notch walks the owner's views; H makes the one on screen the default.
+  const cycleHome = () => {
+    const views = controls?.home.views ?? [];
+    if (!views.length) return;
+    const at = views.indexOf(homeIdOf(view) ?? views[0]);
+    play("blip");
+    openView(viewOf(views[(at + 1) % views.length]));
+  };
+  const makeDefault = async () => {
+    const id = homeIdOf(view);
+    if (!id) return;
+    const result = await controlsApi.setDefault(id);
+    if (result.ok) { play("approve"); reloadControls(); }
+    else showNote(result.error, "bad");
+  };
+  const onTripleClick = (e: React.MouseEvent) => {
+    if (e.detail !== 3 || !(controls?.home.triple_click ?? true)) return;
+    if ((e.target as HTMLElement).closest("button, input, textarea, a, .nx-io")) return;
+    cycleHome();
+  };
+  const said = (text: string, ok: boolean) => { if (ok) play("approve"); else showNote(text, "bad"); };
 
   // Hover: peek, then open (Coucou rules 2 and 4). Leaving folds it again unless the owner clicked or typed inside.
   const onEnter = () => {
@@ -509,12 +539,16 @@ export function Notch({ embedded = false }: { embedded?: boolean }) {
           </div>
         )}
         {mode === "expanded" && settings && (
-          <div className="nx-content">
+          <div className="nx-content" onClick={onTripleClick}>
             <div className="nx-header">
               <div className="nx-tabs" role="tablist">
                 <button className={`nx-tab ${tab === "home" ? "on" : ""}`} onClick={() => { play("blip"); openView(homeView()); }} aria-label="Home" title="Home">{Icon.home()}</button>
                 <button className={`nx-tab ${tab === "chat" ? "on" : ""}`} onClick={() => { play("blip"); openView("chat"); }} aria-label="Chat" title="Chat">{Icon.chat()}</button>
                 <button className={`nx-tab ${tab === "new" ? "on" : ""}`} onClick={() => { play("blip"); newChat(); }} aria-label="New chat or drop files" title="New chat · drop files">{Icon.plus()}</button>
+                {homeIdOf(view) && (
+                  <button className={`nx-tab h ${controls?.home.default === homeIdOf(view) ? "on" : ""}`} onClick={() => void makeDefault()}
+                    aria-label="Make this the default view" title={`Make ${VIEW_LABEL[homeIdOf(view)!]} the default view · triple-click to switch views`}>H</button>
+                )}
               </div>
               <span className="nx-cam" aria-hidden="true" />
               <div className="nx-actions">
@@ -547,6 +581,12 @@ export function Notch({ embedded = false }: { embedded?: boolean }) {
                   }}
                   onOpenWork={() => openView("work")} onAdd={() => openView("agents")} onAsk={() => openView("chat")}
                   onDropAgent={(id) => { play("gulp"); void notchApi.drop(id).then(refresh); }} />
+              )}
+              {view === "apps" && controls && (
+                <AppsView controls={controls} timers={activeTimers} now={now} onTimers={() => openView("timer")} onSaid={said} />
+              )}
+              {(view === "now_playing" || view === "weather" || view === "calendar") && controls && (
+                <SingleView view={view} controls={controls} onSaid={said} />
               )}
               {view === "empty" && <EmptyView ioState={ioState} ioImage={ioImage} onClick={() => openView("chat")} />}
               {view === "chat" && (
