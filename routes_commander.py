@@ -48,6 +48,11 @@ class TextBody(BaseModel):
     text: str
 
 
+class AnswerBody(BaseModel):
+    text: str = ""
+    approve: Optional[bool] = None
+
+
 class ThreadChange(BaseModel):
     resolved: Optional[bool] = None
     pinned: Optional[bool] = None
@@ -133,6 +138,14 @@ def commander_message(thread_id: str, body: TextBody, user=Depends(_owner)) -> D
     import commander
 
     return {"thread": _call(lambda: commander.message_thread(thread_id, body.text, role=_role(user)))}
+
+
+@router.post("/api/commander/asks/{ask_id}/answer")
+def commander_answer(ask_id: str, body: AnswerBody, user=Depends(_owner)) -> Dict[str, Any]:
+    """The owner answers a thread's question or approval from the main chat; it is relayed to the thread."""
+    import commander
+
+    return {"ask": _call(lambda: commander.answer_ask(ask_id, text=body.text, approve=body.approve, role=_role(user)))}
 
 
 @router.put("/api/commander/threads/{thread_id}")

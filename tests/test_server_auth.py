@@ -1021,6 +1021,7 @@ OWNER_ONLY_PROJECT_ROUTES = [
     ("post", "/api/commander/projects/pr-1/chat", None),
     ("post", "/api/commander/send", {"chat_id": "c1", "message": "hi"}),
     ("post", "/api/commander/threads/th-1/message", {"text": "more"}),
+    ("post", "/api/commander/asks/ask-1/answer", {"text": "yes"}),
     ("put", "/api/commander/threads/th-1", {"resolved": True}),
     ("delete", "/api/commander/threads/th-1", None),
     ("get", "/api/commander/settings", None),
