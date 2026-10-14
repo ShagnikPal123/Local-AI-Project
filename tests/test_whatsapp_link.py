@@ -447,3 +447,22 @@ def test_the_routes_show_the_badge_and_move_the_phone(lanes_line, monkeypatch):
     assert client.post("/api/whatsapp/lane", json={"kind": "nonsense"}).status_code == 400
     assert client.post("/api/whatsapp/lane", json={"kind": "chat", "id": "missing"}).status_code == 409
     assert client.post("/api/whatsapp/link-chat", json={"chat_id": "c2", "linked": False}).json()["linked_chats"] == []
+
+
+def test_the_pc_can_text_a_file_and_is_told_when_it_cannot(lanes_line, monkeypatch, tmp_path):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    import routes_whatsapp
+
+    app = FastAPI()
+    app.include_router(routes_whatsapp.router)
+    app.dependency_overrides[routes_whatsapp._owner] = lambda: object()
+    monkeypatch.setattr(wa, "_LINK", lanes_line)
+    client = TestClient(app)
+    photo = tmp_path / "trip.png"
+    photo.write_bytes(b"\x89PNG\r\n\x1a\n" + b"0" * 64)
+    sent = client.post("/api/whatsapp/send-file", json={"path": str(photo), "caption": "the trip"})
+    assert sent.status_code == 200 and sent.json()["kind"] == "image" and sent.json()["name"] == "trip.png"
+    gone = client.post("/api/whatsapp/send-file", json={"path": str(tmp_path / "missing.pdf")})
+    assert gone.status_code == 409 and "no file" in gone.json()["detail"].lower()

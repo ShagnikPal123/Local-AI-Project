@@ -129,3 +129,16 @@ def whatsapp_link_chat(body: LinkChatBody, _owner_user=Depends(_owner)) -> Dict[
     if body.linked:
         return _run(lambda: current.link_chat(body.chat_id, switch=False))
     return _run(lambda: current.unlink_chat(body.chat_id))
+
+
+class SendFileBody(BaseModel):
+    path: str
+    caption: str = ""
+
+
+@router.post("/api/whatsapp/send-file")
+def whatsapp_send_file(body: SendFileBody, _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    """Text one file or picture from this PC to the owner's phone. Protected files and risky ones are refused."""
+    import whatsapp_link
+
+    return _run(lambda: whatsapp_link.link().send_file(body.path, body.caption, origin="pc"))
