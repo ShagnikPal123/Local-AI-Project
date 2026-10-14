@@ -185,6 +185,8 @@ class ChatSessionStore:
                     "kind": chat.get("kind", "chat"),
                     # Owner request (2026-09-15): a chat can belong to one agent.
                     "agent": chat.get("agent", ""),
+                    # The badge: which persona this chat speaks as. None is Ichos itself.
+                    "persona": chat.get("persona") or None,
                 })
             out.sort(key=lambda c: c.get("updated_at") or "", reverse=True)
             return out
@@ -216,7 +218,7 @@ class ChatSessionStore:
             if chat_id not in self.data["chats"]:
                 return False
             chat = self.data["chats"].pop(chat_id)
-            if retain_memory and self.memory_store:
+            if retain_memory and self.memory_store and not chat.get("persona"):
                 for item in chat.get("learned", []):
                     self.memory_store.remember_important(item["topic"], item["content"], source=f"chat:{chat_id}")
             chat["deleted_at"] = datetime.now(timezone.utc).isoformat()
@@ -380,11 +382,43 @@ class ChatSessionStore:
                 derived = self._title_from(content)
                 if derived:
                     chat["title"] = derived
-            if role == "assistant" and self.memory_store and len(chat["messages"]) % 6 == 0:
+            # An avatar's chat stays its own: its talk never becomes the shared memory every other chat reads.
+            if role == "assistant" and self.memory_store and len(chat["messages"]) % 6 == 0 and not chat.get("persona"):
                 recent = chat["messages"][-6:]
                 summary = " | ".join(f"{item['role']}: {item['content'][:250]}" for item in recent)
                 self.memory_store.remember_conversation(target, summary, "Continue from the latest saved exchange.")
             self._save()
+
+    #: What a persona badge may hold. "avatar" is one of the owner's avatars; "custom" is a voice the owner approved
+    #: for this one chat (persona_scope.persona_change). No persona at all means Ichos's own voice.
+    PERSONA_KINDS = ("avatar", "custom")
+
+    def persona(self, chat_id: str | None) -> dict[str, Any]:
+        """The chat's persona badge, or {} for a chat that speaks as Ichos."""
+        with self._lock:
+            chat = self.data["chats"].get(chat_id or "")
+            return dict(chat.get("persona") or {}) if chat else {}
+
+    def set_persona(self, chat_id: str, persona: dict[str, Any] | None) -> dict[str, Any]:
+        """Badge a chat with the one persona it speaks as (owner, 2026-10-14: "have specific chats only for a
+        personality and add the badges feature so it ids as that personality"). ``None`` hands it back to Ichos."""
+        with self._lock:
+            chat = self.data["chats"].get(chat_id)
+            if chat is None:
+                raise KeyError(f"Chat not found: {chat_id}")
+            clean: dict[str, Any] = {}
+            if persona and persona.get("kind") in self.PERSONA_KINDS:
+                clean = {"kind": persona["kind"], "id": str(persona.get("id") or "")[:40],
+                         "name": str(persona.get("name") or "")[:40] or "Persona"}
+                if persona["kind"] == "custom":
+                    clean["text"] = str(persona.get("text") or "")[:1200]
+            if (chat.get("persona") or {}) != clean:
+                if clean:
+                    chat["persona"] = clean
+                else:
+                    chat.pop("persona", None)
+                self._save()
+            return clean
 
     def set_agent(self, chat_id: str, agent: str) -> dict:
         """Give a chat to one agent, or hand it back to the Manager with an empty name.
@@ -450,7 +484,7 @@ class ChatSessionStore:
             skip = exclude or self.data.get("active_chat")
             snippets = []
             for chat_id, chat in self.data["chats"].items():
-                if chat_id == skip:
+                if chat_id == skip or chat.get("persona"):  # a persona's chat is not context for anyone else
                     continue
                 messages = [item for item in chat.get("messages", []) if item.get("role") == "user"][-limit:]
                 if messages:
