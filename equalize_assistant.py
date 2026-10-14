@@ -834,6 +834,24 @@ def reset_avatar() -> Dict[str, Any]:
     return settings()
 
 
+def voice_personality() -> str:
+    """Who answers when the owner talks out loud, while Equalize's "Talk: yes" is on.
+
+    Spoken turns land in whatever chat the owner last used, so they took that chat's character instead of the one
+    picked for Equalize (Fixer Upper S34: "make sure I can choose the avatar it uses"). The chosen avatar's
+    personality, or the owner's own words, comes back here; "" leaves the chat's own personality alone.
+    """
+    state = _load()
+    if not state.get("talk"):
+        return ""
+    source = state["personality"]["source"]
+    if source == "avatar" and state["avatar"].get("personality"):
+        return f"You are {state['avatar'].get('name') or 'Io'}. {state['avatar']['personality']}"
+    if source == "custom" and state["personality"].get("text"):
+        return state["personality"]["text"]
+    return ""
+
+
 def personality_note() -> str:
     """The guidance the chat adds for the notch's turns: the avatar's, the owner's own words, or nothing."""
     state = _load()

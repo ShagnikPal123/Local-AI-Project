@@ -16,8 +16,8 @@ class _FakeService:
     def __init__(self, seen):
         self.seen = seen
 
-    def set_personality(self, _p):
-        pass
+    def set_personality(self, p):
+        self.seen.append(f"personality={(p or {}).get('system_guidance', '')}")
 
     def set_turn_context(self, context):
         self.seen.append(context)
@@ -98,3 +98,31 @@ def test_a_runner_for_a_spoken_turn_marks_its_tools_as_voice():
     spoken = TurnRunner(Service(), "hi", sink=lambda e: None, voice_session="voice-abc")
     typed = TurnRunner(Service(), "hi", sink=lambda e: None)
     assert spoken.context.voice is True and typed.context.voice is False
+
+
+def test_talking_out_loud_uses_the_avatar_chosen_for_equalize(client, monkeypatch):
+    """Spoken turns land in the last chat used; with Equalize's Talk on, its chosen avatar answers (Fixer Upper S34)."""
+    import equalize_assistant
+
+    monkeypatch.setattr(equalize_assistant, "voice_personality", lambda: "You are Io. Warm and quick.")
+    with client.stream("POST", "/api/chat/stream", json={"message": "hello there", "use_rag": False, "voice": True}) as response:
+        response.read()
+    assert "personality=You are Io. Warm and quick." in client.seen
+
+    client.seen.clear()
+    with client.stream("POST", "/api/chat/stream", json={"message": "hello there", "use_rag": False}) as response:
+        response.read()
+    assert not any("You are Io" in line for line in client.seen), "typed turns keep the chat's own personality"
+
+
+def test_equalize_voice_personality_follows_talk_and_the_chosen_source(tmp_path, monkeypatch):
+    import equalize_assistant
+
+    monkeypatch.setattr(equalize_assistant, "STORE", tmp_path / "equalize_assistant.json")
+    assert equalize_assistant.voice_personality() == ""                 # Talk is off by default
+    equalize_assistant.update({"talk": True})
+    assert equalize_assistant.voice_personality() == ""                 # normal personality: the chat's own
+    equalize_assistant.set_avatar(name="Pip", personality="Cheerful and brief.", keep_personality=True)
+    assert equalize_assistant.voice_personality() == "You are Pip. Cheerful and brief."
+    equalize_assistant.update({"personality": {"source": "custom", "text": "Talk like a pirate."}})
+    assert equalize_assistant.voice_personality() == "Talk like a pirate."

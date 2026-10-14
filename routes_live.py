@@ -138,7 +138,16 @@ def start_turn(body: StreamRequest, user: Any) -> tuple[str, str]:
             freewill_note = freewill.prepare(service)
         except freewill.FreeWillError as error:
             raise HTTPException(status_code=403, detail=str(error)) from error
-    personality = resolve_personality(body.personality_id, body.personality_text)
+    personality_text = body.personality_text
+    if body.voice and not (personality_text or "").strip() and not body.personality_id:
+        # Talking out loud is talking to Equalize: its chosen avatar or personality answers (equalize_assistant.py).
+        try:
+            import equalize_assistant
+
+            personality_text = equalize_assistant.voice_personality() or personality_text
+        except Exception:  # pragma: no cover - the turn goes on with the chat's own personality
+            pass
+    personality = resolve_personality(body.personality_id, personality_text)
     if personality:
         service.set_personality(personality)
     context = ""
