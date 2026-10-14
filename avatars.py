@@ -183,6 +183,16 @@ def _text(value: Any, limit: int) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip()[:limit]
 
 
+def _block(value: Any, limit: int) -> str:
+    """Like ``_text`` but keeps line breaks, for the long boxes (what it does, its own personality).
+
+    Flattening them made the Avatars tab's Save button useless: the owner's text came back from the server
+    different from what the box held, so the editor still thought there was something to save.
+    """
+    lines = [re.sub(r"[ \t]+", " ", line).strip() for line in str(value or "").replace("\r\n", "\n").split("\n")]
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()[:limit]
+
+
 def _num(value: Any, default: float) -> float:
     try:
         return float(value)
@@ -259,7 +269,7 @@ def clean(raw: Dict[str, Any], base: Optional[Dict[str, Any]] = None) -> Dict[st
 
     notes = [_text(n, 300) for n in (merged.get("notes") or [])[-LIMITS["notes"]:] if _text(n, 300)]
     personality = merged.get("personality")
-    if personality not in personality_options() or (personality == "custom" and not _text(merged.get("personality_custom"), 600)):
+    if personality not in personality_options() or (personality == "custom" and not _block(merged.get("personality_custom"), 600)):
         personality = DEFAULT_PERSONALITIES.get(str(merged.get("id") or ""), FALLBACK_PERSONALITY)
     return {
         "id": str(merged.get("id") or _short_id("av"))[:24],
@@ -267,10 +277,10 @@ def clean(raw: Dict[str, Any], base: Optional[Dict[str, Any]] = None) -> Dict[st
         "icon": _text(merged.get("icon"), 40) if str(merged.get("icon", "")).startswith("ph-") else "ph-user-circle",
         "main": main,
         "main_custom": _text(merged.get("main_custom"), 80) if main == "custom" else "",
-        "does": _text(merged.get("does"), LIMITS["text"]),
+        "does": _block(merged.get("does"), LIMITS["text"]),
         "inspired_by": _text(merged.get("inspired_by"), 60),
         "personality": personality,
-        "personality_custom": _text(merged.get("personality_custom"), 600) if personality == "custom" else "",
+        "personality_custom": _block(merged.get("personality_custom"), 600) if personality == "custom" else "",
         "enabled": bool(merged.get("enabled")),
         "model": merged.get("model") if merged.get("model") in MODELS else "",
         "max_runs_per_day": max(1, min(96, int(_num(merged.get("max_runs_per_day"), 24) or 24))),

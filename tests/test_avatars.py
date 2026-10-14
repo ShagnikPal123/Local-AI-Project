@@ -156,3 +156,13 @@ def test_every_avatar_has_a_personality_even_old_records(av):
     cleared = av.update(made["id"], {"personality": "custom", "personality_custom": ""})
     assert cleared["personality"] == av.FALLBACK_PERSONALITY
     assert av.clean({"id": "halo", "name": "Halo"})["personality"] == "close_friend"  # stored before personalities
+
+
+def test_long_text_keeps_its_line_breaks_so_save_can_settle(av):
+    """The editor compares what the box holds with what came back; flattened lines left Save lit forever."""
+    text = "First do this.\n\nThen   that.\n\n\n\nLast."
+    saved = av.update("orbit", {"does": text})
+    assert saved["does"] == "First do this.\n\nThen that.\n\nLast."
+    assert av.update("orbit", {"does": saved["does"]})["does"] == saved["does"]  # a second save changes nothing
+    custom = av.update("orbit", {"personality": "custom", "personality_custom": "calm\ndry humour"})
+    assert custom["personality_custom"] == "calm\ndry humour"
