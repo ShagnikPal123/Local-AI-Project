@@ -934,10 +934,11 @@ If the user asks to change model or provider, or to go local/offline, call switc
             if message.get("role") == "system" and content.startswith(self._PERSONALITY_PREFIX):
                 lean_history.append({"role": "system", "content": content})
                 break
-        from persona_scope import PERSONA_PREFIX
+        from persona_scope import PERSONA_PREFIX, speaks_as_persona
 
-        lean_history += [{"role": "system", "content": m["content"]} for m in self.conversation_history
-                         if m.get("role") == "system" and str(m.get("content", "")).startswith(PERSONA_PREFIX)][:1]
+        if speaks_as_persona(self):  # an avatar's quick turn still speaks from its own bank; plain Ichos stays lean
+            lean_history += [{"role": "system", "content": m["content"]} for m in self.conversation_history
+                             if m.get("role") == "system" and str(m.get("content", "")).startswith(PERSONA_PREFIX)][:1]
         account = self._account_note()  # so does the account it is working in
         if account:
             lean_history.append({"role": "system", "content": "[This account]\n" + account})

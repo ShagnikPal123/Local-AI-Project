@@ -784,10 +784,11 @@ class TurnRunner:
             if message.get("role") == "system" and content.startswith(service._PERSONALITY_PREFIX):
                 lean.append({"role": "system", "content": content})
                 break
-        from persona_scope import PERSONA_PREFIX
+        from persona_scope import PERSONA_PREFIX, speaks_as_persona
 
-        lean += [{"role": "system", "content": m["content"]} for m in service.conversation_history
-                 if m.get("role") == "system" and str(m.get("content", "")).startswith(PERSONA_PREFIX)][:1]
+        if speaks_as_persona(service):  # an avatar's quick turn still speaks from its own bank; plain Ichos stays lean
+            lean += [{"role": "system", "content": m["content"]} for m in service.conversation_history
+                     if m.get("role") == "system" and str(m.get("content", "")).startswith(PERSONA_PREFIX)][:1]
         mods_note = service.mods_note() if hasattr(service, "mods_note") else ""  # "answer in French" holds on quick turns too
         if mods_note:
             lean.append({"role": "system", "content": mods_note})
