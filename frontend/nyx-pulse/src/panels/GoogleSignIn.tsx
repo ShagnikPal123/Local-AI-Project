@@ -9,9 +9,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api";
+import { copyToClipboard } from "../components/chat/hooks";
 import { onWorkspaceEvent } from "../state/workspaceEvents";
 
-interface Status { client_configured: boolean; connected: string[]; redirect_uri: string; products?: Record<string, string[]> }
+interface RedirectHelp { client_type: string; needs_registration: boolean; message: string; steps?: string[]; redirect_uri: string }
+interface Status {
+  client_configured: boolean; connected: string[]; redirect_uri: string; products?: Record<string, string[]>;
+  client_type?: string; redirect_help?: RedirectHelp;
+}
 
 interface Props {
   /** Google apps to ask permission for, e.g. ["sheets"]. Empty: Gmail, as Keys & Models always did. */
@@ -26,6 +31,8 @@ export function GoogleSignIn({ products, title, enableUrl, apiName }: Props = {}
   const [status, setStatus] = useState<Status | null>(null);
   const [clientId, setClientId] = useState("");
   const [clientSecret, setClientSecret] = useState("");
+  const [clientJson, setClientJson] = useState("");
+  const [copied, setCopied] = useState(false);
   const [hint, setHint] = useState("");
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [waiting, setWaiting] = useState(false);
@@ -47,11 +54,20 @@ export function GoogleSignIn({ products, title, enableUrl, apiName }: Props = {}
   }, [waiting, load]);
 
   async function saveClient() {
-    const result = await api.post("/api/google/oauth/client", { client_id: clientId, client_secret: clientSecret });
+    // The downloaded JSON says whether this is a Desktop or Web client, so it is preferred over typing the two values.
+    const body = clientJson.trim() ? { client_json: clientJson } : { client_id: clientId, client_secret: clientSecret };
+    const result = await api.post<{ client_type: string }>("/api/google/oauth/client", body);
     if (!result.ok) { setMessage({ ok: false, text: result.error }); return; }
-    setClientId(""); setClientSecret(""); setEditingClient(false);
-    setMessage({ ok: true, text: "Saved. Now sign in with Google." });
+    setClientId(""); setClientSecret(""); setClientJson(""); setEditingClient(false);
+    setMessage({ ok: true, text: result.data.client_type === "web"
+      ? "Saved, but this is a Web application client: add the redirect address below in Google Cloud before signing in."
+      : "Saved. Now sign in with Google." });
     void load();
+  }
+
+  async function copyRedirect(uri: string) {
+    setCopied(await copyToClipboard(uri));
+    window.setTimeout(() => setCopied(false), 2000);
   }
 
   async function signIn() {
@@ -86,15 +102,17 @@ export function GoogleSignIn({ products, title, enableUrl, apiName }: Props = {}
           <ol className="google-signin__steps">
             <li>Open <a href={enableUrl ?? "https://console.cloud.google.com/apis/library/gmail.googleapis.com"} target="_blank" rel="noopener noreferrer">Google Cloud → {apiName ?? "Gmail API"} ↗</a> and click <b>Enable</b> (make a project if asked — it's free).</li>
             <li>In <a href="https://console.cloud.google.com/auth/audience" target="_blank" rel="noopener noreferrer">Google Auth Platform → Audience ↗</a>, choose <b>External</b>, keep it in <b>Testing</b>, and add your Gmail address under <b>Test users</b>.</li>
-            <li>In <a href="https://console.cloud.google.com/auth/clients" target="_blank" rel="noopener noreferrer">Clients ↗</a>, create a client of type <b>Desktop app</b>, then copy its Client ID and Client secret here.</li>
+            <li>In <a href="https://console.cloud.google.com/auth/clients" target="_blank" rel="noopener noreferrer">Clients ↗</a>, create a client of type <b>Desktop app</b> (not Web application), then choose <b>Download JSON</b> and paste the file's contents below. Or copy its Client ID and Client secret into the two boxes.</li>
           </ol>
           <form className="keys-form" onSubmit={(e) => { e.preventDefault(); void saveClient(); }}>
-            <label className="keys-field"><span>Client ID</span>
+            <label className="keys-field"><span>Client JSON <em>recommended</em></span>
+              <textarea value={clientJson} rows={3} spellCheck={false} autoComplete="off" placeholder='{"installed":{"client_id":"…"}}' onChange={(e) => setClientJson(e.target.value)} /></label>
+            <label className="keys-field"><span>Client ID <em>or paste these two instead</em></span>
               <input value={clientId} spellCheck={false} autoComplete="off" placeholder="1234-abc.apps.googleusercontent.com" onChange={(e) => setClientId(e.target.value)} /></label>
             <label className="keys-field"><span>Client secret</span>
               <input type="password" value={clientSecret} spellCheck={false} autoComplete="off" placeholder="GOCSPX-…" onChange={(e) => setClientSecret(e.target.value)} /></label>
             <div className="keys-actions">
-              <button className="btn btn-primary" disabled={!clientId.trim() || !clientSecret.trim()}>Save Client</button>
+              <button className="btn btn-primary" disabled={!clientJson.trim() && (!clientId.trim() || !clientSecret.trim())}>Save Client</button>
               {status.client_configured && <button type="button" className="btn btn-secondary" onClick={() => setEditingClient(false)}>Cancel</button>}
             </div>
           </form>
@@ -112,6 +130,14 @@ export function GoogleSignIn({ products, title, enableUrl, apiName }: Props = {}
             </button>
             <button type="button" className="btn btn-secondary" onClick={() => setEditingClient(true)}>Change Client</button>
           </div>
+          {status.redirect_help?.needs_registration && (
+            <div className="keys-notes google-signin__redirect" role="note">
+              <p>{status.redirect_help.message}</p>
+              <p>Redirect address: <code>{status.redirect_help.redirect_uri}</code>{" "}
+                <button type="button" className="btn btn-secondary" onClick={() => void copyRedirect(status.redirect_help!.redirect_uri)}>{copied ? "Copied" : "Copy"}</button></p>
+              <ul>{(status.redirect_help.steps ?? []).map((step) => <li key={step}>{step}</li>)}</ul>
+            </div>
+          )}
           <p className="keys-notes">Google may say the app isn't verified — that's your own test app. Choose <b>Continue</b>.</p>
         </div>
       )}
