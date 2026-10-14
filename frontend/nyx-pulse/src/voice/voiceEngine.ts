@@ -73,7 +73,7 @@ function recognizerProblem(code: string): string {
 
 /** Voice can work here: the browser recognizer, or a microphone to record for listening on this PC. */
 export function voiceSupported(): boolean {
-  return speechRecognition() !== null || Boolean(navigator.mediaDevices?.getUserMedia && window.AudioContext);
+  return speechRecognition() !== null || typeof navigator.mediaDevices?.getUserMedia === "function" && typeof window.AudioContext === "function";
 }
 
 export type ThinkReply = {
