@@ -293,6 +293,9 @@ def chat_summaries(_user=RequireChat) -> Dict[str, Any]:
     import server
 
     store = server._shared_chat_store()
+    # The chat list is what the owner opens every day, so it is where an enabled auto clean-up gets its turn.
+    for chat_id in store.auto_clean():
+        server._forget_service(chat_id)
     return {"chats": store.summaries(), "active": store.data.get("active_chat"), "limit": store.MAX_CHATS}
 
 
@@ -410,6 +413,40 @@ def restore_chat(chat_id: str, _user=RequireChat) -> Dict[str, Any]:
     if not restored:
         raise HTTPException(status_code=404, detail="That chat is no longer in Recently deleted.")
     return {"ok": True, "id": chat_id}
+
+
+class AutoCleanRequest(BaseModel):
+    enabled: Optional[bool] = None
+    empty_hours: Optional[int] = None
+    old_days: Optional[int] = None
+
+
+# Auto clean-up of the chat list. Same "chat-" prefix as the trash, for the same reason.
+@router.get("/api/chat-auto-clean")
+def read_auto_clean(_user=RequireChat) -> Dict[str, Any]:
+    import server
+
+    store = server._shared_chat_store()
+    return {**store.auto_clean_settings(), "would_delete": len(store.auto_clean_candidates())}
+
+
+@router.put("/api/chat-auto-clean")
+def write_auto_clean(body: AutoCleanRequest, _user=RequireChat) -> Dict[str, Any]:
+    import server
+
+    store = server._shared_chat_store()
+    settings = store.set_auto_clean(body.enabled, body.empty_hours, body.old_days)
+    return {**settings, "would_delete": len(store.auto_clean_candidates())}
+
+
+@router.post("/api/chat-auto-clean/run")
+def run_auto_clean(_user=RequireChat) -> Dict[str, Any]:
+    import server
+
+    removed = server._shared_chat_store().auto_clean()
+    for chat_id in removed:
+        server._forget_service(chat_id)
+    return {"removed": len(removed)}
 
 
 @router.delete("/api/chat-trash/{chat_id}")

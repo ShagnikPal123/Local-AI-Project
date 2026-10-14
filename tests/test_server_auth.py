@@ -277,6 +277,7 @@ DATA_ROUTES = [
     "/api/memory/rag",
     "/api/chats",
     "/api/chat-trash",
+    "/api/chat-auto-clean",
     "/api/models",
     "/api/connectors",
     "/api/personalities",

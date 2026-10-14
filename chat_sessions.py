@@ -279,6 +279,67 @@ class ChatSessionStore:
         keep.sort(reverse=True)
         self.data["trash"] = {chat_id: trash[chat_id] for _, chat_id in keep[: self.TRASH_MAX]}
 
+    #: Auto clean-up of the chat list (owner S25: "auto filter and auto delete chats"). Off until the owner turns it on,
+    #: and it only ever moves chats to Recently deleted, so a wrong guess is one Restore away for 30 days.
+    AUTO_CLEAN_DEFAULTS = {"enabled": False, "empty_hours": 24, "old_days": 0}
+
+    def auto_clean_settings(self) -> dict[str, Any]:
+        with self._lock:
+            saved = self.data.get("auto_clean") or {}
+            return {key: saved.get(key, default) for key, default in self.AUTO_CLEAN_DEFAULTS.items()}
+
+    def set_auto_clean(self, enabled: bool | None = None, empty_hours: int | None = None,
+                       old_days: int | None = None) -> dict[str, Any]:
+        """Change any of the three settings. Hours and days are clamped so a typo cannot wipe the list at once:
+        empty chats wait at least an hour, and 0 days means "never delete old chats"."""
+        with self._lock:
+            current = self.auto_clean_settings()
+            if enabled is not None:
+                current["enabled"] = bool(enabled)
+            if empty_hours is not None:
+                current["empty_hours"] = max(1, min(int(empty_hours), 24 * 365))
+            if old_days is not None:
+                current["old_days"] = 0 if int(old_days) <= 0 else max(7, min(int(old_days), 3650))
+            self.data["auto_clean"] = current
+            self._save()
+            return dict(current)
+
+    def auto_clean_candidates(self, now: datetime | None = None) -> list[str]:
+        """Chats the sweep would delete right now. Never the open chat, a chat the owner named, a chat that has
+        branches or is a branch, a chat given to an agent, or anything that is not a plain chat."""
+        settings = self.auto_clean_settings()
+        now = now or datetime.now(timezone.utc)
+        with self._lock:
+            parents = {chat.get("parent_id") for chat in self.data["chats"].values() if chat.get("parent_id")}
+            found = []
+            for chat_id, chat in self.data["chats"].items():
+                if (chat_id == self.data.get("active_chat") or chat.get("title_locked") or chat_id in parents
+                        or chat.get("parent_id") or chat.get("agent") or chat.get("kind", "chat") != "chat"):
+                    continue
+                try:
+                    touched = datetime.fromisoformat(str(chat.get("updated_at") or chat.get("created_at")))
+                except ValueError:
+                    continue  # no usable date: leave it alone rather than guess its age
+                if touched.tzinfo is None:
+                    touched = touched.replace(tzinfo=timezone.utc)
+                idle_hours = (now - touched).total_seconds() / 3600
+                empty = not any(m.get("role") in ("user", "assistant") for m in chat.get("messages", []))
+                if empty and idle_hours >= settings["empty_hours"]:
+                    found.append(chat_id)
+                elif settings["old_days"] and idle_hours >= settings["old_days"] * 24:
+                    found.append(chat_id)
+            return found
+
+    def auto_clean(self, now: datetime | None = None) -> list[str]:
+        """Run the sweep if the owner turned it on. Returns the ids moved to Recently deleted."""
+        if not self.auto_clean_settings()["enabled"]:
+            return []
+        removed = []
+        for chat_id in self.auto_clean_candidates(now):
+            if self.delete(chat_id, retain_memory=True):
+                removed.append(chat_id)
+        return removed
+
     def add_learned(self, topic: str, content: str) -> None:
         with self._lock:
             chat = self.data["chats"][self.ensure_active()]

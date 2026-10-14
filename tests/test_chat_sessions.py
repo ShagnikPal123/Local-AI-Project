@@ -127,3 +127,63 @@ def test_deleted_chats_survive_a_restart(tmp_path):
     store.delete(chat_id)
 
     assert ChatSessionStore(path).restore(chat_id) is True
+
+
+def _age(store, chat_id, hours):
+    """Make a chat look ``hours`` old without waiting."""
+    when = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+    store.data["chats"][chat_id]["updated_at"] = when
+
+
+def test_auto_clean_is_off_until_turned_on(tmp_path):
+    store = ChatSessionStore(tmp_path / "chats.json")
+    store.create("keep")
+    empty = store.create("", activate=False)
+    _age(store, empty, 200)
+    assert store.auto_clean_settings()["enabled"] is False
+    assert store.auto_clean() == []
+    assert store.exists(empty)
+
+
+def test_auto_clean_removes_only_old_empty_chats_into_the_trash(tmp_path):
+    store = ChatSessionStore(tmp_path / "chats.json")
+    active = store.create("Open now")
+    old_empty = store.create(activate=False)
+    new_empty = store.create(activate=False)
+    used = store.create("Used", activate=False)
+    store.append("user", "hello", chat_id=used)
+    for chat_id in (old_empty, active, used):
+        _age(store, chat_id, 100)
+    store.set_auto_clean(enabled=True)
+    assert store.auto_clean() == [old_empty]
+    assert not store.exists(old_empty)
+    assert store.exists(new_empty) and store.exists(used) and store.exists(active)
+    assert any(item["id"] == old_empty for item in store.trash())  # restorable, not gone
+    assert store.restore(old_empty)
+
+
+def test_auto_clean_old_days_spares_named_branched_and_agent_chats(tmp_path):
+    store = ChatSessionStore(tmp_path / "chats.json")
+    store.create("Current")
+    plain = store.create("plain", activate=False)
+    named = store.create("named", activate=False)
+    agent = store.create("agent", activate=False)
+    for chat_id in (plain, named, agent):
+        store.append("user", "hi", chat_id=chat_id)
+        _age(store, chat_id, 24 * 60)
+    store.rename(named, "Keep this one")
+    _age(store, named, 24 * 60)
+    store.set_agent(agent, "Researcher")
+    _age(store, agent, 24 * 60)
+    store.set_auto_clean(enabled=True, old_days=30)
+    assert store.auto_clean() == [plain]
+    assert store.exists(named) and store.exists(agent)
+
+
+def test_auto_clean_settings_are_clamped_and_saved(tmp_path):
+    path = tmp_path / "chats.json"
+    store = ChatSessionStore(path)
+    saved = store.set_auto_clean(enabled=True, empty_hours=0, old_days=3)
+    assert saved == {"enabled": True, "empty_hours": 1, "old_days": 7}
+    assert store.set_auto_clean(old_days=-5)["old_days"] == 0
+    assert ChatSessionStore(path).auto_clean_settings()["enabled"] is True
