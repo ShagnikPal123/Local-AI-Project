@@ -717,10 +717,10 @@ class ViewModeRequest(BaseModel):
 
 @app.get("/api/engine/view")
 def engine_view(_owner=Depends(require_local_owner)) -> Dict[str, Any]:
-    """How Nyx opens — a browser tab or its own app window (UPDATE_IDEAS U25)."""
+    """How Nyx opens — its own app window (the default) or a browser tab (UPDATE_IDEAS U25)."""
     import launcher
 
-    return {"mode": launcher.view_mode(), "app_window": bool(launcher.app_browser())}
+    return {"mode": launcher.view_mode(), "app_window": launcher.app_window_available()}
 
 
 @app.post("/api/engine/view")
@@ -736,7 +736,7 @@ def engine_set_view(request: ViewModeRequest, http_request: Request,
     opened = ""
     if request.open_now:
         opened = launcher.open_app(http_request.url.port or 8000, "/", mode="app")
-    return {"mode": mode, "app_window": bool(launcher.app_browser()), "opened": opened}
+    return {"mode": mode, "app_window": launcher.app_window_available(), "opened": opened}
 
 
 @app.post("/api/engine/autostart")

@@ -319,15 +319,18 @@ def test_the_logon_runner_no_longer_points_at_the_blocked_exe():
 
 
 def test_nyx_opens_as_a_browser_tab_or_its_own_app_window(tmp_path, monkeypatch):
-    """UPDATE_IDEAS U25: two ways to view Nyx — a website tab, or an app window of its own."""
+    """UPDATE_IDEAS U25: two ways to view Nyx — an app window of its own (the default), or a website tab."""
+    import app_window
     import paths
 
     monkeypatch.setattr(paths, "data_path", lambda name: tmp_path / name)
+    monkeypatch.setattr(app_window, "available", lambda: False)
     opened, spawned = [], []
     monkeypatch.setattr(launcher.webbrowser, "open", lambda url: opened.append(url))
     monkeypatch.setattr(launcher.subprocess, "Popen", lambda args, **kw: spawned.append(args))
 
-    assert launcher.view_mode() == "browser"
+    assert launcher.view_mode() == "app", "the owner asked for app by default, browser if wanted"
+    launcher.set_view_mode("browser")
     assert launcher.open_app(8000) == "browser" and opened == ["http://localhost:8000/"]
 
     launcher.set_view_mode("app")
@@ -336,9 +339,93 @@ def test_nyx_opens_as_a_browser_tab_or_its_own_app_window(tmp_path, monkeypatch)
     assert spawned == [["C:/Edge/msedge.exe", "--app=http://localhost:8000/chat", "--new-window"]]
 
     monkeypatch.setattr(launcher, "app_browser", lambda: "")
-    assert launcher.open_app(8000) == "browser", "no Edge or Chrome: the browser tab is the fallback"
+    assert launcher.open_app(8000) == "browser", "no window of our own and no Edge or Chrome: a browser tab"
     with pytest.raises(ValueError):
         launcher.set_view_mode("window")
+
+
+def test_the_app_window_is_nyx_s_own_before_any_browser(tmp_path, monkeypatch):
+    """Inside the engine, Nyx's own window opens signed in; the token rides in the environment, never the argv."""
+    import app_window
+    import paths
+
+    monkeypatch.setattr(paths, "data_path", lambda name: tmp_path / name)
+    monkeypatch.setattr(app_window, "available", lambda: True)
+    monkeypatch.setattr(app_window, "owner_session", lambda: "session-123")
+    monkeypatch.setitem(sys.modules, "server", SimpleNamespace())
+    spawned = []
+    monkeypatch.setattr(launcher.subprocess, "Popen", lambda args, **kw: spawned.append((args, kw["env"])))
+    monkeypatch.setattr(launcher, "app_browser", lambda: "C:/Edge/msedge.exe")
+
+    assert launcher.open_app(8000, "/chat") == "app"
+    (argv, env), = spawned
+    assert argv[1].endswith("app_window.py") and argv[-2:] == ["--url", "http://localhost:8000/chat"]
+    assert env["NYX_APP_TOKEN"] == "session-123" and "session-123" not in " ".join(argv)
+
+
+def test_a_second_launcher_asks_the_engine_to_open_the_window(tmp_path, monkeypatch):
+    """Clicking the shortcut while Nyx runs in the tray: only the engine can sign the window in, so it opens it."""
+    import app_window
+    import paths
+
+    monkeypatch.setattr(paths, "data_path", lambda name: tmp_path / name)
+    monkeypatch.setattr(app_window, "available", lambda: True)
+    monkeypatch.delitem(sys.modules, "server", raising=False)
+    spawned = []
+    monkeypatch.setattr(launcher.subprocess, "Popen", lambda args, **kw: spawned.append(args))
+
+    # The engine's side picks the note up while the second launcher waits.
+    taken = []
+    poller = threading.Timer(0.2, lambda: taken.append(launcher.take_open_request()))
+    poller.start()
+    assert launcher.open_app(8000, "/chat") == "app"
+    poller.join()
+    assert taken == [{"app": "nyx", "path": "/chat"}] and spawned == []
+
+    # Nobody listening (an engine started by hand): it opens the window itself, unsigned-in.
+    monkeypatch.setattr(launcher, "OPEN_REQUEST_WAIT_SECONDS", 0.2)
+    assert launcher.open_app(8000, "/") == "app"
+    assert len(spawned) == 1 and spawned[0][1].endswith("app_window.py")
+    assert not (tmp_path / "open_window_request.json").exists(), "an untaken request is cleaned up"
+
+
+def test_a_stale_or_odd_open_request_is_ignored(tmp_path, monkeypatch):
+    import paths
+
+    monkeypatch.setattr(paths, "data_path", lambda name: tmp_path / name)
+    request = tmp_path / "open_window_request.json"
+    request.write_text(json.dumps({"app": "nyx", "path": "/", "at": 0}), encoding="utf-8")
+    assert launcher.take_open_request() is None and not request.exists()
+    request.write_text(json.dumps({"app": "nyx", "path": "https://example.com", "at": __import__("time").time()}))
+    assert launcher.take_open_request() == {"app": "nyx", "path": "/"}
+
+
+def test_a_crash_starts_the_engine_again_but_never_in_a_loop(tmp_path, monkeypatch):
+    """Stay-on: a crash brings Nyx back; three in ten minutes leaves it off and says so."""
+    import paths
+
+    monkeypatch.setattr(paths, "data_path", lambda name: tmp_path / name)
+    spawned, boxes = [], []
+    monkeypatch.setattr(launcher, "_spawn_detached", lambda argv: spawned.append(argv))
+    monkeypatch.setattr(launcher, "message_box", lambda *a, **k: boxes.append(a))
+
+    results = [launcher.revive_after_crash(8000, RuntimeError("boom"), now=1000 + i) for i in range(4)]
+    assert results == [True, True, True, False]
+    assert len(spawned) == 3 and "--wait-for-port" in spawned[0] and boxes
+    log = json.loads((tmp_path / "logs/engine_crashes.json").read_text(encoding="utf-8"))
+    assert log[0]["error"] == "RuntimeError: boom" and log[-1]["revived"] is False
+    assert launcher.revive_after_crash(8000, now=1000 + 3600) is True, "an old crash streak does not count"
+
+
+def test_only_an_unrequested_stop_counts_as_a_crash():
+    engine = launcher.Engine(8000)
+    engine.server = SimpleNamespace(started=True, should_exit=False)
+    assert engine.crashed()
+    engine.request_stop()
+    assert not engine.crashed(), "Stop and Quit are not crashes"
+    engine = launcher.Engine(8000)
+    engine.server = SimpleNamespace(started=False)
+    assert not engine.crashed(), "a server that never came up is a startup failure, shown in a message box"
 
 
 def test_the_view_routes_are_the_local_owner_s():

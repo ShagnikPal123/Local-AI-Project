@@ -169,7 +169,10 @@ def wait_for_engine(port: int, timeout: float = READY_TIMEOUT_SECONDS,
     return False
 
 
-VIEW_MODES = ("browser", "app")
+VIEW_MODES = ("app", "browser")
+
+#: How long a second launcher waits for the running engine to pick up its "open a window" request.
+OPEN_REQUEST_WAIT_SECONDS = 2.0
 
 
 def _view_file() -> Path:
@@ -179,12 +182,16 @@ def _view_file() -> Path:
 
 
 def view_mode() -> str:
-    """How Nyx opens (UPDATE_IDEAS U25): "browser" = a tab in the default browser, "app" = its own window."""
+    """How Nyx opens (UPDATE_IDEAS U25): "app" = its own window, "browser" = a tab in the default browser.
+
+    The app window is the default (owner, 2026-10-13: "app by default, browser if wanted"). A choice the owner saved
+    earlier, either way, is kept.
+    """
     try:
         mode = json.loads(_view_file().read_text(encoding="utf-8")).get("mode")
     except (OSError, ValueError, AttributeError):
         mode = ""
-    return mode if mode in VIEW_MODES else "browser"
+    return mode if mode in VIEW_MODES else "app"
 
 
 def set_view_mode(mode: str) -> str:
@@ -206,10 +213,23 @@ def app_browser() -> str:
     return next((name for name in names if os.path.isfile(name)), "")
 
 
-def open_app(port: int, path: str = "/", mode: str = "") -> str:
-    """Open the workspace — in the default browser, or as its own app window. Returns how it was opened."""
+def app_window_available() -> bool:
+    """Whether "open as an app" can work here: Nyx's own window, or at least an Edge/Chrome app window."""
+    import app_window
+
+    return app_window.available() or bool(app_browser())
+
+
+def open_app(port: int, path: str = "/", mode: str = "", app: str = "nyx") -> str:
+    """Open the workspace as its own app window, or in the default browser. Returns how it was opened.
+
+    The app window tries, in order: Nyx's own desktop window (app_window.py), then Edge or Chrome with no tabs or
+    address bar, then a normal browser tab, so a PC missing a piece still gets Nyx on screen.
+    """
     url = f"http://localhost:{port}{path}"
     if (mode or view_mode()) == "app":
+        if _open_native_window(port, path, app):
+            return "app"
         exe = app_browser()
         if exe:
             try:
@@ -220,6 +240,73 @@ def open_app(port: int, path: str = "/", mode: str = "") -> str:
                 pass
     webbrowser.open(url)
     return "browser"
+
+
+def _open_native_window(port: int, path: str, app: str) -> bool:
+    """Open Nyx's own window. Inside the engine it starts the window signed in; elsewhere it asks the engine to.
+
+    Sessions live in the engine's memory, so only the engine's process can hand the window a working one. A second
+    launcher (the desktop shortcut clicked while Nyx runs in the tray, the usual case) therefore leaves a request
+    for the engine and only starts the window itself, unsigned-in, if no engine picks the request up.
+    """
+    import app_window
+
+    if not app_window.available():
+        return False
+    if "server" not in sys.modules and _ask_engine_to_open(app, path):
+        return True
+    url = f"http://localhost:{port}{path}"
+    token = app_window.owner_session() if "server" in sys.modules else ""
+    env = dict(os.environ, NYX_APP_TOKEN=token)
+    try:
+        subprocess.Popen(app_window.command(app, url), env=env, cwd=str(project_dir()), close_fds=True,
+                         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        return True
+    except OSError:
+        return False
+
+
+def _open_request_file() -> Path:
+    import paths
+
+    return paths.data_path("open_window_request.json")
+
+
+def _ask_engine_to_open(app: str, path: str, wait: Optional[float] = None) -> bool:
+    """Leave an "open a window" note for the running engine and wait briefly for it to be taken.
+
+    A file rather than a new HTTP route: an unauthenticated route that opens windows would be reachable by any web
+    page through the browser, and a file in Nyx's own data folder is reachable only by this PC's user.
+    """
+    request = _open_request_file()
+    try:
+        request.write_text(json.dumps({"app": app, "path": path, "at": time.time()}), encoding="utf-8")
+    except OSError:
+        return False
+    deadline = time.monotonic() + (OPEN_REQUEST_WAIT_SECONDS if wait is None else wait)
+    while time.monotonic() < deadline:
+        if not request.exists():
+            return True
+        time.sleep(0.1)
+    try:
+        request.unlink()  # nobody listening (an engine started by hand, or an older one): open it ourselves
+    except OSError:
+        return True  # taken in the last moment
+    return False
+
+
+def take_open_request(max_age: float = 30.0) -> Optional[Dict[str, str]]:
+    """The engine's side: claim a pending window request, if a fresh one is waiting."""
+    request = _open_request_file()
+    try:
+        data = json.loads(request.read_text(encoding="utf-8"))
+        request.unlink()
+    except (OSError, ValueError):
+        return None
+    if not isinstance(data, dict) or time.time() - float(data.get("at") or 0) > max_age:
+        return None
+    path = str(data.get("path") or "/")
+    return {"app": str(data.get("app") or "nyx"), "path": path if path.startswith("/") else "/"}
 
 
 # ---------------------------------------------------------------------------
@@ -441,6 +528,7 @@ class Engine:
         self.error: Optional[BaseException] = None
         self.on_stopped: Optional[Callable[[], None]] = None
         self.restart_requested = False
+        self.stop_requested = False
 
     def start(self) -> None:
         import uvicorn
@@ -477,6 +565,8 @@ class Engine:
                 self.error = error
             finally:
                 _forget_state(self.port)
+                if self.crashed():
+                    revive_after_crash(self.port, self.error)
                 if self.on_stopped is not None:
                     try:
                         self.on_stopped()
@@ -495,11 +585,33 @@ class Engine:
         self.thread = threading.Thread(target=run, name="nyx-engine", daemon=True)
         self.thread.start()
         _record_state(self.port)
+        threading.Thread(target=self._serve_open_requests, name="nyx-open-requests", daemon=True).start()
 
     def alive(self) -> bool:
         return bool(self.thread and self.thread.is_alive())
 
+    def crashed(self) -> bool:
+        """The server went down after it was up, and nobody asked it to (Stop, Restart, Quit all set a flag first).
+
+        A server that never came up is not a crash to recover from: startup failures are shown in a message box
+        by ``_start_engine`` instead, and restarting into the same failure would only loop.
+        """
+        started = bool(getattr(self.server, "started", False))
+        return started and not self.stop_requested and not self.restart_requested
+
+    def _serve_open_requests(self, interval: float = 0.3) -> None:
+        """Open the window another launcher asked for (the desktop shortcut clicked while Nyx runs in the tray)."""
+        while self.alive():
+            request = take_open_request()
+            if request is not None:
+                try:
+                    open_app(self.port, request["path"], mode="app", app=request["app"])
+                except Exception:  # noqa: BLE001 - a window that fails to open must not take the engine with it
+                    pass
+            time.sleep(interval)
+
     def request_stop(self) -> None:
+        self.stop_requested = True
         if self.server is not None:
             self.server.should_exit = True
 
@@ -514,6 +626,52 @@ class Engine:
     def join(self, timeout: Optional[float] = None) -> None:
         if self.thread is not None:
             self.thread.join(timeout)
+
+
+#: Stay-on: how many crashes in how long are recovered by starting again. Past that something is
+#: persistently broken, and restarting forever would only hide it and burn the CPU.
+REVIVE_LIMIT = 3
+REVIVE_WINDOW_SECONDS = 600.0
+
+
+def _crash_file() -> Path:
+    import paths
+
+    return paths.data_path("logs/engine_crashes.json")
+
+
+def revive_after_crash(port: int, error: Optional[BaseException] = None, now: Optional[float] = None) -> bool:
+    """Start a fresh engine after a crash, unless it has crashed too often lately. Returns whether it did.
+
+    The owner asked for Nyx to stay on (Fixer Upper WS14, "anti-crash and stay-on"). Each crash is written down with
+    its error, so the log says why it went down even when it came straight back up.
+    """
+    now = time.time() if now is None else now
+    path = _crash_file()
+    try:
+        recent = [c for c in json.loads(path.read_text(encoding="utf-8")) if now - float(c.get("at", 0)) < REVIVE_WINDOW_SECONDS]
+    except (OSError, ValueError, TypeError, AttributeError):
+        recent = []
+    revive = len(recent) < REVIVE_LIMIT
+    recent.append({"at": now, "error": f"{type(error).__name__}: {error}" if error else "stopped unexpectedly",
+                   "revived": revive})
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(recent[-20:], indent=1), encoding="utf-8")
+    except OSError:
+        pass
+    print(f"  Engine stopped unexpectedly ({recent[-1]['error']}); "
+          + ("starting it again." if revive else f"{REVIVE_LIMIT} crashes in 10 minutes, so leaving it off."))
+    if revive:
+        try:
+            _spawn_detached(launch_command("--background", "--wait-for-port", str(port)))
+        except OSError:
+            return False
+    else:
+        message_box("Nyx Ichos keeps stopping",
+                    f"The engine stopped {REVIVE_LIMIT} times in 10 minutes, so it was left off.\n\n"
+                    f"Details are in the log:\n{log_path()}", error=True)
+    return revive
 
 
 def _record_state(port: int) -> None:
