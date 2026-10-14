@@ -7,7 +7,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
-  controlsApi, type DayPlan, type HomeViewId, type Launcher, type NotchControls, type Playing, type Timer, type WaitingItem, type Weather,
+  controlsApi, looksApi, type DayPlan, type HomeViewId, type Launcher, type NotchControls, type NotchLook, type Playing, type Timer,
+  type WaitingItem, type Weather,
 } from "./notchApi";
 
 const svg = (d: React.ReactNode, size = 15, fill = false) => (
@@ -252,4 +253,16 @@ export function WaitingView({ items, onAnswer, onOpen, onLater }: {
       </div>
     </div>
   );
+}
+
+/** The look in use; the setup page changing it shows here within a few seconds. */
+export function useLook(): { look: NotchLook | null; fonts: Record<string, string> } {
+  const [state, setState] = useState<{ look: NotchLook | null; fonts: Record<string, string> }>({ look: null, fonts: {} });
+  useEffect(() => {
+    const load = () => void looksApi.list().then((r) => { if (r.ok) setState({ look: r.data.active, fonts: r.data.fonts }); });
+    load();
+    const id = window.setInterval(load, 5000);
+    return () => window.clearInterval(id);
+  }, []);
+  return state;
 }

@@ -20,8 +20,8 @@ import {
   notchApi, type AssistantSettings, type CatalogAgent, type FileRead, type NotchAgent, type Work, type WorkStep,
 } from "./notchApi";
 import { play, setSfxVolume } from "./sfx";
-import { AppsView, SingleView, VIEW_LABEL, WaitingView, useControls } from "./controls";
-import { answerMessage, controlsApi, waitingApi, type HomeViewId, type WaitingItem } from "./notchApi";
+import { AppsView, SingleView, VIEW_LABEL, WaitingView, useControls, useLook } from "./controls";
+import { answerMessage, controlsApi, lookStyle, waitingApi, type HomeViewId, type WaitingItem } from "./notchApi";
 import {
   AgentsView, AppView, ChatView, ChooseView, DropView, EmptyView, HomeView, Icon, MailView, NoteView, SettingsView,
   SoundView, TimerView, UploadingView, WorkView, agentIoState, formatLeft, type ChatEntry,
@@ -33,7 +33,7 @@ type View = "home" | "empty" | "chat" | "drop" | "uploading" | "choose" | "mail"
   | "settings" | "timer" | "sound" | "app" | "apps" | "now_playing" | "weather" | "calendar" | "waiting";
 type Tab = "home" | "chat" | "new";
 
-const NOTCH_W = 184, NOTCH_H = 32, COMPACT_W = 288, PEEK_W = NOTCH_W + 64, EXPANDED_W = 640;
+const NOTCH_W = 184, NOTCH_H = 32, COMPACT_W = 288, PEEK_W = NOTCH_W + 64;
 const HEIGHTS: Record<View, number> = {
   home: 160, empty: 150, chat: 176, drop: 176, uploading: 150, choose: 176, mail: 248, note: 136, work: 256,
   agents: 240, settings: 280, timer: 184, sound: 176, app: 210, apps: 196, now_playing: 186, weather: 186, calendar: 186, waiting: 176,
@@ -87,6 +87,10 @@ export function Notch({ embedded = false }: { embedded?: boolean }) {
   const prevStates = useRef<Record<string, string>>({});
   const islandRef = useRef<HTMLDivElement>(null);
   const { controls, reload: reloadControls } = useControls();
+  const { look, fonts } = useLook();
+  // The open width and how long the pointer rests before it opens come from the look in use (notch_looks.py).
+  const EXPANDED_W = look?.width ?? 640;
+  const hoverDelay = look?.activation?.hover_delay_ms ?? 650;
 
   const later = (fn: () => void, ms: number) => timers.current.push(window.setTimeout(fn, ms));
   const clearLater = () => { timers.current.forEach(clearTimeout); timers.current = []; };
@@ -269,7 +273,7 @@ export function Notch({ embedded = false }: { embedded?: boolean }) {
       setPeeking(true);
       play("peek");
       setEmote({ name: "happy", at: Date.now() });
-      later(() => { hoverOpened.current = true; openView(homeView()); }, 650);
+      later(() => { hoverOpened.current = true; openView(homeView()); }, hoverDelay);
     } else {
       later(() => { hoverOpened.current = true; openView(homeView()); }, 200);
     }
@@ -727,7 +731,7 @@ export function Notch({ embedded = false }: { embedded?: boolean }) {
   );
 
   return (
-    <div className={`nx ${embedded ? "embedded" : "desktop"}`}>
+    <div className={`nx ${embedded ? "embedded" : "desktop"} ${look?.glow ? "glow" : ""}`} style={lookStyle(look, fonts)}>
       {!embedded && mode === "hidden" && <div className="nx-wake" onMouseEnter={onEnter} onDragOver={onDragOver} />}
       {trio}
       {island}

@@ -181,3 +181,38 @@ export function answerMessage(card: QuestionCard, label: string): string {
   const means = card.options.find((o) => o.label === label)?.means ?? "";
   return `**${card.question}**\n→ ${label}${means ? ` (${means})` : ""}`;
 }
+
+// ── Looks (notch_looks.py) ──────────────────────────────────────────────────
+
+export interface NotchLook {
+  id: string;
+  name: string;
+  colors: { island: string; card: string; ink: string; dim: string; accent: string };
+  radius: { closed: number; open: number };
+  width: number;
+  font: string;
+  glow: boolean;
+  activation?: { open_on_hover?: boolean; hover_delay_ms?: number; autoclose_s?: number; trio?: boolean };
+  built_in?: boolean;
+}
+
+export const looksApi = {
+  list: () => api.get<{ active: NotchLook; looks: NotchLook[]; fonts: Record<string, string> }>("/api/notch/looks"),
+  use: (id: string) => api.post<{ active: NotchLook; looks: NotchLook[]; fonts: Record<string, string> }>("/api/notch/looks/use", { id }),
+  importLook: (look: unknown) =>
+    api.post<{ active: NotchLook; looks: NotchLook[]; fonts: Record<string, string> }>("/api/notch/looks/import", look),
+  remove: (id: string) => api.del<{ active: NotchLook; looks: NotchLook[]; fonts: Record<string, string> }>(`/api/notch/looks/${encodeURIComponent(id)}`),
+  exportLook: (id: string) => api.get<Record<string, unknown>>(`/api/notch/looks/${encodeURIComponent(id)}/export`),
+};
+
+/** The CSS variables a look sets on the notch (notch.css reads them). Values were checked by notch_looks.clean. */
+export function lookStyle(look: NotchLook | null, fonts: Record<string, string>): React.CSSProperties {
+  if (!look) return {};
+  const c = look.colors;
+  return {
+    ["--island" as string]: c.island, ["--card" as string]: c.card, ["--card-flat" as string]: c.card,
+    ["--ink" as string]: c.ink, ["--ink-2" as string]: c.ink, ["--dim" as string]: c.dim, ["--dim-2" as string]: c.dim,
+    ["--accent" as string]: c.accent, ["--r-closed" as string]: `${look.radius.closed}px`,
+    ["--r-open" as string]: `${look.radius.open}px`, ["--font" as string]: fonts[look.font] ?? fonts.system,
+  };
+}
