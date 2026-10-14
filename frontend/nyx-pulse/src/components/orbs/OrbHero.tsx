@@ -5,6 +5,7 @@
  */
 
 import { useEffect, useState } from "react";
+import type React from "react";
 import { useReducedMotion } from "../../useReducedMotion";
 import { IchosOrb } from "./IchosOrb";
 import { ORB_MEANING, orbStateFor, type OrbState } from "./orbState";
@@ -15,9 +16,11 @@ interface Props {
   intro: string;
   suggestions: string[];
   onSuggestion?: (text: string) => void;
+  /** The new-chat greeting (item 1.15); the old question stays as the fallback. */
+  title?: React.ReactNode;
 }
 
-export function OrbHero({ intro, suggestions, onSuggestion }: Props) {
+export function OrbHero({ intro, suggestions, onSuggestion, title }: Props) {
   const reduced = useReducedMotion();
   const [index, setIndex] = useState(0);
   const [held, setHeld] = useState<OrbState | null>(null);
@@ -35,7 +38,7 @@ export function OrbHero({ intro, suggestions, onSuggestion }: Props) {
       <div className="orb-hero__stage">
         <IchosOrb state={state} size={128} label={`Ichos is ${ORB_MEANING[state]}`} />
       </div>
-      <h2 className="orb-hero__title">What should Ichos think about?</h2>
+      <h2 className="orb-hero__title">{title ?? "What should Ichos think about?"}</h2>
       <p className="orb-hero__caption" aria-live="polite">
         <b>{state}</b> — {ORB_MEANING[state]}
       </p>
