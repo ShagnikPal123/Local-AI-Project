@@ -32,6 +32,7 @@ import { UsageBar } from "../components/UsageBar";
 import { ContextBar } from "../components/chat/ContextBar";
 import { ModeSlider, readMode, type ChatMode } from "../components/chat/ModeSlider";
 import { ChatRail, type RailMakeKind } from "../components/chat/ChatRail";
+import { ChatTitleMenu } from "../components/chat/ChatTitleMenu";
 import type { AvatarState } from "../components/NyxAvatar";
 import {
   AgentDock,
@@ -1077,6 +1078,9 @@ export function ChatPanel({
             {headExtra}
             <h2 className="chat-home__title" title={title}>{title}</h2>
             <ChatActions onMake={(kind) => void makeChat(kind)} />
+            <ChatTitleMenu chatId={activeChatId} title={title} disabled={activeChatId === "default"}
+              onRename={(id, next) => void onRenameChat(id, next).then(() => pushToast(`Renamed to “${next}”.`, "ok"))}
+              onDelete={(id) => void onDeleteChat(id)} />
             <span className="chat-home__spacer" />
             {activeTalkSupported() && <VoiceSwitch mode={voice} onMode={setVoice} />}
             <ProviderPicker value={provider} onChange={(next) => void pickProvider(next)} compact />
@@ -1175,6 +1179,9 @@ export function ChatPanel({
           />
           <button className="btn btn-secondary" onClick={() => void onNewChat()} aria-label="New chat" title="New chat">＋</button>
           <ChatActions onMake={(kind) => void makeChat(kind)} />
+          <ChatTitleMenu chatId={activeChatId} title={chats.find((c) => c.id === activeChatId)?.title || "New chat"} disabled={activeChatId === "default"}
+            onRename={(id, next) => void onRenameChat(id, next).then(() => pushToast(`Renamed to “${next}”.`, "ok"))}
+            onDelete={(id) => void onDeleteChat(id)} />
           {activeTalkSupported() && <VoiceSwitch mode={voice} onMode={setVoice} />}
           <ProviderPicker value={provider} onChange={(next) => void pickProvider(next)} compact />
           {paneBar?.end}
