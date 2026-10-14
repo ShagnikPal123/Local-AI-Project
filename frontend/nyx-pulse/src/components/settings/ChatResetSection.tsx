@@ -1,4 +1,4 @@
-/** Settings › Storage › Reset chats (owner, 2026-10-14: "add that as an option if the user feels their chats have
+/** Settings › General › Reset chats (owner, 2026-10-14: "add that as an option if the user feels their chats have
  * gotten out of hand", and "add a clear for whatsapp chat as well"). Backed by POST /api/chat-reset (chat_reset.py).
  *
  * Everything it touches is copied to a backup folder first, and chats go to Recently deleted, never straight out.
@@ -52,20 +52,20 @@ export function ChatResetSection() {
   }
 
   return (
-    <div className="appearance">
-      <span className="appearance__hint">If chats have gotten out of hand (a voice that will not go away, an avatar talking where it should not), reset what you pick below.</span>
-      {PARTS.map((part) => (
-        <div className="appearance__row" key={part.id}>
-          <label className="appearance__custom">
-            <input type="checkbox" checked={picked.has(part.id)} onChange={() => toggle(part.id)} aria-label={part.label} />
-            <span className="appearance__label">{part.label}</span>
-          </label>
-          <span className="appearance__hint">{part.hint}</span>
-        </div>
-      ))}
-      <div className="appearance__row">
-        <button type="button" className="btn" onClick={() => void run()} disabled={busy || picked.size === 0}>{busy ? "Resetting…" : "Reset chosen"}</button>
-        <span className="appearance__hint" role="status">{note}</span>
+    <div className="chat-reset">
+      <ul className="chat-reset__list">
+        {PARTS.map((part) => (
+          <li key={part.id}>
+            <label className="chat-reset__item">
+              <input type="checkbox" checked={picked.has(part.id)} onChange={() => toggle(part.id)} />
+              <span><b>{part.label}</b><small>{part.hint}</small></span>
+            </label>
+          </li>
+        ))}
+      </ul>
+      <div className="chat-reset__foot">
+        <button type="button" className="btn btn-secondary" onClick={() => void run()} disabled={busy || picked.size === 0}>{busy ? "Resetting…" : "Reset chosen"}</button>
+        <span role="status">{note}</span>
       </div>
     </div>
   );

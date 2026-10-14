@@ -29,7 +29,7 @@ const GROUPS: { title: string; pages: Page[] }[] = [
   {
     title: "Ichos",
     pages: [
-      { id: "general", label: "General", glyph: "⚙", purpose: "The engine, how Ichos opens, safety and response speed." },
+      { id: "general", label: "General", glyph: "⚙", purpose: "The engine, resetting chats, how Ichos opens, safety and response speed." },
       { id: "voice", label: "Voice", glyph: "◉", purpose: "Voices you can hear before choosing, and the sounds Ichos answers to." },
       { id: "appearance", label: "Appearance", glyph: "◐", purpose: "Background and content settings." },
     ],
