@@ -374,6 +374,8 @@ export interface ToastItem {
   text: string;
   level: "info" | "ok" | "warn" | "error";
   action?: { label: string; onClick: () => void };
+  /** Who or what the notice is about (a chat's name); shown in bold above the text. */
+  title?: string;
 }
 
 export interface ToastsProps {

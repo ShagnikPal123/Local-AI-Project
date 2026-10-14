@@ -5,7 +5,19 @@
  * the store; these buttons only remove.
  */
 
+import { useEffect, type CSSProperties } from "react";
+import { loadToastPosition, useToastPosition, type ToastPosition } from "../../state/toastStore";
 import type { ToastsProps } from "./types";
+
+/** Where each corner puts the stack. The middle ones centre it; the top ones grow downwards. */
+const PLACE: Record<ToastPosition, CSSProperties> = {
+  "top-left": { top: 16, left: 16 },
+  "top-center": { top: 16, left: "50%", transform: "translateX(-50%)" },
+  "top-right": { top: 16, right: 16 },
+  "bottom-left": { bottom: 16, left: 16 },
+  "bottom-center": { bottom: 16, left: "50%", transform: "translateX(-50%)" },
+  "bottom-right": { bottom: 16, right: 16 },
+};
 
 const GLYPH: Record<string, string> = { info: "•", ok: "✓", warn: "⚠", error: "✕" };
 
@@ -17,14 +29,16 @@ const BORDER: Record<string, string> = {
 };
 
 export function Toasts({ items, onDismiss }: ToastsProps) {
+  const position = useToastPosition();
+  useEffect(() => { loadToastPosition(); }, []);
   if (items.length === 0) return null;
   return (
     <div
       role="status"
       aria-live="polite"
       style={{
-        position: "fixed", bottom: 16, right: 16, zIndex: 60,
-        display: "flex", flexDirection: "column", gap: 8, maxWidth: 340,
+        position: "fixed", ...PLACE[position], zIndex: 60,
+        display: "flex", flexDirection: position.startsWith("top") ? "column-reverse" : "column", gap: 8, maxWidth: 340,
       }}
     >
       {items.map((toast) => (
@@ -39,6 +53,7 @@ export function Toasts({ items, onDismiss }: ToastsProps) {
         >
           <span aria-hidden="true" style={{ color: BORDER[toast.level] }}>{GLYPH[toast.level]}</span>
           <span style={{ flex: 1, minWidth: 0 }}>
+            {toast.title && <strong style={{ display: "block", marginBottom: 1 }}>{toast.title}</strong>}
             {toast.text}
             {toast.action && (
               <button
