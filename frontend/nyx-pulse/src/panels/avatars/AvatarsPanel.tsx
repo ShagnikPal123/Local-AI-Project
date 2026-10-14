@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../api";
 import { onWorkspaceEvent } from "../../state/workspaceEvents";
+import { startItemDrag } from "../../state/dragItems";
 import "./avatars.css";
 
 type Rule = "allow" | "ask";
@@ -130,7 +131,9 @@ export function AvatarsPanel() {
         <ul className="av-list" aria-label="Avatars">
           {list.map((a) => (
             <li key={a.id}>
-              <div className={`av-card${a.id === selected ? " is-selected" : ""}`}>
+              <div className={`av-card${a.id === selected ? " is-selected" : ""}`} draggable
+                title="Drag onto a tab to point the AI at this avatar"
+                onDragStart={(e) => startItemDrag(e, { kind: "avatar", id: a.id, label: a.name })}>
                 <button className="av-card__main" onClick={() => setSelected(a.id)} aria-pressed={a.id === selected}>
                   <Emblem avatar={a} />
                   <span className="av-card__text">

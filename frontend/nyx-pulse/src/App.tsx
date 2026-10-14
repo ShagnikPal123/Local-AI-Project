@@ -39,7 +39,7 @@ import { TabBoundary } from "./components/TabBoundary";
 import { WorkInProgress } from "./components/WorkInProgress";
 import { onWorkspaceEvent } from "./state/workspaceEvents";
 import { applyOrder, moveTab, readTabOrder, saveTabOrder } from "./state/tabOrder";
-import { ITEM_DROPPED_EVENT, type DragItem } from "./state/dragItems";
+import { ITEM_DROPPED_EVENT, startItemDrag, type DragItem } from "./state/dragItems";
 import { startMods } from "./state/modsStore";
 import { startVoicePlayer } from "./voice/voicePlayer";
 import { FileDropOverlay } from "./files/FileDropOverlay";
@@ -418,7 +418,8 @@ export default function App() {
       {!studio && navSide !== "top" && tabBar}
       <div className="app-col">
       <header className="shell-bar">
-        <div className="shell-brand">
+        <div className="shell-brand" draggable title="Drag the assistant onto a tab"
+          onDragStart={(e) => startItemDrag(e, { kind: "assistant", id: "assistant", label: "the assistant" })}>
           <NyxAvatar state={avatar} size={28} />
           <div style={{ lineHeight: 1 }}>
             <div className="shell-brand__name">NYX ICHOS</div>
