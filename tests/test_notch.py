@@ -205,3 +205,28 @@ def test_the_picked_tab_is_kept_for_the_sidebar(monkeypatch):
 
 def test_the_sidebar_is_off_until_started():
     assert notch.sidebar_running() is False
+
+
+# ── Dragging the notch along the top edge ─────────────────────────────────────
+
+
+def test_drag_keeps_the_notch_on_screen_and_snaps_to_the_middle():
+    import notch_window
+
+    # 1920 px screen at 100%: the cursor grabbed the notch at its centre.
+    assert notch_window.drag_offset(960 + 25, 0, 1920, 1.0, 640) == 0.0  # near the middle: back to the middle
+    assert notch_window.drag_offset(960 + 300, 0, 1920, 1.0, 640) == 300
+    assert notch_window.drag_offset(5000, 0, 1920, 1.0, 640) == 640  # (1920 - 640) / 2: the edge, not off screen
+    # At 150 % the same CSS distance is 1.5x the device pixels; a grab right of centre is kept.
+    assert notch_window.drag_offset(1440 + 450 + 30, 30, 2880, 1.5, 640) == 300
+
+
+def test_a_locked_notch_does_not_start_a_drag(monkeypatch):
+    import notch_window
+
+    monkeypatch.setattr(notch_window, "_post", lambda path, body: None)
+    bridge = notch_window.Bridge()
+    bridge.set_lock(True)
+    assert bridge.drag_start() is False and notch_window._drag["on"] is False
+    bridge.set_lock(False)
+    assert bridge.place()["locked"] is False
