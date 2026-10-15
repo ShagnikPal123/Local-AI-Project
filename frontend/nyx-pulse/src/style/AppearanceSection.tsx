@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { fetchDesktopTheme } from "./desktopSync";
 import { clearTabOrder } from "../state/tabOrder";
+import { mascotShown, setMascotShown } from "../components/mascot/Mascot";
 import { ACCENTS, applyAppearance, readAppearance, type DesktopTheme, type NavChoice } from "./appearance";
 
 const SIDES: { id: NavChoice; label: string }[] = [
@@ -14,6 +15,7 @@ export function AppearanceSection() {
   const set = (next: Parameters<typeof applyAppearance>[0]) => setSaved(applyAppearance(next));
   const [desktop, setDesktop] = useState<DesktopTheme | null>(null);
   useEffect(() => { void fetchDesktopTheme().then(setDesktop); }, []);
+  const [mascot, setMascot] = useState(mascotShown);
   return (
     <div className="appearance">
       <div className="appearance__row">
@@ -54,6 +56,15 @@ export function AppearanceSection() {
               onClick={() => set({ nav: s.id })}>{s.label}</button>
           ))}
         </div>
+      </div>
+      <div className="appearance__row">
+        <span className="appearance__label">Io on the chat box</span>
+        <label className="appearance__custom" title="The pixel octopus: one arm lights up per running task">
+          <input type="checkbox" role="switch" checked={mascot} aria-label="Show Io on the chat box"
+            onChange={(e) => { setMascotShown(e.target.checked); setMascot(e.target.checked); }} />
+          {mascot ? "Shown" : "Hidden"}
+        </label>
+        <span className="appearance__hint">One arm lights up for each task that is running.</span>
       </div>
       <div className="appearance__row">
         <span className="appearance__label">Tab order</span>
