@@ -305,6 +305,8 @@ export function SettingsPanel({ group = "general" }: { group?: SettingsGroup }) 
 
         {group === "general" && <>
           <EngineSection />
+          {/* Near the top of the first page, where anyone looks first (owner: "the manual reset button for users"). */}
+          <Section title="Reset chats" hint="For chats that have gotten out of hand. Backed up first; nothing is purged."><ChatResetSection /></Section>
           <ViewSection />
           <SafetySection />
           <NotificationsSection />
@@ -384,7 +386,6 @@ export function SettingsPanel({ group = "general" }: { group?: SettingsGroup }) 
         {group === "storage" && <>
           <Section title="Storage"><StorageSection /></Section>
           <Section title="Old chats" hint="Tidy the chat list on its own. Off until you turn it on."><ChatCleanupSection /></Section>
-          <Section title="Reset chats" hint="For chats that have gotten out of hand. Backed up first; nothing is purged."><ChatResetSection /></Section>
         </>}
       </div>
   );

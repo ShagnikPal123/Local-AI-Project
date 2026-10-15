@@ -113,3 +113,14 @@
 .platform-range { display: grid; gap: 6px; font-size: 12.5px; color: var(--color-neutral-400); margin-bottom: 12px; }
 .platform-range b { color: var(--color-text); }
 .platform-drives { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+
+/* Settings › General › Reset chats: one compact row per part, the hint under its label. */
+.chat-reset { display: flex; flex-direction: column; gap: 10px; }
+.chat-reset__list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px; }
+.chat-reset__item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border-radius: 10px; cursor: pointer;
+  background: var(--color-surface-2); }
+.chat-reset__item:hover { box-shadow: inset 0 0 0 1px var(--color-accent); }
+.chat-reset__item input { flex: none; width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--color-accent); }
+.chat-reset__item > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 13px; }
+.chat-reset__item small { color: var(--color-neutral-600); font-size: 12px; line-height: 1.4; }
+.chat-reset__foot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 12px; overflow-wrap: anywhere; }
