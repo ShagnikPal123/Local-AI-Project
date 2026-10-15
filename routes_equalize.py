@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 router = APIRouter()
 
@@ -137,6 +137,62 @@ def blast_radius_save(body: Dict[str, Any], _owner_user=Depends(_owner)) -> Dict
 
     blast_radius.set_enabled(bool((body or {}).get("enabled", True)))
     return blast_radius_state(_owner_user)
+
+
+# --- user hooks (user_hooks.py; Drive doc 1 item 1.29, like Claude Code's hooks) -----------------------------------
+
+
+def _hooks_state() -> Dict[str, Any]:
+    import user_hooks
+
+    return {"enabled": user_hooks.enabled(), "events": list(user_hooks.EVENTS), "hooks": user_hooks.list_hooks(),
+            "recent": user_hooks.recent()}
+
+
+@router.get("/api/hooks")
+def hooks_list(_owner_user=Depends(_owner)) -> Dict[str, Any]:
+    return _hooks_state()
+
+
+@router.put("/api/hooks")
+def hooks_switch(body: Dict[str, Any], _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import user_hooks
+
+    user_hooks.set_enabled(bool((body or {}).get("enabled", True)))
+    return _hooks_state()
+
+
+@router.post("/api/hooks")
+def hooks_add(body: Dict[str, Any], _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import user_hooks
+
+    body = body or {}
+    try:
+        user_hooks.add_hook(str(body.get("event", "")), str(body.get("command", "")), str(body.get("match") or "*"),
+                            int(body.get("timeout") or 10), str(body.get("name") or ""))
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return _hooks_state()
+
+
+@router.patch("/api/hooks/{hook_id}")
+def hooks_edit(hook_id: str, body: Dict[str, Any], _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import user_hooks
+
+    body = body or {}
+    changes = {k: body.get(k) for k in ("enabled", "name", "match", "command", "timeout") if k in body}
+    if user_hooks.update_hook(hook_id, **changes) is None:
+        raise HTTPException(status_code=404, detail="No hook with that id.")
+    return _hooks_state()
+
+
+@router.delete("/api/hooks/{hook_id}")
+def hooks_remove(hook_id: str, _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import user_hooks
+
+    if not user_hooks.remove_hook(hook_id):
+        raise HTTPException(status_code=404, detail="No hook with that id.")
+    return _hooks_state()
 
 
 # --- design research (design_research.py; the DESIGN_MASTERPLAN research log as a Nyx feature) ----------------------
