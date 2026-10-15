@@ -91,8 +91,10 @@ async function transcribe(wav: ArrayBuffer): Promise<{ text: string; engine: str
   return { text: String(body.text ?? ""), engine: String(body.engine ?? ""), ms: Number(body.ms ?? 0) };
 }
 
-/** Start recording sentences from the meter's microphone. `pauseMs` says how long a pause ends a sentence. */
-export function startLocalEar(callbacks: EarCallbacks, pauseMs: () => number): boolean {
+/** Start recording sentences from the meter's microphone. `pauseMs` says how long a pause ends a sentence.
+ * `longestMs` skips sentences with more speech than that: the wake phrase only needs short ones, and a TV or a
+ * conversation in the room then costs the PC nothing. */
+export function startLocalEar(callbacks: EarCallbacks, pauseMs: () => number, longestMs = 0): boolean {
   if (ear) return true;
   const stream = vadStream();
   const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -123,7 +125,7 @@ export function startLocalEar(callbacks: EarCallbacks, pauseMs: () => number): b
     const audio = join(sentence);
     sentence = [];
     recording = false;
-    if (spokeFor < MIN_SPEECH_MS) return;
+    if (spokeFor < MIN_SPEECH_MS || (longestMs && spokeFor > longestMs)) return;
     callbacks.busy?.(true);
     void transcribe(encodeWav(audio, rate))
       .then((heard) => callbacks.heard(heard.text.trim(), { engine: heard.engine, ms: heard.ms }))
