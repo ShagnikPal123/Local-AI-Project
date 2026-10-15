@@ -31,6 +31,7 @@ import { onVoiceMode, setVoiceMode, voiceMode, type VoiceMode } from "../voice/v
 import { UsageBar } from "../components/UsageBar";
 import { ContextBar } from "../components/chat/ContextBar";
 import { ModeSlider, readMode, type ChatMode } from "../components/chat/ModeSlider";
+import { ChatCodeSwitch, CodeBar, CodeSessionCard, folderName, useCodeSession } from "../components/chat/CodeSwitch";
 import { ChatRail, type RailMakeKind } from "../components/chat/ChatRail";
 import { ChatTitleMenu } from "../components/chat/ChatTitleMenu";
 import { PersonaBadge } from "../components/chat/PersonaBadge";
@@ -542,6 +543,14 @@ export function ChatPanel({
     });
   }, []);
 
+  /** Chat / Code (Drive doc 2, 2.1): in Code the chat works in a folder, in an environment. */
+  const code = useCodeSession(activeChatId);
+  const codeCard = code.picking ? (
+    <CodeSessionCard state={code.state} onChange={code.update} onClose={() => code.setPicking(false)} />
+  ) : null;
+  const codeBar = <CodeBar state={code.state} onOpen={() => code.setPicking(true)} />;
+  const composerHint = code.payload ? `Describe the change in ${folderName(code.payload.folder)}…` : undefined;
+
   // --- sending ---------------------------------------------------------------------
 
   const doSend = useCallback(
@@ -572,9 +581,9 @@ export function ChatPanel({
       onSent?.(body);
       await send({ message: (body || "Please look at the attached file(s).") + takeAbilitiesNote(), chatId: activeChatId, attachmentIds,
                    provider: talkOn ? voiceProvider || provider : provider, voice: talkOn,
-                   voiceSession, mode: modeOverride ?? chatMode });
+                   voiceSession, mode: modeOverride ?? chatMode, code: code.payload });
     },
-    [activeChatId, pending, persist, removeAttachment, send, onSent, provider, talkOn, voiceProvider, chatMode],
+    [activeChatId, pending, persist, removeAttachment, send, onSent, provider, talkOn, voiceProvider, chatMode, code.payload],
   );
 
   const doSendRef = useRef(doSend);
@@ -1149,6 +1158,7 @@ export function ChatPanel({
               onDelete={(id) => void onDeleteChat(id)} />
             <span className="chat-home__spacer" />
             {activeTalkSupported() && <VoiceSwitch mode={voice} onMode={setVoice} />}
+            <ChatCodeSwitch on={code.state.on} onChange={(on) => code.update({ on })} />
             <ProviderPicker value={provider} onChange={(next) => void pickProvider(next)} compact />
           </header>
           <div className="chat-home__meta">
@@ -1192,6 +1202,7 @@ export function ChatPanel({
                 onStarted={(d) => setDispatches((current) => [d, ...current.filter((x) => x.dispatch_id !== d.dispatch_id)])} />
             )}
             <ModBand />
+            {codeCard}
             <Composer
               value={draft}
               onChange={setDraft}
@@ -1202,12 +1213,13 @@ export function ChatPanel({
               onAttachFiles={onAttachFiles}
               onRemoveAttachment={removeAttachment}
               agents={agents}
-              placeholder="Ask Nyx anything…  (type / for commands)"
+              placeholder={composerHint ?? "Ask Nyx anything…  (type / for commands)"}
               slash={slash}
               onBusySend={(mode) => void onBusySend(mode)}
               busyAdvice={busyAdvice}
             />
             <div className="chat-bottom-row">
+              {codeBar}
               <ModeSlider chatId={activeChatId} mode={chatMode} onChange={setChatMode} busy={busy} />
             </div>
           </div>
@@ -1241,6 +1253,7 @@ export function ChatPanel({
             onRename={(id, next) => void onRenameChat(id, next).then(() => pushToast(`Renamed to “${next}”.`, "ok"))}
             onDelete={(id) => void onDeleteChat(id)} />
           {activeTalkSupported() && <VoiceSwitch mode={voice} onMode={setVoice} />}
+          <ChatCodeSwitch on={code.state.on} onChange={(on) => code.update({ on })} />
           <ProviderPicker value={provider} onChange={(next) => void pickProvider(next)} compact />
           {paneBar?.end}
         </div>
@@ -1278,6 +1291,7 @@ export function ChatPanel({
             onStarted={(d) => setDispatches((current) => [d, ...current.filter((x) => x.dispatch_id !== d.dispatch_id)])} />
         )}
         <ModBand />
+        {codeCard}
         <Composer
           value={draft}
           onChange={setDraft}
@@ -1288,7 +1302,7 @@ export function ChatPanel({
           onAttachFiles={onAttachFiles}
           onRemoveAttachment={removeAttachment}
           agents={agents}
-          placeholder="Ask Nyx anything…  (type / for commands)"
+          placeholder={composerHint ?? "Ask Nyx anything…  (type / for commands)"}
           slash={slash}
           onBusySend={(mode) => void onBusySend(mode)}
           busyAdvice={busyAdvice}
@@ -1296,6 +1310,7 @@ export function ChatPanel({
         {/* One row under the composer: how this chat works on the left.
             fc578b's <ChatToolbar /> (skills · agents · connectors) goes on the right. */}
         <div className="chat-bottom-row">
+          {codeBar}
           <ModeSlider chatId={activeChatId} mode={chatMode} onChange={setChatMode} busy={busy} />
         </div>
         {teamDetails && !agentSheet && <AgentDetails onClose={() => setTeamDetails(false)} onEdit={(name) => setAgentSheet(name)} />}
@@ -1351,6 +1366,7 @@ export function ChatPanel({
             onStarted={(d) => setDispatches((current) => [d, ...current.filter((x) => x.dispatch_id !== d.dispatch_id)])} />
         )}
         <ModBand />
+        {codeCard}
         <Composer
           value={draft}
           onChange={setDraft}
@@ -1361,6 +1377,7 @@ export function ChatPanel({
           onAttachFiles={onAttachFiles}
           onRemoveAttachment={removeAttachment}
           agents={agents}
+          placeholder={composerHint}
           slash={slash}
           onBusySend={(mode) => void onBusySend(mode)}
           busyAdvice={busyAdvice}
@@ -1368,10 +1385,12 @@ export function ChatPanel({
         {/* One row under the composer: how this chat works on the left.
             fc578b's <ChatToolbar /> (skills · agents · connectors) goes on the right. */}
         <div className="chat-bottom-row">
+          {codeBar}
           <ModeSlider chatId={activeChatId} mode={chatMode} onChange={setChatMode} busy={busy} />
         </div>
 
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <ChatCodeSwitch on={code.state.on} onChange={(on) => code.update({ on })} />
           <ProviderPicker value={provider} onChange={(next) => void pickProvider(next)} compact />
           {activeTalkSupported() && <VoiceSwitch mode={voice} onMode={setVoice} />}
         </div>
