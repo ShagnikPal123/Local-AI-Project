@@ -293,11 +293,18 @@ def propose(path: str, instruction: str, start_line: Optional[int] = None, end_l
         new_shown = new_shown.replace(find, replace, 1)
 
     new_text = "\n".join(lines[:lo - 1] + new_shown.split("\n") + lines[hi:])
+    return _store_proposal(target, raw, text, eol, new_text, instruction.strip()[:500],
+                           str(data.get("explanation", "")).strip()[:600], run.label)
+
+
+def _store_proposal(target: Path, raw: str, text: str, eol: str, new_text: str, instruction: str,
+                    explanation: str, model: str) -> Dict[str, Any]:
+    """Turn an edited text into a reviewable diff and keep it as a proposal. Nothing is written."""
     diff = "".join(difflib.unified_diff(text.splitlines(keepends=True), new_text.splitlines(keepends=True),
                                         fromfile=f"a/{target.name}", tofile=f"b/{target.name}", n=3))
-    proposal = {"id": uuid.uuid4().hex[:12], "path": str(target), "name": target.name, "instruction": instruction.strip()[:500],
-                "explanation": str(data.get("explanation", "")).strip()[:600], "base_hash": _hash(raw), "diff": diff,
-                "new_text": _with_eol(new_text, eol), "model": run.label, "status": "proposed", "created_at": time.time(),
+    proposal = {"id": uuid.uuid4().hex[:12], "path": str(target), "name": target.name, "instruction": instruction,
+                "explanation": explanation, "base_hash": _hash(raw), "diff": diff,
+                "new_text": _with_eol(new_text, eol), "model": model, "status": "proposed", "created_at": time.time(),
                 "added": sum(1 for l in diff.splitlines() if l.startswith("+") and not l.startswith("+++")),
                 "removed": sum(1 for l in diff.splitlines() if l.startswith("-") and not l.startswith("---"))}
     try:  # which lines of which file, for the review card (Request R9)
@@ -313,6 +320,20 @@ def propose(path: str, instruction: str, start_line: Optional[int] = None, end_l
     return _public(proposal)
 
 
+def propose_text(path: str, new_text: str, explanation: str = "", model: str = "chat") -> Dict[str, Any]:
+    """A proposal from the whole new text of an existing file (a Review first code chat). Nothing is written."""
+    target = resolve(path)
+    if not target.is_file():
+        raise CodeError(f"{target.name} is not a file in the folder. New files go through the Code tab.")
+    raw = _read_text(target)
+    text, eol = _lf(raw)
+    new_lf, _ = _lf(str(new_text or ""))
+    if new_lf == text:
+        raise CodeError(f"That is the same as {target.name} already is; there is nothing to apply.")
+    return _store_proposal(target, raw, text, eol, new_lf, (explanation or "Change from the chat").strip()[:500],
+                           (explanation or "").strip()[:600], model)
+
+
 def _public(proposal: Dict[str, Any], include_text: bool = False) -> Dict[str, Any]:
     public = {k: v for k, v in proposal.items() if include_text or k != "new_text"}
     if not include_text and isinstance(public.get("files"), list):
@@ -320,11 +341,17 @@ def _public(proposal: Dict[str, Any], include_text: bool = False) -> Dict[str, A
     return public
 
 
-def proposals(path: str = "") -> List[Dict[str, Any]]:
+def proposals(path: str = "", under: str = "") -> List[Dict[str, Any]]:
+    """Proposals for one file (``path``), or for every file inside a folder (``under``)."""
     with _LOCK:
         items = _read_state()["proposals"]
     wanted = str(Path(path).resolve()) if path else ""
-    return [_public(p) for p in items if not wanted or p["path"] == wanted]
+    root = Path(under).resolve() if under else None
+
+    def inside(item: Dict[str, Any]) -> bool:
+        return root is None or root in Path(item["path"]).parents or Path(item["path"]) == root
+
+    return [_public(p) for p in items if (not wanted or p["path"] == wanted) and inside(p)]
 
 
 def get_proposal(proposal_id: str, include_text: bool = True) -> Dict[str, Any]:

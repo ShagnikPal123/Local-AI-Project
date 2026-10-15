@@ -87,6 +87,14 @@ def commander_board(delegator: str = "", project_id: str = "", _o=Depends(_owner
             "jobs": list(commander_pick.JOBS)}
 
 
+@router.get("/api/commander/chat-project")
+def commander_chat_project(chat_id: str = "", _o=Depends(_owner)) -> Dict[str, Any]:
+    """The project a chat is in (as its main chat or a thread), so the Overview can follow it."""
+    import commander
+
+    return commander.chat_project(chat_id)
+
+
 @router.get("/api/commander/attention")
 def commander_attention(_o=Depends(_owner)) -> Dict[str, Any]:
     """Every chat that needs the owner or is working, so any chat can show it beside its name."""

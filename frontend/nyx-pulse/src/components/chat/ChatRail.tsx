@@ -67,10 +67,14 @@ function openPlace(tab: string, section?: string): void {
   window.dispatchEvent(new CustomEvent("nyx:open-tab", { detail: { tab } }));
 }
 
+/** Projects no longer open a tab (owner, 2026-10-15): the Projects item opens the list right here in the chat rail. */
+export const RAIL_PROJECTS_EVENT = "ichos:rail-projects";
+
 /** The places at the top of Claude's sidebar, mapped to where they live in Ichos (owner's 2026-10-15 images). */
 const NAV: { id: string; label: string; icon: string; open: () => void; badge?: string }[] = [
-  { id: "projects", label: "Projects", icon: "M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z", open: () => openPlace("projects", "projects"), badge: "Beta" },
-  { id: "artifacts", label: "Artifacts", icon: "M12 3 3 8l9 5 9-5-9-5zM3 13l9 5 9-5", open: () => openPlace("projects", "artifacts") },
+  { id: "projects", label: "Projects", icon: "M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z", open: () => window.dispatchEvent(new Event(RAIL_PROJECTS_EVENT)) },
+  // Constellations sorts every project and artifact and opens them back in this chat (owner, 2026-10-15).
+  { id: "artifacts", label: "Artifacts", icon: "M12 3 3 8l9 5 9-5-9-5zM3 13l9 5 9-5", open: () => openPlace("projects", "projects") },
   { id: "scheduled", label: "Scheduled", icon: "M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z", open: () => openPlace("projects", "scheduled") },
   { id: "customize", label: "Customize", icon: "M4 7h10M18 7h2M4 17h4M12 17h8M14 4v6M8 14v6", open: () => window.dispatchEvent(new CustomEvent("ichos:open-settings", { detail: { page: "appearance" } })) },
 ];

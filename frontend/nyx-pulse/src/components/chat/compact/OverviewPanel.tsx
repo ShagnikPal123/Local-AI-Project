@@ -19,6 +19,7 @@ import { ActivityRail } from "../../activity/ActivityRail";
 import { useAttention, type Attention } from "../../commander/attention";
 import { isGenericStatus, ownerName, thinkingPhrase } from "../phrases";
 import type { ChatSummaryView } from "../types";
+import { ProjectLibrary, ProjectThreads } from "./ProjectOverview";
 
 type Tab = "threads" | "library" | "activity";
 const TAB_KEY = "nyx.chat.overview.tab";
@@ -400,9 +401,15 @@ function Library() {
 
 // --- the panel --------------------------------------------------------------------------------------------------
 
-export function OverviewPanel({ chats, activeId, onOpen, onClose, onNew }: {
+export function OverviewPanel({ chats, activeId, onOpen, onClose, onNew, project }: {
   chats: ChatSummaryView[]; activeId: string; onOpen: (id: string) => void; onClose: () => void; onNew?: () => void;
+  /** Set inside a project (its main chat or one of its threads): Threads and Library show that project. */
+  project?: { id: string; mainChatId: string };
 }) {
+  // Inside a project the panel shows the project; "All chats" switches back to everything (per project, not kept).
+  const [allChats, setAllChats] = useState(false);
+  useEffect(() => { setAllChats(false); }, [project?.id]);
+  const inProject = Boolean(project) && !allChats;
   const [tab, setTab] = useState<Tab>(readTab);
   const [searching, setSearching] = useState(false);
   const [filter, setFilter] = useState("");
@@ -444,9 +451,17 @@ export function OverviewPanel({ chats, activeId, onOpen, onClose, onNew }: {
         <input className="ov-search" autoFocus value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Search threads"
           aria-label="Search threads" onKeyDown={(e) => { if (e.key === "Escape") { setSearching(false); setFilter(""); } }} />
       )}
+      {project && tab !== "activity" && (
+        <div className="ov-scope" role="group" aria-label="Show">
+          <button type="button" className={`ov-scope__btn${inProject ? " is-on" : ""}`} aria-pressed={inProject} onClick={() => setAllChats(false)}>This project</button>
+          <button type="button" className={`ov-scope__btn${!inProject ? " is-on" : ""}`} aria-pressed={!inProject} onClick={() => setAllChats(true)}>All chats</button>
+        </div>
+      )}
       <div className="ov-body">
-        {tab === "threads" && <Threads chats={chats} activeId={activeId} onOpen={onOpen} filter={filter} />}
-        {tab === "library" && <Library />}
+        {tab === "threads" && (inProject && project
+          ? <ProjectThreads projectId={project.id} mainChatId={project.mainChatId} activeId={activeId} onOpen={onOpen} filter={filter} />
+          : <Threads chats={chats} activeId={activeId} onOpen={onOpen} filter={filter} />)}
+        {tab === "library" && (inProject && project ? <ProjectLibrary projectId={project.id} onOpenChat={onOpen} /> : <Library />)}
         {tab === "activity" && <ActivityRail onClose={() => setTab("threads")} />}
       </div>
     </aside>

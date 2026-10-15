@@ -250,6 +250,23 @@ def delegator_project(chat_id: str) -> str:
         return str((_load()["delegators"].get(chat_id) or {}).get("project_id") or "")
 
 
+def chat_project(chat_id: str) -> Dict[str, str]:
+    """Which project a chat is in: its main chat, or one of the threads that main chat started. The Overview panel
+    follows it, so a project's threads stay in view while the owner is inside any of them (owner, 2026-10-15)."""
+    empty = {"project_id": "", "main_chat_id": "", "role": ""}
+    if not chat_id:
+        return empty
+    with _LOCK:
+        state = _load()
+    row = state["delegators"].get(chat_id)
+    if row is not None and row.get("project_id"):
+        return {"project_id": row["project_id"], "main_chat_id": chat_id, "role": "main"}
+    for thread in state["threads"].values():
+        if thread.get("chat_id") == chat_id and thread.get("project_id"):
+            return {"project_id": thread["project_id"], "main_chat_id": thread.get("delegator", ""), "role": "thread"}
+    return empty
+
+
 def make_delegator(chat_id: str, project_id: str = "") -> Dict[str, Any]:
     """Switch a chat to Commander: from its next message it hands work to threads."""
     if not chat_id:
@@ -832,6 +849,10 @@ def brief(chat_id: str) -> str:
         "that is too full is restarted fresh with a summary for you automatically.\n"
         "- read_thread shows what a thread said; resolve_thread when its work is done and nothing is owed.\n"
         "- A small question you can answer from what you already know gets a one-line answer here, no thread.\n"
+        "- With several threads open, balance_threads says which is free before you send more work.\n"
+        + ("- This is a project's working file: project_files opens its folder and drives, add_project_file and "
+           "add_project_note add to its knowledge, find_in_project looks things up, add_helper puts (or makes) an "
+           "agent on it.\n" if row.get("project_id") else "") +
         "- Give each thread one job (research, plan, build, test or review). Big work is a team: a plan thread, then "
         "build threads, then a test or review thread on what they made.\n"
         "- Threads' questions, approvals and results show up in this chat by themselves, and the owner can answer them "

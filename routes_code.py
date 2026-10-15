@@ -169,10 +169,10 @@ def propose_edit(body: ProposeRequest, _owner=Owner) -> Dict[str, Any]:
 
 
 @router.get("/api/code/proposals")
-def list_proposals(path: str = "", _owner=Owner) -> Dict[str, Any]:
+def list_proposals(path: str = "", under: str = "", _owner=Owner) -> Dict[str, Any]:
     import code_workspace
 
-    return {"proposals": code_workspace.proposals(path)}
+    return {"proposals": code_workspace.proposals(path, under)}
 
 
 @router.get("/api/code/proposals/{proposal_id}")

@@ -83,7 +83,8 @@ const EqualizePanel = lazy(() => import("./panels/equalize/EqualizePanel").then(
 const AvatarsPanel = lazy(() => import("./panels/avatars/AvatarsPanel").then((m) => ({ default: m.AvatarsPanel })));
 // Constellations · Quasars · Orbits · Fractal (Projects, Artifacts, Scheduled, Design — owner, 2026-10-11): one chunk.
 const constellations = () => import("./panels/constellations/ConstellationsPanel");
-const ProjectsPanel = lazy(() => constellations().then((m) => ({ default: m.ProjectsPanel })));
+// Projects open in the chat now (owner, 2026-10-15); Constellations is the sorted finder that opens them there.
+const FinderPanel = lazy(() => import("./panels/constellations/FinderPanel").then((m) => ({ default: m.FinderPanel })));
 const ArtifactsPanel = lazy(() => constellations().then((m) => ({ default: m.ArtifactsPanel })));
 const ScheduledPanel = lazy(() => constellations().then((m) => ({ default: m.ScheduledPanel })));
 const CalendarPanel = lazy(() => import("./panels/calendar/CalendarPanel").then((m) => ({ default: m.CalendarPanel })));
@@ -536,7 +537,7 @@ export default function App() {
         {active === "avatars" && <AvatarsPanel />}
         {active === "projects" && (
           <HubPanel id="projects" title="Constellations" sections={[
-            { id: "projects", label: "Constellations", purpose: "Your projects: a folder of chats, helpers and files that belong together.", render: () => <ProjectsPanel /> },
+            { id: "projects", label: "Constellations", purpose: "Every project and artifact, sorted for you. Open one and it opens in the main chat.", render: () => <FinderPanel /> },
             { id: "artifacts", label: "Quasars", purpose: "Things Ichos made for you, kept in one place.", render: () => <ArtifactsPanel /> },
             { id: "scheduled", label: "Orbits", purpose: "Tasks that run on a repeat.", render: () => <ScheduledPanel /> },
             { id: "calendar", label: "Calendar", purpose: "Your week: when Orbits run, plus Google Calendar.", render: () => <CalendarPanel /> },

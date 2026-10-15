@@ -782,6 +782,42 @@ TOOL_REGISTRY.register(
     category="files.read",
 )
 
+
+def builtin_propose_change(path: str, new_text: str, why: str = "") -> str:
+    """Review first in a Code chat: keep a change as a proposal the owner applies from the chat. Writes nothing."""
+    from pathlib import Path
+
+    import code_workspace
+    from tool_context import current
+
+    root = getattr(current(), "code_root", "") or ""
+    target = Path(path).expanduser()
+    if not target.is_absolute() and root:
+        target = Path(root) / target
+    try:
+        if root and not any(Path(w["path"]).resolve() == Path(root).resolve() for w in code_workspace.workspaces()):
+            code_workspace.open_workspace(root)  # the chat's folder is the owner's pick, same as opening it
+        proposal = code_workspace.propose_text(str(target), new_text, why)
+    except code_workspace.CodeError as error:
+        return f"Error: {error}"
+    return (f"Proposed a change to {proposal['name']} (+{proposal['added']} -{proposal['removed']}). "
+            "It is waiting above the chat box for the owner to Apply or Skip; nothing was written.")
+
+
+TOOL_REGISTRY.register(
+    name="propose_change",
+    description="In a Code chat set to Review first: propose a change to one existing file by giving its full new text. "
+                "Nothing is written; the owner applies it from the chat.",
+    parameters=[
+        ToolParam(name="path", param_type="string", description="The file, relative to the code folder or absolute", required=True),
+        ToolParam(name="new_text", param_type="string", description="The whole file as it should be after the change", required=True),
+        ToolParam(name="why", param_type="string", description="One line on what the change does", required=False),
+    ],
+    handler=builtin_propose_change,
+    category="files.read",
+    label=lambda a: f"Proposing a change to {str(a.get('path', '')).replace(chr(92), '/').rsplit('/', 1)[-1]}",
+)
+
 TOOL_REGISTRY.register(
     name="list_folder",
     description="List files inside a local folder, any format, with sizes.",
