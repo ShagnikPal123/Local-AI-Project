@@ -59,6 +59,7 @@ class ThreadChange(BaseModel):
     tier: str = ""
     effort: str = ""
     sector: str = ""
+    job: str = ""
 
 
 class SettingsBody(BaseModel):
@@ -76,7 +77,8 @@ def commander_board(delegator: str = "", project_id: str = "", _o=Depends(_owner
             "is_delegator": commander.is_delegator(delegator) if delegator else False,
             "settings": commander.settings(),
             "kinds": [{"id": t, "label": commander_pick.TIER_LABELS[t]} for t in commander_pick.TIERS],
-            "efforts": list(commander_pick.EFFORTS), "sectors": list(commander_pick.SECTORS)}
+            "efforts": list(commander_pick.EFFORTS), "sectors": list(commander_pick.SECTORS),
+            "jobs": list(commander_pick.JOBS)}
 
 
 @router.get("/api/commander/attention")
@@ -162,8 +164,8 @@ def commander_change(thread_id: str, body: ThreadChange, _o=Depends(_owner)) -> 
             result = commander.resolve_thread(thread_id, body.resolved)
         if body.pinned is not None:
             result = commander.pin_thread(thread_id, body.pinned)
-        if body.tier or body.effort or body.sector:
-            result = commander.set_pick(thread_id, tier=body.tier, effort=body.effort, sector=body.sector)
+        if body.tier or body.effort or body.sector or body.job:
+            result = commander.set_pick(thread_id, tier=body.tier, effort=body.effort, sector=body.sector, job=body.job)
         return result
 
     return {"thread": _call(apply)}

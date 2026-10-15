@@ -375,3 +375,18 @@ def test_the_answer_route_relays_and_is_refused_for_a_closed_ask(world, monkeypa
     assert answered.status_code == 200, answered.text
     assert world.sent[-1]["text"] == "The admin one"
     assert client.post(f"/api/commander/asks/{ask['id']}/answer", json={"text": "again"}).status_code == 400
+
+
+# --- Jobs (Drive doc 1, item 1.30): each thread has one job, which its brief spells out -----------------------------
+
+def test_a_thread_gets_a_job_from_its_task_and_its_brief_says_what_that_job_means(world):
+    cm = world.cm
+    research = cm.start_thread(world.main, "Vector stores", "Research and compare three vector databases")
+    assert research["job"] == "research" and "change nothing" in world.sent[-1]["text"]
+    test = cm.start_thread(world.main, "Login check", "Verify the login fix and reproduce the old crash")
+    assert test["job"] == "test"
+    build = cm.start_thread(world.main, "Dark mode", "Add a dark mode toggle to settings")
+    assert build["job"] == "build"
+    assert cm.set_pick(build["id"], job="review")["job"] == "review"
+    with pytest.raises(cm.CommanderError):
+        cm.set_pick(build["id"], job="nap")

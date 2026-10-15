@@ -328,8 +328,8 @@ def save_settings(**changes: Any) -> Dict[str, Any]:
 
 THREAD_TAIL = (
     "[Thread brief] You are the thread “{title}”{where}, handed this work by the Commander chat. You do not see that "
-    "chat, so everything you need is above.{note} Do the work fully with your tools, and do not stop to check in unless "
-    "you are truly blocked.\n"
+    "chat, so everything you need is above.{note} Your job is {job}: {job_hint}. Do the work fully with your tools, and "
+    "do not stop to check in unless you are truly blocked.\n"
     "End your answer with one line that starts “Done:” and says the result in a sentence. If something only the owner "
     "can decide or do is in the way, end instead with one line that starts “Waiting on you:” saying exactly what you "
     "need, or ask it as a question card."
@@ -360,9 +360,17 @@ def _note(project_id: str) -> str:
         return ""
 
 
+def _tail(thread: Dict[str, Any]) -> str:
+    """The standing part of a thread's brief: who it is, its project, its job, and how to end its answer."""
+    import commander_pick
+
+    job = thread.get("job") or "build"
+    return THREAD_TAIL.format(title=thread["title"], where=_where(thread["project_id"]), note=_note(thread["project_id"]),
+                              job=job, job_hint=commander_pick.JOB_HINTS.get(job, ""))
+
+
 def _brief_message(thread: Dict[str, Any], task: str) -> str:
-    tail = THREAD_TAIL.format(title=thread["title"], where=_where(thread["project_id"]), note=_note(thread["project_id"]))
-    return f"{task.strip()}\n\n{tail}"
+    return f"{task.strip()}\n\n{_tail(thread)}"
 
 
 def _find(state: Dict[str, Any], ref: str, delegator: str = "") -> Optional[Dict[str, Any]]:
@@ -379,7 +387,7 @@ def _find(state: Dict[str, Any], ref: str, delegator: str = "") -> Optional[Dict
 
 
 def start_thread(delegator: str, title: str, task: str, *, tier: str = "", effort: str = "", provider: str = "",
-                 model: str = "", sector: str = "", role: str = "local", refreshed_from: str = "",
+                 model: str = "", sector: str = "", job: str = "", role: str = "local", refreshed_from: str = "",
                  opening: str = "") -> Dict[str, Any]:
     """Make a thread's chat, pick its model and effort (unless given), brief it, and start it working."""
     import commander_pick
@@ -395,6 +403,7 @@ def start_thread(delegator: str, title: str, task: str, *, tier: str = "", effor
     tier = tier if tier in commander_pick.TIERS else chosen["tier"]
     effort = effort if effort in commander_pick.EFFORTS else chosen["effort"]
     sector = sector if sector in commander_pick.SECTORS else chosen["sector"]
+    job = job if job in commander_pick.JOBS else commander_pick.job_for(f"{title}. {task}")
     if provider:
         chosen.update(provider=provider, model=model, model_label=f"{provider}{' · ' + model if model else ''}",
                       why="the Commander chose it for this task")
@@ -405,7 +414,7 @@ def start_thread(delegator: str, title: str, task: str, *, tier: str = "", effor
     now = time.time()
     thread = {
         "id": f"th-{uuid.uuid4().hex[:8]}", "chat_id": chat_id, "delegator": delegator,
-        "project_id": row.get("project_id", ""), "title": title, "task": task[:2000], "sector": sector,
+        "project_id": row.get("project_id", ""), "title": title, "task": task[:2000], "sector": sector, "job": job,
         "tier": tier, "effort": effort, "provider": chosen["provider"], "model": chosen["model"],
         "model_label": chosen.get("model_label") or "", "why": chosen["why"], "source": chosen.get("source", "rules"),
         "pinned": False, "resolved": False, "created": now, "updated": now, "refreshed_from": refreshed_from,
@@ -474,9 +483,10 @@ def refresh_thread(thread_id: str, task: str, *, role: str = "local", messages: 
     pct = round(use["share"] * 100)
     opening = (f"[Fresh start] This continues the thread “{old['title']}”, which was {pct}% full of what its model "
                f"reads at once. What happened there:\n{summary}\n\nNow: {task.strip()}\n\n"
-               + THREAD_TAIL.format(title=fresh_title, where=_where(old["project_id"]), note=_note(old["project_id"])))
+               + _tail({**old, "title": fresh_title}))
     new = start_thread(old["delegator"], fresh_title, task, tier=old["tier"], effort=old["effort"],
-                       provider=old["provider"], model=old["model"], sector=old["sector"], role=role,
+                       provider=old["provider"], model=old["model"], sector=old["sector"], job=old.get("job", ""),
+                       role=role,
                        refreshed_from=old["id"], opening=opening)
     with _LOCK:
         state = _load()
@@ -514,9 +524,10 @@ def pin_thread(thread_id: str, pinned: bool = True) -> Dict[str, Any]:
     return _change(thread_id, pinned=bool(pinned))
 
 
-def set_pick(thread_id: str, *, tier: str = "", effort: str = "", sector: str = "", provider: Optional[str] = None,
-             model: Optional[str] = None) -> Dict[str, Any]:
-    """The owner overrides a thread's model, effort or sector. That correction teaches the picker (counted 3×)."""
+def set_pick(thread_id: str, *, tier: str = "", effort: str = "", sector: str = "", job: str = "",
+             provider: Optional[str] = None, model: Optional[str] = None) -> Dict[str, Any]:
+    """The owner overrides a thread's model, effort, sector or job. A model, effort or sector correction teaches the
+    picker (counted 3×); the job is for the thread's next brief."""
     import commander_pick
 
     thread = get(thread_id)
@@ -538,6 +549,10 @@ def set_pick(thread_id: str, *, tier: str = "", effort: str = "", sector: str = 
         if sector not in commander_pick.SECTORS:
             raise CommanderError(f"Sectors are {', '.join(commander_pick.SECTORS)}.")
         changes["sector"] = sector
+    if job:
+        if job not in commander_pick.JOBS:
+            raise CommanderError(f"Jobs are {', '.join(commander_pick.JOBS)}.")
+        changes["job"] = job
     if provider is not None:
         changes.update(provider=_clean(provider, 40), model=_clean(model, 120),
                        model_label=_clean(f"{provider}{' · ' + model if model else ''}", 160))
@@ -764,7 +779,7 @@ def brief(chat_id: str) -> str:
     where = _where(row.get("project_id", ""))
     mine = [t for t in threads(delegator=chat_id) if t["status"] != "resolved"][:20]
     listing = "\n".join(
-        f"- {t['title']} · {t['status_label']} · {t['tier_label']}/{t['effort']} · "
+        f"- {t['title']} · {t['status_label']} · {t.get('job') or 'build'} · {t['tier_label']}/{t['effort']} · "
         f"{round(t['tokens']['share'] * 100)}% full · {t['line'][:90]}" for t in mine) or "- none yet"
     return (
         f"{BRIEF_PREFIX} Commander{where}\n"
@@ -776,6 +791,8 @@ def brief(chat_id: str) -> str:
         "that is too full is restarted fresh with a summary for you automatically.\n"
         "- read_thread shows what a thread said; resolve_thread when its work is done and nothing is owed.\n"
         "- A small question you can answer from what you already know gets a one-line answer here, no thread.\n"
+        "- Give each thread one job (research, plan, build, test or review). Big work is a team: a plan thread, then "
+        "build threads, then a test or review thread on what they made.\n"
         "- Threads' questions, approvals and results show up in this chat by themselves, and the owner can answer them "
         "there; do not repeat them. When he answers one in his own words here, pass it on with message_thread.\n"
         "Reply in two to four short lines: which threads got what, and what (if anything) needs the owner.\n"
@@ -800,15 +817,17 @@ def _context() -> tuple:
 def _short(thread: Dict[str, Any]) -> str:
     return (f"“{thread['title']}” ({thread['status_label']}, {thread['tier_label']} model"
             f"{' ' + thread['model_label'] if thread.get('model_label') else ''}, {thread['effort']} effort, "
-            f"{thread['sector']})")
+            f"{thread['sector']}, {thread.get('job') or 'build'} job)")
 
 
-def tool_start_thread(title: str, task: str, model_kind: str = "", effort: str = "", provider: str = "") -> str:
+def tool_start_thread(title: str, task: str, model_kind: str = "", effort: str = "", provider: str = "",
+                      job: str = "") -> str:
     chat_id, role = _context()
     if not is_delegator(chat_id):
         return "Error: only a Commander chat hands out threads. Do this work here instead."
     try:
-        thread = start_thread(chat_id, title, task, tier=model_kind, effort=effort, provider=provider, role=role)
+        thread = start_thread(chat_id, title, task, tier=model_kind, effort=effort, provider=provider, job=job,
+                              role=role)
     except CommanderError as error:
         return f"Error: {error}"
     return f"Started {_short(thread)} because {thread['why']}. It is working now."
@@ -873,7 +892,9 @@ def register_commander_tools(registry: Any) -> None:
            "zencode (code)", required=False, enum_values=["pico", "monolith", "crescendo", "zencode"]),
          P("effort", "string", "Only if the owner asked: low, mid, normal, high, higher, super or aleph", required=False,
            enum_values=["low", "mid", "normal", "high", "higher", "super", "aleph"]),
-         P("provider", "string", "Only if the owner named a provider", required=False)],
+         P("provider", "string", "Only if the owner named a provider", required=False),
+         P("job", "string", "The thread's one job; left empty it is read from the task", required=False,
+           enum_values=["research", "plan", "build", "test", "review"])],
         tool_start_thread, category="agents", label=lambda a: f"Starting a thread: {str(a.get('title', ''))[:50]}")
     registry.register(
         "message_thread",
