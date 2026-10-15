@@ -30,6 +30,11 @@ import { ActiveTalkBar, activeTalkSupported, useActiveTalk, VoiceSwitch } from "
 import { onVoiceMode, setVoiceMode, voiceMode, type VoiceMode } from "../voice/voiceBus";
 import { UsageBar } from "../components/UsageBar";
 import { ContextBar } from "../components/chat/ContextBar";
+import { OverviewPanel } from "../components/chat/compact/OverviewPanel";
+import { BarZone, useBarLayout, type BarId, type BarSpec } from "../components/chat/compact/ChatBars";
+import { LineupPicker } from "../components/chat/compact/LineupPicker";
+import { ConnectorsBody, RemoteBody, useConnectors, usePhone } from "../components/chat/compact/BarChips";
+import "../components/chat/compact/compact.css";
 import { ModeSlider, readMode, type ChatMode } from "../components/chat/ModeSlider";
 import { ChatCodeSwitch, CodeBar, CodeSessionCard, folderName, useCodeSession } from "../components/chat/CodeSwitch";
 import { ChatRail, type RailMakeKind } from "../components/chat/ChatRail";
@@ -609,13 +614,13 @@ export function ChatPanel({
         pushToast("Auto: Nyx picks the model for each message.", "info");
         return;
       }
-      const result = await api.post<{ preferred?: string }>("/api/models/switch", { model: next });
+      const result = await api.post<{ preferred?: string; label?: string }>("/api/models/switch", { model: next });
       if (!result.ok) {
         onProvider(previous);
         pushToast(result.error, "warn");
         return;
       }
-      pushToast(`Switched — ${next} answers from your next message.`, "ok");
+      pushToast(`Switched — ${result.data.label || next} answers from your next message.`, "ok");
     },
     [provider, onProvider],
   );
@@ -1100,6 +1105,15 @@ export function ChatPanel({
     [activeChatId, chats, loadChats, restoreChat],
   );
 
+  // --- the compact chat's pieces (2026-10-15) ---------------------------------------
+  const [barLayout, setBarLayout] = useBarLayout();
+  const connectors = useConnectors();
+  const phone = usePhone();
+  const [overviewOpen, setOverviewOpen] = useState(() => {
+    try { return localStorage.getItem("nyx.chat.overview.open") !== "0"; } catch { return true; }
+  });
+  useEffect(() => { try { localStorage.setItem("nyx.chat.overview.open", overviewOpen ? "1" : "0"); } catch { /* not kept */ } }, [overviewOpen]);
+
   // --- render ---------------------------------------------------------------------
 
   // Whose limits to show: the dropdown's pick, else whoever answered last, else the engine default.
@@ -1132,8 +1146,47 @@ export function ChatPanel({
 
   if (variant === "home") {
     const title = chats.find((c) => c.id === activeChatId)?.title || "New chat";
+    // The compact chat (owner, 2026-10-15): every strip that used to stack over the messages is now a movable bar.
+    const bars: Record<BarId, BarSpec | null> = {
+      context: { label: "Context", summary: <ContextBar chatId={activeChatId} provider={usageProvider} refreshKey={`${usageKey ?? ""}:${messages.length}`} /> },
+      usage: { label: "Usage limits", summary: <UsageBar provider={usageProvider} refreshKey={usageKey} /> },
+      environment: {
+        label: "Environment",
+        summary: code.state.on && code.state.folder
+          ? <span className="cb-text"><span aria-hidden="true">▭</span> {folderName(code.state.folder)} · {code.state.environment === "review" ? "Review first" : "This PC"}</span>
+          : <span className="cb-text">Chat · this PC</span>,
+        body: (
+          <div className="cb-note">
+            <p>{code.state.on ? "Code: Ichos works in the folder below." : "Chat: no folder. Turn on Code to work in a folder on this PC."}</p>
+            <span className="cb-actions">
+              {code.state.on && <button type="button" className="btn btn-secondary" onClick={() => code.setPicking(true)}>Change folder or environment</button>}
+              <button type="button" className="btn" onClick={() => code.update({ on: !code.state.on })}>{code.state.on ? "Back to Chat" : "Code in a folder"}</button>
+            </span>
+          </div>
+        ),
+      },
+      connectors: {
+        label: "Connectors",
+        summary: <span className="cb-text">Connectors{connectors ? ` · ${connectors.length}` : ""}</span>,
+        body: <ConnectorsBody list={connectors} />,
+      },
+      remote: {
+        label: "Remote access",
+        summary: <span className="cb-text"><span className={`cb-dot${phone?.running ? " is-on" : ""}`} aria-hidden="true" /> Remote {phone?.running ? "on" : "off"}</span>,
+        body: <RemoteBody phone={phone} />,
+      },
+      team: {
+        label: "Team",
+        summary: <span className="cb-text">Team · {agents.length}</span>,
+        body: (
+          <AgentDock agents={agents} collapsed={false} onToggle={() => setDockCollapsed((v) => !v)}
+            onAskAgent={(name) => onAction({ type: "askAgent", name })} onOpenAgent={(name) => onAction({ type: "openAgent", name })}
+            onOpenDetails={() => setTeamDetails(true)} />
+        ),
+      },
+    };
     return (
-      <div className="chat-home">
+      <div className={`chat-home${overviewOpen && !isPane ? " has-overview" : ""}`}>
         <ChatRail
           chats={chats}
           activeId={activeChatId}
@@ -1152,31 +1205,23 @@ export function ChatPanel({
             {headExtra}
             <h2 className="chat-home__title" title={title}>{title}</h2>
             <PersonaBadge persona={chats.find((c) => c.id === activeChatId)?.persona} />
-            <ChatActions onMake={(kind) => void makeChat(kind)} />
             <ChatTitleMenu chatId={activeChatId} title={title} disabled={activeChatId === "default"}
+              onMake={(kind) => void makeChat(kind)}
               onRename={(id, next) => void onRenameChat(id, next).then(() => pushToast(`Renamed to “${next}”.`, "ok"))}
               onDelete={(id) => void onDeleteChat(id)} />
             <span className="chat-home__spacer" />
             {activeTalkSupported() && <VoiceSwitch mode={voice} onMode={setVoice} />}
             {/* Only at the start of a chat, or while Code is on; otherwise it is added from the + beside the box (owner, 2026-10-15). */}
             {(messages.length === 0 || code.state.on) && <ChatCodeSwitch on={code.state.on} onChange={(on) => code.update({ on })} />}
-            <ProviderPicker value={provider} onChange={(next) => void pickProvider(next)} compact />
+            {!isPane && (
+              <button type="button" className={`ov-toggle${overviewOpen ? " is-on" : ""}`} aria-pressed={overviewOpen}
+                onClick={() => setOverviewOpen((v) => !v)} title="Threads, usage, Library and activity">
+                <span aria-hidden="true">◫</span> Overview
+              </button>
+            )}
           </header>
-          <div className="chat-home__meta">
-            <span className="nyx-chat__status" aria-live="polite">{subtitle}</span>
-            <UsageBar provider={usageProvider} refreshKey={usageKey} />
-            <ContextBar chatId={activeChatId} provider={usageProvider} refreshKey={`${usageKey ?? ""}:${messages.length}`} />
-          </div>
-          <div className="chat-home__team">
-            <AgentDock
-              agents={agents}
-              collapsed={dockCollapsed}
-              onToggle={() => setDockCollapsed((v) => !v)}
-              onAskAgent={(name) => onAction({ type: "askAgent", name })}
-              onOpenAgent={(name) => onAction({ type: "openAgent", name })}
-              onOpenDetails={() => setTeamDetails(true)}
-            />
-          </div>
+          <BarZone zone="top" layout={barLayout} onLayout={setBarLayout} bars={bars}
+            extra={busy ? <span className="nyx-chat__status cb-status" aria-live="polite">{subtitle}</span> : null} />
           {chatAgents[activeChatId] && (
             <div className="chat-owner" role="note">
               <span>This chat belongs to <b>{chatAgents[activeChatId]}</b> — they answer here, not the Manager.</span>
@@ -1221,12 +1266,17 @@ export function ChatPanel({
               onBusySend={(mode) => void onBusySend(mode)}
               busyAdvice={busyAdvice}
             />
-            <div className="chat-bottom-row">
-              {codeBar}
+            <div className="chat-bottom-row cb-bottom">
               <ModeSlider chatId={activeChatId} mode={chatMode} onChange={setChatMode} busy={busy} />
+              <BarZone zone="bottom" layout={barLayout} onLayout={setBarLayout} bars={bars} />
+              <span className="chat-home__spacer" />
+              <LineupPicker value={provider} onChange={(next) => void pickProvider(next)} />
             </div>
           </div>
         </section>
+        {overviewOpen && !isPane && (
+          <OverviewPanel chats={chats} activeId={activeChatId} onOpen={setActiveChatId} onClose={() => setOverviewOpen(false)} />
+        )}
         {teamDetails && !agentSheet && <AgentDetails onClose={() => setTeamDetails(false)} onEdit={(name) => setAgentSheet(name)} />}
         {agentSheet && <AgentProperties name={agentSheet} onClose={() => setAgentSheet(null)} onRenamed={setAgentSheet} />}
         {diagramOverlay}

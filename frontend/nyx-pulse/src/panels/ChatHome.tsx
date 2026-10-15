@@ -95,8 +95,9 @@ export function ChatHome({ onActivity, provider, onProvider, who, onSearch, onSt
               />
             )} />
           );
-          const rail = showRail ? <ActivityRail onClose={() => { if (railFits) setRailOn(false); setPeek(false); }} />
-            : <button type="button" className="activity-tab" onClick={() => { setRailOn(true); setPeek(true); }}>Activity</button>;
+          // The compact chat's Overview panel (Threads · Library · Activity) holds the activity list now, so the old
+          // pull-out tab is gone; a rail the owner had left open still shows until closed.
+          const rail = showRail ? <ActivityRail onClose={() => { if (railFits) setRailOn(false); setPeek(false); }} /> : null;
           if (!studio) return <>{chat}{rail}</>;
           // Studio Glass (owner, 2026-10-10): greeting + vitals over the chat in one glass panel; profile, calendar
           // and the activity list ("Scheduled" in the reference) in a second panel on the right.

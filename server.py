@@ -1026,6 +1026,13 @@ def switch_model(payload: Dict[str, Any]) -> Dict[str, Any]:
     # Any provider the router knows, custom ones included. When it cannot answer,
     # say why instead of switching to something that will be skipped (Request G9:
     # the dropdown "didn't switch" while asking in chat did).
+    # Nyx's own names (Pico, Monolith, Crescendo, Zencode and their models) are remembered as the lineup pick;
+    # each turn turns the name into a plan (model_lineup.plan_for_turn).
+    import model_lineup
+
+    lineup = model_lineup.switch_target(target)
+    if lineup is not None:
+        return lineup
     router = _get_service(None).router
     name = target.lower()
     if name == "anthropic":
