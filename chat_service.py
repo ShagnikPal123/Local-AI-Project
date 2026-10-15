@@ -914,6 +914,16 @@ If the user asks to change model or provider, or to go local/offline, call switc
             hooked = ""
         if hooked:
             note = (note or CONTEXT_PREFIX) + "\n\nFrom the owner's prompt hooks:\n" + hooked
+        try:
+            import rules_laws
+
+            persona = persona_of(self)
+            bot = [str(persona.get("id", "")), str(persona.get("name", ""))] if avatar_chat else ["ichos"]
+            laws = rules_laws.turn_context(bot)
+        except Exception:
+            laws = ""
+        if laws:
+            note = (note or CONTEXT_PREFIX) + "\n\n" + laws
         if note:
             self.conversation_history.append({"role": "system", "content": note})
         return note
