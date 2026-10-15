@@ -147,7 +147,7 @@
 }
 .orb-suggestions {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
   gap: 8px;
   width: 100%;
   max-width: 720px;
@@ -190,3 +190,5 @@
 .orb-hero__name { display: block; margin: 6px auto 0; padding: 0; font: inherit; font-size: 12.5px; font-weight: 500;
   color: var(--color-neutral-500); background: none; border: none; cursor: pointer; text-decoration: underline dotted; }
 .orb-hero__name:hover { color: var(--color-accent-2); }
+/* In a narrow chat column the suggestions wrap instead of pushing past the edge. */
+.orb-hero { grid-template-columns: minmax(0, 1fr); max-width: 100%; }
