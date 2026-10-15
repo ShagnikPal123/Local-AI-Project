@@ -57,6 +57,56 @@ def tool_forget_memory(ref: str) -> str:
     return "Forgotten." if MemoryStore().remove_important(ref) else f"No memory found for {ref}."
 
 
+def tool_make_law(title: str, text: str = "", parent: str = "", applies_to: str = "", block_tools: str = "",
+                  kind: str = "law") -> str:
+    """The AI writes a law for itself (rules_laws.py). The owner's slider decides whether it takes effect."""
+    import rules_laws
+
+    try:
+        law = rules_laws.add_law(title, text, author="ai", parent=parent or None, kind=kind or "law",
+                                 applies_to=applies_to or None, block_tools=block_tools or None)
+    except rules_laws.LawError as error:
+        return f"Error: {error}"
+    number = next((l["number"] for l in rules_laws.numbered() if l["id"] == law["id"]), "?")
+    if law["status"] == "suggested":
+        return f"Suggested law {number} ({law['id']}). It waits for the owner's approval in Settings > Rules and laws."
+    return f"Law {number} ({law['id']}) is in force."
+
+
+def tool_change_law(law_id: str, title: str = "", text: str = "") -> str:
+    import rules_laws
+
+    try:
+        law = rules_laws.update_law(law_id, by="ai", title=title or None, text=text or None)
+    except KeyError:
+        return f"No law with id {law_id}."
+    except rules_laws.LawError as error:
+        return f"Error: {error}"
+    return f"Changed {law['id']}."
+
+
+def tool_repeal_law(law_id: str) -> str:
+    import rules_laws
+
+    try:
+        return "Repealed." if rules_laws.remove_law(law_id, by="ai") else f"No law with id {law_id}."
+    except rules_laws.LawError as error:
+        return f"Error: {error}"
+
+
+def tool_list_laws() -> str:
+    import rules_laws
+
+    laws = rules_laws.numbered()
+    if not laws:
+        return f"No laws yet. Your slider level is {rules_laws.level()}."
+    lines = [f"Your slider level: {rules_laws.level()}."]
+    for law in laws:
+        lines.append(f"{'  ' * law['depth']}{law['number']} [{law['id']}, by {law['author']}, {law['status']}] "
+                     f"{law['title']}: {law.get('text', '')}"[:300])
+    return "\n".join(lines)
+
+
 def tool_brain_study_folder(path: str) -> str:
     import super_brain
     from pathlib import Path
@@ -101,6 +151,23 @@ def register_intelligence_tools(registry: Any) -> None:
                       tool_save_memory, category="memory", label=lambda a: f"Saving memory: {str(a.get('topic', ''))[:40]}")
     registry.register("forget_memory", "Forget one saved memory by its id (mem_…) or topic, when the owner asks.",
                       [P("ref", "string", "The memory id or topic")], tool_forget_memory, category="memory", label="Forgetting a memory")
+    registry.register("make_law", "Write a rule or law for yourself (or for a named bot) when you see one is needed. "
+                      "Laws only narrow what you do. The owner's slider decides if it takes effect or waits for approval.",
+                      [P("title", "string", "Short name of the law"),
+                       P("text", "string", "What it requires or forbids", required=False),
+                       P("parent", "string", "Id of the law this refines (nests under)", required=False),
+                       P("applies_to", "string", "Comma-separated bots it binds; empty means every bot", required=False),
+                       P("block_tools", "string", "Comma-separated tool names or patterns it forbids", required=False),
+                       P("kind", "string", "law, or case for a worked example under a law", required=False)],
+                      tool_make_law, category="memory", label=lambda a: f"Writing a law: {str(a.get('title', ''))[:40]}")
+    registry.register("change_law", "Change the title or text of a law you wrote (only at the lawmaker slider level).",
+                      [P("law_id", "string", "The law's id (law_…)"), P("title", "string", "New title", required=False),
+                       P("text", "string", "New text", required=False)], tool_change_law, category="memory",
+                      label="Changing a law")
+    registry.register("repeal_law", "Remove a law you wrote (only at the lawmaker slider level). You can never remove the owner's laws.",
+                      [P("law_id", "string", "The law's id (law_…)")], tool_repeal_law, category="memory", label="Repealing a law")
+    registry.register("list_laws", "List the numbered rules and laws, who wrote each, and your slider level.",
+                      [], tool_list_laws, category="general", label="Reading the laws")
     registry.register("brain_study_folder", "Read a whole folder into the super brain in the background (when the owner asks Nyx to study or learn their files).",
                       [P("path", "string", "Folder path")], tool_brain_study_folder, category="files.read",
                       label=lambda a: f"Studying {str(a.get('path', ''))[:40]}")
