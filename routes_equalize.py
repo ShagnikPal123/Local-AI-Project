@@ -266,6 +266,77 @@ def laws_remove(law_id: str, _owner_user=Depends(_owner)) -> Dict[str, Any]:
     return rules_laws.state()
 
 
+# --- team huddle (huddle.py; Fixer Upper S12, WS15) --------------------------------------------------------------------
+
+
+@router.get("/api/huddle")
+def huddle_state(_owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import huddle
+
+    return huddle.state()
+
+
+@router.put("/api/huddle")
+def huddle_business(body: Dict[str, Any], _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import huddle
+
+    body = body or {}
+    channel = body.get("slack_channel")
+    return huddle.set_business(str(body.get("name", "")), str(body.get("goal", "")),
+                               None if channel is None else str(channel))
+
+
+@router.post("/api/huddle/members")
+def huddle_add_member(body: Dict[str, Any], _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import huddle
+
+    body = body or {}
+    try:
+        huddle.add_member(str(body.get("name", "")), str(body.get("role", "")), str(body.get("runs") or "cloud"))
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return huddle.state()
+
+
+@router.delete("/api/huddle/members/{member_id}")
+def huddle_remove_member(member_id: str, _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import huddle
+
+    if not huddle.remove_member(member_id):
+        raise HTTPException(status_code=404, detail="No bot with that id.")
+    return huddle.state()
+
+
+@router.post("/api/huddle/post")
+def huddle_post(body: Dict[str, Any], _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import huddle
+
+    try:
+        huddle.post(str((body or {}).get("text", "")))
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return huddle.state()
+
+
+@router.post("/api/huddle/round")
+def huddle_round(body: Dict[str, Any], _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import huddle
+
+    try:
+        huddle.run_round(rounds=int((body or {}).get("rounds") or 1))
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return huddle.state()
+
+
+@router.delete("/api/huddle/messages")
+def huddle_clear(_owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import huddle
+
+    huddle.clear_messages()
+    return huddle.state()
+
+
 # --- design research (design_research.py; the DESIGN_MASTERPLAN research log as a Nyx feature) ----------------------
 
 
