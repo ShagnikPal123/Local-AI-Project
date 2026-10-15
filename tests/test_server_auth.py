@@ -293,6 +293,7 @@ DATA_ROUTES = [
     "/api/status",
     # Files a chat's work touched (work_files.py, doc 2 item 2.3).
     "/api/work-files",
+    "/api/cache-warmth",
     "/api/memory",
     "/api/memory/rag",
     "/api/chats",

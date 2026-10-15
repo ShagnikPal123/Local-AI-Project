@@ -175,6 +175,23 @@ def list_proposals(path: str = "", under: str = "", _owner=Owner) -> Dict[str, A
     return {"proposals": code_workspace.proposals(path, under)}
 
 
+@router.get("/api/cache-warmth")
+def cache_warmth_state(_owner=Owner) -> Dict[str, Any]:
+    """How long the local model stays loaded (Ollama unloads it after 5 idle minutes), and the keep-warm setting."""
+    import cache_warmth
+
+    cache_warmth.ensure_keeper()
+    return cache_warmth.state()
+
+
+@router.put("/api/cache-warmth")
+def cache_warmth_save(body: Dict[str, Any], _owner=Owner) -> Dict[str, Any]:
+    import cache_warmth
+
+    cache_warmth.set_keep_warm(bool((body or {}).get("keep_warm", False)))
+    return cache_warmth.state()
+
+
 @router.get("/api/work-files")
 def chat_work_files(chat_id: str = "default", _owner=Owner) -> Dict[str, Any]:
     """The files this chat's work read, wrote or deleted, newest first (the tree under the work queue)."""

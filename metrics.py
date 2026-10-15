@@ -53,6 +53,13 @@ class MetricsTracker:
         """Record a single interaction metric."""
         import uuid
 
+        try:
+            import cache_warmth
+
+            cache_warmth.note(provider, success)  # the "warm / cold" chip for the local model
+        except Exception:  # pragma: no cover - the chip never costs a metric
+            pass
+
         total_tokens = tokens_total
         if total_tokens is None and tokens_prompt is not None and tokens_completion is not None:
             total_tokens = tokens_prompt + tokens_completion
