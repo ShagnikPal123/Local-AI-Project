@@ -409,11 +409,12 @@ class Engine:
 
     def _curve(self, account: Dict[str, Any], now: float) -> List[Dict[str, float]]:
         """The saved points (one per 5 minutes) plus where the money is right now."""
-        curve = self.broker.curve() if hasattr(self.broker, "curve") else []
-        if not curve:
-            curve = [{"t": float(account.get("created_at") or now), "equity": float(account["start"])}]
-        if now - curve[-1]["t"] > 1:
-            curve = curve + [{"t": now, "equity": account["equity"]}]
+        curve = list(self.broker.curve()) if hasattr(self.broker, "curve") else []
+        if not curve or now - curve[-1]["t"] > 1:
+            curve.append({"t": now, "equity": account["equity"]})
+        if len(curve) < 2:  # a line needs two points: start it from the opening balance
+            begin = min(float(account.get("created_at") or now), curve[0]["t"] - 1)
+            curve.insert(0, {"t": begin, "equity": float(account["start"])})
         return curve
 
     def _save(self) -> None:

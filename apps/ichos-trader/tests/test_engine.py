@@ -112,3 +112,14 @@ def test_flatten_sells_everything():
     assert eng.broker.positions()
     assert eng.flatten() >= 1 and eng.broker.positions() == []
     assert store.read("paper")["fills"][-1]["bot"] == "Owner"
+
+
+def test_every_holding_gets_a_prediction_and_the_curve_reaches_now():
+    eng = make(learn_first=False)
+    eng.run_cycle()
+    dash = eng.dashboard()
+    held = {p["symbol"] for p in dash["positions"]}
+    predicted = {p["symbol"] for p in dash["predictions"] if not p["graded"]}
+    assert held and held <= predicted
+    assert dash["money"]["predicted_band_pct"][0] <= dash["money"]["predicted_pl_pct"] <= dash["money"]["predicted_band_pct"][1]
+    assert len(dash["equity_curve"]) >= 2 and dash["equity_curve"][-1]["t"] == NOW
