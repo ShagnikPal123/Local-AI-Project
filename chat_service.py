@@ -905,6 +905,15 @@ If the user asks to change model or provider, or to go local/offline, call switc
             note = MOD_STORE.turn_context(user_message, instructions=not avatar_chat)
         except Exception:
             return ""
+        try:
+            import user_hooks
+
+            # The owner's "prompt" hooks: what they print rides along with this turn, and is replaced next turn.
+            hooked = "" if avatar_chat else user_hooks.prompt_context(user_message, str(getattr(self, "chat_id", "") or ""))
+        except Exception:
+            hooked = ""
+        if hooked:
+            note = (note or CONTEXT_PREFIX) + "\n\nFrom the owner's prompt hooks:\n" + hooked
         if note:
             self.conversation_history.append({"role": "system", "content": note})
         return note

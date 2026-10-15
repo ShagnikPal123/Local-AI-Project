@@ -1377,6 +1377,12 @@ class TurnRunner:
 
     def _learning_after(self, reply: str, elapsed_ms: int) -> None:
         self._grow_brain(reply, elapsed_ms)
+        try:
+            import user_hooks
+
+            user_hooks.reply_done(str(getattr(self.service, "chat_id", "") or ""), self.user_text or "", reply or "")
+        except Exception:
+            pass
         if getattr(self, "from_cache", False) or not self._learns_globally():
             return
         try:
