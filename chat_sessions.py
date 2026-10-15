@@ -389,6 +389,51 @@ class ChatSessionStore:
                 self.memory_store.remember_conversation(target, summary, "Continue from the latest saved exchange.")
             self._save()
 
+    def edit_message(self, chat_id: str, index: int, was: str, text: str, by: str, note: str = "") -> dict[str, Any]:
+        """Change one user/assistant message in place and leave a note the model reads next turn (Drive doc 2, 2.4).
+
+        The owner: "if they misspeak they can redo it and it alerts the AI", and the AI fixes what it said when it
+        was wrong or things changed. ``index`` counts user and assistant messages only (what the chat shows), and
+        ``was`` must still match, so an edit can never land on a message that moved or changed under it.
+        The text before the first edit is kept, so "(edited)" can always show what it said.
+        """
+        clean = (text or "").strip()
+        if not clean:
+            raise ValueError("An edited message cannot be empty.")
+        with self._lock:
+            chat = self.data["chats"].get(chat_id)
+            if chat is None:
+                raise KeyError(chat_id)
+            shown = [m for m in chat.get("messages", []) if m.get("role") in ("user", "assistant")]
+            if not 0 <= index < len(shown):
+                raise LookupError("No message at that position.")
+            message = shown[index]
+            if str(message.get("content", "")).strip() != (was or "").strip():
+                raise LookupError("That message changed since it was shown. Reload the chat and try again.")
+            before = str(message.get("content", ""))
+            if before.strip() == clean:
+                return dict(message)
+            message["content"] = clean[:200_000]
+            edited = message.setdefault("edited", {"first": before[:20_000]})
+            edited.update(at=datetime.now(timezone.utc).isoformat(), by=by, count=int(edited.get("count", 0)) + 1)
+            if by == "owner":
+                chat.setdefault("edit_notes", []).append(
+                    {"role": message.get("role"), "was": before[:4000], "now": clean[:4000], "note": note[:400]})
+                chat["edit_notes"] = chat["edit_notes"][-10:]
+            chat["updated_at"] = datetime.now(timezone.utc).isoformat()
+            self._save()
+            return dict(message)
+
+    def take_edit_notes(self, chat_id: str | None) -> list[dict[str, Any]]:
+        """The owner's edits the model has not heard about yet; reading them clears them."""
+        with self._lock:
+            chat = self.data["chats"].get(chat_id or "")
+            if not chat or not chat.get("edit_notes"):
+                return []
+            notes = chat.pop("edit_notes")
+            self._save()
+            return notes
+
     #: What a persona badge may hold. "avatar" is one of the owner's avatars; "custom" is a voice the owner approved
     #: for this one chat (persona_scope.persona_change). No persona at all means Ichos's own voice.
     PERSONA_KINDS = ("avatar", "custom")
