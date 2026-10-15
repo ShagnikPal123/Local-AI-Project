@@ -191,8 +191,8 @@ function WakeCard({ settings, save }: CardProps) {
           <input value={act.phrase} placeholder="e.g. hey Io" onChange={(e) => void save({ activation: { ...act, phrase: e.target.value } })} /></label>
       )}
       {act.gestures.includes("phrase") && (
-        <p className="eq-muted">The phrase is heard by your browser's speech recognizer, which needs the internet. Claps and
-          whistles work offline.</p>
+        <p className="eq-muted">In the app window or offline, the phrase is heard on this PC (Windows dictation, or Whisper
+          once installed); in Chrome or Edge, by the browser. Claps and whistles always work offline.</p>
       )}
       <label className="eq-field"><span>Sensitivity</span>
         <input type="range" min={10} max={100} value={Math.round(act.sensitivity * 100)}
@@ -412,7 +412,7 @@ function UltraCard({ settings, save }: CardProps) {
   };
   return (
     <Card title="8 · Ultra Fast" sub="Based on Jev — commands decided in one step">
-      <label className="eq-switch-row"><span>Use Ultra Fast in the notch and as a chat mode</span>
+      <label className="eq-switch-row"><span>Use Ultra Fast in the notch, for spoken commands and as a chat mode</span>
         <button className={`eq-switch ${settings.ultrafast ? "on" : ""}`} role="switch" aria-checked={settings.ultrafast}
           onClick={() => void save({ ultrafast: !settings.ultrafast })} /></label>
       <p className="eq-muted">{status?.jev ? "Jev (TypeSafe) is connected — one ~250 ms request per command."
