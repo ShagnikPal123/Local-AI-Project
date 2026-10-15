@@ -1,5 +1,5 @@
 /* Io sits on the top edge of the chat box, at the right, and peeks over it. */
-.io-mascot { position: absolute; right: 18px; top: -40px; z-index: 3; line-height: 0; outline: none; cursor: default;
+.io-mascot { position: absolute; right: 18px; top: auto; bottom: calc(100% + 1px); z-index: 3; line-height: 0; outline: none; cursor: default;
   filter: drop-shadow(0 1px 0 rgba(0,0,0,.35)); }
 .io-mascot svg { display: block; image-rendering: pixelated; }
 .io-mascot.is-busy svg { animation: io-bob 1.4s ease-in-out infinite; }
