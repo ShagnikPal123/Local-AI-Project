@@ -255,3 +255,47 @@ def test_plan_mode_blocks_the_real_mouse_and_keyboard_tool_names():
     for name in ("keyboard_type", "mouse_click", "own_computer_type"):
         with pytest.raises(PermissionDenied):
             guard(name, "general")
+
+
+# ---------------------------------------------------------------------------
+# Code inside the normal chat (Drive doc 2, 2.1)
+# ---------------------------------------------------------------------------
+
+
+def test_code_session_needs_a_real_folder(tmp_path):
+    assert chat_modes.code_session("") is None
+    assert chat_modes.code_session(str(tmp_path / "missing")) is None
+    file = tmp_path / "a.txt"
+    file.write_text("x")
+    assert chat_modes.code_session(str(file)) is None
+    session = chat_modes.code_session(str(tmp_path), "nonsense")
+    assert session["folder"] == str(tmp_path.resolve())
+    assert session["environment"] == "local" and session["environment_label"] == "This PC"
+
+
+def test_code_note_is_replaced_each_turn_and_dropped_when_back_in_chat(tmp_path):
+    service = _Service()
+    chat_modes.prepare_code(service, str(tmp_path), "local")
+    chat_modes.prepare_code(service, str(tmp_path), "review")
+    notes = [m["content"] for m in service.conversation_history if m["content"].startswith(chat_modes.CODE_PREFIX)]
+    assert len(notes) == 1 and str(tmp_path.resolve()) in notes[0] and "Review first" in notes[0]
+    assert chat_modes.prepare_code(service, "", None) is None
+    assert not any(m["content"].startswith(chat_modes.CODE_PREFIX) for m in service.conversation_history)
+
+
+def test_review_first_reads_but_never_writes_or_runs():
+    guard = chat_modes.code_review_guard()
+    guard("read_file", "files.read")
+    guard("search_web", "web")
+    for name, category in (("write_file", "files.write"), ("run_command", "shell"), ("delete_path", "files.delete"),
+                           ("run_python", "code"), ("make_folder", "files.write")):
+        with pytest.raises(PermissionDenied):
+            guard(name, category)
+
+
+def test_review_first_keeps_the_gate_already_there():
+    def inner(name, category):
+        raise PermissionDenied("owner said no")
+
+    with pytest.raises(PermissionDenied, match="owner said no"):
+        chat_modes.code_review_guard(inner)("read_file", "files.read")

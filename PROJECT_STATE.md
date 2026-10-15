@@ -132,6 +132,10 @@ more false positives cost.
 
 ## Session log
 
+### Session — 2026-10-15 (combined Claude Code mod, doc 2 item 2.3)
+
+`claude-mods/combined-mod/` is one Claude Code plugin made of five mods: progress band and agents pane (savvy-progress), usage band, tool cards and skins (claude-skins), a hold on risky shell commands with what they would change (blast-radius), a files pane as a tree (filetree), and a 5-minute cache countdown that holds the first cold send once (cache-tax). 8 plugin tests pass. The Ichos side is planned, not built: `fixer-upper/handoffs/2.3-ichos-combined-mod.md` in the project files.
+
 ### Session — 2026-10-15 (Ichos Trader, the trading tab as its own app)
 
 The trading tab now has its own app in `apps/ichos-trader/` (PR #18), which imports nothing from Nyx.

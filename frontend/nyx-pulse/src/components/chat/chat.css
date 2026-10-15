@@ -700,3 +700,71 @@ select option, select optgroup { background-color: #15151c; color: #f5f5f7; }
 .work-queue__ack { font-size: 11.5px; color: var(--color-neutral-500); }
 .work-queue__remove { flex: none; color: var(--color-neutral-500); font-size: 12px; padding: 0 2px; min-height: 20px; }
 .work-queue__remove:hover { color: var(--color-neutral-200); }
+
+/* Editing, both ways (Drive doc 2, item 2.4): the owner's pencil, the edit box, "(edited)" and chat chips. */
+.msg-edit-btn {
+  opacity: 0; border: 0; background: transparent; color: var(--color-neutral-500); cursor: pointer;
+  font-size: 14px; padding: 4px; border-radius: 6px; transition: opacity 0.15s ease, color 0.15s ease;
+}
+.msg-user:hover .msg-edit-btn, .msg-edit-btn:focus-visible { opacity: 1; }
+.msg-edit-btn:hover { color: var(--color-neutral-100); }
+.msg-edit textarea {
+  width: min(560px, 70vw); resize: vertical; font: inherit; color: inherit; background: transparent;
+  border: 1px solid var(--color-neutral-600); border-radius: 8px; padding: 6px 8px;
+}
+.msg-edit__row { display: flex; justify-content: flex-end; gap: 6px; margin-top: 6px; }
+.msg-edit__row button {
+  border: 1px solid var(--color-neutral-600); background: transparent; color: inherit; border-radius: 8px;
+  padding: 3px 10px; cursor: pointer; font-size: 12px;
+}
+.msg-edit__row button.primary { background: var(--color-neutral-100); color: var(--color-neutral-900); border-color: transparent; }
+.msg-edited { display: block; margin-top: 4px; font-size: 11px; color: var(--color-neutral-500); }
+.nyx-md__chat {
+  display: inline-flex; align-items: center; gap: 5px; padding: 0 7px; margin: 0 1px; border-radius: 6px;
+  border: 1px solid var(--color-neutral-700); background: var(--color-neutral-800); color: var(--color-accent-300, inherit);
+  font: inherit; font-size: 0.95em; cursor: pointer; vertical-align: baseline;
+}
+.nyx-md__chat:hover { border-color: var(--color-neutral-500); }
+.nyx-md__chat-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: 0.8; }
+
+/* The idle code-glyph field (Drive doc 2, item 2.2): behind the transcript, fades in after 10 s without typing. */
+.idle-field { flex: 1; min-height: 0; position: relative; display: flex; flex-direction: column; }
+.idle-field > div { position: relative; z-index: 1; }
+.idle-glyphs {
+  position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none;
+  opacity: 0; transition: opacity 0.6s ease;
+}
+.idle-glyphs.on { opacity: 1; }
+
+/* Chat / Code (Drive doc 2, 2.1): the switch in the chat's head, the folder card above the composer, the bar under it. */
+.code-switch { display: inline-flex; padding: 2px; border-radius: 9px; background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-divider); }
+.code-switch__option { display: inline-grid; place-items: center; width: 30px; height: 26px; border: none; border-radius: 7px;
+  font-size: 15px; color: var(--color-neutral-400); background: transparent; cursor: pointer; }
+.code-switch__option:hover { color: var(--color-text); }
+.code-switch__option[aria-pressed="true"] { color: var(--color-text); background: var(--color-divider); }
+.code-card { width: min(380px, 100%); margin: 0 auto 8px; border-radius: 12px; background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-divider); overflow: hidden; }
+.code-card__row { display: flex; align-items: center; }
+.code-card__row--env { border-top: 1px solid var(--color-divider); }
+.code-card__pick { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; padding: 10px 12px; border: none;
+  font: inherit; font-size: 13.5px; color: var(--color-text); background: transparent; cursor: pointer; text-align: left; }
+.code-card__pick:hover { background: color-mix(in srgb, var(--color-divider) 45%, transparent); }
+.code-card__pick--env { flex: 0 1 auto; color: var(--color-neutral-400); font-size: 13px; }
+.code-card__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.code-card__check { margin-left: auto; }
+.code-card__close { border: none; background: transparent; color: var(--color-neutral-500); padding: 8px 10px; cursor: pointer; }
+.code-card__close:hover { color: var(--color-text); }
+.code-card__menu { display: grid; gap: 2px; padding: 4px; border-top: 1px solid var(--color-divider); max-height: 260px; overflow-y: auto; }
+.code-card__item { display: grid; gap: 1px; padding: 7px 9px; border: none; border-radius: 8px; font: inherit; font-size: 13px;
+  color: var(--color-text); background: transparent; text-align: left; cursor: pointer; }
+.code-card__item small { color: var(--color-neutral-500); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.code-card__item:hover, .code-card__item[aria-pressed="true"] { background: color-mix(in srgb, var(--color-divider) 55%, transparent); }
+.code-card__item--action { display: flex; align-items: center; gap: 7px; color: var(--color-accent); }
+.code-card__typed { display: flex; gap: 6px; padding: 4px 4px 2px; }
+.code-card__typed input { flex: 1; min-width: 0; padding: 6px 8px; border-radius: 7px; border: 1px solid var(--color-divider);
+  font: inherit; font-size: 12.5px; color: var(--color-text); background: transparent; }
+.code-bar { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border: none; border-radius: 7px; font: inherit;
+  font-size: 12.5px; color: var(--color-neutral-400); background: transparent; cursor: pointer; }
+.code-bar:hover { color: var(--color-text); background: var(--color-surface); }
+.code-bar__env { color: var(--color-neutral-500); }

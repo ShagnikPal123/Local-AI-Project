@@ -69,6 +69,18 @@ def _resolve(path: str) -> Path:
     return Path(raw).resolve()
 
 
+def _code_root() -> Optional[Path]:
+    """The folder of the chat's code session, when the chat is in Code (chat_modes.code_session)."""
+    try:
+        import tool_context
+
+        ctx = tool_context.current()
+    except Exception:  # noqa: BLE001 - outside a turn there is no session
+        return None
+    root = getattr(ctx, "code_root", "") if ctx else ""
+    return Path(root) if root else None
+
+
 def _timeout(value: Any, default: int = 120) -> int:
     try:
         return max(1, min(int(value), _MAX_TIMEOUT))
@@ -105,7 +117,7 @@ def run_command(command: str, shell: str = "powershell", cwd: str = "", timeout_
         argv = ["cmd", "/d", "/s", "/c", text]
     else:
         return f"Error: unknown shell {shell!r}; use powershell or cmd."
-    workdir = _resolve(cwd) if cwd else Path.home()
+    workdir = _resolve(cwd) if cwd else _code_root() or Path.home()
     if not workdir.is_dir():
         return f"Error: working folder not found: {workdir}"
     limit = _timeout(timeout_seconds)

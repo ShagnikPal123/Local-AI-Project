@@ -88,6 +88,8 @@ class StreamRequest(BaseModel):
     voice_session: str = ""
     #: The slider under the composer (chat_modes.py): normal | cowork | plan | plan_go.
     mode: Optional[str] = None
+    #: The Chat / Code switch (Drive doc 2, 2.1): {"folder": ..., "environment": "local" | "review"} while in Code.
+    code: Optional[Dict[str, str]] = None
 
 
 class StopRequest(BaseModel):
@@ -216,6 +218,7 @@ def start_turn(body: StreamRequest, user: Any) -> tuple[str, str]:
                 voice_session=body.voice_session,
                 mode=body.mode,
                 voice=body.voice,
+                **({"code": body.code} if body.code else {}),
             )
             if cancel.is_set() or (isinstance(result, dict) and result.get("stopped")):
                 state = "stopped"
@@ -457,6 +460,35 @@ def rename_chat(chat_id: str, body: RenameChatRequest, _user=RequireChat) -> Dic
     if not server._shared_chat_store().rename(chat_id, body.title):
         raise HTTPException(status_code=400, detail="No such chat, or the title was empty.")
     return {"ok": True}
+
+
+class EditMessageRequest(BaseModel):
+    #: Which message, counted back from the newest user/assistant one (0 is the newest). Counted from the end because
+    #: the chat only ever loads the newest 400, so a count from the start would not match the store.
+    from_end: int
+    was: str
+    text: str
+
+
+@router.patch("/api/chats/{chat_id}/messages")
+def edit_chat_message(chat_id: str, body: EditMessageRequest, _user=RequireChat) -> Dict[str, Any]:
+    """The owner rewrites one of their own messages; the model is told on its next turn (Drive doc 2, 2.4)."""
+    import server
+
+    store = server._shared_chat_store()
+    shown = [m for m in store.messages(chat_id) if m.get("role") in ("user", "assistant")]
+    index = len(shown) - 1 - body.from_end
+    if not store.exists(chat_id):
+        raise HTTPException(status_code=404, detail="No such chat.")
+    if not 0 <= index < len(shown) or shown[index].get("role") != "user":
+        raise HTTPException(status_code=400, detail="Only your own messages can be edited here.")
+    try:
+        message = store.edit_message(chat_id, index, body.was, body.text, by="owner")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except LookupError as exc:
+        raise HTTPException(status_code=409, detail=str(exc.args[0]))
+    return {"ok": True, "message": message}
 
 
 class CopyChatRequest(BaseModel):

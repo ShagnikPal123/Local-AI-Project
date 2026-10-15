@@ -1259,3 +1259,9 @@ def test_only_the_owner_changes_how_much_nyx_says(client, beta_token):
     assert client.get("/api/active-speech", headers=_auth(beta_token)).status_code == 200
     response = client.post("/api/active-speech", json={"enabled": False}, headers=_auth(beta_token))
     assert response.status_code == 403
+
+
+def test_message_edit_refuses_anonymous_callers_once_claimed(client, store):
+    """Editing a message (Drive doc 2, 2.4) changes what the model reads, so it is never open to an anonymous caller."""
+    _claim(store)
+    assert client.patch("/api/chats/abc/messages", json={"from_end": 0, "was": "a", "text": "b"}).status_code == 401

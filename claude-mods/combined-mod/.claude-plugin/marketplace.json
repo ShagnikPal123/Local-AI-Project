@@ -1,0 +1,13 @@
+{
+  "name": "ichos-mods",
+  "owner": {
+    "name": "ShagnikPal123"
+  },
+  "plugins": [
+    {
+      "name": "combined-mod",
+      "source": "./"
+    }
+  ],
+  "description": "Ichos mods for Claude Code"
+}

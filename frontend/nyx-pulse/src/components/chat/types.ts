@@ -222,6 +222,8 @@ export interface AssistantTurn {
   switchedTo?: string;
   /** Chats this turn created (new / duplicate / branch / fork) that the panel should open. */
   openChat?: { chatId: string; title: string; kind: string };
+  /** Nyx crossed out part of an earlier reply this turn (edit_my_message, Drive doc 2 item 2.4). */
+  editedEarlier?: boolean;
   /** Links the answer drew on, for the Sources drop-down. */
   sources?: SourceLink[];
   /** The working checklist a Co-work turn keeps current (chat_modes.update_checklist). */
@@ -255,6 +257,8 @@ export interface ChatMessageView {
   createdAt?: number;
   /** Saved with the message, so the drop-down survives a reload. */
   sources?: SourceLink[];
+  /** Changed after it was sent, by the owner or by Nyx (Drive doc 2, 2.4); shows "(edited)". */
+  edited?: boolean;
 }
 
 /** A file picked in the composer before it is sent. */
@@ -309,6 +313,7 @@ export interface ChatPersona { kind: "avatar" | "custom"; id?: string; name: str
 
 export type MessageAction =
   | { type: "copy"; messageId: string }
+  | { type: "edit"; messageId: string; text: string }
   | { type: "retry"; messageId: string }
   | { type: "speak"; messageId: string }
   | { type: "branch"; messageId: string }

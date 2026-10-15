@@ -81,6 +81,31 @@ def chat_rename(title: str, chat_id: str = "") -> str:
     return f"Renamed the chat to “{title.strip()[:80]}”. Nyx will not rename it again."
 
 
+def edit_my_message(old: str, note: str, new: str = "", chat_id: str = "") -> str:
+    """Cross out part of one of Nyx's own earlier replies, Claude-style (Drive doc 2, item 2.4).
+
+    The struck text stays readable and the "[Edit: …]" says why, so the owner can see what changed rather than
+    finding the past quietly rewritten. Only Nyx's own replies, and only text that is really in one.
+    """
+    target = chat_id.strip() or _current_chat()
+    old, note, new = (old or "").strip(), (note or "").strip(), (new or "").strip()
+    if not old or not note:
+        return "Nothing edited: give the exact text to cross out (old) and a short reason (note)."
+    store = _store()
+    shown = [m for m in store.messages(target) if m.get("role") in ("user", "assistant")]
+    for back, message in enumerate(reversed(shown)):
+        content = str(message.get("content", ""))
+        if message.get("role") != "assistant" or old not in content or f"~~{old}~~" in content:
+            continue
+        fixed = content.replace(old, f"~~{old}~~ {new + ' ' if new else ''}[Edit: {note[:300]}]", 1)
+        store.edit_message(target, len(shown) - 1 - back, content, fixed, by="nyx", note=note)
+        from tool_context import emit
+
+        emit("chat.message_edited", chat_id=target)
+        return "Crossed it out in your earlier reply, with the edit note. The chat shows it as edited."
+    return "Nothing edited: that exact text is not in any of your earlier replies in this chat (or it is already crossed out)."
+
+
 def register_chat_tools(registry: Any) -> None:
     from tools import ToolParam as P
 
@@ -100,5 +125,12 @@ def register_chat_tools(registry: Any) -> None:
     reg("chat_fork", "Fork a chat: a linked chat that starts from a short summary of recent context. "
         "Use for 'fork this', 'work on this side-thread separately'.",
         [which, P("title", "string", "Optional name", required=False), opened], chat_fork, lambda a: "Forking the chat")
+    reg("edit_my_message", "Cross out part of one of YOUR OWN earlier replies in this chat when it was wrong or has gone "
+        "stale (a PR you asked about has merged, a plan changed). The struck text stays visible with '[Edit: note]', "
+        "like Claude's edits. Use it instead of pretending you never said it.",
+        [P("old", "string", "The exact text from your earlier reply to cross out"),
+         P("note", "string", "A short reason, e.g. 'no longer needed, PR #10 has merged'"),
+         P("new", "string", "Optional corrected text placed after the struck part", required=False), which],
+        edit_my_message, lambda a: "Editing an earlier reply")
     reg("chat_rename", "Rename a chat. The owner's name is kept; Nyx stops auto-naming it.",
         [P("title", "string", "New name"), which], chat_rename, lambda a: f"Renaming the chat to {str(a.get('title', ''))[:40]}")

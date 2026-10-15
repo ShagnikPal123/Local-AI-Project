@@ -15,7 +15,7 @@ Three parts, all data:
 * **Launchers** — the owner's own buttons: an app, a site, a folder, or a command typed beforehand that opens in a
   new cmd window in a chosen folder (``claude`` in the project folder, say). ``suggest()`` turns a bare name into a
   launcher without a model: an installed app, a known site, a domain, or a web search as the last resort.
-* **Home** — which view the notch shows without a click (apps, now playing, weather, calendar, timer, agents), the
+* **Home** — which view the notch shows without a click (apps, now playing, weather, calendar, agents), the
   order a triple click walks through, and the small data each view needs.
 
 Its own file (``notch_controls.json``) rather than ``equalize_assistant.json``: the Voice team edits that module's
@@ -58,7 +58,9 @@ SYSTEM: Dict[str, tuple] = {
 }
 
 #: The views the notch can rest on. "apps" is the controls and launchers row.
-VIEWS = ("apps", "now_playing", "weather", "calendar", "timer", "agents")
+#: The Timer screen was one of them until the owner called it unneeded (Drive doc 2, item 2.6: "the screen below is
+#: unneeded, but the time aspect can stay"); the clock lives on the agents view and the middle pill instead.
+VIEWS = ("apps", "now_playing", "weather", "calendar", "agents")
 KINDS = ("app", "site", "folder", "command")
 MAX_LAUNCHERS = 12
 
@@ -152,6 +154,10 @@ def _load() -> Dict[str, Any]:
         if state["home"]["default"] == "apps" and state["home"]["views"] == _OLD_HOME_VIEWS:
             # Saved before the Io view became home and never changed by the owner: move it to the new default.
             state["home"].update(default=DEFAULTS["home"]["default"], views=list(DEFAULTS["home"]["views"]))
+        if state["home"]["default"] == "timer":
+            # The Timer screen is gone; whoever rested on it lands on the agents view, which shows the clock.
+            views = [v for v in state["home"]["views"] if v != "timer"]
+            state["home"].update(default="agents", views=["agents"] + [v for v in views if v != "agents"])
     _merge_place(state, saved.get("place"))
     return _check(state)
 

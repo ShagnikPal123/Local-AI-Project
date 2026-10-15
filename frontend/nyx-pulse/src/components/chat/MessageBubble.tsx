@@ -236,10 +236,21 @@ export function MessageBubble({ message, onAction, isLatest = false }: MessageBu
   }, [streaming]);
   const [copied, setCopied] = useState(false);
   const [listening, setListening] = useState<"idle" | "loading" | "playing" | "error">("idle");
+  // Redoing a message the owner sent (Drive doc 2, 2.4): the bubble turns into a box with Save and Cancel.
+  const [editing, setEditing] = useState<string | null>(null);
 
   if (message.role === "user") {
+    const saveEdit = () => {
+      const text = (editing ?? "").trim();
+      if (text && text !== message.content.trim()) onAction({ type: "edit", messageId: message.id, text });
+      setEditing(null);
+    };
     return (
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+      <div className="msg-user" style={{ display: "flex", justifyContent: "flex-end", alignItems: "flex-end", gap: 6 }}>
+        {editing === null && (
+          <button type="button" className="msg-edit-btn" onClick={() => setEditing(message.content)}
+            aria-label="Edit this message" title="Edit · Ichos is told what changed">✎</button>
+        )}
         <div
           style={{
             ...cardStyle,
@@ -248,7 +259,23 @@ export function MessageBubble({ message, onAction, isLatest = false }: MessageBu
             whiteSpace: "pre-wrap",
           }}
         >
-          <Linkified text={message.content} />
+          {editing !== null ? (
+            <div className="msg-edit">
+              <textarea value={editing} autoFocus rows={Math.min(8, editing.split("\n").length + 1)} aria-label="Edit your message"
+                onChange={(e) => setEditing(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") setEditing(null);
+                  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); saveEdit(); }
+                }} />
+              <div className="msg-edit__row">
+                <button type="button" onClick={() => setEditing(null)}>Cancel</button>
+                <button type="button" className="primary" onClick={saveEdit}>Save</button>
+              </div>
+            </div>
+          ) : (
+            <Linkified text={message.content} />
+          )}
+          {message.edited && editing === null && <span className="msg-edited">(edited)</span>}
           {message.attachments && message.attachments.length > 0 && (
             <div style={{ marginTop: 6, display: "flex", gap: 6, flexWrap: "wrap" }}>
               {message.attachments.map((a) => a.kind === "image" ? (
@@ -467,6 +494,7 @@ export function MessageBubble({ message, onAction, isLatest = false }: MessageBu
 
         {/* The answer. Markdown renders progressively while streaming. */}
         <Markdown text={turn ? turn.answer || message.content : message.content} streaming={streaming} />
+        {message.edited && <span className="msg-edited">(edited)</span>}
 
         {!streaming && (turn?.sources ?? message.sources ?? []).length > 0 && (
           <SourcesMenu sources={(turn?.sources ?? message.sources)!} />

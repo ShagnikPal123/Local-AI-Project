@@ -187,3 +187,27 @@ def test_auto_clean_settings_are_clamped_and_saved(tmp_path):
     assert saved == {"enabled": True, "empty_hours": 1, "old_days": 7}
     assert store.set_auto_clean(old_days=-5)["old_days"] == 0
     assert ChatSessionStore(path).auto_clean_settings()["enabled"] is True
+
+
+def test_owner_edit_changes_the_message_keeps_the_first_text_and_leaves_one_note(tmp_path):
+    """Drive doc 2, 2.4: a misspoken message can be redone, and the AI is told once."""
+    store = ChatSessionStore(tmp_path / "chats.json")
+    chat = store.create("Edits")
+    store.append("user", "book a table for 4", chat_id=chat)
+    store.append("assistant", "Booked for 4.", chat_id=chat)
+    with pytest.raises(LookupError):
+        store.edit_message(chat, 0, "something else", "book a table for 5", by="owner")
+    message = store.edit_message(chat, 0, "book a table for 4", "book a table for 5", by="owner")
+    assert message["content"] == "book a table for 5" and message["edited"]["first"] == "book a table for 4"
+    reloaded = ChatSessionStore(tmp_path / "chats.json")
+    assert reloaded.messages(chat)[0]["content"] == "book a table for 5"
+    assert reloaded.take_edit_notes(chat) == [{"role": "user", "was": "book a table for 4", "now": "book a table for 5", "note": ""}]
+    assert reloaded.take_edit_notes(chat) == []
+
+
+def test_nyx_edit_leaves_no_note_for_itself(tmp_path):
+    store = ChatSessionStore(tmp_path / "chats.json")
+    chat = store.create("Edits")
+    store.append("assistant", "Should I merge PR #10?", chat_id=chat)
+    store.edit_message(chat, 0, "Should I merge PR #10?", "~~Should I merge PR #10?~~ [Edit: merged]", by="nyx")
+    assert store.take_edit_notes(chat) == [] and store.messages(chat)[0]["edited"]["by"] == "nyx"

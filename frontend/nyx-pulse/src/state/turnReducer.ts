@@ -363,6 +363,9 @@ export function reduceTurn(turn: AssistantTurn | undefined, event: TurnEvent): A
       return provider ? { ...t, switchedTo: provider } : t;
     }
 
+    case "chat.message_edited":
+      return { ...t, editedEarlier: true };
+
     case "chat.created": {
       const chatId = str(event.chat_id);
       return chatId && event.open !== false

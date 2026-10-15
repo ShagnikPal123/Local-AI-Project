@@ -21,6 +21,7 @@ import { api } from "../../api";
 import { Spinner } from "./AgentDisc";
 import type { ChatSummaryView } from "./types";
 import { PersonaBadge } from "./PersonaBadge";
+import { AttentionMark, useAttention } from "../commander/attention";
 import { openChatPane, startChatDrag } from "./panes/paneDrag";
 
 export type RailMakeKind = "branch" | "fork" | "duplicate";
@@ -63,6 +64,7 @@ export function ChatRail({ chats, activeId, runningByChat, onSelect, onNew, onRe
   brain?: { memories: number; today: number } | null;
   onOpenBrain?: () => void;
 }) {
+  const needs = useAttention();  // which chats need the owner: a mark beside the name (Drive doc 1, item 1.19)
   const [folded, setFolded] = useState(() => { try { return localStorage.getItem("nyx.rail.folded") === "1"; } catch { return false; } });
   const [query, setQuery] = useState("");
   const [menu, setMenu] = useState<string | null>(null);
@@ -165,6 +167,7 @@ export function ChatRail({ chats, activeId, runningByChat, onSelect, onNew, onRe
                               aria-current={chat.id === activeId ? "page" : undefined}
                               title={made && parent ? `${made} of “${parent}”` : chat.title}>
                         <span className="chat-rail__title">{chat.title || "New chat"}</span>
+                        <AttentionMark need={needs[chat.id]} />
                         <PersonaBadge persona={chat.persona} small />
                         {made && <span className="chat-rail__made">{made}{parent ? ` of ${parent}` : ""}</span>}
                       </button>

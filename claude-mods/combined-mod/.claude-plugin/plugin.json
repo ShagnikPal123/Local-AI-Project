@@ -1,0 +1,9 @@
+{
+  "name": "combined-mod",
+  "version": "0.1.0",
+  "description": "Five Claude Code mods in one: progress band and agent panel, skins and usage band, risky-command hold, file tree, prompt-cache warmth.",
+  "types": "./types/index.d.ts",
+  "author": {
+    "name": "ShagnikPal123"
+  }
+}

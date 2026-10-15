@@ -31,6 +31,7 @@ import { onVoiceMode, setVoiceMode, voiceMode, type VoiceMode } from "../voice/v
 import { UsageBar } from "../components/UsageBar";
 import { ContextBar } from "../components/chat/ContextBar";
 import { ModeSlider, readMode, type ChatMode } from "../components/chat/ModeSlider";
+import { ChatCodeSwitch, CodeBar, CodeSessionCard, folderName, useCodeSession } from "../components/chat/CodeSwitch";
 import { ChatRail, type RailMakeKind } from "../components/chat/ChatRail";
 import { ChatTitleMenu } from "../components/chat/ChatTitleMenu";
 import { PersonaBadge } from "../components/chat/PersonaBadge";
@@ -198,7 +199,7 @@ export function ChatPanel({
       // open): take the server's copy instead of keeping a transcript without it (H9).
       const shown = current.filter((m) => m.role === "user" || m.role === "assistant").length;
       if (current.length > 0 && transcript.length > shown && !turnsStore.get().runningByChat[activeChatId]) {
-        const refreshed: ChatMessageView[] = transcript.map((m) => ({ id: nextId(), role: m.role, content: m.content, sources: m.sources }));
+        const refreshed: ChatMessageView[] = transcript.map((m) => ({ id: nextId(), role: m.role, content: m.content, sources: m.sources, edited: m.edited }));
         persist(activeChatId, refreshed);
         return refreshed;
       }
@@ -208,11 +209,30 @@ export function ChatPanel({
         role: m.role,
         content: m.content,
         sources: m.sources,
+        edited: m.edited,
       }));
       persist(activeChatId, seeded);
       return seeded;
     });
   }, [transcript, loadingTranscript, activeChatId, persist]);
+
+  /** Copy the server's current wording onto the shown messages, matched by position from the newest (2.4). */
+  const refreshEdited = useCallback(async (chatId: string) => {
+    const result = await api.get<{ messages: { role: string; content: string; edited?: unknown }[] }>(`/api/chats/${encodeURIComponent(chatId)}/messages`);
+    if (!result.ok) return;
+    const server = result.data.messages.filter((m) => m.role === "user" || m.role === "assistant");
+    setMessages((current) => {
+      let back = server.length;
+      const next = [...current].reverse().map((m) => {
+        if (m.role !== "user" && m.role !== "assistant") return m;
+        const fresh = server[--back];
+        if (!fresh || fresh.role !== m.role || !fresh.edited || fresh.content === m.content) return m;
+        return { ...m, content: fresh.content, edited: true, turn: m.turn ? { ...m.turn, answer: fresh.content } : m.turn };
+      }).reverse();
+      persist(chatId, next);
+      return next;
+    });
+  }, [persist]);
 
   // Fold a finished turn into the transcript exactly once.
   const foldedRef = useRef<string | null>(null);
@@ -237,6 +257,8 @@ export function ChatPanel({
       persist(turn.chatId || activeChatId, next);
       return next;
     });
+    // Nyx crossed out part of an earlier reply (edit_my_message): take the server's wording for those messages.
+    if (turn.editedEarlier) void refreshEdited(turn.chatId || activeChatId);
     // A first message sent from the "default" placeholder lands in a real chat;
     // follow it so a reload reopens this conversation.
     if (activeChatId === "default" && turn.chatId && turn.chatId !== "default") {
@@ -521,6 +543,14 @@ export function ChatPanel({
     });
   }, []);
 
+  /** Chat / Code (Drive doc 2, 2.1): in Code the chat works in a folder, in an environment. */
+  const code = useCodeSession(activeChatId);
+  const codeCard = code.picking ? (
+    <CodeSessionCard state={code.state} onChange={code.update} onClose={() => code.setPicking(false)} />
+  ) : null;
+  const codeBar = <CodeBar state={code.state} onOpen={() => code.setPicking(true)} />;
+  const composerHint = code.payload ? `Describe the change in ${folderName(code.payload.folder)}…` : undefined;
+
   // --- sending ---------------------------------------------------------------------
 
   const doSend = useCallback(
@@ -551,9 +581,9 @@ export function ChatPanel({
       onSent?.(body);
       await send({ message: (body || "Please look at the attached file(s).") + takeAbilitiesNote(), chatId: activeChatId, attachmentIds,
                    provider: talkOn ? voiceProvider || provider : provider, voice: talkOn,
-                   voiceSession, mode: modeOverride ?? chatMode });
+                   voiceSession, mode: modeOverride ?? chatMode, code: code.payload });
     },
-    [activeChatId, pending, persist, removeAttachment, send, onSent, provider, talkOn, voiceProvider, chatMode],
+    [activeChatId, pending, persist, removeAttachment, send, onSent, provider, talkOn, voiceProvider, chatMode, code.payload],
   );
 
   const doSendRef = useRef(doSend);
@@ -834,6 +864,24 @@ export function ChatPanel({
             if (target) await copyToClipboard(target.content);
           })();
           break;
+        case "edit": {
+          // The owner redoes a message they sent (Drive doc 2, 2.4); Nyx is told with the next turn.
+          const shown = messages.filter((m) => m.role === "user" || m.role === "assistant");
+          const at = shown.findIndex((m) => m.id === action.messageId);
+          const target = shown[at];
+          if (!target || busy) { if (busy) pushToast("Wait for this answer to finish, then edit.", "info"); break; }
+          void api.patch<{ ok: boolean }>(`/api/chats/${encodeURIComponent(activeChatId)}/messages`,
+            { from_end: shown.length - 1 - at, was: target.content, text: action.text }).then((result) => {
+            if (!result.ok) { pushToast(result.error, "warn"); return; }
+            setMessages((current) => {
+              const next = current.map((m) => (m.id === action.messageId ? { ...m, content: action.text.trim(), edited: true } : m));
+              persist(activeChatId, next);
+              return next;
+            });
+            pushToast("Edited. Ichos sees the change with your next message.", "ok");
+          });
+          break;
+        }
         case "retry":
           resendBefore(action.messageId);
           break;
@@ -856,7 +904,7 @@ export function ChatPanel({
           break;
       }
     },
-    [activeChatId, messages, resendBefore, runningTurn, stop],
+    [activeChatId, busy, messages, persist, resendBefore, runningTurn, stop],
   );
 
   // --- chat management ---------------------------------------------------------------
@@ -1110,6 +1158,7 @@ export function ChatPanel({
               onDelete={(id) => void onDeleteChat(id)} />
             <span className="chat-home__spacer" />
             {activeTalkSupported() && <VoiceSwitch mode={voice} onMode={setVoice} />}
+            <ChatCodeSwitch on={code.state.on} onChange={(on) => code.update({ on })} />
             <ProviderPicker value={provider} onChange={(next) => void pickProvider(next)} compact />
           </header>
           <div className="chat-home__meta">
@@ -1153,6 +1202,7 @@ export function ChatPanel({
                 onStarted={(d) => setDispatches((current) => [d, ...current.filter((x) => x.dispatch_id !== d.dispatch_id)])} />
             )}
             <ModBand />
+            {codeCard}
             <Composer
               value={draft}
               onChange={setDraft}
@@ -1163,12 +1213,13 @@ export function ChatPanel({
               onAttachFiles={onAttachFiles}
               onRemoveAttachment={removeAttachment}
               agents={agents}
-              placeholder="Ask Nyx anything…  (type / for commands)"
+              placeholder={composerHint ?? "Ask Nyx anything…  (type / for commands)"}
               slash={slash}
               onBusySend={(mode) => void onBusySend(mode)}
               busyAdvice={busyAdvice}
             />
             <div className="chat-bottom-row">
+              {codeBar}
               <ModeSlider chatId={activeChatId} mode={chatMode} onChange={setChatMode} busy={busy} />
             </div>
           </div>
@@ -1202,6 +1253,7 @@ export function ChatPanel({
             onRename={(id, next) => void onRenameChat(id, next).then(() => pushToast(`Renamed to “${next}”.`, "ok"))}
             onDelete={(id) => void onDeleteChat(id)} />
           {activeTalkSupported() && <VoiceSwitch mode={voice} onMode={setVoice} />}
+          <ChatCodeSwitch on={code.state.on} onChange={(on) => code.update({ on })} />
           <ProviderPicker value={provider} onChange={(next) => void pickProvider(next)} compact />
           {paneBar?.end}
         </div>
@@ -1239,6 +1291,7 @@ export function ChatPanel({
             onStarted={(d) => setDispatches((current) => [d, ...current.filter((x) => x.dispatch_id !== d.dispatch_id)])} />
         )}
         <ModBand />
+        {codeCard}
         <Composer
           value={draft}
           onChange={setDraft}
@@ -1249,7 +1302,7 @@ export function ChatPanel({
           onAttachFiles={onAttachFiles}
           onRemoveAttachment={removeAttachment}
           agents={agents}
-          placeholder="Ask Nyx anything…  (type / for commands)"
+          placeholder={composerHint ?? "Ask Nyx anything…  (type / for commands)"}
           slash={slash}
           onBusySend={(mode) => void onBusySend(mode)}
           busyAdvice={busyAdvice}
@@ -1257,6 +1310,7 @@ export function ChatPanel({
         {/* One row under the composer: how this chat works on the left.
             fc578b's <ChatToolbar /> (skills · agents · connectors) goes on the right. */}
         <div className="chat-bottom-row">
+          {codeBar}
           <ModeSlider chatId={activeChatId} mode={chatMode} onChange={setChatMode} busy={busy} />
         </div>
         {teamDetails && !agentSheet && <AgentDetails onClose={() => setTeamDetails(false)} onEdit={(name) => setAgentSheet(name)} />}
@@ -1312,6 +1366,7 @@ export function ChatPanel({
             onStarted={(d) => setDispatches((current) => [d, ...current.filter((x) => x.dispatch_id !== d.dispatch_id)])} />
         )}
         <ModBand />
+        {codeCard}
         <Composer
           value={draft}
           onChange={setDraft}
@@ -1322,6 +1377,7 @@ export function ChatPanel({
           onAttachFiles={onAttachFiles}
           onRemoveAttachment={removeAttachment}
           agents={agents}
+          placeholder={composerHint}
           slash={slash}
           onBusySend={(mode) => void onBusySend(mode)}
           busyAdvice={busyAdvice}
@@ -1329,10 +1385,12 @@ export function ChatPanel({
         {/* One row under the composer: how this chat works on the left.
             fc578b's <ChatToolbar /> (skills · agents · connectors) goes on the right. */}
         <div className="chat-bottom-row">
+          {codeBar}
           <ModeSlider chatId={activeChatId} mode={chatMode} onChange={setChatMode} busy={busy} />
         </div>
 
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <ChatCodeSwitch on={code.state.on} onChange={(on) => code.update({ on })} />
           <ProviderPicker value={provider} onChange={(next) => void pickProvider(next)} compact />
           {activeTalkSupported() && <VoiceSwitch mode={voice} onMode={setVoice} />}
         </div>

@@ -152,6 +152,7 @@ class ChatService:
 
         if attribute_id is not None:
             self.add_attribute_guidance(attribute_id)
+        self.hear_edits()
 
         if personality_id is not None or personality_text is not None:
             self.set_personality(resolve_personality(personality_id, personality_text))
@@ -378,6 +379,7 @@ If the user asks to change model or provider, or to go local/offline, call switc
    {{"type": "line" | "bar" | "scatter" | "area", "title": "...", "x": [...], "series": [{{"name": "...", "values": [...]}}], "xLabel": "...", "yLabel": "..."}}
    or a math function: {{"type": "function", "title": "...", "expressions": ["sin(x)", "x^2/10"], "from": -10, "to": 10}}.
    The chat draws it. Python goes in ```python blocks; the chat cannot run it, so never claim output you did not get from a tool.
+11. Fix what you said, in the open (Drive doc 2, 2.4): when you notice an earlier reply of yours was wrong, or it went stale (a PR it asked about has merged since), call edit_my_message to cross out the stale part with a short "[Edit: …]" note, instead of silently rewriting it. Link another chat as [its title](chat:<chat id>); the chat shows it as a chip that opens that chat.
 {QUESTION_RULE}{account_section}
 
 ## This computer
@@ -981,6 +983,25 @@ If the user asks to change model or provider, or to go local/offline, call switc
         if cleaned:
             self.conversation_history.append({"role": "system", "content": f"{self._TURN_CONTEXT_PREFIX}\n{cleaned}"})
 
+    def hear_edits(self) -> None:
+        """Bring the owner's message edits into this conversation before the next turn (Drive doc 2, 2.4).
+
+        A cached service still holds the old wording, so the history is corrected in place, and a system note says
+        what changed: the owner asked that an edit "alerts the AI", not that it silently rewrites the past.
+        """
+        take = getattr(self.chat_store, "take_edit_notes", None)
+        notes = take(self.chat_id) if take and self.chat_id else []
+        for note in notes:
+            for message in reversed(self.conversation_history):
+                if message.get("role") == note.get("role") and str(message.get("content", "")) == note.get("was"):
+                    message["content"] = note.get("now", "")
+                    break
+            self.conversation_history.append({"role": "system", "content": (
+                "The owner edited one of their earlier messages.\n"
+                f"Before: {note.get('was', '')}\nNow: {note.get('now', '')}\n"
+                "Take the new wording as what they meant. If your earlier answer no longer fits it, say so briefly "
+                "and correct it (edit_my_message can cross out what you said).")})
+
     def refresh_system_prompt(self) -> None:
         """Rebuild the standing prompt so new tools, agents and permissions show up.
 
@@ -1010,6 +1031,7 @@ If the user asks to change model or provider, or to go local/offline, call switc
         voice_session: str = "",
         mode: Optional[str] = None,
         voice: bool = False,
+        code: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Run one turn while streaming every step to ``sink`` (see turn_runner.py).
 
@@ -1022,6 +1044,7 @@ If the user asks to change model or provider, or to go local/offline, call switc
 
         with self._turn_lock:
             self.refresh_system_prompt()
+            self.hear_edits()
             runner = TurnRunner(
                 self,
                 user_message,
@@ -1035,6 +1058,7 @@ If the user asks to change model or provider, or to go local/offline, call switc
                 voice_session=voice_session,
                 mode=mode,
                 voice=voice,
+                code=code,
             )
             return runner.run()
 
