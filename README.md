@@ -51,7 +51,7 @@ Every part is a tab in the app, and they share one memory.
 | **Screen Share** | Looks at a window and points to what to click; acts only when you approve |
 | **Research & Notes** | Cited research reports; slides turned into notes and quizzes |
 | **Code & Build** | Edit a folder together; design 3D-printable parts and circuits |
-| **Trading practice** | Paper trading with simulated money, fees and market hours. The full trader has moved into its own app: **[Ichos Trader](apps/ichos-trader/README.md)** |
+| **Trading** | Moved out of Nyx into its own app, **[Ichos Trader](apps/ichos-trader/README.md)**: one-click Windows install, a Setup screen, practice money with the built-in account or Alpaca |
 | **Equalize** | Talk to Nyx with a live orb, see everything waiting on you and your Claude Code sessions, and get a morning digest ([sources](docs/JARVIS.md)) |
 | **Create** | Draw, and Nyx draws with you, improves the sketch, or paints it |
 | **WhatsApp** | Text Nyx from your phone and get texts back; the line is tied to the PC you paired it on ([how](docs/WHATSAPP.md)) |
