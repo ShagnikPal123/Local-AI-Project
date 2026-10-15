@@ -217,6 +217,11 @@ class ToolRegistry:
                 refusal = MOD_STORE.blocked(name)
                 if refusal:
                     raise PermissionDenied(refusal)
+                import rules_laws  # the owner's (and the AI's own) rules and laws: they only ever narrow
+
+                refusal = rules_laws.blocked(name, rules_laws.current_bot())
+                if refusal:
+                    raise PermissionDenied(refusal)
                 guard = getattr(ctx, "guard", None) if ctx is not None else None
                 if guard is not None:
                     guard(name, tool.category)  # the turn's own gate: Free Will's deny-by-default list (freewill.py)

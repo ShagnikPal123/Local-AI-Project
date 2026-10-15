@@ -23,6 +23,7 @@ import { AppearanceSection } from "../style/AppearanceSection";
 import { ChatCleanupSection } from "../components/settings/ChatCleanupSection";
 import { ChatResetSection } from "../components/settings/ChatResetSection";
 import { HooksSection } from "../components/settings/HooksSection";
+import { RulesLawsSection } from "../components/settings/RulesLawsSection";
 
 interface SpeedMode {
   id: string;
@@ -357,6 +358,9 @@ export function SettingsPanel({ group = "general" }: { group?: SettingsGroup }) 
           <SafetySection />
           <BlastRadiusSection />
           <SelfApprovalSection />
+          <Section title="Rules and laws" hint="Numbered laws every bot must follow, nested to refine each other. Laws only narrow what a bot does. The slider sets how much the AI may add on its own.">
+            <RulesLawsSection />
+          </Section>
           <Section title="Hooks" hint="Your own commands that run when something happens in a chat, like Claude Code's hooks. A before-tool hook that exits with code 2 stops the tool and tells the AI why.">
             <HooksSection />
           </Section>

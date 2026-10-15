@@ -195,6 +195,77 @@ def hooks_remove(hook_id: str, _owner_user=Depends(_owner)) -> Dict[str, Any]:
     return _hooks_state()
 
 
+# --- rules and laws (rules_laws.py; Fixer Upper S12, WS15) -----------------------------------------------------------
+
+
+@router.get("/api/laws")
+def laws_list(_owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import rules_laws
+
+    return rules_laws.state()
+
+
+@router.put("/api/laws")
+def laws_slider(body: Dict[str, Any], _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import rules_laws
+
+    try:
+        rules_laws.set_autonomy(int((body or {}).get("autonomy", 25)))
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=400, detail="The slider takes a number from 0 to 100.") from error
+    return rules_laws.state()
+
+
+@router.post("/api/laws")
+def laws_add(body: Dict[str, Any], _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import rules_laws
+
+    body = body or {}
+    try:
+        rules_laws.add_law(str(body.get("title", "")), str(body.get("text", "")), author="owner",
+                           parent=body.get("parent") or None, kind=str(body.get("kind") or "law"),
+                           applies_to=body.get("applies_to"), links=body.get("links"),
+                           block_tools=body.get("block_tools"))
+    except rules_laws.LawError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return rules_laws.state()
+
+
+@router.patch("/api/laws/{law_id}")
+def laws_edit(law_id: str, body: Dict[str, Any], _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import rules_laws
+
+    body = body or {}
+    changes = {k: body[k] for k in ("title", "text", "parent", "applies_to", "links", "block_tools", "status") if k in body}
+    try:
+        rules_laws.update_law(law_id, by="owner", **changes)
+    except KeyError as error:
+        raise HTTPException(status_code=404, detail="No law with that id.") from error
+    except rules_laws.LawError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return rules_laws.state()
+
+
+@router.post("/api/laws/{law_id}/approve")
+def laws_approve(law_id: str, _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import rules_laws
+
+    try:
+        rules_laws.approve(law_id)
+    except KeyError as error:
+        raise HTTPException(status_code=404, detail="No law with that id.") from error
+    return rules_laws.state()
+
+
+@router.delete("/api/laws/{law_id}")
+def laws_remove(law_id: str, _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import rules_laws
+
+    if not rules_laws.remove_law(law_id):
+        raise HTTPException(status_code=404, detail="No law with that id.")
+    return rules_laws.state()
+
+
 # --- design research (design_research.py; the DESIGN_MASTERPLAN research log as a Nyx feature) ----------------------
 
 
