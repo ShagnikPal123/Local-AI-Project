@@ -252,6 +252,7 @@ export function MessageBubble({ message, onAction, isLatest = false }: MessageBu
             aria-label="Edit this message" title="Edit · Ichos is told what changed">✎</button>
         )}
         <div
+          className="msg-user__bubble"
           style={{
             ...cardStyle,
             maxWidth: "78%",
@@ -304,8 +305,9 @@ export function MessageBubble({ message, onAction, isLatest = false }: MessageBu
   const learningNotes = turn?.learningNotes ?? [];
 
   return (
-    <div style={{ display: "flex", justifyContent: "flex-start" }}>
+    <div className="msg-ai" style={{ display: "flex", justifyContent: "flex-start" }}>
       <div
+        className="msg-ai__card"
         style={{
           ...cardStyle,
           maxWidth: "86%",

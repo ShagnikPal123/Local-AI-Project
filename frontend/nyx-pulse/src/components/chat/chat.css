@@ -768,3 +768,20 @@ select option, select optgroup { background-color: #15151c; color: #f5f5f7; }
   font-size: 12.5px; color: var(--color-neutral-400); background: transparent; cursor: pointer; }
 .code-bar:hover { color: var(--color-text); background: var(--color-surface); }
 .code-bar__env { color: var(--color-neutral-500); }
+
+/* Places at the top of the chat list and the person at its foot, like Claude's sidebar (owner, 2026-10-15). */
+.chat-rail__top .chat-rail__search { flex: 1; min-width: 0; }
+.chat-rail__nav, .chat-rail__more-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
+.chat-rail__more-list { padding-left: 23px; }
+.chat-rail__navitem { width: 100%; display: flex; align-items: center; gap: 9px; padding: 5px 8px; border: 0; border-radius: 6px;
+  background: transparent; color: var(--color-neutral-400); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.chat-rail__navitem:hover { background: rgba(255, 255, 255, 0.06); color: var(--color-text); }
+.chat-rail__navitem.is-sub { font-size: 12.5px; padding-block: 4px; }
+.chat-rail__badge { font-size: 10px; padding: 1px 5px; border-radius: 4px; background: rgba(255, 255, 255, 0.08); color: var(--color-neutral-500); }
+.chat-rail__me { display: flex; align-items: center; gap: 8px; padding: 8px 6px; border: 0; border-radius: 6px; background: transparent;
+  font: inherit; color: var(--color-text); cursor: pointer; text-align: left; }
+.chat-rail__me:hover { background: rgba(255, 255, 255, 0.06); }
+.chat-rail__avatar { width: 22px; height: 22px; flex: none; display: grid; place-items: center; border-radius: 50%; font-size: 10px;
+  font-weight: 700; background: var(--color-neutral-800, #2e2d2c); color: var(--color-text); }
+.chat-rail__me-name { font-size: 13px; font-weight: 500; }
+.chat-rail__me-role { font-size: 11.5px; color: var(--color-neutral-600); }

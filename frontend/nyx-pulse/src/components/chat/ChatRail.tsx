@@ -23,6 +23,7 @@ import type { ChatSummaryView } from "./types";
 import { PersonaBadge } from "./PersonaBadge";
 import { AttentionMark, useAttention } from "../commander/attention";
 import { openChatPane, startChatDrag } from "./panes/paneDrag";
+import { ownerName } from "./phrases";
 
 export type RailMakeKind = "branch" | "fork" | "duplicate";
 
@@ -47,6 +48,51 @@ function groupOf(ms: number, now: Date): string {
 }
 
 const GROUPS = ["Today", "Yesterday", "This week", "Older"];
+const PINS_KEY = "nyx.rail.pins";
+
+function readPins(): string[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(PINS_KEY) || "[]");
+    return Array.isArray(raw) ? raw.filter((x): x is string => typeof x === "string") : [];
+  } catch { return []; }
+}
+
+/** Open a tab, at one of its sections when given (the section is saved first, so the hub opens on it). */
+function openPlace(tab: string, section?: string): void {
+  if (section) {
+    try { localStorage.setItem(`ichos.hub.${tab}`, section); } catch { /* not kept */ }
+    window.dispatchEvent(new CustomEvent("ichos:open-section", { detail: { hub: tab, section } }));
+  }
+  window.dispatchEvent(new CustomEvent("nyx:open-tab", { detail: { tab } }));
+}
+
+/** The places at the top of Claude's sidebar, mapped to where they live in Ichos (owner's 2026-10-15 images). */
+const NAV: { id: string; label: string; icon: string; open: () => void; badge?: string }[] = [
+  { id: "projects", label: "Projects", icon: "M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z", open: () => openPlace("projects", "projects"), badge: "Beta" },
+  { id: "artifacts", label: "Artifacts", icon: "M12 3 3 8l9 5 9-5-9-5zM3 13l9 5 9-5", open: () => openPlace("projects", "artifacts") },
+  { id: "scheduled", label: "Scheduled", icon: "M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z", open: () => openPlace("projects", "scheduled") },
+  { id: "customize", label: "Customize", icon: "M4 7h10M18 7h2M4 17h4M12 17h8M14 4v6M8 14v6", open: () => window.dispatchEvent(new CustomEvent("ichos:open-settings", { detail: { page: "appearance" } })) },
+];
+
+const MORE: { tab: string; label: string }[] = [
+  { tab: "code", label: "Code" },
+  { tab: "notes", label: "Notes" },
+  { tab: "research", label: "Research Lab" },
+  { tab: "agents", label: "Agents" },
+  { tab: "connectors", label: "Connections" },
+  { tab: "improve", label: "Improve" },
+];
+
+function initials(name: string): string {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("") || "?";
+}
+
+function NavIcon({ d }: { d: string }) {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"
+      strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>
+  );
+}
 
 export function ChatRail({ chats, activeId, runningByChat, onSelect, onNew, onRename, onDelete, onMake, onRestored,
   brain, onOpenBrain, projects }: {
@@ -76,6 +122,14 @@ export function ChatRail({ chats, activeId, runningByChat, onSelect, onNew, onRe
   const [deleted, setDeleted] = useState<DeletedChat[] | null>(null);
   const [hideEmpty, setHideEmpty] = useState(() => { try { return localStorage.getItem("nyx.rail.hideEmpty") === "1"; } catch { return false; } });
   const menuRef = useRef<HTMLDivElement>(null);
+  // Pinned chats sit above the dated groups, like Claude's Pinned list (kept in this browser).
+  const [pins, setPins] = useState<string[]>(readPins);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const togglePin = (id: string) => setPins((current) => {
+    const next = current.includes(id) ? current.filter((x) => x !== id) : [id, ...current];
+    try { localStorage.setItem(PINS_KEY, JSON.stringify(next)); } catch { /* not kept */ }
+    return next;
+  });
 
   useEffect(() => { try { localStorage.setItem("nyx.rail.folded", folded ? "1" : "0"); } catch { /* not kept */ } }, [folded]);
   useEffect(() => { try { localStorage.setItem("nyx.rail.hideEmpty", hideEmpty ? "1" : "0"); } catch { /* not kept */ } }, [hideEmpty]);
@@ -100,10 +154,11 @@ export function ChatRail({ chats, activeId, runningByChat, onSelect, onNew, onRe
     for (const chat of chats) {
       if (wanted && !chat.title.toLowerCase().includes(wanted)) continue;
       if (hideEmpty && isEmpty(chat)) continue;
+      if (pins.includes(chat.id)) { (out.Pinned ??= []).push(chat); continue; }
       (out[groupOf(when(chat.updatedAt), now)] ??= []).push(chat);
     }
     return out;
-  }, [chats, query, hideEmpty, isEmpty]);
+  }, [chats, query, hideEmpty, isEmpty, pins]);
 
   const loadDeleted = useCallback(async () => {
     const result = await api.get<{ chats: DeletedChat[] }>("/api/chat-trash");
@@ -134,11 +189,32 @@ export function ChatRail({ chats, activeId, runningByChat, onSelect, onNew, onRe
   return (
     <nav className="chat-rail" aria-label="Chats">
       <div className="chat-rail__top">
-        <button type="button" className="chat-rail__new" onClick={onNew}>＋ New chat</button>
+        <input className="chat-rail__search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search"
+               aria-label="Search chats" />
         <button type="button" className="chat-rail__icon" onClick={() => setFolded(true)} aria-label="Hide the chat list" title="Hide the chat list">⟨</button>
       </div>
-      <input className="chat-rail__search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search chats"
-             aria-label="Search chats" />
+      <ul className="chat-rail__nav" aria-label="Places">
+        <li><button type="button" className="chat-rail__navitem" onClick={onNew}><NavIcon d="M12 5v14M5 12h14" /> New</button></li>
+        {NAV.map((item) => (
+          <li key={item.id}>
+            <button type="button" className="chat-rail__navitem" onClick={item.open}>
+              <NavIcon d={item.icon} /> {item.label}{item.badge && <span className="chat-rail__badge">{item.badge}</span>}
+            </button>
+          </li>
+        ))}
+        <li>
+          <button type="button" className="chat-rail__navitem" aria-expanded={moreOpen} onClick={() => setMoreOpen((v) => !v)}>
+            <NavIcon d="M5 12h.01M12 12h.01M19 12h.01" /> More
+          </button>
+          {moreOpen && (
+            <ul className="chat-rail__more-list">
+              {MORE.map((m) => (
+                <li key={m.tab}><button type="button" className="chat-rail__navitem is-sub" onClick={() => openPlace(m.tab)}>{m.label}</button></li>
+              ))}
+            </ul>
+          )}
+        </li>
+      </ul>
       {projects}
       <label className="chat-rail__filter" title="Chats with no messages stay out of the list (the open one always shows)">
         <input type="checkbox" checked={hideEmpty} onChange={(e) => setHideEmpty(e.target.checked)} />
@@ -147,10 +223,10 @@ export function ChatRail({ chats, activeId, runningByChat, onSelect, onNew, onRe
 
       <div className="chat-rail__list">
         {chats.length === 0 && <p className="chat-rail__empty">Your conversations will appear here.</p>}
-        {chats.length > 0 && GROUPS.every((g) => !groups[g]?.length) && (
+        {chats.length > 0 && ["Pinned", ...GROUPS].every((g) => !groups[g]?.length) && (
           <p className="chat-rail__empty">{query.trim() ? `No chat matches “${query}”.` : "Every chat here is empty — untick Hide empty chats to see them."}</p>
         )}
-        {GROUPS.filter((g) => groups[g]?.length).map((group) => (
+        {["Pinned", ...GROUPS].filter((g) => groups[g]?.length).map((group) => (
           <section key={group} aria-label={group}>
             <h3 className="chat-rail__group">{group}</h3>
             <ul>
@@ -183,6 +259,7 @@ export function ChatRail({ chats, activeId, runningByChat, onSelect, onNew, onRe
                         <button role="menuitem" onClick={() => { setMenu(null); openChatPane(chat.id, "right"); }}>
                           Open beside<small>or drag it onto the chat — any side</small>
                         </button>
+                        <button role="menuitem" onClick={() => { setMenu(null); togglePin(chat.id); }}>{pins.includes(chat.id) ? "Unpin" : "Pin"}</button>
                         <button role="menuitem" onClick={() => { setMenu(null); setDraft(chat.title); setRenaming(chat.id); }}>Rename</button>
                         <button role="menuitem" onClick={() => { setMenu(null); onMake(chat.id, "branch"); }}>
                           Branch<small>every message, then go another way</small>
@@ -219,6 +296,12 @@ export function ChatRail({ chats, activeId, runningByChat, onSelect, onNew, onRe
             ))}
           </ul>
         )}
+        <button type="button" className="chat-rail__me" title="Settings"
+          onClick={() => window.dispatchEvent(new CustomEvent("ichos:open-settings", { detail: {} }))}>
+          <span className="chat-rail__avatar" aria-hidden="true">{initials(ownerName() || "You")}</span>
+          <span className="chat-rail__me-name">{ownerName() || "You"}</span>
+          <span className="chat-rail__me-role">Owner</span>
+        </button>
         {onOpenBrain && (
           <button type="button" className="chat-rail__brain" onClick={onOpenBrain} title="Open the Second Brain — the memory field and voice">
             <span className="chat-rail__brain-mark" aria-hidden="true">◐</span>

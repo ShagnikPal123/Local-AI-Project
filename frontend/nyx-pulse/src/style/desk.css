@@ -1,0 +1,294 @@
+/* Desk (owner, 2026-10-15: "use these images as reference to what I want the normal chat as well as the actual app to
+   look like"). The images are Claude's desktop app: near-black panels laid edge to edge, 1px lines between them
+   instead of gaps and shadows, small radii, muted grey labels, one warm accent, blue only for counts and links.
+   Studio stays on underneath for its structure (icon rail, chat panels); this layer takes away the glass, the warm
+   room, the glow and the gaps. Colours were sampled from the owner's screenshot. Gated by `desk` in <html data-style>. */
+
+:root[data-style~="desk"] {
+  --desk-sidebar: #111111;
+  --desk-main: #151515;
+  --desk-panel: #1a1a19;
+  --desk-raised: #20201f;
+  --desk-hover: #232323;
+  --desk-head: #262625;
+  --desk-line: rgba(255, 255, 255, 0.07);
+  --desk-line-strong: rgba(255, 255, 255, 0.12);
+  --desk-text: #e8e6e1;
+  --desk-muted: #8d8b86;
+  --desk-faint: #6f6d69;
+  --desk-user: #251f13;
+  --desk-blue: #2a78d6;
+  --desk-amber: #d4a031;
+
+  --studio-glass: var(--desk-main);
+  --studio-glass-edge: var(--desk-line);
+  --studio-gap: 0px;
+  --studio-r: 0px;
+  --studio-orange: #d97757;
+
+  --color-bg: var(--desk-main);
+  --color-nav: var(--desk-sidebar);
+  --color-surface: var(--desk-raised);
+  --color-surface-2: var(--desk-hover);
+  --color-surface-3: #2c2c2b;
+  --color-flyout: #1e1e1d;
+  --color-text: var(--desk-text);
+  --color-divider: var(--desk-line);
+  --color-divider-strong: var(--desk-line-strong);
+  --color-neutral-400: #bdbab4;
+  --color-neutral-500: #9d9a94;
+  --color-neutral-600: var(--desk-muted);
+  --color-neutral-700: #4a4946;
+  --color-neutral-800: #2e2d2c;
+  --color-neutral-900: #222221;
+
+  --color-accent: #d97757;
+  --color-accent-2: #e39478;
+  --color-accent-300: #f0c2b0;
+  --color-accent-400: #e39478;
+  --color-accent-500: #d97757;
+  --color-accent-700: #a95539;
+  --color-accent-900: var(--desk-user);
+  --color-link: #6aa5ec;
+  --color-link-bg: rgba(42, 120, 214, 0.16);
+  --color-on-accent: #ffffff;
+  --color-warn: var(--desk-amber);
+  --radius: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+}
+
+/* --- The page: no room, no glass, no gaps ------------------------------------------------------------------------ */
+:root[data-style~="desk"] body,
+:root[data-style~="desk"] #root { background: var(--desk-main) !important; }
+:root[data-style~="desk"] .app-body { padding: 0 !important; gap: 0 !important; }
+:root[data-style~="desk"] .app-col { gap: 0 !important; }
+:root[data-style~="desk"] .app-col > main,
+:root[data-style~="desk"] .studio-main,
+:root[data-style~="desk"] .studio-side {
+  background: var(--desk-main) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+:root[data-style~="desk"] .studio-side { background: var(--desk-panel) !important; border-left: 1px solid var(--desk-line); }
+:root[data-style~="desk"] .chat-window { border-radius: 0; }
+/* The Studio greeting ("Good morning…") and its search pill: Claude's chat has none; search lives in the chat list. */
+:root[data-style~="desk"] .studio-head { display: none; }
+
+/* Top bar: one thin strip like the window's title row. */
+:root[data-style~="desk"] .shell-bar {
+  background: var(--desk-sidebar) !important;
+  border-radius: 0 !important;
+  box-shadow: inset 0 -1px 0 var(--desk-line) !important;
+  min-height: 36px !important;
+  padding-block: 2px !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+:root[data-style~="desk"] .shell-bar .shell-icon-btn,
+:root[data-style~="desk"] .shell-bar button {
+  min-height: 26px;
+  font-size: 12.5px;
+  border-radius: 6px;
+  box-shadow: none;
+  background: transparent;
+  color: var(--desk-muted);
+  border-color: transparent;
+}
+:root[data-style~="desk"] .shell-bar button:hover { background: var(--desk-hover); color: var(--desk-text); }
+:root[data-style~="desk"] .shell-host { background: transparent !important; box-shadow: none !important; }
+:root[data-style~="desk"] .shell-host__dot { box-shadow: none !important; }
+
+/* Icon rail: a flat column flush with the left edge; the open tab is a soft grey tile, not an orange glow. */
+:root[data-style~="desk"] .studio-rail {
+  width: 52px;
+  gap: 6px;
+  padding: 10px 0;
+  border-radius: 0;
+  background: var(--desk-sidebar);
+  box-shadow: inset -1px 0 0 var(--desk-line);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+:root[data-style~="desk"] .studio-rail__item { width: 36px; height: 36px; border-radius: 8px; color: var(--desk-muted); }
+:root[data-style~="desk"] .studio-rail__item:hover { background: var(--desk-hover); color: var(--desk-text); }
+:root[data-style~="desk"] .studio-rail__item[aria-selected="true"] { background: var(--desk-head); color: var(--desk-text); box-shadow: none; }
+:root[data-style~="desk"] .studio-rail__foot { background: transparent; padding: 4px; }
+:root[data-style~="desk"] .studio-rail__tip { border-radius: 6px; font-weight: 500; font-size: 12px; background: #2a2a29; }
+
+/* The effects layers never show under Desk, even if they are still in the saved mix. */
+:root[data-style~="desk"] .particle-field { display: none !important; }
+
+/* --- Common controls -------------------------------------------------------------------------------------------- */
+:root[data-style~="desk"] .btn { border-radius: 8px; box-shadow: none; }
+:root[data-style~="desk"] .btn-primary { background: var(--desk-text); color: #151515; border-color: transparent; }
+:root[data-style~="desk"] .btn-primary:hover:not(:disabled) { background: #fff; }
+:root[data-style~="desk"] .btn-secondary { background: transparent; border: 1px solid var(--desk-line-strong); color: var(--desk-text); }
+:root[data-style~="desk"] .btn-secondary:hover:not(:disabled) { background: var(--desk-hover); }
+:root[data-style~="desk"] .chip { border-radius: 6px; background: var(--desk-hover); box-shadow: none; }
+:root[data-style~="desk"] input,
+:root[data-style~="desk"] textarea,
+:root[data-style~="desk"] select { box-shadow: none; }
+:root[data-style~="desk"] * { scrollbar-color: #3a3a39 transparent; scrollbar-width: thin; }
+
+/* Tab hubs (Constellations, Connections…): a quiet title row and underlined pivots. */
+:root[data-style~="desk"] .hub__title { font-size: 18px; font-weight: 600; }
+:root[data-style~="desk"] .hub__pivot button[aria-selected="true"] { background: var(--desk-head); box-shadow: none; }
+
+/* --- The chat: three columns edge to edge ------------------------------------------------------------------------ */
+:root[data-style~="desk"] .chat-home__main { padding: 0 0 10px; gap: 4px; }
+:root[data-style~="desk"] .chat-home__head {
+  min-height: 40px;
+  padding-inline: 14px !important;
+  border-bottom: 1px solid var(--desk-line);
+}
+:root[data-style~="desk"] .chat-home__title { font: 500 13.5px var(--font-body, inherit); color: var(--desk-text); }
+:root[data-style~="desk"] .chat-home__head .btn,
+:root[data-style~="desk"] .ov-toggle { min-height: 26px; padding: 2px 9px; font-size: 12.5px; border-radius: 6px; }
+:root[data-style~="desk"] .ov-toggle { background: transparent; border: 0; color: var(--desk-muted); }
+:root[data-style~="desk"] .ov-toggle.is-on { background: var(--desk-hover); color: var(--desk-text); }
+:root[data-style~="desk"] .chat-home__dock { padding-inline: max(20px, calc((100% - 700px) / 2)) !important; }
+:root[data-style~="desk"] .chat-home__column > div { padding-inline: max(20px, calc((100% - 700px) / 2)) !important; }
+
+/* Chat list: Claude's left sidebar. */
+:root[data-style~="desk"] .chat-rail { width: 236px; background: var(--desk-sidebar); border-right: 1px solid var(--desk-line); padding: 8px 8px 0; gap: 2px; }
+:root[data-style~="desk"] .chat-rail.is-folded { width: 44px; }
+:root[data-style~="desk"] .chat-rail__search {
+  height: 28px; border-radius: 6px; border: 1px solid var(--desk-line); background: var(--desk-panel); font-size: 12.5px;
+  padding-left: 26px; margin-bottom: 4px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238d8b86' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: 9px center;
+}
+:root[data-style~="desk"] .chat-rail__group { font-size: 11.5px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--desk-faint); margin: 12px 6px 2px; }
+:root[data-style~="desk"] .chat-rail__item { border-radius: 6px; }
+:root[data-style~="desk"] .chat-rail__item:hover { background: var(--desk-panel); }
+:root[data-style~="desk"] .chat-rail__item.is-active { background: var(--desk-hover); box-shadow: none; }
+:root[data-style~="desk"] .chat-rail__item.is-active::before { display: none; }
+:root[data-style~="desk"] .chat-rail__open { font-size: 13px; padding-block: 4px; }
+:root[data-style~="desk"] .chat-rail__filter { font-size: 11.5px; color: var(--desk-faint); margin: 2px 6px; }
+:root[data-style~="desk"] .chat-rail__menu { background: #1e1e1d; border: 1px solid var(--desk-line-strong); border-radius: 8px; }
+
+/* Messages: the owner's words in a warm box on the right; Ichos's answer is plain text on the page. */
+:root[data-style~="desk"] .msg-user__bubble {
+  background: var(--desk-user) !important;
+  box-shadow: none !important;
+  border-radius: 8px !important;
+  padding: 8px 12px !important;
+  font-size: 13.5px !important;
+}
+:root[data-style~="desk"] .msg-ai__card {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 2px 0 !important;
+  max-width: 100% !important;
+  font-size: 14px !important;
+}
+
+/* The chat box: one rounded box with the words on top and the tools along its bottom edge. */
+:root[data-style~="desk"] .composer-row {
+  flex-wrap: wrap;
+  align-items: center !important;
+  gap: 4px !important;
+  padding: 8px 8px 6px;
+  border: 1px solid var(--desk-line-strong);
+  border-radius: 12px;
+  background: var(--desk-raised);
+}
+:root[data-style~="desk"] .composer-row:focus-within { border-color: rgba(255, 255, 255, 0.2); }
+:root[data-style~="desk"] .composer-row > .composer-box { order: -1; flex: 1 0 100%; }
+:root[data-style~="desk"] .composer-row .composer-input {
+  border: 0 !important; background: transparent !important; box-shadow: none !important; outline: none;
+  font-size: 14px; min-height: 44px; resize: none;
+}
+:root[data-style~="desk"] .composer-row .composer-input,
+:root[data-style~="desk"] .composer-row .composer-mirror { padding: 4px 6px; }
+:root[data-style~="desk"] .composer-row .composer-box,
+:root[data-style~="desk"] .composer-row .composer-box:focus-within { background: transparent; box-shadow: none; }
+:root[data-style~="desk"] .composer-row .plus-menu__button,
+:root[data-style~="desk"] .composer-row .composer-mic {
+  width: 28px; height: 28px; min-height: 28px; padding: 0 !important; display: inline-grid; place-items: center;
+  border: 0; border-radius: 6px; background: transparent; color: var(--desk-muted); align-self: center !important;
+}
+:root[data-style~="desk"] .composer-row .plus-menu__button:hover,
+:root[data-style~="desk"] .composer-row .composer-mic:hover { background: var(--desk-hover); color: var(--desk-text); }
+:root[data-style~="desk"] .composer-row .composer-mic { margin-left: auto; }
+:root[data-style~="desk"] .composer-row > .btn-primary,
+:root[data-style~="desk"] .composer-row > .btn-secondary:last-child {
+  align-self: center !important; width: 28px; height: 28px; min-height: 28px; padding: 0 !important; border-radius: 8px;
+  display: inline-grid; place-items: center;
+}
+:root[data-style~="desk"] .composer-row > .btn-primary { background: var(--color-accent); color: #fff; }
+:root[data-style~="desk"] .composer-row > .btn-secondary:last-child { width: auto; padding: 0 10px !important; }
+:root[data-style~="desk"] .composer-row > .composer-mic + .btn-primary,
+:root[data-style~="desk"] .composer-row > .composer-mic ~ .busy-send { margin-left: 0; }
+:root[data-style~="desk"] .composer-row > .plus-menu + .plus-menu + .btn-primary,
+:root[data-style~="desk"] .composer-row > .plus-menu + .plus-menu + .btn-secondary,
+:root[data-style~="desk"] .composer-row > .plus-menu + .plus-menu + .busy-send { margin-left: auto; }
+.send-arrow { display: none; }
+:root[data-style~="desk"] .send-word { display: none; }
+:root[data-style~="desk"] .send-arrow { display: block; }
+:root[data-style~="desk"] .chat-bottom-row { font-size: 12px; flex-wrap: wrap; row-gap: 4px; align-items: center; }
+/* Under the box: how the chat works on the left, model and effort on the right (Claude's "Opus 5.5 · Medium"),
+   then the movable bars on their own line as plain, borderless labels. */
+:root[data-style~="desk"] .chat-bottom-row > .cb-zone.is-bottom { order: 3; flex: 1 0 100%; }
+:root[data-style~="desk"] .chat-bottom-row > .lp { order: 2; margin-left: auto; }
+:root[data-style~="desk"] .chat-bottom-row > .chat-home__spacer { display: none; }
+:root[data-style~="desk"] .mode-slider__means { display: none; }
+:root[data-style~="desk"] .mode-slider__track { background: transparent; box-shadow: none; padding: 0; gap: 2px; }
+:root[data-style~="desk"] .mode-slider__option { font-size: 12px; padding: 3px 8px; border-radius: 6px; color: var(--desk-muted); }
+:root[data-style~="desk"] .mode-slider__option[aria-pressed="true"],
+:root[data-style~="desk"] .mode-slider__option[aria-checked="true"] { color: var(--desk-text); background: var(--desk-hover); font-weight: 500; }
+:root[data-style~="desk"] .cb-chip { background: transparent; box-shadow: none; border: 0; font-size: 12px; color: var(--desk-muted); }
+:root[data-style~="desk"] .cb-chip:hover { background: var(--desk-panel); color: var(--desk-text); }
+:root[data-style~="desk"] .cb-grip, :root[data-style~="desk"] .cb-more { opacity: 0; }
+:root[data-style~="desk"] .cb-chip:hover .cb-grip, :root[data-style~="desk"] .cb-chip:hover .cb-more,
+:root[data-style~="desk"] .cb-chip:focus-within .cb-grip, :root[data-style~="desk"] .cb-chip:focus-within .cb-more { opacity: 1; }
+:root[data-style~="desk"] .lp-btn { background: transparent; border: 0; box-shadow: none; font-size: 12.5px; color: var(--desk-muted); }
+:root[data-style~="desk"] .lp-btn:hover { color: var(--desk-text); background: var(--desk-panel); }
+/* The top bars (context and usage) sit in one small pill, like Claude's "Context 19% · 5h 88% · Week 65%". */
+:root[data-style~="desk"] .cb-zone.is-top { justify-content: center; }
+:root[data-style~="desk"] .cb-zone.is-top .cb-chip:not(.is-blank) { background: var(--desk-panel); border: 1px solid var(--desk-line); border-radius: 0 0 8px 8px; }
+/* Projects heading in the chat list: Claude's quiet "Pinned" label, not capitals. */
+:root[data-style~="desk"] .pj-rail__toggle { text-transform: none; letter-spacing: 0; font-size: 11.5px; font-weight: 500; color: var(--desk-faint); }
+:root[data-style~="desk"] .chat-bottom-row .btn,
+:root[data-style~="desk"] .chat-bottom-row button { box-shadow: none; }
+
+/* Empty chat: just the orb and a line, like Claude's quiet new-session screen. The shape legend and the long
+   explanation stay in the other looks. */
+:root[data-style~="desk"] .orb-hero__legend,
+:root[data-style~="desk"] .orb-hero__intro,
+:root[data-style~="desk"] .orb-hero__caption { display: none; }
+:root[data-style~="desk"] .orb-hero__stage { transform: scale(0.6); margin-block: -30px -20px; }
+:root[data-style~="desk"] .orb-hero__title { font-family: Georgia, "Times New Roman", serif; font-weight: 400; font-size: 26px; }
+:root[data-style~="desk"] .orb-suggestion { border-radius: 8px; background: transparent; border: 1px solid var(--desk-line-strong); box-shadow: none; }
+:root[data-style~="desk"] .orb-suggestion:hover { background: var(--desk-panel); }
+
+/* Agents started from the chat: one slim pill per helper with a dot, its name and what it is doing (owner's image:
+   "this system of showing a new chat was opened really looks nice to me"). */
+:root[data-style~="desk"] .dispatch { background: transparent; box-shadow: none; border: 0; padding: 0; }
+:root[data-style~="desk"] .dispatch__bar { display: none; }
+:root[data-style~="desk"] .dispatch__list { display: grid; gap: 6px; justify-items: start; }
+:root[data-style~="desk"] .dispatch__row {
+  display: inline-flex; align-items: center; gap: 8px; max-width: 100%;
+  padding: 6px 12px; border-radius: 8px; border: 1px solid var(--desk-line-strong); background: transparent;
+}
+:root[data-style~="desk"] .dispatch__row .box__emoji { width: 6px; height: 6px; border-radius: 50%; overflow: hidden; font-size: 0;
+  background: var(--desk-faint); flex: none; }
+:root[data-style~="desk"] .dispatch__item.is-running .dispatch__row .box__emoji { background: var(--desk-blue); }
+:root[data-style~="desk"] .dispatch__who { display: inline-flex; gap: 8px; align-items: baseline; min-width: 0; }
+:root[data-style~="desk"] .dispatch__who b { font-weight: 600; font-size: 13px; white-space: nowrap; }
+:root[data-style~="desk"] .dispatch__who span { color: var(--desk-faint); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+:root[data-style~="desk"] .dispatch__status { display: none; }
+
+/* Overview panel: Claude's right-hand Threads panel. */
+:root[data-style~="desk"] .ov-panel { background: var(--desk-panel); border-left: 1px solid var(--desk-line); box-shadow: none; }
+
+/* Settings window. */
+:root[data-style~="desk"] .settings-window,
+:root[data-style~="desk"] [role="dialog"] { border-radius: 12px; }
+
+/* Under an answer: small grey words that light up on hover, not pills. */
+:root[data-style~="desk"] .chat-action { background: transparent; border: 0; box-shadow: none; color: var(--desk-faint); font-size: 12px; padding: 3px 7px; border-radius: 6px; }
+:root[data-style~="desk"] .chat-action:hover { background: var(--desk-hover); color: var(--desk-text); }
