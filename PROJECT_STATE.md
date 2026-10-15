@@ -132,6 +132,14 @@ more false positives cost.
 
 ## Session log
 
+### Session — 2026-10-15 (compact chat redesign, step 2)
+
+- **Chat/Code switch** shows only at a chat's start or while Code is on; "Code in a folder" is in the + menu; its icons no longer go blank (WS11 handoff patch).
+- **Compact chat:** an Overview panel on the right like Claude's Threads panel (Threads with welcome, one usage graph and Waiting on you / Working / Idle; Library with artifacts, linked folders and + Add; Activity). The strips over the messages are now movable bars (context, usage, environment, connectors, remote access, team): drag between top and under the box, reorder or hide. One "⋯" menu beside the chat name.
+- **Model lineup in use:** model and effort under the box (Pico, Monolith Argon–Xenon, Crescendo, Zencode, Low–Aleph); `/api/models/lineup`; `/api/models/switch` takes lineup names; `turn_runner` applies the lineup plan (who answers first, tool steps, a status line).
+- **Calendar** (Constellations): click a time or + Add to put an Orbit there, click an event to run, pause or remove it, a link to connect Google Calendar; repeating Orbits no longer show runs before they were made.
+- **Not done yet:** Projects home like Claude Projects inside the chat, Google Drive folder in the Library, the Ichos tutorial (queued).
+
 ### Session — 2026-10-15 (Ichos Trader finished as its own app; Trading removed from Ichos)
 
 - **Trader (PR #22):** a Setup screen (amount, currency, built-in or Alpaca practice, start); Alpaca practice wired in as the broker (only its own holdings, only the budget plus what it earns, fills keep the bot); the strategist learns from its own wins and losses; scans scale with CPU cores (`ICHOS_WORKERS`); any of 16 account currencies; `Start Ichos Trader.bat` one-click install and start, `--open`, `--autostart on|off`; the built dashboard is committed; full Windows install, update and troubleshooting steps in `apps/ichos-trader/README.md`. 91 trader tests pass.
