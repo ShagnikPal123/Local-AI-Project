@@ -11,7 +11,7 @@
  *  and /api/code/workspaces. Nothing here writes except "+ Add". Which tab is open and whether the panel shows are
  *  remembered per window. */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { api, authHeaders } from "../../../api";
 import { useStore } from "../../../state/store";
 import { turnsStore } from "../../../state/turnStore";
@@ -399,6 +399,63 @@ function Library() {
   );
 }
 
+// --- size and place (owner 2026-10-15: the right panels can be dragged and pulled wider or narrower) ---------------
+
+const BOX_KEY = "nyx.chat.overview.box";
+type Box = { w: number; floating: boolean; x: number; y: number; h: number };
+
+function readBox(): Box {
+  const base: Box = { w: 0, floating: false, x: 0, y: 72, h: 0 };
+  try { return { ...base, ...JSON.parse(localStorage.getItem(BOX_KEY) || "{}") }; } catch { return base; }
+}
+
+/** Width from the left edge (docked or floating), and a pop-out mode moved by its tab bar. Kept per window. */
+function usePanelBox() {
+  const ref = useRef<HTMLElement>(null);
+  const [b, setB] = useState<Box>(readBox);
+  useEffect(() => { try { localStorage.setItem(BOX_KEY, JSON.stringify(b)); } catch { /* not kept */ } }, [b]);
+  const clampW = (w: number) => Math.round(Math.max(260, Math.min(w, window.innerWidth * 0.8)));
+  const drag = (e: ReactPointerEvent, onMove: (ev: PointerEvent, start: DOMRect) => void) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const start = ref.current?.getBoundingClientRect() ?? new DOMRect();
+    const move = (ev: PointerEvent) => onMove(ev, start);
+    const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+  const startResize = (e: ReactPointerEvent) => drag(e, (ev, r) => {
+    const w = clampW(r.right - ev.clientX);
+    setB((o) => ({ ...o, w, x: o.floating ? r.right - w : o.x }));
+  });
+  const startCorner = (e: ReactPointerEvent) => drag(e, (ev, r) => {
+    setB((o) => ({ ...o, w: clampW(ev.clientX - r.left), h: Math.max(220, Math.min(ev.clientY - r.top, window.innerHeight - r.top - 8)) }));
+  });
+  const startMove = (e: ReactPointerEvent) => {
+    if (!b.floating || (e.target as HTMLElement).closest("button, input")) return;
+    const dx = e.clientX - b.x, dy = e.clientY - b.y;
+    drag(e, (ev, r) => setB((o) => ({ ...o,
+      x: Math.max(8 - r.width + 80, Math.min(ev.clientX - dx, window.innerWidth - 80)),
+      y: Math.max(8, Math.min(ev.clientY - dy, window.innerHeight - 40)) })));
+  };
+  const toggleFloat = () => setB((o) => {
+    if (o.floating) return { ...o, floating: false };
+    const r = ref.current?.getBoundingClientRect();
+    const w = o.w || 360;
+    return { ...o, floating: true, w, x: (r?.right ?? window.innerWidth) - w - 24, y: (r?.top ?? 72) + 24,
+      h: o.h || Math.min(560, window.innerHeight - 120) };
+  });
+  // Docked, the width goes to the grid column; floating, the panel places itself.
+  useEffect(() => {
+    const home = ref.current?.parentElement;
+    if (!home) return;
+    if (b.w && !b.floating) home.style.setProperty("--ov-w", `${b.w}px`);
+    else home.style.removeProperty("--ov-w");
+  }, [b.w, b.floating]);
+  const style: CSSProperties | undefined = b.floating ? { left: b.x, top: b.y, width: b.w, height: b.h } : undefined;
+  return { ref, floating: b.floating, style, startResize, startCorner, startMove, toggleFloat };
+}
+
 // --- the panel --------------------------------------------------------------------------------------------------
 
 export function OverviewPanel({ chats, activeId, onOpen, onClose, onNew, project }: {
@@ -415,6 +472,7 @@ export function OverviewPanel({ chats, activeId, onOpen, onClose, onNew, project
   const [filter, setFilter] = useState("");
   // ⤢ widens the panel over the chat, like the expand button in Claude's Threads panel.
   const [wide, setWide] = useState(false);
+  const box = usePanelBox();
   useEffect(() => { try { localStorage.setItem(TAB_KEY, tab); } catch { /* not kept */ } }, [tab]);
   const attention = useAttention();
   const waiting = Object.values(attention).filter((a) => a.status === "needs_you").length;
@@ -424,8 +482,11 @@ export function OverviewPanel({ chats, activeId, onOpen, onClose, onNew, project
     { id: "activity", label: "Activity", icon: "◷" },
   ];
   return (
-    <aside className={`ov-panel${wide ? " is-wide" : ""}`} aria-label="Overview">
-      <nav className="ov-tabs" role="tablist">
+    <aside ref={box.ref} className={`ov-panel${wide && !box.floating ? " is-wide" : ""}${box.floating ? " is-floating" : ""}`}
+      aria-label="Overview" style={box.style}>
+      <span className="ov-resize" onPointerDown={(e) => { setWide(false); box.startResize(e); }} title="Drag to resize" aria-hidden="true" />
+      {box.floating && <span className="ov-resize is-corner" onPointerDown={box.startCorner} title="Drag to resize" aria-hidden="true" />}
+      <nav className="ov-tabs" role="tablist" onPointerDown={box.startMove}>
         {tabs.map((t) => (
           <button key={t.id} role="tab" type="button" aria-selected={tab === t.id} className="ov-tab" onClick={() => setTab(t.id)}
             title={t.label}>
@@ -443,6 +504,9 @@ export function OverviewPanel({ chats, activeId, onOpen, onClose, onNew, project
               <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
           </button>
         )}
+        <button type="button" className={`ov-close${box.floating ? " is-on" : ""}`} aria-pressed={box.floating}
+          title={box.floating ? "Put it back on the right" : "Pop out (drag it anywhere)"}
+          aria-label={box.floating ? "Put the overview back on the right" : "Pop the overview out"} onClick={box.toggleFloat}>⧉</button>
         <button type="button" className={`ov-close${wide ? " is-on" : ""}`} aria-pressed={wide} title={wide ? "Narrow" : "Widen"}
           aria-label={wide ? "Narrow the overview" : "Widen the overview"} onClick={() => setWide((v) => !v)}>⤢</button>
         <button type="button" className="ov-close" onClick={onClose} aria-label="Close the overview" title="Close">✕</button>

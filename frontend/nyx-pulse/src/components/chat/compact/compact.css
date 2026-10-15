@@ -3,7 +3,7 @@
    Text #F5F5F7 / secondary #A1A1AA on the dark surfaces stays above 7:1, as in chat.css. */
 
 /* --- three columns: chats | conversation | overview -------------------------------------------------------------- */
-.chat-home.has-overview { grid-template-columns: auto minmax(0, 1fr) minmax(300px, 380px); }
+.chat-home.has-overview { grid-template-columns: auto minmax(0, 1fr) var(--ov-w, minmax(300px, 380px)); }
 @media (max-width: 1180px) {
   .chat-home.has-overview { grid-template-columns: auto minmax(0, 1fr); }
   .chat-home.has-overview > .ov-panel { position: absolute; z-index: 25; inset: 0 0 0 auto; width: min(380px, 92vw);
@@ -278,3 +278,17 @@ button.ov-tname { cursor: pointer; }
 .ov-scope__btn:hover { color: var(--color-text); }
 .ov-scope__btn.is-on { background: var(--color-surface-2); color: var(--color-text); }
 .ov-library h3.ov-group__head { margin: 0; cursor: default; }
+
+/* --- Overview: pull the left edge to resize, ⧉ pops it out to drag anywhere (owner 2026-10-15) --------------------- */
+.ov-panel { position: relative; }
+.ov-resize { position: absolute; z-index: 3; top: 0; bottom: 0; left: -3px; width: 7px; cursor: ew-resize; touch-action: none; }
+.ov-resize:hover, .ov-resize:active { background: color-mix(in srgb, var(--color-accent) 35%, transparent); }
+.ov-resize.is-corner { top: auto; left: auto; right: 0; bottom: 0; width: 14px; height: 14px; cursor: nwse-resize; background: none;
+  border-right: 2px solid var(--color-neutral-500); border-bottom: 2px solid var(--color-neutral-500); border-radius: 0 0 8px 0; }
+.chat-home.has-overview:has(> .ov-panel.is-floating) { grid-template-columns: auto minmax(0, 1fr); }
+.ov-panel.is-floating { position: fixed; z-index: 58; min-width: 260px; min-height: 220px; max-height: calc(100vh - 16px);
+  border: 1px solid var(--color-divider-strong, var(--color-divider)); border-radius: 12px; overflow: hidden;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.35); }
+.ov-panel.is-floating > .ov-tabs { cursor: grab; touch-action: none; }
+.ov-panel.is-floating > .ov-tabs:active { cursor: grabbing; }
+:root[data-style~="desk"] .ov-panel.is-floating { border: 1px solid var(--desk-line); border-radius: 10px; box-shadow: 0 8px 24px rgb(0 0 0 / 0.3); }
