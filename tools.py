@@ -223,6 +223,9 @@ class ToolRegistry:
                 import taint_gate
 
                 taint_gate.check(ctx, name, tool.category, label)  # outside content read this turn → risky acts ask
+                import blast_radius
+
+                blast_radius.check(ctx, name, tool.category, kwargs)  # rm -rf, git reset --hard … ask, naming the damage
             except PermissionDenied as denied:
                 ok = False
                 result = str(denied)
@@ -250,6 +253,10 @@ class ToolRegistry:
             taint_gate.note(ctx, name, tool.category, label, ok)
         except Exception:  # noqa: BLE001 - noting never costs the result
             pass
+        if ok and ctx is not None:
+            import work_files
+
+            work_files.note(getattr(ctx, "chat_id", "default"), name, tool.category, kwargs)
 
         if ctx is not None:
             ctx.emit(

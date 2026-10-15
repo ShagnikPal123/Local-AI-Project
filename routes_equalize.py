@@ -124,6 +124,21 @@ def taint_gate_save(body: Dict[str, Any], _owner_user=Depends(_owner)) -> Dict[s
     return taint_gate_state(_owner_user)
 
 
+@router.get("/api/safety/blast-radius")
+def blast_radius_state(_owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import blast_radius
+
+    return {"enabled": blast_radius.enabled(), "rules": [why for _pattern, why, _probe in blast_radius.RULES]}
+
+
+@router.put("/api/safety/blast-radius")
+def blast_radius_save(body: Dict[str, Any], _owner_user=Depends(_owner)) -> Dict[str, Any]:
+    import blast_radius
+
+    blast_radius.set_enabled(bool((body or {}).get("enabled", True)))
+    return blast_radius_state(_owner_user)
+
+
 # --- design research (design_research.py; the DESIGN_MASTERPLAN research log as a Nyx feature) ----------------------
 
 
