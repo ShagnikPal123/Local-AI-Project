@@ -232,3 +232,16 @@ input.big { font-size: 28px; font-weight: 600; max-width: 260px; }
 .choice.on { outline: 2px solid var(--accent); }
 @media (max-width: 760px) { .grid.setup { grid-template-columns: 1fr; } .grid.setup .wide-2 { grid-column: span 1; } }
 .setup .row { justify-content: flex-start; gap: 8px; flex-wrap: wrap; }
+
+/* Practice / Real money: the mode switch in Setup and the top bar */
+.modes { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
+.modes button { text-align: left; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 14px; border-radius: 14px; }
+.modes button.on { outline: 2px solid var(--accent); }
+.modes button.on.real, .mode-switch.real button[aria-checked="true"] { outline-color: var(--bad, #ff5d6c); background: rgba(255, 93, 108, 0.16); }
+.mode-switch { display: inline-flex; border: 1px solid var(--edge); border-radius: 999px; padding: 2px; gap: 2px; }
+.mode-switch button { border: 0; border-radius: 999px; padding: 4px 10px; font-size: 12px; background: transparent; }
+.mode-switch.practice button[aria-checked="true"] { background: var(--accent); color: #fff; }
+.mode-switch.real button[aria-checked="true"] { color: #fff; font-weight: 700; outline: 0; background: #e5484d; }
+input.tiny { width: 64px; display: inline-block; margin: 0 4px; }
+.confirm { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+@media (max-width: 760px) { .modes { grid-template-columns: 1fr; } }
