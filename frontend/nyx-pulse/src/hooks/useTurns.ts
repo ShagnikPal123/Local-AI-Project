@@ -44,6 +44,8 @@ export interface SendOptions {
   mode?: string;
   /** A personality for this turn only, in the owner's words (the Equalize notch's chosen personality). */
   personalityText?: string;
+  /** The chat's Code switch (Drive doc 2, 2.1): the folder and environment while the chat is in Code. */
+  code?: { folder: string; environment: string };
 }
 
 export interface UseTurnsResult {
@@ -171,7 +173,7 @@ export function useTurns(chatId: string): UseTurnsResult {
   }, [chatId]);
 
   const send = useCallback(
-    async ({ message, chatId: targetChat, attachmentIds, provider, voice, voiceSession, mode, personalityText }: SendOptions) => {
+    async ({ message, chatId: targetChat, attachmentIds, provider, voice, voiceSession, mode, personalityText, code }: SendOptions) => {
       if (localTurnId) return; // one turn at a time per panel
       const placeholder = beginLocalTurn(`local-${Date.now().toString(36)}`, targetChat, Date.now());
       setLocalTurnId(placeholder.turnId);
@@ -190,6 +192,7 @@ export function useTurns(chatId: string): UseTurnsResult {
           voice_session: voiceSession || undefined,
           mode: mode || undefined,
           personality_text: personalityText || undefined,
+          code: code || undefined,
         },
         onEvent: (event) => {
           const realId = typeof event.turn_id === "string" ? event.turn_id : "";

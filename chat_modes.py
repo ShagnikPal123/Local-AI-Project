@@ -331,6 +331,102 @@ def plan_guard(inner: Optional[Callable[[str, str], None]] = None) -> Callable[[
     return guard
 
 
+# ---------------------------------------------------------------------------
+# Code inside the normal chat (Drive doc 2, item 2.1)
+# ---------------------------------------------------------------------------
+#
+# The owner: "normal chat is where he and users reach coding", like Claude's own Chat / Code switch.
+# A chat in Code holds a folder and an environment; every turn gets a note naming both, so the model
+# works in that folder without being told each time. Like the modes, it is a note plus a gate: no state.
+
+#: Marks this turn's code note in the conversation history, so the next turn can replace or drop it.
+CODE_PREFIX = "[Code session]"
+
+#: Where a code session's work happens. "local" acts on the folder; "review" reads it and changes nothing.
+CODE_ENVIRONMENTS: Dict[str, Tuple[str, str]] = {
+    "local": ("This PC", "Reads, edits and runs commands in the folder, with the usual approval gates."),
+    "review": ("Review first", "Reads the folder and shows every change as a diff to apply; edits and runs nothing."),
+}
+DEFAULT_ENVIRONMENT = "local"
+
+
+def code_session(folder: Optional[str], environment: Optional[str] = None) -> Optional[Dict[str, str]]:
+    """The folder and environment a code turn works in, or None when there is no usable folder.
+
+    The folder comes from the browser, so it is checked here: it has to be a folder that exists.
+    An unknown environment falls back to "local", the one the owner picked by default.
+    """
+    from pathlib import Path
+
+    raw = (folder or "").strip().strip('"')
+    if not raw:
+        return None
+    try:
+        path = Path(raw).expanduser().resolve()
+    except (OSError, RuntimeError, ValueError):
+        return None
+    if not path.is_dir():
+        return None
+    env = (environment or "").strip().lower()
+    if env not in CODE_ENVIRONMENTS:
+        env = DEFAULT_ENVIRONMENT
+    return {"folder": str(path), "name": path.name or str(path), "environment": env,
+            "environment_label": CODE_ENVIRONMENTS[env][0]}
+
+
+def code_note(session: Dict[str, str]) -> str:
+    """What the model is told about the code session this turn runs in."""
+    lines = [
+        f"{CODE_PREFIX} This chat is in Code, working in the folder {session['folder']} "
+        f"(environment: {session['environment_label']}).",
+        "Treat that folder as the project: relative paths mean paths inside it, and run_command starts there. "
+        "Look before you change anything (list it, read the files that matter), keep each change small, "
+        "and finish by saying which files changed and how to check it works.",
+    ]
+    if session["environment"] == "review":
+        lines.append("Review first: nothing may be written or run this turn. Show each change as a ```diff block "
+                     "against the file's path so the owner can apply it from the Code tab.")
+    return "\n".join(lines)
+
+
+#: Never in a "review first" code turn: anything that writes, deletes or runs.
+CODE_REVIEW_BLOCKED = PLAN_BLOCKED | frozenset({"make_folder", "move_path", "copy_path", "delete_path"})
+
+
+def code_review_guard(inner: Optional[Callable[[str, str], None]] = None) -> Callable[[str, str], None]:
+    """The gate for a "review first" code turn: read the folder, never change it. Narrows any gate already there."""
+
+    def guard(name: str, category: str) -> None:
+        from permissions import PermissionDenied
+
+        if inner is not None:
+            inner(name, category)
+        cat = category or "general"
+        if name in CODE_REVIEW_BLOCKED or cat.startswith(("files.write", "files.delete", "shell", "code")):
+            raise PermissionDenied(
+                f"Blocked in Review first: {name} would change the folder. Show the change as a diff instead; "
+                "the owner applies it, or switches the environment to This PC.")
+
+    return guard
+
+
+def prepare_code(service: Any, folder: Optional[str], environment: Optional[str] = None) -> Optional[Dict[str, str]]:
+    """Put this turn's code note into the context (or take the last one out) and hand back the session.
+
+    Called every turn, so switching the chat back to Chat drops the note instead of carrying the folder on.
+    """
+    session = code_session(folder, environment)
+    history = getattr(service, "conversation_history", None)
+    if isinstance(history, list):
+        service.conversation_history = [
+            m for m in history
+            if not (m.get("role") == "system" and str(m.get("content", "")).startswith(CODE_PREFIX))
+        ]
+        if session:
+            service.conversation_history.append({"role": "system", "content": code_note(session)})
+    return session
+
+
 def prepare(service: Any, mode: Optional[str], text: str = "") -> Dict[str, Any]:
     """Put the mode's note into this turn's context and hand back its switches.
 

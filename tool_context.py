@@ -63,6 +63,8 @@ class ToolContext:
     #: The owner spoke this turn and hears the answer read aloud. The ``speak`` tool is refused then: the model
     #: used it to say its answer while the chat read the same answer out, so every reply was heard twice.
     voice: bool = False
+    #: A chat in Code (chat_modes.code_session): the folder it works in. run_command starts there by default.
+    code_root: str = ""
 
     def emit(self, event_type: str, **payload: Any) -> None:
         if self.sink is None:
