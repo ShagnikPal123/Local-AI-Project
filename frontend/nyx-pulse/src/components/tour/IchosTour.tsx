@@ -35,7 +35,7 @@ export const TOUR: Step[] = [
     tryIt: "The Overview button at the top of the chat opens and closes it." },
   { tab: "nyx", spot: ".pj-rail", title: "Projects", body: "A project keeps chats, files, instructions and helpers together, like Claude Projects. Open one and its home shows the folder, instructions, knowledge and threads.",
     tryIt: "Press + next to Projects to make one." },
-  { tab: "projects", title: "Constellations", body: "All your projects, plus Quasars (things Ichos made), Orbits (tasks on a repeat), the Calendar and Fractal design templates.",
+  { tab: "projects", title: "Constellations", body: "Every project and artifact sorted for you (each opens in the chat), plus Quasars (things Ichos made), Orbits (tasks on a repeat), the Calendar and Fractal design templates.",
     tryIt: "In Calendar, click a time to schedule something there." },
   { tab: "avatars", title: "Avatars", body: "Helpers that keep working for you: on call, all day or all year. Each has its own persona, memory, schedule and Allow / Ask rules." },
   { tab: "agents", title: "Agents", body: "The specialist team Ichos hands work to (coder, researcher, designer and more), sub-agents, and Big Kahuna, the strongest mind." },
