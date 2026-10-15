@@ -175,6 +175,14 @@ def list_proposals(path: str = "", under: str = "", _owner=Owner) -> Dict[str, A
     return {"proposals": code_workspace.proposals(path, under)}
 
 
+@router.get("/api/work-files")
+def chat_work_files(chat_id: str = "default", _owner=Owner) -> Dict[str, Any]:
+    """The files this chat's work read, wrote or deleted, newest first (the tree under the work queue)."""
+    import work_files
+
+    return {"chat_id": chat_id, "files": work_files.files(chat_id)}
+
+
 @router.get("/api/code/proposals/{proposal_id}")
 @_code_errors
 def read_proposal(proposal_id: str, _owner=Owner) -> Dict[str, Any]:

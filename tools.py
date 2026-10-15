@@ -253,6 +253,10 @@ class ToolRegistry:
             taint_gate.note(ctx, name, tool.category, label, ok)
         except Exception:  # noqa: BLE001 - noting never costs the result
             pass
+        if ok and ctx is not None:
+            import work_files
+
+            work_files.note(getattr(ctx, "chat_id", "default"), name, tool.category, kwargs)
 
         if ctx is not None:
             ctx.emit(

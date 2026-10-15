@@ -291,6 +291,8 @@ def test_speed_requires_a_session_once_claimed(client, store):
 
 DATA_ROUTES = [
     "/api/status",
+    # Files a chat's work touched (work_files.py, doc 2 item 2.3).
+    "/api/work-files",
     "/api/memory",
     "/api/memory/rag",
     "/api/chats",
