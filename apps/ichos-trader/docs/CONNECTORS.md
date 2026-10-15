@@ -14,7 +14,7 @@ ever shown back masked to its last 4 characters. Viewers see that a key is set, 
 | Interactive Brokers | Nearly everything | Yes | Planned | Widest reach, but needs their gateway app running |
 
 The built-in **practice account** (`paper.py`) is the default and needs nothing. Alpaca only ever
-talks to `paper-api.alpaca.markets`; the live address is refused in code until Shagnik says yes to
+talks to `paper-api.alpaca.markets`; the live address is refused in code until the owner says yes to
 real money.
 
 ## Market data

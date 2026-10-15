@@ -1,6 +1,6 @@
 """Sage, the strategist: learns which strategy works in which kind of market, and keeps learning.
 
-Shagnik: "Add a way or a mode for the ai to first understand how trading works, the current market
+The owner: "Add a way or a mode for the ai to first understand how trading works, the current market
 and situation ... so that it won't have to learn on the fly." This is that mode.
 
 For each market it studies, Sage backtests every strategy in ``core.strategies`` over that market's

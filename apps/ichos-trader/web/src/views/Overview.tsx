@@ -1,4 +1,4 @@
-// Everything Shagnik listed on one screen: money and its predicted change, win rate, markets,
+// Everything the owner listed on one screen: money and its predicted change, win rate, markets,
 // increases, the bots' thinking, who is running, the next plan, predictions and research.
 import { ago, money, pct, price, type Dashboard } from "../api";
 import { Area, Cone, Donut, Spark } from "../charts";

@@ -38,7 +38,7 @@ skeptic), a dashboard, auto shut-down, speed tests, login for cloud use, and the
 | 25 | Redesign: new look and style | Not started | Same look as the rest of the app (`panels/trading/trading.css`) |
 | 26 | Trading follows the chosen colours (page 33) | Partial | `trading.css` uses theme variables in 22 places but also hard-coded greys (`#a1a1aa`, `#0e0e13`…) |
 
-## What waits for Shagnik
+## What waits for the owner
 
 - **Real money** (live broker accounts, and the "pays for the subscription" idea). Paper only until he says so.
 - **A hosted (cloud) copy**, and the Google / GitHub login apps it needs. The login code is built and tested; turning

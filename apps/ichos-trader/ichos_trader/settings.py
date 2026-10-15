@@ -1,6 +1,6 @@
 """Reading and changing the settings, with auto mode and pins.
 
-The rule Shagnik asked for: fully automatic by default, with a tuning section for anyone who wants
+The rule the owner asked for: fully automatic by default, with a tuning section for anyone who wants
 to turn the dials. So:
 
 * ``load()`` - the saved settings over the defaults (``config.default_settings``).

@@ -55,7 +55,7 @@ def test_keys_come_back_masked_and_env_wins_over_the_file(monkeypatch):
 
 
 def test_a_session_cookie_cannot_be_forged_or_kept_past_its_expiry():
-    token = auth.session_for("Shagnik", "viewer")
+    token = auth.session_for("Guest", "viewer")
     assert auth.unsign(token)["role"] == "viewer"
     body, mac = token.rsplit(".", 1)
     forged = auth.sign({"name": "x", "role": "owner", "exp": 9e12}).rsplit(".", 1)[0] + "." + mac

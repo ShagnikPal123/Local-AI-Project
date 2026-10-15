@@ -1,6 +1,6 @@
 """Leak sweep: look at what is about to be pushed and stop if a key or anything personal is in it.
 
-Shagnik's standing rule (2026-10-13): "Ensure each time there is a sweep for any leaks in API or
+The owner's standing rule (2026-10-13): "Ensure each time there is a sweep for any leaks in API or
 anything personal." So before every push this runs over the lines being added and refuses when it
 finds one of these:
 
@@ -13,7 +13,7 @@ finds one of these:
 
 Why only *added* lines: old lines were already swept when they went in, and a sweep that shouts
 about the whole history every time gets ignored. Why a plain script and not a git hook: it has to
-work the same on Shagnik's Windows PC, in a cloud session and inside the trader's own repo later.
+work the same on the owner's Windows PC, in a cloud session and inside the trader's own repo later.
 
 Usage::
 

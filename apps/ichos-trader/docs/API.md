@@ -22,7 +22,7 @@ Errors come back as `{"detail": "a sentence the owner can read"}` with a 4xx sta
 `GET /api/me`
 
 ```json
-{"user": {"name": "Shagnik", "email": "", "role": "owner"},
+{"user": {"name": "Sam", "email": "", "role": "owner"},
  "auth_mode": "local",               // "local" | "passcode" | "google" | "github"
  "providers": ["google", "github"],  // login buttons to show when signed out
  "signed_in": true}

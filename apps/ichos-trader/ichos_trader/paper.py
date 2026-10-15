@@ -1,6 +1,6 @@
 """The practice account: fake money, real prices, real costs.
 
-Shagnik: "trade with fake money and make theoretical amounts which can be really helpful so that it
+The owner: "trade with fake money and make theoretical amounts which can be really helpful so that it
 won't have to learn on the fly." Practice only teaches the right lesson if it is not flattering, so
 like the main app's practice account (``trading/brokers.py`` PaperBroker) every fill pays:
 

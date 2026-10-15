@@ -1,6 +1,6 @@
 # Ichos Trader: how it is built
 
-This is the trading desk from Nyx Ichos split into its own app, as Shagnik asked in the Fixer Upper
+This is the trading desk from Nyx Ichos split into its own app, as the owner asked in the Fixer Upper
 doc (pages 3–4). It imports nothing from the main app, so `apps/ichos-trader/` can move to its own
 GitHub repo unchanged. The main repo's README links here: "this is where the trader went".
 
@@ -11,7 +11,7 @@ Every `pace_seconds` (a minute by default) the engine runs one cycle:
 1. **Scout** asks the market hub for every market that is switched on (stocks, crypto, currencies)
    and snapshots up to `scan_limit` of them (300 by default) in parallel: price, bid/ask, a day of
    volume, candles and, where the feed has one, the order book.
-2. **Ranking** scores each market on four things Shagnik named, plus the price signal:
+2. **Ranking** scores each market on four things the owner named, plus the price signal:
    - **liquidity**: dollars traded in a day (log scale, so $1 B is not 1000× better than $1 M);
    - **spread**: bid-ask gap in basis points, from the feed when it gives bid/ask, otherwise
      estimated from daily highs and lows (Corwin–Schultz);
@@ -81,7 +81,7 @@ sub-second speed (arbitrage, market making) are not attempted, and the dashboard
 - `run_trader.py --forever` restarts the whole server if it ever exits.
 - Settings, the practice account and what it learned are saved after every change in crash-safe
   files, and `running` is saved, so a restart carries on where it was.
-- It does not have to run on Shagnik's PC: it is a small Python web app that a cloud machine can
+- It does not have to run on the owner's PC: it is a small Python web app that a cloud machine can
   run, with Google or GitHub login so only he can control it.
 
 ## Privacy

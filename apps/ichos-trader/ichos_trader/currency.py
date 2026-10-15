@@ -1,6 +1,6 @@
 """Any market, any currency: every price is turned into the account's currency before anyone reads it.
 
-Shagnik: "It should be able to invest in any market and any currency." A pair like USD-JPY is priced
+The owner: "It should be able to invest in any market and any currency." A pair like USD-JPY is priced
 in yen, and an account can be kept in euros. Rather than teach every bot about currencies, the engine
 converts each snapshot into the account's currency once, right after the scan, using the currency
 pairs it already fetched. After that, ranking, the traders, the rules and the practice account all
