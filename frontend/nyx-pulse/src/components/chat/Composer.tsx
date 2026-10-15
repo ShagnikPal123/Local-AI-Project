@@ -328,6 +328,8 @@ export function Composer({
             e.target.value = "";
           }}
         />
+        {/* + and ✦ stacked beside the box in the Desk look (display: contents in the other looks). */}
+        <div className="composer-side">
         <FilesMenu
           disabled={busy || disabled}
           onAttach={() => fileRef.current?.click()}
@@ -339,6 +341,7 @@ export function Composer({
           onSkill={() => { onChange("/"); textareaRef.current?.focus(); }}
           onAgent={() => { onChange(value ? `${value.replace(/\s+$/, "")} @` : "@"); textareaRef.current?.focus(); }}
         />
+        </div>
 
         <div className="composer-box">
         <ComposerLinks value={value} textareaRef={textareaRef} caret={caret} />

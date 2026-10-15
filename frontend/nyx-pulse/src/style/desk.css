@@ -292,3 +292,27 @@
 /* Under an answer: small grey words that light up on hover, not pills. */
 :root[data-style~="desk"] .chat-action { background: transparent; border: 0; box-shadow: none; color: var(--desk-faint); font-size: 12px; padding: 3px 7px; border-radius: 6px; }
 :root[data-style~="desk"] .chat-action:hover { background: var(--desk-hover); color: var(--desk-text); }
+
+/* --- Chat box, third pass (owner 2026-10-15): lower on the screen, + and ✦ stacked on its left at the box's height,
+   and the movable bars (Chat, Connectors, Remote…) on the right of the row under it. ------------------------------- */
+.composer-side { display: contents; }
+:root[data-style~="desk"] .chat-home__main { padding-bottom: 4px; }
+:root[data-style~="desk"] .chat-home__dock { gap: 4px; }
+:root[data-style~="desk"] .composer-row { flex-wrap: nowrap; align-items: stretch !important; gap: 6px !important; padding: 6px 8px 6px 6px; }
+:root[data-style~="desk"] .composer-row > .composer-side {
+  display: flex; flex-direction: column; justify-content: space-between; gap: 2px; flex: 0 0 auto;
+  padding-right: 6px; border-right: 1px solid var(--desk-line);
+}
+:root[data-style~="desk"] .composer-row > .composer-box { order: 0; flex: 1 1 auto; min-width: 0; align-self: stretch; }
+:root[data-style~="desk"] .composer-row .composer-input { min-height: 56px; }
+:root[data-style~="desk"] .composer-row > .composer-mic,
+:root[data-style~="desk"] .composer-row > .btn-primary,
+:root[data-style~="desk"] .composer-row > .btn-secondary:last-child,
+:root[data-style~="desk"] .composer-row > .busy-send { align-self: flex-end !important; margin-left: 0; }
+:root[data-style~="desk"] .chat-bottom-row { flex-wrap: nowrap; }
+:root[data-style~="desk"] .chat-bottom-row > .cb-zone.is-bottom { order: 2; flex: 0 1 auto; min-width: 0; margin-left: auto; justify-content: flex-end; }
+:root[data-style~="desk"] .chat-bottom-row > .lp { order: 3; margin-left: 0; }
+@media (max-width: 760px) {
+  :root[data-style~="desk"] .chat-bottom-row { flex-wrap: wrap; }
+  :root[data-style~="desk"] .chat-bottom-row > .cb-zone.is-bottom { order: 4; flex: 1 0 100%; justify-content: flex-start; }
+}

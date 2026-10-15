@@ -92,10 +92,20 @@ export function listenForTabDrops(): void {
 }
 
 /** The floating card. Drag it by its header; let go over a tab to send it there. */
+const SIZE_KEY = "ichos.float.size.";
+
+function readSize(id: string): { w: number; h: number } | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(SIZE_KEY + id) || "null");
+    return v && v.w > 0 && v.h > 0 ? v : null;
+  } catch { return null; }
+}
+
 export function FloatingCard({ id, label, spot, children }: { id: FloatId; label: string; spot: FloatSpot; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ x: spot.x, y: spot.y });
   const [tabUnder, setTabUnder] = useState<string | null>(null);
+  const [size, setSize] = useState<{ w: number; h: number } | null>(() => readSize(id));
   useEffect(() => setPos({ x: spot.x, y: spot.y }), [spot.x, spot.y]);
   // Keep it on screen when the window shrinks.
   useEffect(() => {
@@ -141,9 +151,30 @@ export function FloatingCard({ id, label, spot, children }: { id: FloatId; label
     window.addEventListener("pointerup", up);
   };
 
+  // The corner grip makes the card bigger or smaller; the size is kept per panel.
+  const startResize = (e: ReactPointerEvent<HTMLElement>) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const r = ref.current?.getBoundingClientRect();
+    if (!r) return;
+    let last = { w: r.width, h: r.height };
+    const move = (ev: PointerEvent) => {
+      last = { w: Math.round(Math.max(220, Math.min(ev.clientX - r.left, window.innerWidth - r.left - 8))),
+        h: Math.round(Math.max(120, Math.min(ev.clientY - r.top, window.innerHeight - r.top - 8))) };
+      setSize(last);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      try { localStorage.setItem(SIZE_KEY + id, JSON.stringify(last)); } catch { /* not kept */ }
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+
   return (
-    <div ref={ref} className={`float-card is-${id}${tabUnder ? " is-over-tab" : ""}`} role="dialog" aria-label={label}
-      style={{ left: pos.x, top: pos.y }}>
+    <div ref={ref} className={`float-card is-${id}${tabUnder ? " is-over-tab" : ""}${size ? " is-sized" : ""}`} role="dialog" aria-label={label}
+      style={{ left: pos.x, top: pos.y, width: size?.w, height: size?.h }}>
       <header className="float-card__head" onPointerDown={startDrag} title="Drag to move · let go on a tab to send it there">
         <span className="float-card__grip" aria-hidden="true">⠿</span>
         <span className="float-card__title">{label}</span>
@@ -151,6 +182,7 @@ export function FloatingCard({ id, label, spot, children }: { id: FloatId; label
         <button type="button" className="float-card__btn" onClick={() => dockPanel(id)} title="Put it back under the chat box">Dock</button>
       </header>
       <div className="float-card__body">{children}</div>
+      <span className="float-card__resize" onPointerDown={startResize} title="Drag to resize" aria-hidden="true" />
     </div>
   );
 }
