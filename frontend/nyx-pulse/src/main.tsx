@@ -8,6 +8,7 @@ import "./style/styles.css";
 import "./style/studio.css";
 import "./style/desk.css";
 import "./style/palettes.css";
+import "./style/transitions.css";
 import { bootMix } from "./style/styleMix";
 import { bootAppearance } from "./style/appearance";
 import { startMotion } from "./style/motion";
