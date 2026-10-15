@@ -250,6 +250,23 @@ def delegator_project(chat_id: str) -> str:
         return str((_load()["delegators"].get(chat_id) or {}).get("project_id") or "")
 
 
+def chat_project(chat_id: str) -> Dict[str, str]:
+    """Which project a chat is in: its main chat, or one of the threads that main chat started. The Overview panel
+    follows it, so a project's threads stay in view while the owner is inside any of them (owner, 2026-10-15)."""
+    empty = {"project_id": "", "main_chat_id": "", "role": ""}
+    if not chat_id:
+        return empty
+    with _LOCK:
+        state = _load()
+    row = state["delegators"].get(chat_id)
+    if row is not None and row.get("project_id"):
+        return {"project_id": row["project_id"], "main_chat_id": chat_id, "role": "main"}
+    for thread in state["threads"].values():
+        if thread.get("chat_id") == chat_id and thread.get("project_id"):
+            return {"project_id": thread["project_id"], "main_chat_id": thread.get("delegator", ""), "role": "thread"}
+    return empty
+
+
 def make_delegator(chat_id: str, project_id: str = "") -> Dict[str, Any]:
     """Switch a chat to Commander: from its next message it hands work to threads."""
     if not chat_id:

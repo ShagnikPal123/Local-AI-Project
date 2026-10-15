@@ -419,3 +419,11 @@ def test_a_projects_main_chat_knows_its_project(world):
     main = world.cm.delegator_for_project("pr-7", "Moon base")
     assert world.cm.delegator_project(main) == "pr-7"
     assert world.cm.delegator_project("not-a-main-chat") == ""
+
+
+def test_a_chat_knows_its_project_from_the_main_chat_or_a_thread(world):
+    main = world.cm.delegator_for_project("pr-7", "Moon base")
+    thread = world.cm.start_thread(main, "Dome", "Draw the dome")
+    assert world.cm.chat_project(main) == {"project_id": "pr-7", "main_chat_id": main, "role": "main"}
+    assert world.cm.chat_project(thread["chat_id"]) == {"project_id": "pr-7", "main_chat_id": main, "role": "thread"}
+    assert world.cm.chat_project("loose-chat")["project_id"] == ""
