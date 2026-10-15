@@ -30,19 +30,40 @@ interface Project {
 interface Thread { id: string; chat_id: string; title: string; status: string; line: string; status_label: string; updated: number }
 interface Board { groups: { id: string; threads: Thread[] }[]; total: number; needs_you: number }
 
-/** Which project a chat is the main chat of ("" for any other chat). */
-export function useChatProject(chatId: string): string {
-  const [projectId, setProjectId] = useState("");
+/** Which project a chat is in: as its main chat ("main") or as one of the threads that main chat started ("thread").
+ *  The Overview follows it, so a project's threads stay in view inside any of them. */
+export interface ChatProject { projectId: string; mainChatId: string; role: "" | "main" | "thread" }
+const NO_PROJECT: ChatProject = { projectId: "", mainChatId: "", role: "" };
+
+export function useChatProject(chatId: string): ChatProject {
+  const [found, setFound] = useState<ChatProject>(NO_PROJECT);
   useEffect(() => {
     let alive = true;
-    setProjectId("");
+    setFound(NO_PROJECT);
     if (!chatId || chatId === "default") return;
-    void api.get<{ project_id?: string; is_delegator: boolean }>(`/api/commander?delegator=${encodeURIComponent(chatId)}`).then((r) => {
-      if (alive && r.ok && r.data.is_delegator) setProjectId(r.data.project_id || "");
+    void api.get<{ project_id: string; main_chat_id: string; role: "" | "main" | "thread" }>(
+      `/api/commander/chat-project?chat_id=${encodeURIComponent(chatId)}`).then((r) => {
+      if (alive && r.ok && r.data.project_id) setFound({ projectId: r.data.project_id, mainChatId: r.data.main_chat_id, role: r.data.role });
     });
     return () => { alive = false; };
   }, [chatId]);
-  return projectId;
+  return found;
+}
+
+/** On top of a project's thread: which project it is in, and the way back to the main chat. */
+export function ProjectThreadBar({ projectId, onOpenMain }: { projectId: string; onOpenMain: () => void }) {
+  const [name, setName] = useState("");
+  useEffect(() => {
+    let alive = true;
+    void api.get<{ project: Project }>(`/api/projects/${projectId}`).then((r) => { if (alive && r.ok) setName(r.data.project.name); });
+    return () => { alive = false; };
+  }, [projectId]);
+  return (
+    <button type="button" className="pj-bar" onClick={onOpenMain} title="Back to the project's main chat">
+      <span aria-hidden="true">↰</span> <b>{name || "Project"}</b>
+      <span className="pj-bar__meta">A thread in this project · back to the main chat</span>
+    </button>
+  );
 }
 
 // --- the list in the chat rail --------------------------------------------------------------------------------------

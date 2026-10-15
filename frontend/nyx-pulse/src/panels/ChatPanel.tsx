@@ -34,7 +34,7 @@ import { OverviewPanel } from "../components/chat/compact/OverviewPanel";
 import { BarZone, useBarLayout, type BarId, type BarSpec } from "../components/chat/compact/ChatBars";
 import { LineupPicker } from "../components/chat/compact/LineupPicker";
 import { ConnectorsBody, RemoteBody, useConnectors, usePhone } from "../components/chat/compact/BarChips";
-import { ProjectHome, ProjectsSection, useChatProject } from "../components/chat/compact/ProjectHome";
+import { ProjectHome, ProjectThreadBar, ProjectsSection, useChatProject } from "../components/chat/compact/ProjectHome";
 import "../components/chat/compact/compact.css";
 import { ModeSlider, readMode, type ChatMode } from "../components/chat/ModeSlider";
 import { ChatCodeSwitch, CodeBar, CodeSessionCard, folderName, useCodeSession } from "../components/chat/CodeSwitch";
@@ -1127,6 +1127,13 @@ export function ChatPanel({
     try { return localStorage.getItem("nyx.chat.overview.open") !== "0"; } catch { return true; }
   });
   useEffect(() => { try { localStorage.setItem("nyx.chat.overview.open", overviewOpen ? "1" : "0"); } catch { /* not kept */ } }, [overviewOpen]);
+  // A project is where the Overview mainly belongs (owner, 2026-10-15): entering one opens it on that project.
+  const enteredProject = useRef("");
+  useEffect(() => {
+    if (chatProject.projectId && chatProject.projectId !== enteredProject.current) setOverviewOpen(true);
+    // A chat switch reads "" for a moment; only a real project counts, so closing the panel inside one sticks.
+    if (chatProject.projectId) enteredProject.current = chatProject.projectId;
+  }, [chatProject.projectId]);
 
   // --- render ---------------------------------------------------------------------
 
@@ -1215,7 +1222,7 @@ export function ChatPanel({
           onOpenBrain={onOpenBrain}
           codeOn={code.state.on}
           onCode={(on) => code.update({ on })}
-          projects={<ProjectsSection activeProject={chatProject} onOpenChat={(id) => void loadChats().then(() => setActiveChatId(id))} />}
+          projects={<ProjectsSection activeProject={chatProject.projectId} onOpenChat={(id) => void loadChats().then(() => setActiveChatId(id))} />}
         />
         <section className="chat-home__main" aria-label={`Chat: ${title}`}>
           <header className="chat-home__head">
@@ -1244,9 +1251,14 @@ export function ChatPanel({
               <button className="chat-inline" onClick={() => void handBack()}>Hand back to the Manager</button>
             </div>
           )}
-          {chatProject && (
+          {chatProject.role === "thread" && !isPane && (
             <div className="chat-home__project">
-              <ProjectHome projectId={chatProject} empty={messages.length === 0} onOpenChat={(id) => void loadChats().then(() => setActiveChatId(id))}
+              <ProjectThreadBar projectId={chatProject.projectId} onOpenMain={() => setActiveChatId(chatProject.mainChatId)} />
+            </div>
+          )}
+          {chatProject.role === "main" && (
+            <div className="chat-home__project">
+              <ProjectHome projectId={chatProject.projectId} empty={messages.length === 0} onOpenChat={(id) => void loadChats().then(() => setActiveChatId(id))}
                 onUseFolder={(folder) => code.update({ on: true, folder })} onShowThreads={() => setOverviewOpen(true)} />
             </div>
           )}
@@ -1298,6 +1310,7 @@ export function ChatPanel({
         </section>
         {overviewOpen && !isPane && (
           <OverviewPanel chats={chats} activeId={activeChatId} onOpen={setActiveChatId} onClose={() => setOverviewOpen(false)}
+            project={chatProject.projectId ? { id: chatProject.projectId, mainChatId: chatProject.mainChatId } : undefined}
             onNew={() => void onNewChat()} />
         )}
         {teamDetails && !agentSheet && <AgentDetails onClose={() => setTeamDetails(false)} onEdit={(name) => setAgentSheet(name)} />}
