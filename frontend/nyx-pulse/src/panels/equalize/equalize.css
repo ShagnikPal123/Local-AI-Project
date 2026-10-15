@@ -26,16 +26,16 @@
 .eq-btn:hover { background: color-mix(in srgb, var(--color-surface-2) 80%, var(--color-text)); }
 .eq-btn:active { transform: scale(0.96); }
 .eq-btn:disabled { opacity: 0.45; cursor: default; }
-.eq-btn.primary { background: var(--color-text); color: var(--color-bg, #0b0c0e); box-shadow: none; }
+.eq-btn.primary { background: var(--color-text); color: var(--color-bg); box-shadow: none; }
 .eq-btn.small { min-height: 28px; padding: 3px 11px; font-size: 12px; }
-.eq-btn.rec { background: #f4505e; color: #fff; box-shadow: none; animation: eq-pulse 1.2s infinite; }
-@keyframes eq-pulse { 50% { box-shadow: 0 0 0 5px rgba(244, 80, 94, 0.2); } }
+.eq-btn.rec { background: var(--color-danger); color: #fff; box-shadow: none; animation: eq-pulse 1.2s infinite; }
+@keyframes eq-pulse { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--color-danger) 22%, transparent); } }
 .eq-switch-row { display: inline-flex; align-items: center; gap: 10px; font-size: 13px; }
 .eq-switch { position: relative; width: 38px; height: 22px; border: 0; border-radius: 11px; background: var(--color-surface-2);
   box-shadow: inset 0 0 0 1px var(--color-divider); cursor: pointer; flex: none; }
 .eq-switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff;
   transition: transform 0.15s; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); }
-.eq-switch.on { background: #34d399; box-shadow: none; }
+.eq-switch.on { background: var(--color-ok); box-shadow: none; }
 .eq-switch.on::after { transform: translateX(16px); }
 .eq-choice { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .eq-choice button { display: flex; flex-direction: column; gap: 3px; text-align: left; padding: 12px 14px; border: 0; border-radius: 12px;
@@ -53,13 +53,13 @@
 .eq-seg { display: inline-flex; padding: 3px; border-radius: 999px; background: var(--color-surface-2); box-shadow: inset 0 0 0 1px var(--color-divider);
   align-self: flex-start; flex-wrap: wrap; }
 .eq-seg button { border: 0; background: none; color: var(--color-neutral-500); font: 500 12.5px var(--font-body); padding: 5px 12px; border-radius: 999px; cursor: pointer; }
-.eq-seg button.on { background: var(--color-text); color: var(--color-bg, #0b0c0e); }
+.eq-seg button.on { background: var(--color-text); color: var(--color-bg); }
 .eq-seg button:disabled { opacity: 0.4; cursor: default; }
 .eq-drop { flex: 1; min-width: 200px; display: grid; place-items: center; min-height: 44px; padding: 8px 12px; border-radius: 12px; font-size: 12.5px;
   color: var(--color-neutral-500); border: 1.5px dashed var(--color-divider); cursor: pointer; text-align: center; }
-.eq-drop:hover { border-color: #34d399; color: var(--color-text); }
+.eq-drop:hover { border-color: var(--color-ok); color: var(--color-text); }
 .eq-avatar { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 14px; border: 1.5px dashed var(--color-divider); }
-.eq-avatar.hot { border-color: #34d399; background: rgba(52, 211, 153, 0.08); }
+.eq-avatar.hot { border-color: var(--color-ok); background: color-mix(in srgb, var(--color-ok) 8%, transparent); }
 .eq-avatar img { width: 56px; height: 48px; object-fit: cover; border-radius: 16px; }
 .eq-avatar b { font-size: 14px; }
 .eq-chips { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -70,6 +70,33 @@
 .eq-list li { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 10px; background: var(--color-surface-2); font-size: 13px; min-width: 0; }
 .eq-list .eq-muted { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .eq-state { font-size: 11px; padding: 1px 8px; border-radius: 999px; background: var(--color-surface); color: var(--color-neutral-500); }
-.eq-state.is-working { color: #3b9eff; }
-.eq-state.is-finished { color: #34d399; }
-.eq-state.is-error { color: #f4505e; }
+.eq-state.is-working { color: var(--color-info); }
+.eq-state.is-finished { color: var(--color-ok); }
+.eq-state.is-error { color: var(--color-danger); }
+
+/* Desk look (style/desk.css): Claude's desktop app — flat panels with 1px lines, small radii, one warm accent. */
+:root[data-style~="desk"] .eq { gap: 12px; }
+:root[data-style~="desk"] .eq-grid { gap: 10px; }
+:root[data-style~="desk"] .eq-card { border-radius: var(--radius-lg); background: var(--desk-panel); box-shadow: none;
+  border: 1px solid var(--desk-line); }
+:root[data-style~="desk"] .eq-card h2 { font-size: 14px; }
+:root[data-style~="desk"] .eq-input,
+:root[data-style~="desk"] .eq-field input:not([type="range"]),
+:root[data-style~="desk"] .eq-area { border-radius: 8px; background: var(--desk-main); box-shadow: inset 0 0 0 1px var(--desk-line); }
+:root[data-style~="desk"] .eq-btn { border-radius: 8px; background: var(--desk-raised); box-shadow: inset 0 0 0 1px var(--desk-line); }
+:root[data-style~="desk"] .eq-btn:hover { background: var(--desk-hover); }
+:root[data-style~="desk"] .eq-btn.primary { background: var(--desk-text); color: var(--desk-main); box-shadow: none; }
+:root[data-style~="desk"] .eq-btn.rec { background: var(--color-danger); color: #fff; box-shadow: none; }
+:root[data-style~="desk"] .eq-choice button,
+:root[data-style~="desk"] .eq-gesture { border-radius: 10px; background: var(--desk-raised); box-shadow: inset 0 0 0 1px var(--desk-line); }
+:root[data-style~="desk"] .eq-choice button.on,
+:root[data-style~="desk"] .eq-gesture.on,
+:root[data-style~="desk"] .eq-chip.on { box-shadow: inset 0 0 0 1px var(--color-accent); background: color-mix(in srgb, var(--color-accent) 8%, var(--desk-raised)); }
+:root[data-style~="desk"] .eq-chip,
+:root[data-style~="desk"] .eq-seg { background: var(--desk-raised); box-shadow: inset 0 0 0 1px var(--desk-line); }
+:root[data-style~="desk"] .eq-seg button.on { background: var(--desk-head); color: var(--desk-text); }
+:root[data-style~="desk"] .eq-switch.on { background: var(--color-accent); }
+:root[data-style~="desk"] .eq-list li { border-radius: 8px; background: var(--desk-raised); }
+:root[data-style~="desk"] .eq-avatar,
+:root[data-style~="desk"] .eq-drop { border-radius: 10px; border-color: var(--desk-line-strong); }
+:root[data-style~="desk"] .eq-muted { color: var(--desk-muted); }
