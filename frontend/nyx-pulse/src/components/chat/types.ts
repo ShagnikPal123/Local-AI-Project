@@ -364,6 +364,9 @@ export interface ComposerProps {
   onBusySend?: (mode: BusyMode) => void;
   /** Nyx's pick for that message, with a reason; null while deciding. */
   busyAdvice?: { mode: BusyMode; reason: string; source?: string } | null;
+  /** Code in this chat, and the switch for it: the + menu adds it when the header switch is hidden. */
+  codeOn?: boolean;
+  onToggleCode?: () => void;
 }
 
 export type BusyMode = "queue" | "interrupt" | "parallel" | "branch" | "fold";

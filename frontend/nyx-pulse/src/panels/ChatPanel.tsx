@@ -1158,7 +1158,8 @@ export function ChatPanel({
               onDelete={(id) => void onDeleteChat(id)} />
             <span className="chat-home__spacer" />
             {activeTalkSupported() && <VoiceSwitch mode={voice} onMode={setVoice} />}
-            <ChatCodeSwitch on={code.state.on} onChange={(on) => code.update({ on })} />
+            {/* Only at the start of a chat, or while Code is on; otherwise it is added from the + beside the box (owner, 2026-10-15). */}
+            {(messages.length === 0 || code.state.on) && <ChatCodeSwitch on={code.state.on} onChange={(on) => code.update({ on })} />}
             <ProviderPicker value={provider} onChange={(next) => void pickProvider(next)} compact />
           </header>
           <div className="chat-home__meta">
@@ -1212,6 +1213,8 @@ export function ChatPanel({
               attachments={pending}
               onAttachFiles={onAttachFiles}
               onRemoveAttachment={removeAttachment}
+              codeOn={code.state.on}
+              onToggleCode={() => code.update({ on: !code.state.on })}
               agents={agents}
               placeholder={composerHint ?? "Ask Nyx anything…  (type / for commands)"}
               slash={slash}
@@ -1253,7 +1256,8 @@ export function ChatPanel({
             onRename={(id, next) => void onRenameChat(id, next).then(() => pushToast(`Renamed to “${next}”.`, "ok"))}
             onDelete={(id) => void onDeleteChat(id)} />
           {activeTalkSupported() && <VoiceSwitch mode={voice} onMode={setVoice} />}
-          <ChatCodeSwitch on={code.state.on} onChange={(on) => code.update({ on })} />
+          {/* Only at the start of a chat, or while Code is on; otherwise it is added from the + beside the box (owner, 2026-10-15). */}
+            {(messages.length === 0 || code.state.on) && <ChatCodeSwitch on={code.state.on} onChange={(on) => code.update({ on })} />}
           <ProviderPicker value={provider} onChange={(next) => void pickProvider(next)} compact />
           {paneBar?.end}
         </div>
@@ -1301,6 +1305,8 @@ export function ChatPanel({
           attachments={pending}
           onAttachFiles={onAttachFiles}
           onRemoveAttachment={removeAttachment}
+          codeOn={code.state.on}
+          onToggleCode={() => code.update({ on: !code.state.on })}
           agents={agents}
           placeholder={composerHint ?? "Ask Nyx anything…  (type / for commands)"}
           slash={slash}
@@ -1376,6 +1382,8 @@ export function ChatPanel({
           attachments={pending}
           onAttachFiles={onAttachFiles}
           onRemoveAttachment={removeAttachment}
+          codeOn={code.state.on}
+          onToggleCode={() => code.update({ on: !code.state.on })}
           agents={agents}
           placeholder={composerHint}
           slash={slash}
@@ -1390,7 +1398,8 @@ export function ChatPanel({
         </div>
 
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <ChatCodeSwitch on={code.state.on} onChange={(on) => code.update({ on })} />
+          {/* Only at the start of a chat, or while Code is on; otherwise it is added from the + beside the box (owner, 2026-10-15). */}
+            {(messages.length === 0 || code.state.on) && <ChatCodeSwitch on={code.state.on} onChange={(on) => code.update({ on })} />}
           <ProviderPicker value={provider} onChange={(next) => void pickProvider(next)} compact />
           {activeTalkSupported() && <VoiceSwitch mode={voice} onMode={setVoice} />}
         </div>
