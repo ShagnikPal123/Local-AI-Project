@@ -132,6 +132,12 @@ more false positives cost.
 
 ## Session log
 
+### Session — 2026-10-15 (Ichos Trader finished as its own app; Trading removed from Ichos)
+
+- **Trader (PR #22):** a Setup screen (amount, currency, built-in or Alpaca practice, start); Alpaca practice wired in as the broker (only its own holdings, only the budget plus what it earns, fills keep the bot); the strategist learns from its own wins and losses; scans scale with CPU cores (`ICHOS_WORKERS`); any of 16 account currencies; `Start Ichos Trader.bat` one-click install and start, `--open`, `--autostart on|off`; the built dashboard is committed; full Windows install, update and troubleshooting steps in `apps/ichos-trader/README.md`. 91 trader tests pass.
+- **Ichos (PR #23):** `trading/`, `finance_lab/`, their routes, tools, tests, panels and the tab are gone; asking for the money tab says where trading went; the morning briefing gets prices from the finance connector. Full suite: no new failures (17 container-only, same as main).
+- **Waiting on the owner:** real money (a switch with live keys, a budget and a typed phrase is ready aside, not shipped) and an empty `ichos-trader` repo to move the app into with its history.
+
 ### Session — 2026-10-15 (combined Claude Code mod, doc 2 item 2.3)
 
 `claude-mods/combined-mod/` is one Claude Code plugin made of five mods: progress band and agents pane (savvy-progress), usage band, tool cards and skins (claude-skins), a hold on risky shell commands with what they would change (blast-radius), a files pane as a tree (filetree), and a 5-minute cache countdown that holds the first cold send once (cache-tax). 8 plugin tests pass. The Ichos side is planned, not built: `fixer-upper/handoffs/2.3-ichos-combined-mod.md` in the project files.

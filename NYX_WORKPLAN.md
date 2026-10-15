@@ -155,6 +155,11 @@ Standing file ownership when delegating:
 
 ## 2. Now (max 3)
 
+### 2026-10-15 — WS1 Ichos Trader finished; Trading removed from Ichos (PRs #22, #23)
+- [x] `apps/ichos-trader/`: Setup screen, Alpaca practice broker with a budget, one-click Windows start, install README.
+- [ ] Owner: yes/no on real money (ready aside, not shipped); create an empty `ichos-trader` repo, then move the app
+  there with `git subtree split --prefix apps/ichos-trader`.
+
 ### 2026-10-13 — Fixer Upper: split into 15 workstreams
 - [~] **Plan:** `docs/FIXER_UPPER_PLAN.md` — each item marked Done / Partial / Not started against the code at
   `102d659`, with the team that owns it. Two splits: Projects + Commander (the command center, WS2) and the trader as
@@ -459,6 +464,9 @@ Owner could access and use the app; these are the follow-ups, verbatim intent pr
 ---
 
 ## 7. Handoff
+
+**2026-10-15:** trading lives only in `apps/ichos-trader/` now (its README is the install guide); Ichos has no Trading
+tab. Real money and the separate repo wait on the owner (§2).
 
 **2026-10-13:** the Fixer Upper request is §0 above and its plan is `docs/FIXER_UPPER_PLAN.md`; start there.
 The local `AI_HANDOFF/START_HERE.md` (git-ignored, on the owner's PC) still needs the same reorder: this request
