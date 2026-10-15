@@ -86,6 +86,16 @@ _BUILTIN_KEYS = {c["key"] for c in DEFAULT_CONTROLS}
 ModelFn = Callable[..., str]
 
 
+
+def _self_approval_on() -> bool:
+    """The owner's standing yes to self-approval (self_approval.py); off unless switched on."""
+    try:
+        import self_approval
+
+        return self_approval.enabled()
+    except Exception:  # noqa: BLE001
+        return False
+
 class AutopilotError(RuntimeError):
     pass
 
@@ -299,7 +309,8 @@ class AutopilotManager:
                     self._stop_locked(other, "Replaced by a new run")
             run = Run(run_id=uuid.uuid4().hex[:10], instruction=(instruction or "").strip()[:500], phases=clean,
                       loop=bool(parsed["loop"] if loop is None else loop),
-                      auto_approve=bool(parsed["auto_approve"] if auto_approve is None else auto_approve),
+                      auto_approve=bool(parsed["auto_approve"] if auto_approve is None else auto_approve)
+                      or _self_approval_on(),
                       focus=(focus or parsed["focus"] or instruction or "")[:300], created_at=now,
                       ends_at=(now + float(window_hours) * 3600) if window_hours else None,
                       phase_started_at=now, started_by=started_by)
@@ -741,6 +752,12 @@ class AutopilotManager:
             pass
         until = time.strftime("%a %H:%M", time.localtime(run.ends_at)) if run.ends_at else "stopped"
         log.approve(change_id, f"Autopilot (auto-approve authorised by the owner until {until})")
+        try:
+            import self_approval
+
+            self_approval.record(change_id, change.title, str(record.get("reasons", "")), by="Autopilot")
+        except Exception:  # noqa: BLE001 - the change log above still records who approved it
+            pass
         with self._lock:
             run.stats["approved"] += 1
             self._approval_times.append(self.clock())
