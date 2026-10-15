@@ -159,3 +159,26 @@ def test_intent_md_is_understood_starters_get_it_and_proposals_read_it(tmp_path,
     monkeypatch.setattr(model_roles.MODEL_ROLES, "run", fake_run)
     cw.propose_files(str(root), "add a notes file")
     assert "intent.md" in seen["prompt"] and "# Intent: Garden Log" in seen["prompt"]
+
+
+def test_review_first_chat_proposes_whole_file_changes_that_apply_from_the_chat(tmp_path):
+    """Doc 2 item 2.1: in a Review first code chat the model proposes; the owner applies from the chat."""
+    from tool_context import ToolContext, use_context
+    from tools import builtin_propose_change
+
+    project = tmp_path / "proj"
+    project.mkdir()
+    source = project / "app.py"
+    source.write_text("x = 1\n", encoding="utf-8")
+
+    with use_context(ToolContext(code_root=str(project))):
+        said = builtin_propose_change("app.py", "x = 2\n", "bump x")
+        same = builtin_propose_change("app.py", "x = 1\n")
+    assert "Proposed a change to app.py" in said and same.startswith("Error:")
+    assert source.read_text(encoding="utf-8") == "x = 1\n"  # nothing written yet
+
+    pending = code_workspace.proposals(under=str(project))
+    assert [p["name"] for p in pending] == ["app.py"] and pending[0]["explanation"] == "bump x"
+    assert code_workspace.proposals(under=str(tmp_path / "elsewhere")) == []
+    code_workspace.apply(pending[0]["id"])
+    assert source.read_text(encoding="utf-8") == "x = 2\n"

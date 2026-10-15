@@ -200,14 +200,82 @@ export function CodeSessionCard({ state, onChange, onClose }: {
   );
 }
 
-/** Under the composer in Code: the folder and environment, like Claude's "Ai Dev Folder · Auto". Click to change. */
+/** Under the composer in Code: the folder and environment, like Claude's "Ai Dev Folder · Auto". Click to change.
+ *  "Open in Code" opens the same folder in the Code tab (it is opened as a workspace there first). */
 export function CodeBar({ state, onOpen }: { state: CodeState; onOpen: () => void }) {
   if (!state.on || !state.folder) return null;
+  const openInCode = async () => {
+    const result = await api.post<{ workspace: Workspace }>("/api/code/workspaces", { path: state.folder });
+    if (!result.ok) { pushToast(result.error, "error"); return; }
+    window.dispatchEvent(new CustomEvent("nyx:open-tab", { detail: { tab: "code" } }));
+  };
   return (
-    <button type="button" className="code-bar" onClick={onOpen} title={`${state.folder} · ${ENVIRONMENTS[state.environment].means}`}>
-      <span aria-hidden="true">▭</span>
-      <span>{folderName(state.folder)}</span>
-      <span className="code-bar__env">{ENVIRONMENTS[state.environment].name}</span>
-    </button>
+    <span className="code-bar-row">
+      <button type="button" className="code-bar" onClick={onOpen} title={`${state.folder} · ${ENVIRONMENTS[state.environment].means}`}>
+        <span aria-hidden="true">▭</span>
+        <span>{folderName(state.folder)}</span>
+        <span className="code-bar__env">{ENVIRONMENTS[state.environment].name}</span>
+      </button>
+      <button type="button" className="code-bar code-bar__link" onClick={() => void openInCode()} title="Open this folder in the Code tab">
+        Open in Code
+      </button>
+    </span>
+  );
+}
+
+interface Proposal {
+  id: string;
+  path: string;
+  name: string;
+  explanation?: string;
+  instruction?: string;
+  diff?: string;
+  status: string;
+  added?: number;
+  removed?: number;
+}
+
+/** Review first, in the chat: the changes Ichos proposed for this folder, each with Apply and Skip.
+ *  Nothing is written until Apply; Apply keeps a backup, so the Code tab can undo it. `refreshKey` changes after
+ *  every turn so new proposals show up as soon as the answer ends. */
+export function CodeProposals({ state, refreshKey }: { state: CodeState; refreshKey: unknown }) {
+  const [items, setItems] = useState<Proposal[]>([]);
+  const [open, setOpen] = useState<string | null>(null);
+  const folder = state.on && state.environment === "review" ? state.folder : "";
+
+  const load = useCallback(async () => {
+    if (!folder) { setItems([]); return; }
+    const result = await api.get<{ proposals: Proposal[] }>(`/api/code/proposals?under=${encodeURIComponent(folder)}`);
+    if (result.ok) setItems(result.data.proposals.filter((p) => p.status === "proposed"));
+  }, [folder]);
+  useEffect(() => { void load(); }, [load, refreshKey]);
+
+  if (!folder || items.length === 0) return null;
+  const act = async (proposal: Proposal, apply: boolean) => {
+    const result = apply
+      ? await api.post(`/api/code/proposals/${proposal.id}/apply`, {})
+      : await api.post(`/api/code/proposals/${proposal.id}/resolve`, { status: "rejected" });
+    if (!result.ok) pushToast(result.error, "error");
+    else pushToast(apply ? `Applied the change to ${proposal.name}.` : `Skipped the change to ${proposal.name}.`);
+    void load();
+  };
+  return (
+    <div className="code-proposals" role="region" aria-label="Changes to review">
+      <div className="code-proposals__head">{items.length} change{items.length === 1 ? "" : "s"} to review</div>
+      {items.map((p) => (
+        <div key={p.id} className="code-proposals__item">
+          <button type="button" className="code-proposals__name" onClick={() => setOpen(open === p.id ? null : p.id)} aria-expanded={open === p.id}>
+            <b>{p.name}</b>
+            <span className="code-proposals__count">+{p.added ?? 0} −{p.removed ?? 0}</span>
+            {(p.explanation || p.instruction) && <span className="code-proposals__why">{p.explanation || p.instruction}</span>}
+          </button>
+          <span className="code-proposals__actions">
+            <button type="button" className="btn" onClick={() => void act(p, true)}>Apply</button>
+            <button type="button" className="btn btn-ghost" onClick={() => void act(p, false)}>Skip</button>
+          </span>
+          {open === p.id && p.diff && <pre className="code-proposals__diff">{p.diff}</pre>}
+        </div>
+      ))}
+    </div>
   );
 }

@@ -37,7 +37,7 @@ import { ConnectorsBody, RemoteBody, useConnectors, usePhone } from "../componen
 import { ProjectHome, ProjectsSection, useChatProject } from "../components/chat/compact/ProjectHome";
 import "../components/chat/compact/compact.css";
 import { ModeSlider, readMode, type ChatMode } from "../components/chat/ModeSlider";
-import { ChatCodeSwitch, CodeBar, CodeSessionCard, folderName, useCodeSession } from "../components/chat/CodeSwitch";
+import { ChatCodeSwitch, CodeBar, CodeProposals, CodeSessionCard, folderName, useCodeSession } from "../components/chat/CodeSwitch";
 import { ChatRail, type RailMakeKind } from "../components/chat/ChatRail";
 import { ChatTitleMenu } from "../components/chat/ChatTitleMenu";
 import { PersonaBadge } from "../components/chat/PersonaBadge";
@@ -563,9 +563,13 @@ export function ChatPanel({
 
   /** Chat / Code (Drive doc 2, 2.1): in Code the chat works in a folder, in an environment. */
   const code = useCodeSession(activeChatId);
-  const codeCard = code.picking ? (
-    <CodeSessionCard state={code.state} onChange={code.update} onClose={() => code.setPicking(false)} />
-  ) : null;
+  const codeCard = (
+    <>
+      {/* Review first: what Ichos proposed in this folder, to apply from the chat. Re-read when a turn ends. */}
+      <CodeProposals state={code.state} refreshKey={busy} />
+      {code.picking && <CodeSessionCard state={code.state} onChange={code.update} onClose={() => code.setPicking(false)} />}
+    </>
+  );
   const codeBar = <CodeBar state={code.state} onOpen={() => code.setPicking(true)} />;
   const composerHint = code.payload ? `Describe the change in ${folderName(code.payload.folder)}…` : undefined;
 

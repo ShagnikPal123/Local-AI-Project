@@ -328,6 +328,14 @@ def plan_guard(inner: Optional[Callable[[str, str], None]] = None) -> Callable[[
                 f"Blocked in Plan mode: {name} would change something, and this turn only writes the plan. "
                 "Put it in the plan as a step instead — it runs once they approve.")
 
+    guard._plan_inner = inner  # type: ignore[attr-defined]  # prepare() unwraps it next turn
+    return guard
+
+
+def _without_plan_guard(guard: Optional[Callable[[str, str], None]]) -> Optional[Callable[[str, str], None]]:
+    """Peel off any plan gates a previous turn left, keeping the conversation's own gate underneath."""
+    while guard is not None and hasattr(guard, "_plan_inner"):
+        guard = getattr(guard, "_plan_inner")
     return guard
 
 
@@ -384,8 +392,9 @@ def code_note(session: Dict[str, str]) -> str:
         "and finish by saying which files changed and how to check it works.",
     ]
     if session["environment"] == "review":
-        lines.append("Review first: nothing may be written or run this turn. Show each change as a ```diff block "
-                     "against the file's path so the owner can apply it from the Code tab.")
+        lines.append("Review first: nothing may be written or run this turn. For each file you would change, call "
+                     "propose_change with its full new text; the owner applies or skips it from the chat. "
+                     "Say in a line what each change does.")
     return "\n".join(lines)
 
 
@@ -448,8 +457,13 @@ def prepare(service: Any, mode: Optional[str], text: str = "") -> Dict[str, Any]
         # Every mode gets its note, including normal: "think out loud, answer fast" is
         # what makes the normal chat feel different from the old default.
         service.conversation_history.append({"role": "system", "content": note_for(switches["mode"], switches.get("swarm", 0))})
+    # The plan gate lasts one turn. It used to stay wrapped round the chat's gate for good, so every
+    # later turn (the approved "work through the plan" turn included) was still read-only and the gates stacked.
+    base = _without_plan_guard(getattr(service, "tool_guard", None))
     if switches["read_only"]:
-        service.tool_guard = plan_guard(getattr(service, "tool_guard", None))
+        service.tool_guard = plan_guard(base)
+    elif hasattr(service, "tool_guard"):
+        service.tool_guard = base
     return switches
 
 
