@@ -1,0 +1,58 @@
+/* The Desk look on every screen (owner, 2026-10-15: "The new look is great. I think make everything have this look and
+   changing style is an option"). desk.css did the chat and the shell; this layer brings the other tabs in line: flat
+   near-black pages, panels as one step lighter with a 1px line, no glass, glow, gradients or big shadows, grey labels,
+   one warm accent. It works through the Desk tokens (--desk-*), so the palettes in palettes.css re-tone it too.
+   Settings › Appearance › Style mix still switches to any other look; every rule here is gated by `desk`. */
+
+/* Pages */
+:root[data-style~="desk"] main { background: var(--desk-main); }
+:root[data-style~="desk"] :is(.page-shell, .page, .page__inner) { background: transparent; }
+:root[data-style~="desk"] .page-shell__head { padding-bottom: 12px; border-bottom: 1px solid var(--desk-line); }
+:root[data-style~="desk"] :is(.page-shell__title, .page__title) { font-size: 20px; font-weight: 600; letter-spacing: -0.01em;
+  color: var(--desk-text); text-shadow: none; background: none; -webkit-text-fill-color: currentColor; }
+:root[data-style~="desk"] :is(.page-shell__purpose, .page__sub, .page__eyebrow) { color: var(--desk-muted); }
+
+/* Panels and cards: one step lighter than the page, a thin line, no shadow or blur. */
+:root[data-style~="desk"] main :is(.card, .model-tile, .ability-box, .av-box, .pd-scale, .study-card, fieldset, .settings-card) {
+  background: var(--desk-panel); background-image: none; border: 1px solid var(--desk-line); border-radius: 10px;
+  box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+:root[data-style~="desk"] main :is(.card, .model-tile):hover { border-color: var(--desk-line-strong); transform: none; }
+:root[data-style~="desk"] main :is(h1, h2, h3, h4) { text-shadow: none; }
+:root[data-style~="desk"] main :is(legend, .card__title, .section-title) { color: var(--desk-text); }
+
+/* Fields: zero weight (:where), so a field a component styles itself (the chat box, the search) keeps its own look. */
+:where(:root[data-style~="desk"] main) :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), textarea, select) {
+  background: var(--desk-raised); color: var(--desk-text); border: 1px solid var(--desk-line); border-radius: 8px; box-shadow: none;
+}
+:where(:root[data-style~="desk"] main) :where(input, textarea, select):focus-visible { outline: none; border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 22%, transparent); }
+
+/* Segmented controls and sub-tabs: grey pills, the chosen one a lighter grey, like Claude's. */
+:root[data-style~="desk"] .segmented { background: var(--desk-raised); border: 1px solid var(--desk-line); border-radius: 9px; padding: 2px; box-shadow: none; }
+:root[data-style~="desk"] .segmented button { background: none; color: var(--desk-muted); border-radius: 7px; box-shadow: none; }
+:root[data-style~="desk"] .segmented button:is([aria-checked="true"], [aria-pressed="true"]) { background: var(--desk-head); color: var(--desk-text); }
+
+/* Tables and lists */
+:root[data-style~="desk"] main table { border-collapse: collapse; }
+:root[data-style~="desk"] main :is(th, td) { border-bottom: 1px solid var(--desk-line); }
+:root[data-style~="desk"] main th { color: var(--desk-muted); font-weight: 500; }
+
+/* Scrollbars: thin and quiet. */
+:root[data-style~="desk"] * { scrollbar-width: thin; scrollbar-color: #3a3a38 transparent; }
+
+/* Notes and Build had their own near-black-blue surfaces and a purple accent; bring them onto the Desk tones. */
+:root[data-style~="desk"] :is(.notes, .bs) { background: var(--desk-main); }
+:root[data-style~="desk"] :is(.notes__list, .notes__study, .bs-bar, .bs-rail, .bs-side) { background: var(--desk-sidebar); }
+:root[data-style~="desk"] .bs-stage { background: var(--desk-main); }
+:root[data-style~="desk"] :is(.notes__search, .notes__book-input, .bs-project, .focus-timer) { background: var(--desk-raised); color: var(--desk-text); }
+:root[data-style~="desk"] :is(.notes__book:hover, .notes__item:hover) { background: var(--desk-hover); }
+:root[data-style~="desk"] .notes__book.is-active { background: var(--desk-head); }
+:root[data-style~="desk"] :is(.bs-chip--live, .bs-label--focus) { background: var(--color-accent); color: var(--color-on-accent, #fff); }
+:root[data-style~="desk"] :is(.bs-empty, .bs-tutorial, .bs-label) { background: var(--desk-panel);
+  box-shadow: 0 0 0 1px var(--desk-line-strong), 0 12px 32px rgba(0,0,0,.4); }
+:root[data-style~="desk"] .study-progress { background: var(--desk-head); }
+
+/* The hub sub-tabs (Settings, Constellations and the other grouped tabs). */
+:root[data-style~="desk"] .hub__pivot button { color: var(--desk-muted); background: none; box-shadow: none; }
+:root[data-style~="desk"] .hub__pivot button:hover { color: var(--desk-text); background: var(--desk-hover); }

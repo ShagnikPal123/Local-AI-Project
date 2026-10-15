@@ -54,6 +54,7 @@ import { useNavSide } from "./style/useNavSide";
 import { useDesktopSync } from "./style/desktopSync";
 import { TabLoading } from "./components/TabLoading";
 import { StudioRail } from "./components/studio/StudioRail";
+import { AppFloats } from "./components/floating/AppFloats";
 
 // Every tab is its own chunk (2026-09-16). The shell used to import all of them up front,
 // three.js and the chart and code views included, so the first paint downloaded ~1.2 MB
@@ -477,6 +478,7 @@ export default function App() {
 
       {!studio && navSide === "top" && tabBar}
 
+      <AppFloats active={active} />
       <main style={{ flex: 1, minWidth: 0, minHeight: 0, background: "var(--color-bg)" }}>
         <TabBoundary key={active} name={tabs.find((t) => t.id === active)?.label ?? "This"}>
         <Suspense fallback={<TabLoading what="Opening" size={88} />}>

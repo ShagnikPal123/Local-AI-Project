@@ -2,6 +2,8 @@
  * the left bar to a different side or on top or bottom"). Kept in this browser and applied before the first paint.
  * The accent overrides whatever the style mix set, and its lighter/darker steps are derived so every page follows. */
 
+import { paintLook, readSavedLook } from "./imageStyle";
+
 export type NavSide = "left" | "right" | "top" | "bottom";
 /** "" = the look decides: the left icon rail in Studio Glass, the strip across the top in every other look. */
 export type NavChoice = NavSide | "";
@@ -28,7 +30,7 @@ interface Saved { accent: string; nav: NavChoice; sync: boolean; palette: Palett
 
 /** Full palettes (Fixer Upper S18): the base tones behind the Desk look, not only the accent. "" keeps Desk's own
  * near-black. They re-tone the Desk layer (style/palettes.css); other looks keep their own colours. */
-export type PaletteId = "" | "midnight" | "foundry" | "graphite" | "dusk" | "night-glass";
+export type PaletteId = "" | "midnight" | "foundry" | "graphite" | "dusk" | "night-glass" | "image";
 export const PALETTES: { id: PaletteId; label: string; hint: string; swatch: [string, string, string] }[] = [
   { id: "", label: "Desk", hint: "Near-black, like Claude's app", swatch: ["#111111", "#1a1a19", "#d97757"] },
   { id: "midnight", label: "Midnight", hint: "Deep navy with a cool blue accent", swatch: ["#0b1020", "#141b2e", "#6c8cff"] },
@@ -44,7 +46,7 @@ export function readAppearance(): Saved {
     // `navSet` marks a pick made on purpose. Older saves wrote "left" for everyone who only changed the accent,
     // and that must not move the strip of a look that never had a rail.
     const chosen = raw.navSet === true && ["left", "right", "top", "bottom"].includes(raw.nav);
-    const palette = PALETTES.some((p) => p.id === raw.palette) ? raw.palette as PaletteId : "";
+    const palette = PALETTES.some((p) => p.id === raw.palette) || raw.palette === "image" ? raw.palette as PaletteId : "";
     return { accent: typeof raw.accent === "string" ? raw.accent : "", nav: chosen ? raw.nav : "", sync: raw.sync === true, palette };
   } catch {
     return { accent: "", nav: "", sync: false, palette: "" };
@@ -92,6 +94,8 @@ export function effectiveAccent(saved: Saved = readAppearance()): string {
 export function paintTheme(): void {
   const saved = readAppearance();
   applyAccent(effectiveAccent(saved));
+  // "From your image" (style/imageStyle.ts): the kept look's colours, over the Desk look. An accent picked by hand wins.
+  paintLook(saved.palette === "image" ? readSavedLook() : null, Boolean(effectiveAccent(saved)));
   const root = document.documentElement;
   const wall = saved.sync && desktop?.wallpaper_color && /^#[0-9a-f]{6}$/i.test(desktop.wallpaper_color) ? desktop.wallpaper_color : "";
   SURFACE_VARS.forEach(([name, base]) => (wall ? root.style.setProperty(name, mixHex(base, wall, 0.12)) : root.style.removeProperty(name)));
@@ -114,7 +118,7 @@ export function applyAppearance(next: Partial<Saved> = {}): Saved {
   const root = document.documentElement;
   // The shell turns this choice into <html data-nav> once it knows the look (style/useNavSide.ts).
   root.dataset.navChoice = saved.nav;
-  if (saved.palette) root.dataset.palette = saved.palette; else delete root.dataset.palette;
+  if (saved.palette && saved.palette !== "image") root.dataset.palette = saved.palette; else delete root.dataset.palette;
   paintTheme();
   window.dispatchEvent(new CustomEvent("ichos:appearance", { detail: saved }));
   return saved;
