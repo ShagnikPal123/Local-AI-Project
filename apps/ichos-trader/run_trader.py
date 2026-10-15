@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -19,6 +20,22 @@ from pathlib import Path
 from ichos_trader import config
 
 HERE = Path(__file__).resolve().parent
+WEB = HERE / "web"
+
+
+def build_dashboard() -> None:
+    """Build the dashboard once if it has never been built (needs Node.js; the API works without it)."""
+    if (WEB / "dist" / "index.html").is_file():
+        return
+    npm = shutil.which("npm")
+    if not npm:
+        print("Node.js is not installed, so the dashboard is not built yet; the API still runs.")
+        return
+    print("Building the dashboard (first run only)…", flush=True)
+    for step in (["install", "--no-audit", "--no-fund"], ["run", "build"]):
+        if subprocess.call([npm, *step], cwd=WEB) != 0:
+            print("The dashboard build failed; the API still runs.")
+            return
 
 
 def main(argv=None) -> int:
@@ -28,6 +45,7 @@ def main(argv=None) -> int:
     parser.add_argument("--forever", action="store_true", help="restart the server whenever it exits")
     parser.add_argument("--offline", action="store_true", help="use the simulated market")
     args = parser.parse_args(argv)
+    build_dashboard()
     env = dict(os.environ, **({"ICHOS_TRADER_OFFLINE": "1"} if args.offline else {}))
     command = [sys.executable, "-m", "uvicorn", "ichos_trader.server:app", "--host", args.host,
                "--port", str(args.port)]

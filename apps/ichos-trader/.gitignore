@@ -7,3 +7,4 @@ web/node_modules/
 # Keys live in environment variables or data/secrets.json, never in a file in git.
 .env
 .env.*
+tsconfig.tsbuildinfo
