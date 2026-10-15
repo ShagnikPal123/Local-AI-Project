@@ -200,3 +200,11 @@ def test_home_is_the_io_view_and_an_untouched_old_home_moves_to_it():
     assert home["default"] == "agents" and home["views"][0] == "agents"
     nc.STORE.write_text('{"home": {"default": "weather", "views": ["apps", "weather"]}}', encoding="utf-8")
     assert nc.settings()["home"] == {"default": "weather", "views": ["apps", "weather"], "city": "", "triple_click": True}
+
+
+def test_the_timer_screen_is_no_longer_a_home_view_and_its_owners_land_on_agents():
+    # Drive doc 2, item 2.6: "the screen below is unneeded, but the time aspect can stay".
+    assert "timer" not in nc.VIEWS
+    nc.STORE.write_text('{"home": {"default": "timer", "views": ["apps", "timer", "weather"]}}', encoding="utf-8")
+    home = nc.settings()["home"]
+    assert home["default"] == "agents" and home["views"] == ["agents", "apps", "weather"]

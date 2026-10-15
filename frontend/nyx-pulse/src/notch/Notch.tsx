@@ -765,7 +765,8 @@ export function Notch({ embedded = false }: { embedded?: boolean }) {
           <MiniIo color={working[0].color} size={16} state="working" />
         </button>
       ) : null}
-      <button className="nx-pill-top" onClick={() => openView("timer")} aria-label="Clock and timers">
+      {/* The timer screen opens only while a timer runs (to stop it); otherwise the clock opens home (doc 2, 2.6). */}
+      <button className="nx-pill-top" onClick={() => openView(activeTimers.length ? "timer" : homeView())} aria-label="Clock and timers">
         <span>{clock}</span>
         {activeTimers.length ? <><span className="sep" /><span>{formatLeft(left)}</span></> : null}
       </button>

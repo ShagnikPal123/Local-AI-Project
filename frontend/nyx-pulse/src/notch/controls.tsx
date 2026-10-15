@@ -195,7 +195,7 @@ export const SINGLE: Partial<Record<HomeViewId, () => React.ReactElement>> = {
 };
 
 export const VIEW_LABEL: Record<HomeViewId, string> = {
-  apps: "Apps", now_playing: "Now playing", weather: "Weather", calendar: "Calendar", timer: "Timer", agents: "Agents",
+  apps: "Apps", now_playing: "Now playing", weather: "Weather", calendar: "Calendar", agents: "Agents",
 };
 
 /** The dashboard (p05): the strip, then the owner's chosen cards side by side. */
@@ -208,9 +208,10 @@ export function AppsView({ controls, timers, now, onTimers, onSaid }: {
       <ControlsStrip controls={controls} onSaid={onSaid} />
       <div className="nx-cards">
         {(cards.length ? cards : ["now_playing", "weather", "calendar"] as HomeViewId[]).map((v) => (
-          v === "timer" ? <TimerCard key={v} timers={timers} now={now} onOpen={onTimers} />
-            : <div key={v} className={`slot ${v}`}>{SINGLE[v]?.()}</div>
+          <div key={v} className={`slot ${v}`}>{SINGLE[v]?.()}</div>
         ))}
+        {/* No Timer home view any more (doc 2, 2.6); a running timer still gets its card here. */}
+        {timers.length > 0 && <TimerCard timers={timers} now={now} onOpen={onTimers} />}
       </div>
     </div>
   );

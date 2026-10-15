@@ -126,7 +126,7 @@ export const notchApi = {
 
 // ── Controls, launchers and home views (notch_controls.py) ──────────────────
 
-export type HomeViewId = "apps" | "now_playing" | "weather" | "calendar" | "timer" | "agents";
+export type HomeViewId = "apps" | "now_playing" | "weather" | "calendar" | "agents";
 
 export interface Launcher {
   id: string;

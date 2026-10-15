@@ -11,6 +11,7 @@ import type { MessageListProps } from "./types";
 import { MessageBubble } from "./MessageBubble";
 import { OrbHero } from "../orbs/OrbHero";
 import { greeting, ownerName, setOwnerName } from "./phrases";
+import { IdleGlyphs, type IdleGlyphsHandle } from "./IdleGlyphs";
 
 const SUGGESTIONS = [
   "What can you do on this computer?",
@@ -51,8 +52,23 @@ export function MessageList({ messages, onAction, emptyState }: MessageListProps
 
   const suggestions = emptyState?.suggestions ?? SUGGESTIONS;
 
+  // The idle code-glyph field sits behind the transcript; the wrapper hands it the pointer (doc 2, item 2.2).
+  const glyphs = useRef<IdleGlyphsHandle>(null);
+  const at = (e: React.PointerEvent<HTMLDivElement>) => {
+    const box = e.currentTarget.getBoundingClientRect();
+    return [e.clientX - box.left, e.clientY - box.top] as const;
+  };
+  const field = (inner: React.ReactNode) => (
+    <div className="idle-field" onPointerMove={(e) => glyphs.current?.pointer(...at(e))}
+      onPointerLeave={() => glyphs.current?.pointer(-9999, -9999)}
+      onPointerDown={(e) => { if (!(e.target as HTMLElement).closest("button, a, input, textarea")) glyphs.current?.burst(...at(e)); }}>
+      <IdleGlyphs ref={glyphs} />
+      {inner}
+    </div>
+  );
+
   if (messages.length === 0) {
-    return (
+    return field(
       <div ref={scrollRef} style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "8px 2px" }}>
         <OrbHero
           title={<>
@@ -65,11 +81,11 @@ export function MessageList({ messages, onAction, emptyState }: MessageListProps
           suggestions={suggestions}
           onSuggestion={(s) => emptyState?.onSuggestion(s)}
         />
-      </div>
+      </div>,
     );
   }
 
-  return (
+  return field(
     <div ref={scrollRef} style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12, padding: "8px 2px" }}>
       {messages.map((message, index) => (
         <MessageBubble
@@ -79,6 +95,6 @@ export function MessageList({ messages, onAction, emptyState }: MessageListProps
           isLatest={index === messages.length - 1}
         />
       ))}
-    </div>
+    </div>,
   );
 }
