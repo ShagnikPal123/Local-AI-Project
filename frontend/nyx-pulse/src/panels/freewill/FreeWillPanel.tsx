@@ -20,6 +20,7 @@ import { Icon } from "../../components/chat/Icon";
 import { DiagramOverlay, type Diagram } from "../../components/diagram/DiagramOverlay";
 import type { AssistantTurn, TurnEvent } from "../../components/chat/types";
 import { CuriosityView } from "./CuriosityView";
+import { EmotionsView } from "./EmotionsView";
 import "./freewill.css";
 
 interface State { allowed: boolean | null; decided_at?: number; by?: string; paused: boolean }
@@ -40,7 +41,7 @@ const STARTERS = [
 export function FreeWillPanel() {
   const [overview, setOverview] = useState<Overview | null>(null);
   /** "Its chat" or the third mind — curiosity, wants and owned mistakes (N103). */
-  const [view, setView] = useState<"talk" | "curiosity">("talk");
+  const [view, setView] = useState<"talk" | "curiosity" | "emotions">("talk");
   const [error, setError] = useState("");
   const load = useCallback(async () => {
     const result = await api.get<Overview>("/api/freewill");
@@ -75,15 +76,16 @@ export function FreeWillPanel() {
       )}
       {state.allowed && (
         <div className="fw-views" role="tablist" aria-label="Free Will">
-          {(["talk", "curiosity"] as const).map((id) => (
+          {(["talk", "curiosity", "emotions"] as const).map((id) => (
             <button key={id} role="tab" aria-selected={view === id} className={view === id ? "is-on" : ""}
                     onClick={() => setView(id)}>
-              {id === "talk" ? "Its chat" : "Third mind"}
+              {id === "talk" ? "Its chat" : id === "curiosity" ? "Third mind" : "Emotions"}
             </button>
           ))}
         </div>
       )}
       {state.allowed && view === "curiosity" && <CuriosityView />}
+      {state.allowed && view === "emotions" && <EmotionsView />}
       {state.allowed && view === "talk" && (
         <div className="fw-body">
           <Conversation overview={overview} paused={state.paused} onRefresh={load} />

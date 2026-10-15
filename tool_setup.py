@@ -20,6 +20,7 @@ TOOL_MODULES: List[Tuple[str, str]] = [
     ("handoff_tools", "register_handoff_tools"),
     ("feature_catalog", "register_feature_tools"),
     ("curiosity", "register_curiosity_tools"),
+    ("emotions", "register_emotion_tools"),
     ("file_guard", "register_security_tools"),
     ("research_engine", "register_research_tools"),
     ("context_budget", "register_context_tools"),
