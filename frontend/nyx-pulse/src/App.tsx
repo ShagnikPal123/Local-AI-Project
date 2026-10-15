@@ -8,6 +8,7 @@
  * The old Rail/Strip switch is now a density control (see components/TopTabs).
  */
 
+import { IchosTour, startTour } from "./components/tour/IchosTour";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { BackgroundLayer } from "./components/BackgroundLayer";
 import { ClapListener } from "./components/clap/ClapListener";
@@ -400,6 +401,7 @@ export default function App() {
     <div className="app-shell" style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <BackgroundLayer />
       <ParticleField />
+      <IchosTour />
       {/* Listens for the sounds you taught it when you are away or offline (N86). */}
       <ClapListener />
       {/* Voice is on (its name, a clap, or Talk): what you are saying and that it is listening (Update 1, U26). */}
@@ -441,6 +443,9 @@ export default function App() {
         </button>
 
         <div className="shell-actions">
+          <button type="button" className="shell-icon-btn" onClick={startTour} title="A two-minute walk through Ichos and its tabs">
+            <span aria-hidden="true">?</span> Tour
+          </button>
           <button
             type="button"
             className="shell-icon-btn"

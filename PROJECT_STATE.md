@@ -138,7 +138,9 @@ more false positives cost.
 - **Compact chat:** an Overview panel on the right like Claude's Threads panel (Threads with welcome, one usage graph and Waiting on you / Working / Idle; Library with artifacts, linked folders and + Add; Activity). The strips over the messages are now movable bars (context, usage, environment, connectors, remote access, team): drag between top and under the box, reorder or hide. One "⋯" menu beside the chat name.
 - **Model lineup in use:** model and effort under the box (Pico, Monolith Argon–Xenon, Crescendo, Zencode, Low–Aleph); `/api/models/lineup`; `/api/models/switch` takes lineup names; `turn_runner` applies the lineup plan (who answers first, tool steps, a status line).
 - **Calendar** (Constellations): click a time or + Add to put an Orbit there, click an event to run, pause or remove it, a link to connect Google Calendar; repeating Orbits no longer show runs before they were made.
-- **Not done yet:** Projects home like Claude Projects inside the chat, Google Drive folder in the Library, the Ichos tutorial (queued).
+- **Projects in the chat** (PR #26): a Projects list in the chat rail; a project's main chat opens with a home ("let me show you around", folder, instructions, knowledge, threads, connections, recent threads). `projects.update` keeps `folder`; `/api/commander` returns `project_id`.
+- **Ichos tour:** "? Tour" in the top bar and a one-time offer card walk through the chat and every tab (19 steps, `components/tour/IchosTour.tsx`).
+- **Not done yet:** Google Drive folder in the Library (needs Google sign-in first).
 
 ### Session — 2026-10-15 (Ichos Trader finished as its own app; Trading removed from Ichos)
 
