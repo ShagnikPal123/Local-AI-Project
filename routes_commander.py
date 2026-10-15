@@ -53,6 +53,11 @@ class AnswerBody(BaseModel):
     approve: Optional[bool] = None
 
 
+class KnowledgeBody(BaseModel):
+    title: str = ""
+    text: str
+
+
 class ThreadChange(BaseModel):
     resolved: Optional[bool] = None
     pinned: Optional[bool] = None
@@ -117,6 +122,36 @@ def commander_project_chat(project_id: str, _o=Depends(_owner)) -> Dict[str, Any
     if project is None:
         raise HTTPException(status_code=404, detail="No such project.")
     return {"chat_id": _call(lambda: commander.delegator_for_project(project_id, project["name"]))}
+
+
+@router.get("/api/commander/projects/{project_id}/knowledge")
+def commander_knowledge(project_id: str, _o=Depends(_owner)) -> Dict[str, Any]:
+    """A project's knowledge base: the notes and text files its threads draw on."""
+    import project_knowledge
+
+    return {"docs": project_knowledge.list_docs(project_id)}
+
+
+@router.post("/api/commander/projects/{project_id}/knowledge")
+def commander_add_knowledge(project_id: str, body: KnowledgeBody, _o=Depends(_owner)) -> Dict[str, Any]:
+    import project_knowledge
+    import projects
+
+    if projects.get(project_id) is None:
+        raise HTTPException(status_code=404, detail="No such project.")
+    try:
+        return {"doc": project_knowledge.add(project_id, body.title, body.text)}
+    except project_knowledge.KnowledgeError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+@router.delete("/api/commander/projects/{project_id}/knowledge/{doc_id}")
+def commander_drop_knowledge(project_id: str, doc_id: str, _o=Depends(_owner)) -> Dict[str, Any]:
+    import project_knowledge
+
+    if not project_knowledge.delete(project_id, doc_id):
+        raise HTTPException(status_code=404, detail="No such document.")
+    return {"ok": True}
 
 
 @router.post("/api/commander/send")
