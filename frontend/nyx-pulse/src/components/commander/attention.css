@@ -1,0 +1,3 @@
+/* The "needs you" mark beside a chat's name (attention.tsx). Warn colour only, so it reads at a glance in any list. */
+.attn-mark { display: inline-grid; place-items: center; flex: none; width: 16px; height: 16px; margin-left: 6px; border-radius: 50%;
+  font: 700 11px/1 var(--font-body); color: var(--color-bg, #000); background: var(--color-warn); }
