@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import time
-from typing import Dict, Iterator, List
+from typing import Any, Dict, Iterator, List, Optional
 
 import requests
 
@@ -16,7 +16,8 @@ class AnthropicProvider(Provider):
 
     name = "claude"
     _CHAT_URL = "https://api.anthropic.com/v1/messages"
-    _MODEL = "claude-3-5-sonnet-20241022"
+    #: claude-3-5-sonnet-20241022 was retired, so the old default failed every call.
+    _MODEL = "claude-sonnet-5-5"
     _TIMEOUT_SECONDS = 30
     _MAX_RETRIES = 2
 
@@ -29,7 +30,7 @@ class AnthropicProvider(Provider):
         except Exception:
             return False
 
-    def _prepare_payload(self, messages: List[Dict[str, str]]) -> tuple[dict, str]:
+    def _prepare_payload(self, messages: List[Dict[str, str]], model: Optional[str] = None) -> tuple[dict, str]:
         """Separate system messages from conversational messages per Anthropic requirements."""
         system_parts = []
         conversation_messages = []
@@ -48,7 +49,7 @@ class AnthropicProvider(Provider):
         system_prompt = "\n\n".join(system_parts) if system_parts else ""
 
         payload = {
-            "model": self._MODEL,
+            "model": (model or "").strip() or self._MODEL,
             "max_tokens": 2048,
             "messages": conversation_messages,
         }
@@ -57,7 +58,12 @@ class AnthropicProvider(Provider):
 
         return payload, system_prompt
 
-    def chat(self, messages: List[Dict[str, str]]) -> str:
+    def stream_events(self, messages: List[Dict[str, Any]], *, model: Optional[str] = None,
+                      thinking: bool = False) -> Iterator[Dict[str, str]]:
+        """One reply as a single text event, honouring a per-call model (a lineup name's backing model)."""
+        yield {"type": "text", "text": self.chat(messages, model=model)}
+
+    def chat(self, messages: List[Dict[str, str]], model: Optional[str] = None) -> str:
         """Send messages to Claude and return the response."""
         if not self.is_available():
             raise ProviderError(
@@ -70,7 +76,7 @@ class AnthropicProvider(Provider):
             "content-type": "application/json",
         }
 
-        payload, _ = self._prepare_payload(messages)
+        payload, _ = self._prepare_payload(messages, model)
 
         last_error = None
         for attempt in range(self._MAX_RETRIES + 1):

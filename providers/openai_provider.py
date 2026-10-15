@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import time
-from typing import Dict, Iterator, List
+from typing import Any, Dict, Iterator, List, Optional
 
 import requests
 
@@ -29,7 +29,12 @@ class OpenAIProvider(Provider):
         except Exception:
             return False
 
-    def chat(self, messages: List[Dict[str, str]]) -> str:
+    def stream_events(self, messages: List[Dict[str, Any]], *, model: Optional[str] = None,
+                      thinking: bool = False) -> Iterator[Dict[str, str]]:
+        """One reply as a single text event, honouring a per-call model (a lineup name's backing model)."""
+        yield {"type": "text", "text": self.chat(messages, model=model)}
+
+    def chat(self, messages: List[Dict[str, str]], model: Optional[str] = None) -> str:
         """Send messages to OpenAI and return the response."""
         if not self.is_available():
             raise ProviderError(
@@ -40,7 +45,7 @@ class OpenAIProvider(Provider):
             "Authorization": f"Bearer {SETTINGS.openai_api_key}",
             "Content-Type": "application/json",
         }
-        payload = {"model": self._MODEL, "messages": messages}
+        payload = {"model": (model or "").strip() or self._MODEL, "messages": messages}
 
         last_error = None
         for attempt in range(self._MAX_RETRIES + 1):
