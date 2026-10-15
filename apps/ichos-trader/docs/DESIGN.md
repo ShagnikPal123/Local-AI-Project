@@ -30,7 +30,8 @@ Every `pace_seconds` (a minute by default) the engine runs one cycle:
    looks like a pump, the price feed is stale, or every strategy disagrees. Otherwise it may
    **shrink** the order and says why. Its strictness is a dial.
 6. **Risk** checks the hard rules nobody can switch off: only its own money and what it earned, no
-   borrowing, no shorting, no single market above its share, and nothing at all with real money.
+   borrowing, no shorting, no single market above its share, and no real money unless the owner
+   switched to it (then only the budget, with a daily loss limit).
 7. The **broker** fills the order (the built-in practice account by default: real prices, plus
    spread, slippage and fees, so practice does not flatter it).
 8. **Manager** looks at the whole team every few cycles: moves money from the trader doing worst to

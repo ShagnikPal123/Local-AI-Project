@@ -13,9 +13,10 @@ ever shown back masked to its last 4 characters. Viewers see that a key is set, 
 | OANDA | Currencies | Free | Planned | The cleanest practice FX account |
 | Interactive Brokers | Nearly everything | Yes | Planned | Widest reach, but needs their gateway app running |
 
-The built-in **practice account** (`paper.py`) is the default and needs nothing. Alpaca only ever
-talks to `paper-api.alpaca.markets`; the live address is refused in code until the owner says yes to
-real money.
+The built-in **practice account** (`paper.py`) is the default and needs nothing. Alpaca talks to
+`paper-api.alpaca.markets` with the practice keys. It uses the live address only with the separate
+`alpaca_live` keys, after the owner switches to real money in Setup with a budget and the typed
+confirmation (`realmoney.py`).
 
 ## Market data
 
