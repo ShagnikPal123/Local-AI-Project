@@ -413,3 +413,9 @@ def test_a_project_thread_gets_matching_knowledge_and_files_its_result_in_the_li
     cm.board(delegator=main)
     library = projects.list_artifacts(project["id"])
     assert len(library) == 1 and library[0]["ref"] == thread["id"] and "exports/trades.csv" in library[0]["note"]
+
+
+def test_a_projects_main_chat_knows_its_project(world):
+    main = world.cm.delegator_for_project("pr-7", "Moon base")
+    assert world.cm.delegator_project(main) == "pr-7"
+    assert world.cm.delegator_project("not-a-main-chat") == ""

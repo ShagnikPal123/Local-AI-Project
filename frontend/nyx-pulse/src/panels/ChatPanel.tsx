@@ -34,6 +34,7 @@ import { OverviewPanel } from "../components/chat/compact/OverviewPanel";
 import { BarZone, useBarLayout, type BarId, type BarSpec } from "../components/chat/compact/ChatBars";
 import { LineupPicker } from "../components/chat/compact/LineupPicker";
 import { ConnectorsBody, RemoteBody, useConnectors, usePhone } from "../components/chat/compact/BarChips";
+import { ProjectHome, ProjectsSection, useChatProject } from "../components/chat/compact/ProjectHome";
 import "../components/chat/compact/compact.css";
 import { ModeSlider, readMode, type ChatMode } from "../components/chat/ModeSlider";
 import { ChatCodeSwitch, CodeBar, CodeSessionCard, folderName, useCodeSession } from "../components/chat/CodeSwitch";
@@ -1107,6 +1108,7 @@ export function ChatPanel({
 
   // --- the compact chat's pieces (2026-10-15) ---------------------------------------
   const [barLayout, setBarLayout] = useBarLayout();
+  const chatProject = useChatProject(activeChatId);
   const connectors = useConnectors();
   const phone = usePhone();
   const [overviewOpen, setOverviewOpen] = useState(() => {
@@ -1199,6 +1201,7 @@ export function ChatPanel({
           onRestored={() => void loadChats()}
           brain={brain}
           onOpenBrain={onOpenBrain}
+          projects={<ProjectsSection activeProject={chatProject} onOpenChat={(id) => void loadChats().then(() => setActiveChatId(id))} />}
         />
         <section className="chat-home__main" aria-label={`Chat: ${title}`}>
           <header className="chat-home__head">
@@ -1226,6 +1229,12 @@ export function ChatPanel({
             <div className="chat-owner" role="note">
               <span>This chat belongs to <b>{chatAgents[activeChatId]}</b> — they answer here, not the Manager.</span>
               <button className="chat-inline" onClick={() => void handBack()}>Hand back to the Manager</button>
+            </div>
+          )}
+          {chatProject && (
+            <div className="chat-home__project">
+              <ProjectHome projectId={chatProject} empty={messages.length === 0} onOpenChat={(id) => void loadChats().then(() => setActiveChatId(id))}
+                onUseFolder={(folder) => code.update({ on: true, folder })} onShowThreads={() => setOverviewOpen(true)} />
             </div>
           )}
           <div className="chat-home__column">

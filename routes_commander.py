@@ -80,6 +80,7 @@ def commander_board(delegator: str = "", project_id: str = "", _o=Depends(_owner
 
     return {"board": commander.board(delegator=delegator, project_id=project_id),
             "is_delegator": commander.is_delegator(delegator) if delegator else False,
+            "project_id": commander.delegator_project(delegator),
             "settings": commander.settings(),
             "kinds": [{"id": t, "label": commander_pick.TIER_LABELS[t]} for t in commander_pick.TIERS],
             "efforts": list(commander_pick.EFFORTS), "sectors": list(commander_pick.SECTORS),

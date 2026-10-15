@@ -16,7 +16,7 @@
  * The rail folds to a thin strip; how the owner left it is remembered.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api } from "../../api";
 import { Spinner } from "./AgentDisc";
 import type { ChatSummaryView } from "./types";
@@ -49,7 +49,7 @@ function groupOf(ms: number, now: Date): string {
 const GROUPS = ["Today", "Yesterday", "This week", "Older"];
 
 export function ChatRail({ chats, activeId, runningByChat, onSelect, onNew, onRename, onDelete, onMake, onRestored,
-  brain, onOpenBrain }: {
+  brain, onOpenBrain, projects }: {
   chats: ChatSummaryView[];
   activeId: string;
   runningByChat: Record<string, string | undefined>;
@@ -63,6 +63,8 @@ export function ChatRail({ chats, activeId, runningByChat, onSelect, onNew, onRe
   /** The Second Brain at a glance, when the field has loaded. */
   brain?: { memories: number; today: number } | null;
   onOpenBrain?: () => void;
+  /** The compact chat's Projects list (ProjectHome.tsx), shown above the chats like Claude's. */
+  projects?: ReactNode;
 }) {
   const needs = useAttention();  // which chats need the owner: a mark beside the name (Drive doc 1, item 1.19)
   const [folded, setFolded] = useState(() => { try { return localStorage.getItem("nyx.rail.folded") === "1"; } catch { return false; } });
@@ -137,6 +139,7 @@ export function ChatRail({ chats, activeId, runningByChat, onSelect, onNew, onRe
       </div>
       <input className="chat-rail__search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search chats"
              aria-label="Search chats" />
+      {projects}
       <label className="chat-rail__filter" title="Chats with no messages stay out of the list (the open one always shows)">
         <input type="checkbox" checked={hideEmpty} onChange={(e) => setHideEmpty(e.target.checked)} />
         Hide empty chats{hiddenCount > 0 ? ` (${hiddenCount} hidden)` : ""}
