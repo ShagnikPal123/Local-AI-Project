@@ -21,6 +21,7 @@ import { api } from "../../api";
 import { Spinner } from "./AgentDisc";
 import type { ChatSummaryView } from "./types";
 import { PersonaBadge } from "./PersonaBadge";
+import { WhatsAppMark, useWhatsAppChats } from "./WhatsAppMark";
 import { AttentionMark, useAttention } from "../commander/attention";
 import { openChatPane, startChatDrag } from "./panes/paneDrag";
 import { ownerName } from "./phrases";
@@ -112,6 +113,7 @@ export function ChatRail({ chats, activeId, runningByChat, onSelect, onNew, onRe
   /** The compact chat's Projects list (ProjectHome.tsx), shown above the chats like Claude's. */
   projects?: ReactNode;
 }) {
+  const whatsapp = useWhatsAppChats();
   const needs = useAttention();  // which chats need the owner: a mark beside the name (Drive doc 1, item 1.19)
   const [folded, setFolded] = useState(() => { try { return localStorage.getItem("nyx.rail.folded") === "1"; } catch { return false; } });
   const [query, setQuery] = useState("");
@@ -249,6 +251,7 @@ export function ChatRail({ chats, activeId, runningByChat, onSelect, onNew, onRe
                         <span className="chat-rail__title">{chat.title || "New chat"}</span>
                         <AttentionMark need={needs[chat.id]} />
                         <PersonaBadge persona={chat.persona} small />
+                        <WhatsAppMark on={whatsapp.linked.has(chat.id)} />
                         {made && <span className="chat-rail__made">{made}{parent ? ` of ${parent}` : ""}</span>}
                       </button>
                     )}
@@ -262,6 +265,12 @@ export function ChatRail({ chats, activeId, runningByChat, onSelect, onNew, onRe
                         </button>
                         <button role="menuitem" onClick={() => { setMenu(null); togglePin(chat.id); }}>{pins.includes(chat.id) ? "Unpin" : "Pin"}</button>
                         <button role="menuitem" onClick={() => { setMenu(null); setDraft(chat.title); setRenaming(chat.id); }}>Rename</button>
+                        {whatsapp.available && (
+                          <button role="menuitem" onClick={() => { setMenu(null); void whatsapp.toggle(chat.id); }}>
+                            {whatsapp.linked.has(chat.id) ? "Take off WhatsApp" : "Connect to WhatsApp"}
+                            <small>{whatsapp.linked.has(chat.id) ? "the phone stops seeing this chat" : "carry on from your phone with /chat"}</small>
+                          </button>
+                        )}
                         <button role="menuitem" onClick={() => { setMenu(null); onMake(chat.id, "branch"); }}>
                           Branch<small>every message, then go another way</small>
                         </button>

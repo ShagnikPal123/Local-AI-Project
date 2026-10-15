@@ -2,7 +2,7 @@
  *  day, all year), what it may use (Allow / Ask), goals, watches and taught tasks. Seven ship switched off; make more
  *  from blank or from any of them. From chat: "@Orbit …", /avatar, /team. */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api } from "../../api";
 import { onWorkspaceEvent } from "../../state/workspaceEvents";
 import { startItemDrag } from "../../state/dragItems";
@@ -100,7 +100,10 @@ export function AvatarsPanel() {
     setCatalog({ functions: c.functions ?? {}, main: c.main ?? {}, schedules: c.schedules ?? { on_call: "Only when called" },
       models: c.models ?? { "": "Ichos's usual model" }, repeats: c.repeats ?? [""],
       personalities: c.personalities ?? {} });
-    setList((r.data.avatars ?? []).map(withDefaults));
+    // Same data as on screen: keep the old objects, so a live update with nothing new does not re-render the editor
+    // (re-renders while scrolling made the page jump near Recent activity).
+    const next = (r.data.avatars ?? []).map(withDefaults);
+    setList((old) => JSON.stringify(old) === JSON.stringify(next) ? old : next);
     setSelected((current) => current && r.data.avatars.some((a) => a.id === current) ? current : r.data.avatars[0]?.id ?? "");
   }, []);
   useEffect(() => { void load(); }, [load]);
@@ -174,10 +177,14 @@ function Editor({ avatar, catalog, reload, onError, onCopy, onGone }: {
 }) {
   const [draft, setDraft] = useState(avatar);
   const [saving, setSaving] = useState(false);
+  const [find, setFind] = useState("");
   const before = useRef(avatar);
+  const justSaved = useRef(false);
   useEffect(() => {
     const previous = before.current;
     before.current = avatar;
+    // Right after Save the server's copy is the new baseline (it trims and tidies text), so the button reads "Saved".
+    if (justSaved.current) { justSaved.current = false; setDraft(avatar); return; }
     setDraft((d) => ({ ...avatar, ...unsaved(d, previous) }));
   }, [avatar]);
   const dirty = useMemo(() => JSON.stringify(core(draft)) !== JSON.stringify(core(avatar)), [draft, avatar]);
@@ -189,7 +196,10 @@ function Editor({ avatar, catalog, reload, onError, onCopy, onGone }: {
     setSaving(true);
     const r = await api.put<Avatar>(`/api/avatars/${avatar.id}`, core(draft));
     setSaving(false);
-    if (!r.ok) onError(r.error); else await reload();
+    if (!r.ok) { onError(r.error); return; }
+    justSaved.current = true;
+    await reload();
+    window.setTimeout(() => { justSaved.current = false; }, 1500);
   }
 
   async function remove() {
@@ -222,11 +232,14 @@ function Editor({ avatar, catalog, reload, onError, onCopy, onGone }: {
         </div>
       </div>
 
-      <Talk avatar={avatar} onError={onError} />
+      <input className="av-search" type="search" value={find} onChange={(e) => setFind(e.target.value)}
+        placeholder="Search settings" aria-label="Search this avatar's settings" />
 
-      <div className="av-grid">
-        <fieldset className="av-box">
-          <legend>Main function &amp; personality</legend>
+      <Section id="overview" title="Overview" icon="▦" find={find} words="talk chat ask">
+        <Talk avatar={avatar} onError={onError} />
+      </Section>
+
+      <Section id="identity" title="Identity" icon="◉" find={find} words="name main function what it does personality voice tone">
           <div className="av-chips" role="radiogroup" aria-label="Main function">
             {Object.entries(catalog.main ?? {}).map(([key, label]) => (
               <button key={key} role="radio" aria-checked={draft.main === key} className={`av-chip${draft.main === key ? " is-on" : ""}`}
@@ -247,10 +260,24 @@ function Editor({ avatar, catalog, reload, onError, onCopy, onGone }: {
           {draft.personality === "custom" && <textarea rows={2} maxLength={600} value={draft.personality_custom}
             onChange={(e) => set("personality_custom", e.target.value)} aria-label="Custom personality"
             placeholder="How it should sound, e.g. calm, dry humour, short sentences, calls me boss" />}
-        </fieldset>
+      </Section>
 
-        <fieldset className="av-box">
-          <legend>When it runs</legend>
+      <Section id="soul" title="Soul" icon="✦" find={find} words="goals watches aims">
+        <div className="av-grid">
+          <Goals avatar={avatar} onError={onError} reload={reload} />
+          <Watches avatar={avatar} onError={onError} reload={reload} />
+        </div>
+      </Section>
+
+      <Section id="skills" title="Skills" icon="❏" find={find} words="lessons taught teach repeat daily weekly">
+        <Lessons avatar={avatar} onError={onError} reload={reload} repeats={catalog.repeats} />
+      </Section>
+
+      <Section id="memory" title="Memory" icon="◎" find={find} words="notes remember forget">
+        <Memory avatar={avatar} onError={onError} reload={reload} />
+      </Section>
+
+      <Section id="routines" title="Routines" icon="◷" find={find} words="when it runs schedule days check in every runs a day">
           <div className="av-seg" role="radiogroup" aria-label="When it runs">
             {Object.entries(catalog.schedules ?? {}).map(([key, label]) => (
               <button key={key} role="radio" aria-checked={s.mode === key} className={s.mode === key ? "is-on" : ""}
@@ -281,17 +308,10 @@ function Editor({ avatar, catalog, reload, onError, onCopy, onGone }: {
           <div className="av-inline">
             <label>At most <input type="number" min={1} max={96} value={draft.max_runs_per_day}
               onChange={(e) => set("max_runs_per_day", Number(e.target.value) || 1)} /> runs a day</label>
-            <label>Model
-              <select value={draft.model} onChange={(e) => set("model", e.target.value)}>
-                {Object.entries(catalog.models ?? {}).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-              </select>
-            </label>
           </div>
-        </fieldset>
-      </div>
+      </Section>
 
-      <fieldset className="av-box">
-        <legend>Functions — what it may use</legend>
+      <Section id="access" title="Access" icon="⚿" find={find} words="functions permissions allow ask first may use">
         <ul className="av-fns">
           {Object.entries(catalog.functions ?? {}).map(([key, f]) => {
             const rule = draft.functions[key];
@@ -318,16 +338,20 @@ function Editor({ avatar, catalog, reload, onError, onCopy, onGone }: {
           })}
         </ul>
         <p className="av-muted">Never allowed for any avatar: deleting files, power and system settings, the clipboard, changing Ichos itself.</p>
-      </fieldset>
+      </Section>
 
-      <div className="av-grid">
-        <Goals avatar={avatar} onError={onError} reload={reload} />
-        <Watches avatar={avatar} onError={onError} reload={reload} />
-        <Lessons avatar={avatar} onError={onError} reload={reload} repeats={catalog.repeats} />
-        <Memory avatar={avatar} onError={onError} reload={reload} />
-      </div>
+      <Section id="model" title="Model" icon="◈" find={find} words="model brain engine">
+        <label className="av-field">Model
+          <select value={draft.model} onChange={(e) => set("model", e.target.value)}>
+            {Object.entries(catalog.models ?? {}).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+        </label>
+      </Section>
 
-      <ActivityLog avatar={avatar} />
+      <Section id="history" title="History" icon="↺" find={find} words="recent activity log runs">
+        <ActivityLog avatar={avatar} />
+        {!avatar.activity.length && <p className="av-muted">Nothing yet. Runs and check-ins show up here.</p>}
+      </Section>
 
       <div className="av-row av-foot">
         <button className="btn btn-secondary" disabled={avatar.busy} onClick={() => void api.post(`/api/avatars/${avatar.id}/run`, { kind: "checkin" }).then((r) => { if (!r.ok) onError(r.error); })}>Check in now</button>
@@ -335,6 +359,36 @@ function Editor({ avatar, catalog, reload, onError, onCopy, onGone }: {
         {avatar.builtin && avatar.edited && <button className="btn btn-ghost" onClick={() => void resetIt()}>Reset to default</button>}
         <button className="btn btn-ghost av-danger" onClick={() => void remove()}>{avatar.builtin ? "Hide" : "Delete"}</button>
       </div>
+    </section>
+  );
+}
+
+/** One fold of the avatar's settings, like the sections in the owner's reference (p11): a row with an icon and a
+ * chevron that opens in place. Which ones are open is remembered; a search shows only the matching sections, open. */
+function Section({ id, title, icon, words, find, children }: {
+  id: string; title: string; icon: string; words: string; find: string; children: ReactNode;
+}) {
+  const key = `ichos.avatars.open.${id}`;
+  const [open, setOpen] = useState(() => {
+    try { const v = localStorage.getItem(key); return v === null ? id === "overview" || id === "identity" : v === "1"; }
+    catch { return id === "overview"; }
+  });
+  const q = find.trim().toLowerCase();
+  if (q && !`${title} ${words}`.toLowerCase().includes(q)) return null;
+  const shown = open || Boolean(q);
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    try { localStorage.setItem(key, next ? "1" : "0"); } catch { /* private window: just don't remember */ }
+  };
+  return (
+    <section className={`av-sec${shown ? " is-open" : ""}`} aria-label={title}>
+      <button className="av-sec__head" aria-expanded={shown} onClick={toggle}>
+        <span className="av-sec__icon" aria-hidden>{icon}</span>
+        <span className="av-sec__title">{title}</span>
+        <span className="av-sec__chev" aria-hidden>⌄</span>
+      </button>
+      {shown && <div className="av-sec__body">{children}</div>}
     </section>
   );
 }

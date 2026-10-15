@@ -1,0 +1,75 @@
+/* Full palettes for the Desk look (Settings › Appearance › Palette; Fixer Upper S18 and S17). Each one re-tones the
+   Desk base colours; the Desk layer turns those into every token, so panels, lines and text all follow. A palette only
+   applies while Desk is on (`desk` in <html data-style>); an accent picked by hand is set inline and still wins. */
+
+:root[data-style~="desk"][data-palette="midnight"] {
+  --desk-sidebar: #0b1020; --desk-main: #0f1526; --desk-panel: #141b2e; --desk-raised: #19213a; --desk-hover: #1e2843;
+  --desk-head: #222c49; --desk-user: #1a2547; --desk-text: #e3e8f5; --desk-muted: #8b94ad; --desk-faint: #687190;
+  --color-surface-3: #26304f; --color-flyout: #151c31;
+  --studio-orange: #6c8cff; --color-accent: #6c8cff; --color-accent-2: #8aa3ff; --color-accent-300: #c3cfff;
+  --color-accent-400: #8aa3ff; --color-accent-500: #6c8cff; --color-accent-700: #4a63c4;
+}
+:root[data-style~="desk"][data-palette="foundry"] {
+  --desk-sidebar: #14110f; --desk-main: #181411; --desk-panel: #1f1a16; --desk-raised: #26201b; --desk-hover: #2c251f;
+  --desk-head: #322a23; --desk-user: #2f1f12; --desk-text: #efe7de; --desk-muted: #9c9085; --desk-faint: #786d63;
+  --color-surface-3: #382f27; --color-flyout: #201b17;
+  --studio-orange: #e0763a; --color-accent: #e0763a; --color-accent-2: #ea9562; --color-accent-300: #f5c9ad;
+  --color-accent-400: #ea9562; --color-accent-500: #e0763a; --color-accent-700: #a9521f;
+}
+:root[data-style~="desk"][data-palette="graphite"] {
+  --desk-sidebar: #121314; --desk-main: #161718; --desk-panel: #1b1d1f; --desk-raised: #212325; --desk-hover: #26292b;
+  --desk-head: #2b2e31; --desk-user: #15281f; --desk-text: #e6e8ea; --desk-muted: #8d9296; --desk-faint: #6b7074;
+  --color-surface-3: #303336; --color-flyout: #1c1e20;
+  --studio-orange: #3ecf8e; --color-accent: #3ecf8e; --color-accent-2: #6adba8; --color-accent-300: #b4efd3;
+  --color-accent-400: #6adba8; --color-accent-500: #3ecf8e; --color-accent-700: #22925f; --color-on-accent: #0b1a12;
+}
+:root[data-style~="desk"][data-palette="dusk"] {
+  --desk-sidebar: #140f17; --desk-main: #18121b; --desk-panel: #1e1722; --desk-raised: #251c2a; --desk-hover: #2b2131;
+  --desk-head: #312637; --desk-user: #2e1826; --desk-text: #efe6f0; --desk-muted: #9b8ea0; --desk-faint: #776b7c;
+  --color-surface-3: #372b3d; --color-flyout: #1f1823;
+  --studio-orange: #e2739f; --color-accent: #e2739f; --color-accent-2: #ea93b6; --color-accent-300: #f5c8da;
+  --color-accent-400: #ea93b6; --color-accent-500: #e2739f; --color-accent-700: #a94a72;
+}
+
+/* Night Glass (reference p19 to p21, the glass CRM dashboards): near-black slate, frosted cards with a thin top
+   highlight, an indigo card for what is selected, and a small lift on hover. Still edge to edge like Desk. */
+:root[data-style~="desk"][data-palette="night-glass"] {
+  --desk-sidebar: #0b0f15; --desk-main: #0d1117; --desk-panel: #121821; --desk-raised: #161c26; --desk-hover: #1b2330;
+  --desk-head: #202937; --desk-user: #1b1f45; --desk-text: #e6eaf2; --desk-muted: #8a93a6; --desk-faint: #687186;
+  --desk-line: rgba(160, 180, 255, 0.08); --desk-line-strong: rgba(160, 180, 255, 0.14);
+  --color-surface-3: #232c3c; --color-flyout: rgba(20, 26, 38, 0.92);
+  --studio-orange: #7c83ff; --color-accent: #7c83ff; --color-accent-2: #9aa0ff; --color-accent-300: #c9ccff;
+  --color-accent-400: #9aa0ff; --color-accent-500: #7c83ff; --color-accent-700: #555bd1;
+}
+:root[data-style~="desk"][data-palette="night-glass"] .card,
+:root[data-style~="desk"][data-palette="night-glass"] .model-tile,
+:root[data-style~="desk"][data-palette="night-glass"] .av-box {
+  background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.015));
+  border: 1px solid rgba(160, 180, 255, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 8px 24px rgba(0,0,0,.25);
+  backdrop-filter: blur(14px) saturate(1.2);
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+:root[data-style~="desk"][data-palette="night-glass"] .card:hover,
+:root[data-style~="desk"][data-palette="night-glass"] .model-tile:hover {
+  transform: translateY(-2px); border-color: rgba(160, 180, 255, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 12px 30px rgba(0,0,0,.35);
+}
+:root[data-style~="desk"][data-palette="night-glass"] .card.is-on,
+:root[data-style~="desk"][data-palette="night-glass"] .model-tile.is-on {
+  background: linear-gradient(180deg, rgba(124,131,255,.32), rgba(124,131,255,.14)); border-color: rgba(124,131,255,.45);
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-palette="night-glass"] .card:hover, :root[data-palette="night-glass"] .model-tile:hover { transform: none; }
+}
+
+/* The palette picker itself. */
+.appearance__palettes { display: flex; flex-wrap: wrap; gap: 6px; }
+.appearance__palette { display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px 6px 8px; border-radius: 999px;
+  border: 1px solid var(--color-divider, rgba(255,255,255,.08)); background: var(--color-surface, transparent);
+  color: var(--color-neutral-400); font: inherit; font-size: 13px; cursor: pointer; transition: border-color .15s ease, color .15s ease; }
+.appearance__palette:hover { color: var(--color-text); border-color: var(--color-divider-strong, rgba(255,255,255,.16)); }
+.appearance__palette.is-on { color: var(--color-text); border-color: var(--color-accent); }
+.appearance__palette-dots { display: inline-flex; }
+.appearance__palette-dots i { width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(255,255,255,.18); margin-left: -4px; }
+.appearance__palette-dots i:first-child { margin-left: 0; }

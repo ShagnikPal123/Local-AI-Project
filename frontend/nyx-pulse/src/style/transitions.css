@@ -1,0 +1,59 @@
+/* Transitions like Claude's app (Drive doc 1, item 1.2; Fixer Upper WS12 "transitions last").
+   Claude's desktop app moves little and fast: menus fade in while growing from 98%, side panels slide a few pixels,
+   new messages rise into place, hovers fade in about a tenth of a second. Nothing bounces or glows. This is that pass
+   for the Desk look; every rule is gated by `desk` in <html data-style> and all of it is off under reduced motion.
+   Durations and the curve live in tokens so one place tunes them. */
+
+:root[data-style~="desk"] {
+  --t-fast: 120ms;
+  --t-med: 180ms;
+  --t-slow: 240ms;
+  --t-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes t-pop { from { opacity: 0; transform: translateY(-3px) scale(0.98); } }
+@keyframes t-pop-up { from { opacity: 0; transform: translateY(3px) scale(0.98); } }
+@keyframes t-rise { from { opacity: 0; transform: translateY(6px); } }
+@keyframes t-fade { from { opacity: 0; } }
+@keyframes t-slide-left { from { opacity: 0; transform: translateX(12px); } }
+@keyframes t-slide-right { from { opacity: 0; transform: translateX(-12px); } }
+
+/* Menus and pop-overs that open downward. */
+:root[data-style~="desk"] :is(.chat-rail__menu, .chat-actions-menu, .chat-switcher__menu, .wld-menu, .rs-menu, [role="menu"]) {
+  animation: t-pop var(--t-med) var(--t-ease); transform-origin: top right;
+}
+/* Ones that open upward from the chat box. */
+:root[data-style~="desk"] :is(.lp-pop, .plus-menu, .slash-menu, .io-mascot__tip) {
+  animation: t-pop-up var(--t-med) var(--t-ease); transform-origin: bottom center;
+}
+
+/* Side panels: the Overview slides in from the right, the agents panel too. */
+:root[data-style~="desk"] .ov-panel { animation: t-slide-left var(--t-slow) var(--t-ease); }
+:root[data-style~="desk"] :is(.cx-sheet, .ofc-sheet, .nyx-sheet) { animation: t-slide-left var(--t-slow) var(--t-ease); }
+
+/* Dialogs fade and grow a touch. */
+:root[data-style~="desk"] :is(.quit-dialog, [role="dialog"]:not(.lp-pop)) { animation: t-pop var(--t-med) var(--t-ease); }
+
+/* New messages rise into place; what you wrote comes from the right. */
+:root[data-style~="desk"] .msg-ai { animation: t-rise var(--t-slow) var(--t-ease); }
+:root[data-style~="desk"] .msg-user { animation: t-slide-left var(--t-med) var(--t-ease); }
+
+/* Cards in the chat (questions, plans, agents) and the question card's answer boxes. */
+:root[data-style~="desk"] :is(.q-card, .plan-card, .dispatch-tray > *) { animation: t-rise var(--t-slow) var(--t-ease); }
+
+/* Hovers and presses: background and colour fade quickly instead of snapping. */
+/* :where() keeps these at zero weight, so a component that sets its own transition keeps it. */
+:where(:root[data-style~="desk"]) :where(button, a, .chat-rail__open, .ov-row, .lp-chip, .cb-chip, [role="menuitem"], [role="tab"]) {
+  transition: background-color var(--t-fast) ease, color var(--t-fast) ease, border-color var(--t-fast) ease,
+    box-shadow var(--t-fast) ease, opacity var(--t-fast) ease;
+}
+:where(:root[data-style~="desk"]) :where(.btn, .nyx-btn, .lp-btn):active:not(:disabled) { transform: scale(0.98); }
+
+/* Folding chat-list sections and the project home open by fading in. */
+:root[data-style~="desk"] :is(.chat-rail__group, .av-sec__body) { animation: t-fade var(--t-med) ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-style~="desk"] *, :root[data-style~="desk"] *::before, :root[data-style~="desk"] *::after {
+    animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important;
+  }
+}
