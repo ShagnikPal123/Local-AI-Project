@@ -372,6 +372,16 @@ export function ChatPanel({
     return () => window.removeEventListener("nyx:chat-send", onCardSend);
   }, []);
 
+  // An image dropped on a question card's drop box lands in the chat box's attachments (doc 1, 1.19).
+  useEffect(() => {
+    const onAttach = (event: Event) => {
+      const files = (event as CustomEvent<{ files?: File[] }>).detail?.files ?? [];
+      if (files.length && mine()) attachRef.current(files);
+    };
+    window.addEventListener("nyx:attach-files", onAttach);
+    return () => window.removeEventListener("nyx:attach-files", onAttach);
+  }, []);
+
   const handBack = useCallback(async () => {
     const result = await api.post(`/api/chats/${encodeURIComponent(activeChatId)}/agent`, { agent: "" });
     if (!result.ok) { pushToast(result.error, "warn"); return; }
@@ -537,6 +547,8 @@ export function ChatPanel({
       })();
     }
   }, []);
+  const attachRef = useRef(onAttachFiles);
+  attachRef.current = onAttachFiles;
 
   // Files dragged anywhere over Nyx come here while the chat is the open thing.
   useFileTarget("chat", (files) => onAttachFiles(files), { label: "the chat" });

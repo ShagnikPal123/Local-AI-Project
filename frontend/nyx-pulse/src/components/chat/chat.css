@@ -785,3 +785,16 @@ select option, select optgroup { background-color: #15151c; color: #f5f5f7; }
   font-weight: 700; background: var(--color-neutral-800, #2e2d2c); color: var(--color-text); }
 .chat-rail__me-name { font-size: 13px; font-weight: 500; }
 .chat-rail__me-role { font-size: 11.5px; color: var(--color-neutral-600); }
+
+/* Answer boxes (doc 1, 1.19): real checkboxes when several answers fit, and a drop box for an image. */
+.q-card__box { display: inline-grid; place-items: center; width: 15px; height: 15px; margin-right: 8px; border-radius: 4px;
+  border: 1.5px solid var(--color-neutral-500); font-size: 10px; line-height: 1; vertical-align: -2px; color: var(--color-on-accent, #fff);
+  transition: background-color .12s ease, border-color .12s ease; }
+.q-card__box.is-on { background: var(--color-accent); border-color: var(--color-accent); }
+.q-card__hint { margin: 2px 0 0; font-size: 12px; color: var(--color-neutral-500); }
+.q-card__drop { display: flex; align-items: center; gap: 10px; padding: 14px; border-radius: 11px; cursor: pointer;
+  border: 1.5px dashed var(--color-neutral-700, rgba(255,255,255,.18)); color: var(--color-neutral-400); font-size: 13px;
+  transition: border-color .15s ease, background-color .15s ease; }
+.q-card__drop:hover, .q-card__drop.is-over { border-color: var(--color-accent); background: color-mix(in srgb, var(--color-accent) 8%, transparent); }
+.q-card__drop b { color: var(--color-text); font-weight: 600; }
+.q-card__drop-icon { font-size: 18px; color: var(--color-accent); }

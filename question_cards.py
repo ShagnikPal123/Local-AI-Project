@@ -39,7 +39,9 @@ FORMAT_RULE = (
     "   Two to four options, the one you would pick first and marked recommended, each with what it means in plain "
     "words. The chat shows buttons and a box for an approach you did not list; the user's click comes back as their "
     "next message. Never ask about something you can look up or sensibly assume, and never put more than two cards "
-    "in one answer."
+    "in one answer. Set \"multi\": true when several answers can apply (the chat shows checkboxes). To ask for a "
+    "picture instead, send {\"question\": \"...\", \"kind\": \"image\"} with no options: the chat shows a box to drop "
+    "an image into."
 )
 
 
@@ -82,14 +84,19 @@ def _card(data: Any) -> Optional[Dict[str, Any]]:
         option = _clean_option(raw)
         if option and option["label"].lower() not in {o["label"].lower() for o in options}:
             options.append(option)
-    if not question or len(options) < 2:
+    # An image drop box needs no options (doc 1, 1.19).
+    drop = data.get("kind") == "image" or data.get("drop") is True
+    if not question or (len(options) < 2 and not drop):
         return None
-    return {
+    card = {
         "question": question[:400],
         "options": options,
         "multi": bool(data.get("multi") or data.get("multiple")),
-        "other": str(data.get("other") or "Something else — tell me your approach")[:160],
+        "other": str(data.get("other") or ("Or describe it in words" if drop else "Something else — tell me your approach"))[:160],
     }
+    if drop:
+        card["kind"] = "image"
+    return card
 
 
 def find_all(text: str) -> List[Dict[str, Any]]:
