@@ -28,6 +28,35 @@ def tool_brain_remember(text: str, source: str = "files") -> str:
     return "Remembered — it's in the super brain now."
 
 
+def _truthy(value: Any) -> bool:
+    return value is True or str(value).strip().lower() in ("true", "yes", "1", "keep", "on")
+
+
+def tool_save_memory(topic: str, content: str, keep: Any = False, why: str = "") -> str:
+    """Save a lasting memory (Settings > Memory lists them with their id and date)."""
+    import avatars
+    from memory import MemoryStore
+
+    avatar_id = avatars._current_avatar_id()
+    if avatar_id:
+        # Same rule as brain_remember: an avatar never writes the memory every other chat reads.
+        avatars.add_note(avatar_id, f"{topic}: {content}"[:400])
+        return "Remembered in your own notes (only you read them)."
+    try:
+        entry = MemoryStore().remember_important(topic, content, source="chat", keep=_truthy(keep), keep_reason=why or "")
+    except ValueError as error:
+        return f"Error: {error}"
+    kept = " and marked to keep long term" if entry["keep"] else ""
+    return f"Saved as memory {entry['id']}{kept}. It is in Settings > Memory to see or edit."
+
+
+def tool_forget_memory(ref: str) -> str:
+    """Remove one lasting memory by its id or topic."""
+    from memory import MemoryStore
+
+    return "Forgotten." if MemoryStore().remove_important(ref) else f"No memory found for {ref}."
+
+
 def tool_brain_study_folder(path: str) -> str:
     import super_brain
     from pathlib import Path
@@ -63,6 +92,15 @@ def register_intelligence_tools(registry: Any) -> None:
                       [P("text", "string", "What to remember"),
                        P("source", "string", "chat, web, files, code, knowledge, design, email…", required=False)],
                       tool_brain_remember, category="memory", label="Remembering this")
+    registry.register("save_memory", "Save a lasting fact about the owner when they say 'remember this' or share something worth keeping. "
+                      "It gets an id and the date. Set keep=true (with why) when they want it kept for the long term.",
+                      [P("topic", "string", "A short name for it, e.g. 'favourite editor'"),
+                       P("content", "string", "The fact itself, in one or two sentences"),
+                       P("keep", "boolean", "true when it is meant to be kept long term", required=False),
+                       P("why", "string", "Why it is worth keeping", required=False)],
+                      tool_save_memory, category="memory", label=lambda a: f"Saving memory: {str(a.get('topic', ''))[:40]}")
+    registry.register("forget_memory", "Forget one saved memory by its id (mem_…) or topic, when the owner asks.",
+                      [P("ref", "string", "The memory id or topic")], tool_forget_memory, category="memory", label="Forgetting a memory")
     registry.register("brain_study_folder", "Read a whole folder into the super brain in the background (when the owner asks Nyx to study or learn their files).",
                       [P("path", "string", "Folder path")], tool_brain_study_folder, category="files.read",
                       label=lambda a: f"Studying {str(a.get('path', ''))[:40]}")

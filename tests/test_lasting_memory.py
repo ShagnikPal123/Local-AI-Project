@@ -94,3 +94,32 @@ def test_secrets_are_scrubbed_from_reason(tmp_path):
     store = MemoryStore(path=tmp_path / "memory.json")
     entry = store.remember_important("k", "note", keep=True, keep_reason="password is hunter2")
     assert "hunter2" not in entry["keep_reason"]
+
+
+def test_chat_tool_saves_and_forgets(tmp_path, monkeypatch):
+    import avatars
+    import intelligence_tools
+    import memory
+
+    monkeypatch.setattr(memory, "data_path", lambda name: tmp_path / name)
+    monkeypatch.setattr(avatars, "_current_avatar_id", lambda: None)
+
+    said = intelligence_tools.tool_save_memory("birthday", "June 3", keep="true", why="asked to remember")
+    assert "mem_" in said and "keep long term" in said
+    saved = MemoryStore(path=tmp_path / "memory.json").get_important()[0]
+    assert saved["keep"] is True and saved["source"] == "chat"
+    assert intelligence_tools.tool_forget_memory(saved["id"]) == "Forgotten."
+
+
+def test_chat_tool_keeps_avatar_memories_in_their_own_bank(tmp_path, monkeypatch):
+    import avatars
+    import intelligence_tools
+    import memory
+
+    monkeypatch.setattr(memory, "data_path", lambda name: tmp_path / name)
+    monkeypatch.setattr(avatars, "_current_avatar_id", lambda: "av1")
+    notes = []
+    monkeypatch.setattr(avatars, "add_note", lambda avatar_id, text: notes.append((avatar_id, text)))
+
+    assert "own notes" in intelligence_tools.tool_save_memory("x", "y")
+    assert notes == [("av1", "x: y")] and not (tmp_path / "memory.json").exists()
