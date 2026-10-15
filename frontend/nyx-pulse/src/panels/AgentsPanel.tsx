@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from "react";
 import { agents as agentsApi, api } from "../api";
 import { ErrorState, Loading, PanelShell } from "../components/Panel";
 import { AgentProperties } from "../components/AgentProperties";
+import { HuddleCard } from "../components/agents/HuddleCard";
 
 interface Agent {
   agent_id: string;
@@ -365,6 +366,8 @@ export function AgentsPanel() {
             one of those brings it back on the next refresh.
           </div>
         </div>
+
+        <HuddleCard />
 
         {properties && <AgentProperties name={properties} onClose={() => { setProperties(null); void load(); }} onRenamed={setProperties} />}
       </div>
