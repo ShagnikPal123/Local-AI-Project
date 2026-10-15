@@ -306,9 +306,16 @@ class TurnRunner:
         #: A lineup pick ("carbon", "monolith") or a moved effort slider becomes a plan: who answers first and how
         #: many tool steps. A provider picked by hand keeps answering; the plan only adds effort.
         self.lineup_plan = self._lineup_plan(provider)
+        #: (provider, model) a lineup name pinned for this turn, e.g. Argon -> Groq's 8B model. Only used while
+        #: ``prefer_provider`` is still that provider (a mid-turn switch drops it).
+        self.pinned: Optional[Tuple[str, str]] = None
+        #: The quick path's own pick (Pico's light model).
+        self.fast_pinned: Optional[Tuple[str, str]] = None
+        self._lineup_drives = False
         if self.lineup_plan is not None:
             if self.prefer_provider is None or self._is_lineup(self.prefer_provider):
                 self.prefer_provider = self.lineup_plan.prefer
+                self._lineup_drives = True
         #: Why providers could not answer this turn, by name (for the "answered instead" notice).
         self._provider_problems: Dict[str, str] = {}
         self._fallback_announced = False
@@ -364,6 +371,34 @@ class TurnRunner:
         except Exception:  # noqa: BLE001 - the lineup is optional; a broken file must not stop a turn
             return False
 
+    def _can_answer(self, name: str) -> bool:
+        router = getattr(self.service, "router", None)
+        check = getattr(router, "unavailable_reason", None)
+        if check is None:
+            return False
+        try:
+            return check(name) is None
+        except Exception:  # noqa: BLE001 - an availability check problem means "skip it"
+            return False
+
+    def _apply_lineup_backing(self) -> None:
+        """Turn the lineup name into the real model behind it: the first backing model that can answer now."""
+        plan = self.lineup_plan
+        if plan is None or not self._lineup_drives:
+            return
+        for name, model in getattr(plan, "candidates", []) or []:
+            if self._can_answer(name):
+                self.prefer_provider, self.pinned = name, (name, model)
+                self.emit("status", phase="route", text=f"{plan.label} runs on {name} {model}")
+                break
+        if getattr(plan, "fast_prefer", None):
+            self.fast_pinned = (plan.fast_prefer, plan.fast_model or "")
+        else:
+            for name, model in getattr(plan, "fast_candidates", []) or []:
+                if self._can_answer(name):
+                    self.fast_pinned = (name, model)
+                    break
+
     def _lineup_plan(self, provider: Optional[str]) -> Any:
         """The lineup's plan for this turn, or None (no pick, effort on Auto, or the lineup failed to load)."""
         try:
@@ -414,6 +449,7 @@ class TurnRunner:
         self.emit("status", phase="route", text="Reading your message")
         if self.lineup_plan is not None:
             self.emit("status", phase="route", text=self.lineup_plan.describe())
+            self._apply_lineup_backing()
 
         stored = user_text
         if records:
@@ -421,7 +457,7 @@ class TurnRunner:
         service.chat_store.append("user", stored, chat_id=service.chat_id)
 
         # Ultra Fast (ultrafast.py, Jev's pattern): a desktop command is done and answered without any model.
-        if self.mode_switches.get("ultrafast") and not records:
+        if (self.mode_switches.get("ultrafast") or getattr(self.lineup_plan, "ultrafast", False)) and not records:
             fast = self._ultrafast(user_text)
             if fast is not None:
                 return fast
@@ -583,6 +619,9 @@ class TurnRunner:
 
         consult_settings = self._consult_settings()
         heavy = False
+        plan_consult = getattr(self.lineup_plan, "consult", None)
+        if plan_consult and not self.mode_switches.get("skip_consult"):
+            consult_settings = {**consult_settings, "consult": plan_consult}  # the effort slider's choice
         if self.mode_switches.get("skip_consult"):
             consult_settings = {**consult_settings, "consult": "off"}  # second opinions cost 25 s
         if consult_settings["consult"] != "off":
@@ -595,6 +634,9 @@ class TurnRunner:
         if heavy:
             mode = "full"  # a hard request gets the tools and the second opinions, not the quick path
 
+        plan_speed = getattr(self.lineup_plan, "speed", "auto")
+        if mode is None and plan_speed in ("fast", "full"):
+            mode = plan_speed  # Low effort always answers quickly; High and up always get the tools
         if mode is None:
             decision = service.speed_policy.decide(user_text, service.speed_mode)
             mode = "fast" if decision.fast else "full"
@@ -858,7 +900,7 @@ class TurnRunner:
             lean.append({"role": message["role"], "content": message.get("content", "")})
         lean.append({"role": "user", "content": model_text or user_text})
 
-        text, answered = self._stream_model(lean, smart=False)
+        text, answered = self._stream_model(lean, smart=False, fast=True)
         if answered is None:
             return None
         if not text.strip() or wants_escalation(text) or TOOL_REGISTRY.parse_tool_calls(text):
@@ -874,9 +916,24 @@ class TurnRunner:
     # --- the working loop -------------------------------------------------------------
 
     def _stream_model(self, history: List[Dict[str, Any]], smart: bool,
-                      exclude: Optional[List[str]] = None) -> Tuple[str, Optional[str]]:
-        """One model call, streamed. Returns (full text, provider) or ("", None) on failure."""
+                      exclude: Optional[List[str]] = None, fast: bool = False) -> Tuple[str, Optional[str]]:
+        """One model call, streamed. Returns (full text, provider) or ("", None) on failure.
+
+        ``fast`` is the quick path: it may use the lineup's light model (Pico) instead of the main pick.
+        """
         from config import SETTINGS
+
+        plan = self.lineup_plan
+        if plan is not None and not getattr(plan, "smart", True):
+            smart = False  # Low and Mid effort skip the slower "smart" model attempt
+        thinking = bool(getattr(SETTINGS, "show_thinking", True))
+        if plan is not None and getattr(plan, "thinking", None) is not None:
+            thinking = bool(plan.thinking)
+        prefer, prefer_model = self.prefer_provider, None
+        if fast and self.fast_pinned and self._lineup_drives:
+            prefer, prefer_model = self.fast_pinned[0], self.fast_pinned[1] or None
+        elif self.pinned and self.pinned[0] == self.prefer_provider:
+            prefer_model = self.pinned[1]
 
         service = self.service
         filter_ = StreamFilter(
@@ -918,12 +975,14 @@ class TurnRunner:
         except Exception:  # pragma: no cover - the brain's bookkeeping never blocks a turn
             set_current_turn = None
         try:
+            extra = {"prefer_model": prefer_model} if prefer_model else {}
             text, provider = router.stream(
                 history, on_event, smart=smart,
-                thinking=bool(getattr(SETTINGS, "show_thinking", True)),
+                thinking=thinking,
                 cancelled=self.cancelled,
-                prefer=self.prefer_provider,
+                prefer=prefer,
                 exclude=exclude,
+                **extra,
             )
         except ProviderError:
             if self.cancelled():

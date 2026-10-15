@@ -325,6 +325,48 @@ def test_a_lineup_pick_becomes_the_turns_plan(monkeypatch, tmp_path):
     assert runner.prefer_provider == "identity0"
 
 
+def test_a_lineup_name_runs_on_its_real_backing_model(monkeypatch, tmp_path):
+    """Silicon is not just Big Kahuna with a new name: it asks the first backing model that can answer now."""
+    import model_lineup
+
+    monkeypatch.setattr(model_lineup, "data_path", lambda name: tmp_path / name)
+    model_lineup.save_effort("high")  # tool loop, so the main pick answers
+    router = _ScriptedRouter([("Done.", "gemini")])
+    # Claude has no key here, Gemini does: Silicon falls through to its second choice.
+    router.unavailable_reason = lambda name, explicit=False: None if name == "gemini" else "no key"
+    result, events, _service = _run(router, "hello", provider="silicon")
+
+    assert router.calls[0]["prefer"] == "gemini" and router.calls[0]["prefer_model"] == "gemini-2.5-pro"
+    assert router.calls[0]["thinking"] is True  # High effort shows its thinking
+    assert any("runs on gemini" in str(e.get("text", "")) for e in events)
+
+
+def test_a_lineup_name_with_nothing_set_up_falls_back_to_big_kahuna(monkeypatch, tmp_path):
+    import model_lineup
+
+    monkeypatch.setattr(model_lineup, "data_path", lambda name: tmp_path / name)
+    model_lineup.save_effort("high")
+    router = _ScriptedRouter([("Done.", "identity0")])
+    router.unavailable_reason = lambda name, explicit=False: "no key"
+    _run(router, "hello", provider="xenon")
+    assert router.calls[0]["prefer"] == "identity0" and "prefer_model" not in router.calls[0]
+
+
+def test_low_effort_takes_the_quick_path_without_the_smart_model(monkeypatch, tmp_path):
+    import model_lineup
+
+    monkeypatch.setattr(model_lineup, "data_path", lambda name: tmp_path / name)
+    model_lineup.save_effort("low")
+    monkeypatch.setattr(TurnRunner, "_ultrafast", lambda self, text: None)
+    router = _ScriptedRouter([("Hi there.", "groq")])
+    router.unavailable_reason = lambda name, explicit=False: None
+    result, _events, _service = _run(router, "hello", provider="argon")
+
+    assert result["reply"] == "Hi there."
+    assert router.calls[0]["smart"] is False and router.calls[0]["thinking"] is False
+    assert router.calls[0]["prefer"] == "groq" and router.calls[0]["prefer_model"] == "llama-3.1-8b-instant"
+
+
 def test_a_provider_picked_by_hand_keeps_answering_when_effort_is_set(monkeypatch, tmp_path):
     import model_lineup
 
