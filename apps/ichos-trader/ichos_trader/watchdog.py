@@ -45,3 +45,11 @@ def stale(quote_ages: List[float], rules: Dict[str, Any]) -> str:
     if quote_ages and min(quote_ages) > limit:
         return f"Paused: the newest price is {min(quote_ages) / 60:.0f} minutes old. It resumes when prices are fresh."
     return ""
+
+
+def daily_loss(today_pl: float, budget: float, limit_pct: float) -> str:
+    """Real money only: a reason to stop for the day once today's loss passes the limit set in Setup."""
+    if budget > 0 and today_pl < 0 and -today_pl / budget * 100 >= limit_pct:
+        return (f"Shut down: real money lost {-today_pl:,.2f} today ({-today_pl / budget * 100:.1f}% of the "
+                f"{budget:,.2f} budget); the daily limit is {limit_pct:g}%. Press Start tomorrow to carry on.")
+    return ""

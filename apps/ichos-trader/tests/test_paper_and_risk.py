@@ -81,3 +81,38 @@ def test_sells_are_limited_to_what_is_held_and_other_currencies_are_skipped():
     yen = Instrument("USD-JPY", "fx", quote_currency="JPY")
     qty, why = _check(Order("USD-JPY", "buy", 1, "fx"), quote=Quote("USD-JPY", 150.0), inst=yen)
     assert qty == 0 and "JPY" in why[0]
+
+
+def test_switching_to_real_money_takes_keys_a_budget_and_the_confirmation():
+    from ichos_trader import realmoney, settings
+    from ichos_trader.access import secrets
+    with pytest.raises(ValueError, match="type exactly"):
+        realmoney.switch_on(500, "yes")
+    with pytest.raises(ValueError, match="live"):
+        realmoney.switch_on(500, realmoney.CONFIRMATION)
+    secrets.put("alpaca_live_key_id", "AKFAKEFAKEFAKE")
+    secrets.put("alpaca_live_secret_key", "s" * 20)
+    with pytest.raises(ValueError, match="between"):
+        realmoney.switch_on(0, realmoney.CONFIRMATION)
+    on = realmoney.switch_on("500", "  i understand THIS uses real money ", 3)
+    assert on["on"] and on["budget"] == 500 and on["daily_loss_pct"] == 3
+    assert settings.load()["broker"] == "alpaca" and settings.load()["running"] is False
+    assert realmoney.switch_off()["on"] is False and settings.load()["real_money"]["budget"] == 500
+
+
+def test_real_orders_pass_risk_only_while_real_money_is_on():
+    from ichos_trader import config, risk
+    from ichos_trader.models import Instrument, Order, Quote
+    cfg = config.default_settings()
+    args = (Order("AAPL", "buy", 1, "stock"), Quote("AAPL", 100.0), Instrument("AAPL", "stock", "Apple", "USD"),
+            {"currency": "USD", "cash": 1000, "equity": 1000, "peak": 1000}, [])
+    assert risk.check(*args, cfg, "real")[0] == 0
+    cfg["real_money"]["on"] = True
+    assert risk.check(*args, cfg, "real")[0] > 0
+
+
+def test_the_daily_loss_limit_stops_real_money_for_the_day():
+    from ichos_trader import watchdog
+    assert watchdog.daily_loss(-20.0, 1000.0, 5.0) == ""
+    assert "daily limit is 5%" in watchdog.daily_loss(-50.0, 1000.0, 5.0)
+    assert watchdog.daily_loss(80.0, 1000.0, 5.0) == ""

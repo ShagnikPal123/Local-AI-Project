@@ -166,3 +166,25 @@ def test_choosing_alpaca_before_its_keys_are_added_says_so(app):
     dash = owner.get("/api/dashboard")
     assert dash.status_code == 200 and dash.json()["broker"] == "Alpaca practice account"
     assert "not connected" in dash.json()["broker_error"]
+
+
+def test_switching_to_real_money_and_back_in_setup(app, monkeypatch):
+    import requests
+    from ichos_trader import realmoney
+
+    def offline(*_, **__):
+        raise requests.ConnectionError("no network in tests")
+
+    monkeypatch.setattr(requests.Session, "request", offline)
+    owner = client(app, role="owner")
+    refused = owner.post("/api/setup", json={"amount": 300, "money": "real", "confirmation": "ok"})
+    assert refused.status_code == 400 and "type exactly" in refused.json()["detail"]
+    secrets.put("alpaca_live_key_id", "AKFAKEFAKEFAKE")
+    secrets.put("alpaca_live_secret_key", FAKE_SECRET)
+    reply = owner.post("/api/setup", json={"amount": 300, "money": "real", "confirmation": realmoney.CONFIRMATION})
+    assert reply.status_code == 200 and reply.json()["real_money"]["on"] and reply.json()["state"] == "off"
+    dash = owner.get("/api/dashboard").json()
+    assert dash["money_kind"] == "real" and dash["broker"] == "Alpaca real money" and dash["broker_error"]
+    assert FAKE_SECRET not in owner.get("/api/setup").text
+    assert owner.post("/api/real-money/off").json()["on"] is False
+    assert owner.get("/api/dashboard").json()["money_kind"] == "practice"

@@ -82,6 +82,10 @@ def default_settings() -> Dict[str, Any]:
         "broker": "sim",
         # With a real broker: the most money the bots may use (0 = the whole practice account).
         "budget": 0.0,
+        # Real money: off until the owner switches to it in Setup (live keys, a budget, the typed
+        # confirmation). The bots then use at most the budget plus what they earn, and stop for
+        # the day after losing ``daily_loss_pct`` of it.
+        "real_money": {"on": False, "budget": 0.0, "agreed_at": 0.0, "daily_loss_pct": 5.0},
         # Setup shows on first open and can be opened again any time.
         "setup_done": False,
     }
