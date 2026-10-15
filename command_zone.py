@@ -496,15 +496,6 @@ def elsewhere(owner: bool) -> List[Dict[str, Any]]:
     """Approvals that belong to another tab, counted here so none are missed. Details stay in their tab."""
     found: List[Dict[str, Any]] = []
     try:
-        from trading import guard
-
-        trades = guard.pending_approvals()
-        if trades:
-            found.append({"id": "trading", "tab": "trading", "count": len(trades),
-                          "label": "Trades waiting for your OK", "detail": "Prices move — decide in Trading."})
-    except Exception:
-        pass
-    try:
         from change_review import CHANGE_LOG
 
         summary = CHANGE_LOG.summary()

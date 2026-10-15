@@ -166,7 +166,7 @@ class _Running:
 
 def test_the_code_really_starts_named_workers():
     names = _thread_names_in_the_code()
-    assert {"nyx-research-", "nyx-absorb-", "nyx-idle-scheduler", "nyx-trading-autopilot"} <= set(names), names
+    assert {"nyx-research-", "nyx-absorb-", "nyx-idle-scheduler"} <= set(names), names
 
 
 @pytest.mark.parametrize("prefix,has_id", sorted(_thread_names_in_the_code().items()))

@@ -17,7 +17,7 @@ CORE_TABS = {
     # Redesign 2026-10-10: merged tabs. Old ids (screen, store, dashboard, power, work, settings, games…) still open
     # their new home in the app (frontend src/tabs.ts REDIRECTS), so they stay listed for the model to use.
     "nyx": "Chat", "build": "Build", "research": "Research Lab", "learn": "Learn", "notes": "Notes",
-    "code": "Code", "agents": "Agents", "collab": "Collab", "trading": "Trading", "improve": "Improve",
+    "code": "Code", "agents": "Agents", "collab": "Collab", "improve": "Improve",
     "freewill": "Free Will", "kahuna": "Big Kahuna", "office": "Office & World", "world": "World",
     "equalize": "Equalize", "avatars": "Avatars", "computer": "Computer", "connectors": "Connections", "admin": "Admin",
     "screen": "Screen Share", "absorb": "Data Absorption", "apply": "Apply", "subagents": "Sub-agents",
@@ -31,8 +31,10 @@ CORE_TABS = {
 
 #: Other names people (and the model) use for a tab. Fixer Upper S39 (owner, 2026-10-13): "I ask for it to navigate
 #: me to finances and it has an issue" — the tool only knew "Trading", so "Finances" came back "No tab called".
-#: Keep in step with LEGACY_LABELS in frontend src/tabs.ts.
+#: Keep in step with LEGACY_LABELS in frontend src/tabs.ts. The money names still resolve to "trading" so the answer
+#: can say where trading went (``MOVED``) instead of "No tab called".
 TAB_ALIASES = {
+    "trading": "trading",
     "finance": "trading", "finances": "trading", "financial": "trading", "money": "trading", "stocks": "trading",
     "stock market": "trading", "markets": "trading", "invest": "trading", "investing": "trading",
     "portfolio": "trading", "finance lab": "trading", "trader": "trading",
@@ -52,6 +54,13 @@ TAB_ALIASES = {
 }
 
 _FILLER = ("the ", "my ", "a ", "to ", "open ", "go to ", "take me to ", "navigate to ", "show me ", "bring up ")
+
+
+#: Tabs that became their own apps, and what to tell someone who asks for one.
+MOVED = {
+    "trading": "Trading moved to its own app, Ichos Trader: double-click \"Start Ichos Trader.bat\" in "
+               "apps/ichos-trader, then open http://127.0.0.1:8100.",
+}
 
 
 def resolve_tab(name: str) -> Optional[str]:
@@ -176,6 +185,8 @@ def tool_ui_open_tab(tab: str) -> str:
         _publish("ui.open_tab", tab_id=spec.tab_id)
         return f"Opened the {spec.label} tab."
     core_id = resolve_tab(tab)
+    if core_id in MOVED and spec is None:
+        return MOVED[core_id]
     if core_id is not None:
         _publish("ui.open_tab", tab_id=core_id)
         return f"Opened the {CORE_TABS.get(core_id, core_id)} tab."

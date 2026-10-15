@@ -252,7 +252,6 @@ _THREAD_WORDS: List[tuple] = [
     ("nyx-connector-warmup", "Checking connectors", "connectors", "job"),
     ("nyx-folder-picker", "Folder picker", "", "job"),
     ("nyx-picker-present", "Folder picker", "", "job"),
-    ("nyx-trading-autopilot", "Trading autopilot", "trading", "service"),
     ("nyx-idle-scheduler", "Idle scheduler", "", "service"),
     ("nyx-storage-budget", "Storage budget", "settings", "service"),
     ("nyx-brain-writer", "Brain writer", "nyx", "service"),
@@ -267,7 +266,6 @@ _THREAD_WORDS: List[tuple] = [
     ("office-", "Office Space job", "office", "job"),
     ("world-ask", "AI Environment · government", "world", "job"),
     ("world-", "AI Environment world", "world", "service"),
-    ("finance-simulator", "Finance simulator", "trading", "job"),
     ("thought-", "Thinking", "nyx", "job"),
     ("voice-", "Voice", "nyx", "job"),
 ]

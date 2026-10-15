@@ -58,8 +58,6 @@ HOSTED_BLOCKED_PREFIXES = (
     "/api/machine",
     # Reading and editing files on the host (Code tab, VS Code extension).
     "/api/code",
-    # Brokerage keys and orders live only on the owner's own machine.
-    "/api/trading",
     # Request R: studying fetched pages into this machine's memory, watching and driving its screen, Nyx editing its
     # own code, the unrestricted Free Will chat, and scanning the disk for model files all belong to the owner's PC.
     "/api/absorb",
