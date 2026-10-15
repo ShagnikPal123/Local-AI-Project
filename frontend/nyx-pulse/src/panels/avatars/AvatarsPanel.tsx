@@ -100,7 +100,10 @@ export function AvatarsPanel() {
     setCatalog({ functions: c.functions ?? {}, main: c.main ?? {}, schedules: c.schedules ?? { on_call: "Only when called" },
       models: c.models ?? { "": "Ichos's usual model" }, repeats: c.repeats ?? [""],
       personalities: c.personalities ?? {} });
-    setList((r.data.avatars ?? []).map(withDefaults));
+    // Same data as on screen: keep the old objects, so a live update with nothing new does not re-render the editor
+    // (re-renders while scrolling made the page jump near Recent activity).
+    const next = (r.data.avatars ?? []).map(withDefaults);
+    setList((old) => JSON.stringify(old) === JSON.stringify(next) ? old : next);
     setSelected((current) => current && r.data.avatars.some((a) => a.id === current) ? current : r.data.avatars[0]?.id ?? "");
   }, []);
   useEffect(() => { void load(); }, [load]);
@@ -175,9 +178,12 @@ function Editor({ avatar, catalog, reload, onError, onCopy, onGone }: {
   const [draft, setDraft] = useState(avatar);
   const [saving, setSaving] = useState(false);
   const before = useRef(avatar);
+  const justSaved = useRef(false);
   useEffect(() => {
     const previous = before.current;
     before.current = avatar;
+    // Right after Save the server's copy is the new baseline (it trims and tidies text), so the button reads "Saved".
+    if (justSaved.current) { justSaved.current = false; setDraft(avatar); return; }
     setDraft((d) => ({ ...avatar, ...unsaved(d, previous) }));
   }, [avatar]);
   const dirty = useMemo(() => JSON.stringify(core(draft)) !== JSON.stringify(core(avatar)), [draft, avatar]);
@@ -189,7 +195,10 @@ function Editor({ avatar, catalog, reload, onError, onCopy, onGone }: {
     setSaving(true);
     const r = await api.put<Avatar>(`/api/avatars/${avatar.id}`, core(draft));
     setSaving(false);
-    if (!r.ok) onError(r.error); else await reload();
+    if (!r.ok) { onError(r.error); return; }
+    justSaved.current = true;
+    await reload();
+    window.setTimeout(() => { justSaved.current = false; }, 1500);
   }
 
   async function remove() {

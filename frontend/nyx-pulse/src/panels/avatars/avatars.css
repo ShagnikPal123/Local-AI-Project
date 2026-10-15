@@ -1,5 +1,5 @@
 /* Avatars (AvatarsPanel.tsx) */
-.av { display: flex; flex-direction: column; gap: 14px; padding: 18px 20px 28px; max-width: 1320px; margin: 0 auto; }
+.av { display: flex; flex-direction: column; gap: 14px; padding: 18px 20px 28px; max-width: 1320px; margin: 0; }
 .av-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .av-head h1 { margin: 0 0 4px; font: 600 24px/1.2 var(--font-heading); letter-spacing: -0.01em; }
 .av-head p { max-width: 720px; }
@@ -101,6 +101,9 @@
 .av-add > button { justify-self: start; }
 
 .av-activity summary { cursor: pointer; }
+/* Its own scroll box, and no scroll anchoring: new entries arriving no longer pull the page up. */
+.av-activity { overflow-anchor: none; }
+.av-activity ol { max-height: 320px; overflow-y: auto; overscroll-behavior: contain; }
 .av-activity ol { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
 .av-activity li { display: flex; flex-direction: column; gap: 2px; padding-left: 10px; font-size: 13px; line-height: 1.5;
   border-left: 2px solid var(--color-accent-700); white-space: pre-wrap; }
