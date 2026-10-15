@@ -148,6 +148,24 @@ function SafetySection() {
   );
 }
 
+/** Blast radius (blast_radius.py, doc 2 item 2.3): rm -rf, git reset --hard, force-push and the like ask first,
+ *  naming what they would delete or lose. */
+function BlastRadiusSection() {
+  const [on, setOn] = useState<boolean | null>(null);
+  useEffect(() => { void api.get<{ enabled: boolean }>("/api/safety/blast-radius").then((r) => { if (r.ok) setOn(r.data.enabled); }); }, []);
+  if (on === null) return null;
+  const save = async (next: boolean) => {
+    const r = await api.put<{ enabled: boolean }>("/api/safety/blast-radius", { enabled: next });
+    if (r.ok) setOn(r.data.enabled);
+  };
+  return (
+    <Section title="Risky commands" hint="Commands that delete files, throw away uncommitted work, force-push, wipe a disk or run a script straight from the internet stop and show what they would change before they run.">
+      <Choice selected={on} label="Ask before risky commands" description="Recommended. Ordinary commands run as before." onSelect={() => void save(true)} />
+      <Choice selected={!on} label="Don't ask" description="Commands follow only your normal permission settings." onSelect={() => void save(false)} />
+    </Section>
+  );
+}
+
 function EngineSection() {
   const [status, setStatus] = useState<EngineStatus | null>(null);
   const [busy, setBusy] = useState<"" | "autostart" | "restart" | "stop">("");
@@ -309,6 +327,7 @@ export function SettingsPanel({ group = "general" }: { group?: SettingsGroup }) 
           <Section title="Reset chats" hint="For chats that have gotten out of hand. Backed up first; nothing is purged."><ChatResetSection /></Section>
           <ViewSection />
           <SafetySection />
+          <BlastRadiusSection />
           <NotificationsSection />
           <PhoneSection />
           <Section
