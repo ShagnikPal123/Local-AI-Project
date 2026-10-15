@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../../../api";
 import { AUTO_PROVIDER, useProviders } from "../../ProviderPicker";
 
-interface LineupModel { id: string; name: string; size_label: string; tagline: string }
+interface LineupModel { id: string; name: string; size_label: string; tagline: string; runs_on?: string }
 interface Family { id: string; name: string; used_for: string; models: LineupModel[] }
 interface Effort { id: string; name: string; summary: string }
 interface Catalog { levels: Family[]; specialists: Family[]; efforts: Effort[]; effort: string; pick: string }
@@ -75,9 +75,12 @@ export function LineupPicker({ value, onChange }: { value: string; onChange: (ne
                   title={`${fam.name} picks the size for each message`}>Auto</button>
                 {fam.models.map((m) => (
                   <button key={m.id} type="button" className={`lp-chip${value === m.id ? " is-on" : ""}`} onClick={() => pick(m.id)}
-                    title={`${m.size_label}: ${m.tagline}`}>{m.name}</button>
+                    title={`${m.size_label}: ${m.tagline}${m.runs_on ? `. Runs on ${m.runs_on}` : ""}`}>{m.name}</button>
                 ))}
               </div>
+              {fam.models.filter((m) => m.id === value && m.runs_on).map((m) => (
+                <div key={m.id} className="lp-runs">{m.name} runs on {m.runs_on}</div>
+              ))}
             </section>
           ))}
           {catalog && (
