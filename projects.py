@@ -118,7 +118,7 @@ def list_projects() -> List[Dict[str, Any]]:
     with _LOCK:
         state = _load()
         rows = [_view(p, state) for p in state["projects"].values()]
-    return sorted(rows, key=lambda p: -p.get("updated", 0))
+    return sorted(rows, key=lambda p: (not p.get("starred"), -p.get("updated", 0)))
 
 
 def get(project_id: str) -> Optional[Dict[str, Any]]:
@@ -164,6 +164,12 @@ def update(project_id: str, changes: Dict[str, Any]) -> Dict[str, Any]:
             project["name"] = name
         if "goal" in changes:
             project["goal"] = _text(changes["goal"], 600)
+        # Owner's ask (Drive doc 1, item 1.28): like Claude's projects, standing instructions every chat and thread on
+        # the project follows, and a star that keeps a project at the top of the list.
+        if "instructions" in changes:
+            project["instructions"] = str(changes["instructions"] or "").replace("\r\n", "\n").strip()[:4000]
+        if "starred" in changes:
+            project["starred"] = bool(changes["starred"])
         if "tabs" in changes:
             project["tabs"] = _tab_ids(changes["tabs"])
             _regroup(project)
@@ -244,7 +250,9 @@ def project_note(project_id: str) -> str:
         return ""
     crew = [f"{k}: {', '.join(v)}" for k, v in project["members"].items() if v]
     return (f"You are working on the project “{project['name']}”. Goal: {project['goal'] or 'not stated'}."
-            + (f" Others on it — {'; '.join(crew)}." if crew else ""))
+            + (f" Others on it — {'; '.join(crew)}." if crew else "")
+            + (f" The owner's instructions for this project, to follow: {project['instructions']}"
+               if project.get("instructions") else ""))
 
 
 # --- artifacts -----------------------------------------------------------------------------------------------------
@@ -262,6 +270,19 @@ def add_artifact(title: str, kind: str = "idea", note: str = "", project_id: str
         state["artifacts"][artifact["id"]] = artifact
         _save(state)
         return artifact
+
+
+def file_result(project_id: str, ref: str, title: str, note: str, kind: str = "document") -> Dict[str, Any]:
+    """A project's Library keeps one entry per source (a Commander thread, by ``ref``): its latest result updates that
+    entry's note instead of adding another, so a busy thread does not bury the rest."""
+    with _LOCK:
+        state = _load()
+        for artifact in state["artifacts"].values():
+            if ref and artifact.get("ref") == ref and artifact.get("project_id") == project_id:
+                artifact.update(title=_text(title, 120) or artifact["title"], note=_text(note, 4000), updated=time.time())
+                _save(state)
+                return artifact
+    return add_artifact(title, kind, note, project_id, ref)
 
 
 def list_artifacts(project_id: Optional[str] = None) -> List[Dict[str, Any]]:
