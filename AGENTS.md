@@ -104,9 +104,12 @@ Each has an enforcement point in code. Do not weaken them.
    leak into anyone else's install.
    → `overlay.py`, `profiles.py`.
 
-4. **Nothing publishes without human review.** The change pipeline separates "AI reviewed it" from
-   "a human approved it" so an AI cannot approve its own change.
-   → `change_review.py:53-60` (transition table), `:245-259`.
+4. **Nothing publishes without the owner's say-so.** The change pipeline separates "AI reviewed it" from
+   "approved". The owner decided on 2026-10-14 ("yes if it deems them worthy") that Ichos may approve its own
+   improvements, but only while his **Self-approval** switch is on (off by default), only after its research
+   recommends the change, and with every self-approval written to a log he can read and roll back.
+   → `change_review.py` (transition table), `self_approval.py` (switch + log), `improve_autopilot.py` (the only
+   caller that self-approves). Any other path to `approve()` still needs a person.
 
 5. **No credential in source, ever.** Keys come from `.env.local` or `secret_store.py`. Never a
    literal in a `.py`, never in a doc, never in a commit, never echoed into logs or chat history.

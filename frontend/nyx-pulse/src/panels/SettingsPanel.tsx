@@ -166,6 +166,33 @@ function BlastRadiusSection() {
   );
 }
 
+/** Self-approval (self_approval.py, WS15): the owner said yes "if it deems them worthy", with a switch and a log. */
+interface SelfApprovalEntry { change_id: string; title: string; reason: string; at: number; status?: string }
+function SelfApprovalSection() {
+  const [state, setState] = useState<{ enabled: boolean; log: SelfApprovalEntry[] } | null>(null);
+  useEffect(() => { void api.get<{ enabled: boolean; log: SelfApprovalEntry[] }>("/api/self-approval").then((r) => { if (r.ok) setState(r.data); }); }, []);
+  if (state === null) return null;
+  const save = async (next: boolean) => {
+    const r = await api.put<{ enabled: boolean; log: SelfApprovalEntry[] }>("/api/self-approval", { enabled: next });
+    if (r.ok) setState(r.data);
+  };
+  return (
+    <Section title="Self-approval" hint="Ichos may approve its own improvements when its research says they are worth it. Sandbox tests and the critic still run first, and every one is logged here. Roll any of them back from the Improve tab.">
+      <Choice selected={state.enabled} label="Let Ichos approve its own improvements" description="Autopilot runs approve what their research recommends." onSelect={() => void save(true)} />
+      <Choice selected={!state.enabled} label="Ask me" description="Off by default. Changes wait in the review queue for you." onSelect={() => void save(false)} />
+      {state.log.length > 0 && (
+        <ul className="self-approval__log">
+          {state.log.slice(0, 8).map((e) => (
+            <li key={`${e.change_id}-${e.at}`} title={e.reason}>
+              <b>{e.title}</b> · {new Date(e.at * 1000).toLocaleString()}{e.status ? ` · ${e.status.replace("_", " ")}` : ""}
+            </li>
+          ))}
+        </ul>
+      )}
+    </Section>
+  );
+}
+
 function EngineSection() {
   const [status, setStatus] = useState<EngineStatus | null>(null);
   const [busy, setBusy] = useState<"" | "autostart" | "restart" | "stop">("");
@@ -328,6 +355,7 @@ export function SettingsPanel({ group = "general" }: { group?: SettingsGroup }) 
           <ViewSection />
           <SafetySection />
           <BlastRadiusSection />
+          <SelfApprovalSection />
           <NotificationsSection />
           <PhoneSection />
           <Section

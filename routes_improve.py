@@ -203,6 +203,22 @@ def improve_changes(_caller: Any = Depends(_require_reviewer_or_local_owner)) ->
     return {"changes": items[:100]}
 
 
+@router.get("/api/self-approval")
+def self_approval_state(_caller: Any = Depends(_require_reviewer_or_local_owner)) -> Dict[str, Any]:
+    """The self-approval switch and the log of every change Ichos approved itself."""
+    import self_approval
+
+    return self_approval.state()
+
+
+@router.put("/api/self-approval")
+def self_approval_save(body: Dict[str, Any], _caller: Any = Depends(_require_reviewer_or_local_owner)) -> Dict[str, Any]:
+    import self_approval
+
+    self_approval.set_enabled(bool((body or {}).get("enabled", False)))
+    return self_approval.state()
+
+
 @router.post("/api/improve/changes/{change_id}/rollback")
 def improve_rollback(change_id: str, _caller: Any = Depends(_require_reviewer_or_local_owner)) -> Dict[str, Any]:
     from change_review import CHANGE_LOG, ChangeError
