@@ -22,6 +22,7 @@ from . import __version__, config, settings as settings_mod
 from .access import auth
 from .connectors import catalog, models
 from .engine import Engine
+from .markets.hub import WORKERS
 from .models import BrokerError
 from .paper import PaperAccount
 
@@ -154,7 +155,10 @@ def create_app(engine: Optional[Engine] = None) -> FastAPI:
 
     @app.post("/api/control/start")
     def start(_: Dict[str, Any] = Depends(owner)) -> Dict[str, str]:
-        eng().start()
+        try:
+            eng().start()
+        except BrokerError as error:
+            raise HTTPException(400, str(error)) from error
         return eng().status()
 
     @app.post("/api/control/stop")
@@ -201,6 +205,44 @@ def create_app(engine: Optional[Engine] = None) -> FastAPI:
             return broker.reset(cash, settings_mod.load()["base_currency"])
         except (BrokerError, ValueError, TypeError) as error:
             raise HTTPException(400, str(error) or "Starting cash must be a number.") from error
+
+    # --- setup: how much, which practice account, and go -----------------------------------
+
+    @app.get("/api/setup")
+    def get_setup(_: Dict[str, Any] = Depends(viewer)) -> Dict[str, Any]:
+        cfg = settings_mod.load()
+        connected = {row["id"]: row["connected"] for row in catalog.describe(False)}
+        return {"done": bool(cfg.get("setup_done")), "broker": cfg["broker"], "start_cash": cfg["start_cash"],
+                "currency": cfg["base_currency"], "budget": cfg.get("budget", 0.0),
+                "alpaca": connected.get("alpaca", False), "currencies": list(settings_mod.CURRENCIES),
+                "workers": WORKERS, "cpus": os.cpu_count() or 1}
+
+    @app.post("/api/setup")
+    def setup(body: Dict[str, Any] = Body(default={}), user: Dict[str, Any] = Depends(owner)) -> Dict[str, Any]:
+        """One form, a couple of clicks: how much money, which practice account, and start."""
+        try:
+            amount = float(body.get("amount", 0))
+        except (TypeError, ValueError) as error:
+            raise HTTPException(400, "The amount must be a number.") from error
+        if amount <= 0:
+            raise HTTPException(400, "Choose how much money the trader may use.")
+        eng().stop("")
+        if body.get("broker") == "alpaca":
+            settings_mod.save({"broker": "alpaca", "budget": amount})
+        else:
+            currency = str(body.get("currency", "USD")).upper()
+            settings_mod.save({"broker": "sim", "start_cash": amount, "base_currency": currency})
+            account = PaperAccount().account()
+            if account["start"] != amount or account["currency"] != settings_mod.load()["base_currency"]:
+                PaperAccount().reset(amount, settings_mod.load()["base_currency"])
+        settings_mod.save({"setup_done": True})
+        eng().use_settings_broker()
+        if body.get("start"):
+            try:
+                eng().start()
+            except BrokerError as error:
+                raise HTTPException(400, f"Saved, but it could not start: {error}") from error
+        return {**get_setup(user), **eng().status()}
 
     # --- connectors and Claude ------------------------------------------------------------
 

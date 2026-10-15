@@ -95,7 +95,7 @@ def test_paper_reset(app):
 
 
 def test_connector_keys_never_come_back(app, monkeypatch):
-    monkeypatch.setattr(catalog.AlpacaPaper, "test", lambda self: "Connected.")
+    monkeypatch.setattr(catalog.Alpaca, "test", lambda self: "Connected.")
     me = client(app)
     saved = me.post("/api/connectors/alpaca", json={"key_id": "PKFAKE", "secret_key": FAKE_SECRET})
     assert saved.status_code == 200 and FAKE_SECRET not in saved.text
@@ -144,3 +144,25 @@ def test_unknown_api_paths_are_404_and_the_page_falls_back(app):
     me = client(app)
     assert me.get("/api/nope").status_code == 404
     assert "Ichos Trader" in me.get("/").text or "<div id=\"root\"" in me.get("/").text
+
+
+def test_setup_sets_the_practice_money_in_one_go(app):
+    owner = client(app, role="owner")
+    assert owner.get("/api/setup").json()["done"] is False
+    reply = owner.post("/api/setup", json={"amount": 2500, "currency": "EUR", "start": True})
+    assert reply.status_code == 200, reply.text
+    body = reply.json()
+    assert body["done"] and body["start_cash"] == 2500 and body["currency"] == "EUR" and body["state"] != "off"
+    assert owner.get("/api/dashboard").json()["money"]["currency"] == "EUR"
+    assert owner.post("/api/setup", json={"amount": 0}).status_code == 400
+    assert client(app, REMOTE, "viewer").post("/api/setup", json={"amount": 5}).status_code == 403
+    owner.post("/api/control/stop")
+
+
+def test_choosing_alpaca_before_its_keys_are_added_says_so(app):
+    owner = client(app, role="owner")
+    reply = owner.post("/api/setup", json={"amount": 1000, "broker": "alpaca", "start": True})
+    assert reply.status_code == 400 and "not connected" in reply.json()["detail"]
+    dash = owner.get("/api/dashboard")
+    assert dash.status_code == 200 and dash.json()["broker"] == "Alpaca practice account"
+    assert "not connected" in dash.json()["broker_error"]
