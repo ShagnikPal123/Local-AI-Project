@@ -223,6 +223,9 @@ class ToolRegistry:
                 import taint_gate
 
                 taint_gate.check(ctx, name, tool.category, label)  # outside content read this turn → risky acts ask
+                import blast_radius
+
+                blast_radius.check(ctx, name, tool.category, kwargs)  # rm -rf, git reset --hard … ask, naming the damage
             except PermissionDenied as denied:
                 ok = False
                 result = str(denied)
