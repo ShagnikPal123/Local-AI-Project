@@ -3,7 +3,7 @@
 * **Ollama** runs on the PC, free and private. Nothing here calls it on a timer yet; it is listed so
   the Connectors page can show whether it is there.
 * **Claude** is opt-in twice over: the connector must be switched on *and* the owner must press
-  Ask. The trader never calls it by itself (Shagnik: "a claude connector that it will use only when
+  Ask. The trader never calls it by itself (the owner: "a claude connector that it will use only when
   asked"). The question goes with a short, key-free summary of the dashboard.
 """
 

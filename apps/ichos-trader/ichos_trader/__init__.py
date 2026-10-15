@@ -1,6 +1,6 @@
 """Ichos Trader: the trading desk from Nyx Ichos, split out to run on its own.
 
-Shagnik (Fixer Upper doc, page 3): "split off the trading agent into a separate app which uses our
+The owner (Fixer Upper doc, page 3): "split off the trading agent into a separate app which uses our
 model but since it is separated it can run much faster". This package is that app. It imports
 nothing from the main Nyx app, so the folder can move to its own GitHub repo unchanged.
 
@@ -17,7 +17,7 @@ The parts, in the order a trade goes through them:
   and the Claude connector that is only used when asked.
 * ``server``      - the web API and the dashboard.
 
-Practice money only. Real money waits for Shagnik's word.
+Practice money only. Real money waits for the owner's word.
 """
 
 __version__ = "0.1.0"

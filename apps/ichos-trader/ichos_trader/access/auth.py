@@ -1,6 +1,6 @@
 """Logins: local, a passcode, or Google / GitHub, with owners and viewers.
 
-Shagnik wants others to be able to *see* the setup but never use his keys or his account. So:
+The owner wants others to be able to *see* the setup but never use his keys or his account. So:
 
 * **Owner** - may change anything. Only people named in ``ICHOS_OWNER_EMAILS`` (Google) or
   ``ICHOS_OWNER_GITHUB`` (GitHub), or anyone who knows ``ICHOS_PASSCODE``.

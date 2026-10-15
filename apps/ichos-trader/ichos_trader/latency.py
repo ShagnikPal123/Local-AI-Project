@@ -1,6 +1,6 @@
 """Timing every step, and judging it against what "fast" means for a retail trader.
 
-Shagnik: "test the response of the agent a while to ensure it is fast. Judge what fast means in
+The owner: "test the response of the agent a while to ensure it is fast. Judge what fast means in
 the trading and stocks industry since it can be dependent." The judgment (see docs/DESIGN.md):
 high-frequency firms work in microseconds from servers inside the exchange; a trader on the
 internet pays 50-300 ms for every exchange round trip, so that is the league this app plays in.

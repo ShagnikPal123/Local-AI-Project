@@ -1,6 +1,6 @@
 """The markets the scout looks at: hundreds of them, across stocks, crypto and currencies.
 
-Shagnik: "Instead of looking at one market it can look at hundreds and make decisions off those."
+The owner: "Instead of looking at one market it can look at hundreds and make decisions off those."
 These lists are the starting set that works offline. When the internet is there, the crypto feed
 adds every live USD pair the exchange lists, so the real count is higher.
 

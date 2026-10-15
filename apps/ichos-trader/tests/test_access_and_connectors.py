@@ -55,7 +55,7 @@ def test_keys_come_back_masked_and_env_wins_over_the_file(monkeypatch):
 
 
 def test_a_session_cookie_cannot_be_forged_or_kept_past_its_expiry():
-    token = auth.session_for("Shagnik", "viewer")
+    token = auth.session_for("Guest", "viewer")
     assert auth.unsign(token)["role"] == "viewer"
     body, mac = token.rsplit(".", 1)
     forged = auth.sign({"name": "x", "role": "owner", "exp": 9e12}).rsplit(".", 1)[0] + "." + mac
@@ -134,3 +134,24 @@ def test_claude_is_only_called_when_switched_on_and_never_sees_keys():
     _, url, kwargs = http.calls[0]
     assert url == models.CLAUDE_URL and kwargs["headers"]["x-api-key"] == FAKE_SECRET
     assert FAKE_SECRET not in str(kwargs["json"]) and "Spread too wide" in str(kwargs["json"])
+
+
+def test_alpaca_only_sees_and_sells_what_it_bought_and_keeps_to_the_budget():
+    secrets.put("alpaca_key_id", "PKFAKEFAKEFAKE")
+    secrets.put("alpaca_secret_key", FAKE_SECRET)
+    positions = [{"symbol": "AAPL", "asset_class": "us_equity", "qty": "10", "avg_entry_price": "150",
+                  "current_price": "160"},  # the person's own shares
+                 {"symbol": "BTCUSD", "asset_class": "crypto", "qty": "0.5", "avg_entry_price": "100",
+                  "current_price": "110"}]
+    http = FakeHttp({"/v2/orders": {"id": "o1", "filled_avg_price": "100"}, "/v2/positions": positions,
+                     "/v2/account": {"currency": "USD", "cash": "50000", "equity": "51655"}})
+    broker = AlpacaPaper(http=http, budget=1_000)
+    assert broker.positions() == []  # nothing bought yet: the person's AAPL is invisible
+    with pytest.raises(BrokerError, match="only sells what it bought"):
+        broker.place(Order("AAPL", "sell", 10, "stock", "Vega"), Quote("AAPL", 160.0))
+    broker.place(Order("BTC-USD", "buy", 0.5, "crypto", "Vega"), Quote("BTC-USD", 100.0))
+    mine = broker.positions()
+    assert [p["symbol"] for p in mine] == ["BTC-USD"] and mine[0]["bot"] == "Vega"
+    account = broker.account()
+    assert account["cash"] == 950.0 and account["equity"] == 1005.0  # the budget, not the 50,000 in the account
+    assert broker.fills(5)[0]["bot"] == "Vega"

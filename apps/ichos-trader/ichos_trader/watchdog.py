@@ -1,6 +1,6 @@
 """The watchdog: shuts the trader down by itself when it is slow or losing.
 
-Shagnik: "It should be able to run 24/7 [and] has auto shut down when it sees the ai is maybe
+The owner: "It should be able to run 24/7 [and] has auto shut down when it sees the ai is maybe
 running slow or has not made money and might be losing."
 
 ``check`` looks at the run so far and returns a reason to stop, or "" to carry on:
@@ -10,7 +10,7 @@ running slow or has not made money and might be losing."
 * **Losing** - equity has fallen ``max_drawdown_pct`` below its best point.
 * **Not making money** - it has run for ``losing_hours`` and is still below where this run started.
 * **Stale prices** pause rather than stop (``stale`` returns a reason): the internet coming back
-  should not need Shagnik.
+  should not need the owner.
 
 Pure functions over numbers the engine passes in, so every rule is tested on its own.
 """

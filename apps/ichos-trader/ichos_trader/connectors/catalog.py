@@ -12,7 +12,7 @@ from typing import Any, Callable, Dict, List, Optional
 from ..access import secrets
 from ..models import BrokerError
 from . import models
-from .alpaca import AlpacaPaper
+from .alpaca import Alpaca
 
 
 def _field(key: str, label: str, secret: bool, name: str) -> Dict[str, Any]:
@@ -103,7 +103,7 @@ def connect(cid: str, values: Dict[str, str], tester: Optional[Callable[[], str]
     note = "Saved."
     if cid == "alpaca":
         try:
-            note = (tester or AlpacaPaper().test)()
+            note = (tester or Alpaca().test)()
         except BrokerError as error:
             disconnect(cid)
             raise ValueError(str(error)) from error

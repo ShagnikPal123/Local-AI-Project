@@ -26,15 +26,17 @@ import time
 from collections import deque
 from typing import Any, Callable, Deque, Dict, List, Optional
 
-from . import ranking, risk, settings as settings_mod, store, watchdog
+from . import currency, ranking, risk, settings as settings_mod, store, watchdog
+from .connectors.alpaca import Alpaca
 from .core import clock as market_clock, forecast
 from .latency import Recorder, Stopwatch
 from .markets import MarketHub
-from .models import BrokerError, Order, Snapshot
+from .models import BrokerError, Instrument, Order, Snapshot
 from .paper import PaperAccount
 from .team import Team, advisor, manager, skeptic, strategist, traders
 
 GROUPS = {"crypto": ["crypto"], "stocks": ["stock", "etf"], "fx": ["fx"]}
+ALL_CLASSES = ["crypto", "stock", "etf", "fx"]
 TOP = 40
 PREDICT_TOP = 5
 PREDICTION_HOURS = 24
@@ -47,11 +49,34 @@ def _empty_state() -> Dict[str, Any]:
             "predictions": [], "research": [], "errors": 0, "last_error": ""}
 
 
+def broker_kind(cfg: Dict[str, Any]) -> tuple:
+    """Which broker the settings ask for, as a key that changes whenever the broker must change."""
+    if cfg.get("broker") != "alpaca":
+        return ("sim",)
+    return ("alpaca", float(cfg.get("budget") or 0))
+
+
+def make_broker(cfg: Dict[str, Any], clock: Callable[[], float] = time.time) -> Any:
+    """The built-in practice account, or Alpaca's practice account with a budget."""
+    kind = broker_kind(cfg)
+    if kind[0] == "sim":
+        return PaperAccount(clock)
+    return Alpaca(budget=kind[1], clock=clock)
+
+
+def _blank_account(currency_code: str, money: str, now: float) -> Dict[str, Any]:
+    return {"currency": currency_code, "cash": 0.0, "equity": 0.0, "start": 0.0, "pl": 0.0, "pl_pct": 0.0, "peak": 0.0,
+            "realized": 0.0, "fees": 0.0, "wins": 0, "losses": 0, "closed": 0, "win_rate": None, "created_at": now,
+            "money": money}
+
+
 class Engine:
     def __init__(self, hub: Optional[MarketHub] = None, broker: Any = None, clock: Callable[[], float] = time.time):
         self.clock = clock
         self.hub = hub or MarketHub(clock=clock)
-        self.broker = broker or PaperAccount(clock)
+        self._fixed_broker = broker is not None  # tests hand one in; it is never swapped
+        self._broker_kind = broker_kind(settings_mod.load())
+        self.broker = broker or make_broker(settings_mod.load(), clock)
         self.team = Team()
         self.recorder = Recorder()
         self.state: Dict[str, Any] = {**_empty_state(), **store.read("engine")}
@@ -62,11 +87,22 @@ class Engine:
 
     # --- switching on and off -----------------------------------------------------------------
 
+    def use_settings_broker(self) -> None:
+        """Swap to the broker the settings now ask for (Setup, Connectors or the real-money switch)."""
+        with self._lock:
+            kind = broker_kind(settings_mod.load())
+            if self._fixed_broker or kind == self._broker_kind:
+                return
+            self.broker, self._broker_kind = make_broker(settings_mod.load(), self.clock), kind
+            self.team.notes.add(self.team.one("manager"), f"Now trading through: {self.broker.label}.", "info")
+
     def start(self) -> None:
         with self._lock:
+            self.use_settings_broker()
+            run_start_equity = self.broker.account()["equity"]  # a broker that is not connected says so here
             settings_mod.save({"running": True})
             self.state.update(stopped_reason="", paused="", errors=0,
-                              run_started_at=self.clock(), run_start_equity=self.broker.account()["equity"])
+                              run_started_at=self.clock(), run_start_equity=run_start_equity)
             self._save()
         self.team.notes.add(self.team.one("manager"), "Switched on.", "info")
         self._launch()
@@ -124,6 +160,7 @@ class Engine:
 
     def _cycle(self) -> Dict[str, Any]:
         now = self.clock()
+        self.use_settings_broker()
         cfg = settings_mod.effective()
         watch = Stopwatch()
         team = self.team
@@ -203,9 +240,19 @@ class Engine:
         have = {i.symbol for i in wanted}
         held = {p["symbol"] for p in self.broker.positions()} - have
         if held:  # always price what is held, even if its market was switched off
-            wanted += [i for i in self.hub.instruments(GROUPS["crypto"] + GROUPS["stocks"] + GROUPS["fx"])
-                       if i.symbol in held]
-        return self.hub.snapshots(wanted)
+            wanted += [i for i in self.hub.instruments(ALL_CLASSES) if i.symbol in held]
+        return self._fetch(wanted)
+
+    def _fetch(self, wanted: List[Instrument], with_book: bool = True) -> List[Snapshot]:
+        """Snapshots of ``wanted`` with every price already in the account's currency."""
+        base = self.broker.account()["currency"]
+        extra: List[Instrument] = []
+        if currency.needs_rates(wanted, base):  # fetch the currency pairs needed to convert, once
+            names = {i.symbol for i in wanted}
+            extra = [i for i in self.hub.instruments(["fx"]) if i.symbol in currency.RATE_PAIRS and i.symbol not in names]
+        snaps = self.hub.snapshots(wanted + extra, with_book=with_book)
+        worth = currency.rates(snaps, base)
+        return [currency.to_base(s, base, worth) for s in snaps[:len(wanted)]]
 
     def _execute(self, order: Order, snap: Optional[Snapshot], row: Optional[Dict[str, Any]],
                  tip: Optional[Dict[str, Any]], cfg: Dict[str, Any], now: float) -> Optional[Dict[str, Any]]:
@@ -230,6 +277,7 @@ class Engine:
         except BrokerError as error:
             self.team.notes.add(bot, f"The broker refused {order.symbol}: {error}", "warn", order.symbol)
             return None
+        strategist.record_fill(fill, tip or {}, self.team)
         self.team.notes.add(bot, f"{'Bought' if fill.side == 'buy' else 'Sold'} {fill.qty:.6g} {fill.symbol} at "
                                  f"{fill.price:,.4g} (${fill.value:,.2f}, practice money).", "trade", fill.symbol)
         return fill.to_dict()
@@ -320,9 +368,12 @@ class Engine:
         """Sell everything the bots hold, at the latest prices. Returns how many were sold."""
         with self._lock:
             sold = 0
-            for pos in self.broker.positions():
-                inst = next((i for i in self.hub.instruments([pos["asset_class"]]) if i.symbol == pos["symbol"]), None)
-                snap = self.hub.snapshot(inst, with_book=False) if inst else None
+            held = self.broker.positions()
+            names = {p["symbol"] for p in held}
+            snaps = {s.symbol: s for s in self._fetch([i for i in self.hub.instruments(ALL_CLASSES) if i.symbol in names],
+                                                      with_book=False)}
+            for pos in held:
+                snap = snaps.get(pos["symbol"])
                 if snap is None or snap.quote is None:
                     continue
                 try:
@@ -346,12 +397,12 @@ class Engine:
         return {"state": "trading", "state_words": f"Trading {self.state['scanned']} markets with "
                                                    f"{len(self.team.active())} bots."}
 
-    def _money(self, account: Dict[str, Any], now: float) -> Dict[str, Any]:
+    def _money(self, account: Dict[str, Any], positions: List[Dict[str, Any]], now: float) -> Dict[str, Any]:
         curve = self.broker.curve() if hasattr(self.broker, "curve") else []
         day_ago = next((p["equity"] for p in curve if p["t"] >= now - 86_400), account["start"])
         expected = low = high = 0.0
         open_preds = {p["symbol"]: p for p in self.state["predictions"] if not p["graded"]}
-        for pos in self.broker.positions():
+        for pos in positions:
             p = open_preds.get(pos["symbol"])
             if p:
                 weight = pos["value"] / max(account["equity"], 1)
@@ -368,7 +419,12 @@ class Engine:
     def dashboard(self) -> Dict[str, Any]:
         now = self.clock()
         with self._lock:
-            account = self.broker.account()
+            try:  # a real broker can be unreachable; the dashboard still opens and says why
+                account, positions, trades = self.broker.account(), self.broker.positions(), self.broker.fills(50)
+                broker_error = ""
+            except BrokerError as error:
+                account, positions, trades = _blank_account("USD", self.broker.money(), now), [], self.broker.fills(50)
+                broker_error = str(error)
             graded = [p for p in self.state["predictions"] if p["graded"]]
             right = sum(1 for p in graded if p["right"])
             bots = []
@@ -382,14 +438,17 @@ class Engine:
                 **self.status(),
                 "stopped_reason": self.state.get("stopped_reason", ""),
                 "money_kind": self.broker.money(),
+                "broker": getattr(self.broker, "label", self.broker.name),
+                "broker_error": broker_error,
+                "budget": account.get("budget"),
                 "market_source": self.hub.source,
-                "money": self._money(account, now),
+                "money": self._money(account, positions, now),
                 "win_rate": {"closed": account["closed"], "wins": account["wins"], "rate": account["win_rate"]},
                 "equity_curve": self._curve(account, now),
                 "scanned": self.state["scanned"],
                 "markets": self.state["markets"],
-                "positions": self.broker.positions(),
-                "trades": self.broker.fills(50),
+                "positions": positions,
+                "trades": trades,
                 "bots": bots,
                 "bots_running": sum(1 for b in bots if b["status"] == "working"),
                 "thinking": self.team.notes.latest(60),

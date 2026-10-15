@@ -18,7 +18,7 @@ export type Theme = { accent: string; mode: "dark" | "light" | "system"; sync: s
 
 export type Dashboard = {
   state: "off" | "learning" | "trading" | "paused" | "shutdown"; state_words: string; stopped_reason: string;
-  money_kind: "practice" | "real"; market_source: "simulated" | "live";
+  money_kind: "practice" | "real"; market_source: "simulated" | "live"; broker: string; broker_error: string;
   money: { currency: string; equity: number; cash: number; start: number; pl: number; pl_pct: number; today_pl: number; today_pl_pct: number; predicted_pl_pct: number; predicted_band_pct: [number, number]; predicted_horizon_h: number };
   win_rate: { closed: number; wins: number; rate: number | null };
   equity_curve: { t: number; equity: number }[]; scanned: number; markets: Market[]; positions: Position[]; trades: Trade[];
@@ -43,6 +43,7 @@ export type Connector = {
   fields: { key: string; label: string; secret: boolean }[]; connected: boolean; status: string;
   masked: Record<string, { from: string; last4?: string }>; note?: string;
 };
+export type SetupView = { done: boolean; broker: string; start_cash: number; currency: string; budget: number; alpaca: boolean; currencies: string[]; workers: number; cpus: number };
 export type SpeedTest = { grade: string; words: string; stages: Record<string, number>; decision_ms: number; cycle_ms: number; markets: number };
 
 async function call<T>(path: string, method = "GET", body?: unknown): Promise<T> {
@@ -71,6 +72,8 @@ export const api = {
   connectors: () => call<Connector[]>("/api/connectors"),
   connect: (id: string, values: Record<string, string>) => call<Connector>(`/api/connectors/${id}`, "POST", values),
   disconnect: (id: string) => call<{ ok: boolean }>(`/api/connectors/${id}`, "DELETE"),
+  setup: () => call<SetupView>("/api/setup"),
+  saveSetup: (body: { amount: number; currency: string; broker: string; start: boolean }) => call<SetupView>("/api/setup", "POST", body),
   ask: (question: string) => call<{ answer: string; model: string }>("/api/claude/ask", "POST", { question }),
 };
 

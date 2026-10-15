@@ -1,6 +1,6 @@
 """Max, the manager: looks after the whole team every few cycles.
 
-Shagnik: "Manager bots and advisor bots and more should be on the internal helping. If the
+The owner: "Manager bots and advisor bots and more should be on the internal helping. If the
 analysis sees it should add bots or add more things then it should be able to. Fully adaptable."
 
 Every ``EVERY`` cycles Max:

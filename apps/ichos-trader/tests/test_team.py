@@ -132,6 +132,23 @@ def test_the_strategist_learns_a_few_markets_a_cycle_until_the_playbook_is_full(
     assert strategist.study(snaps, team, NOW + 120) == 0  # all fresh now
 
 
+def test_the_strategist_trusts_a_strategy_less_after_it_loses_for_real():
+    from ichos_trader.models import Fill
+    store.write("playbook", {"studied": {}, "done": True, "table": {"trending": {
+        "trend_sma": {"beat": 2.0, "runs": 3}, "breakout": {"beat": 1.0, "runs": 3}}}})
+    team = Team()
+    assert strategist.best_for("trending")[0]["strategy"] == "trend_sma"
+    for n in range(5):
+        tip = {"strategy": "trend_sma", "regime": "trending"}
+        strategist.record_fill(Fill(f"b{n}", "BTC-USD", "buy", 1, 100.0), tip, team)
+        strategist.record_fill(Fill(f"s{n}", "BTC-USD", "sell", 1, 95.0), {}, team)
+    rows = strategist.best_for("trending")
+    assert rows[0]["strategy"] == "breakout"  # 2.0 - 5 points for losing every real trade
+    assert rows[1]["live_trades"] == 5 and rows[1]["live_wins"] == 0
+    assert strategist.lessons()["trades"] == 5
+    assert any(n["text"].startswith("Lesson from BTC-USD") for n in team.notes.latest())
+
+
 # --- the tuning dials ---------------------------------------------------------------------
 
 def test_a_dial_set_by_hand_is_pinned_until_handed_back_to_auto():

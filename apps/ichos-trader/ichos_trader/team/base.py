@@ -1,6 +1,6 @@
 """The roster: who is on the team, what each one is doing, and what each one is thinking.
 
-Shagnik asked for "its own big team", with front bots that trade and "background agents [that] can
+The owner asked for "its own big team", with front bots that trade and "background agents [that] can
 be seen and shown that they are making strategies, working hard, and actually doing their job".
 So every bot has a name, a role, a status and a one-line "doing", and every bot writes its
 reasoning into one shared feed (``Notes``) that the dashboard shows live.
@@ -47,7 +47,7 @@ def _default_roster() -> Dict[str, Any]:
         bot("Vega", "trader", True, ["crypto"], 0.35),
         bot("Nova", "trader", True, ["stock", "etf"], 0.35),
         # The rotator: holds one or two of the strongest coins and swaps into whichever leads
-        # (Shagnik: "rotate between bitcoin, etherium, and more markets that are similar").
+        # (the owner: "rotate between bitcoin, etherium, and more markets that are similar").
         bot("Orion", "trader", True, ["crypto"], 0.30, style="rotate"),
     ], "shifts": [], "hires": []}
 

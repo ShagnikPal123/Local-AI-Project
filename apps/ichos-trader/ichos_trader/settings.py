@@ -1,6 +1,6 @@
 """Reading and changing the settings, with auto mode and pins.
 
-The rule Shagnik asked for: fully automatic by default, with a tuning section for anyone who wants
+The rule the owner asked for: fully automatic by default, with a tuning section for anyone who wants
 to turn the dials. So:
 
 * ``load()`` - the saved settings over the defaults (``config.default_settings``).
@@ -21,7 +21,7 @@ from . import config, store
 LIMITS: Dict[str, Tuple[float, float]] = {
     "risk": (0.0, 1.0), "skeptic": (0.0, 1.0), "max_positions": (1, 40), "max_position_pct": (0.02, 1.0),
     "stop_loss_pct": (0.5, 50.0), "take_profit_pct": (0.5, 200.0), "pace_seconds": (10, 3600),
-    "scan_limit": (10, 1000), "start_cash": (1.0, 100_000_000.0), "max_bots": (3, 20),
+    "scan_limit": (10, 1000), "start_cash": (1.0, 100_000_000.0), "max_bots": (3, 20), "budget": (0.0, 100_000_000.0),
 }
 SHUTDOWN_LIMITS: Dict[str, Tuple[float, float]] = {
     "max_drawdown_pct": (1.0, 90.0), "slow_cycle_ms": (500, 600_000), "slow_cycles": (1, 100),
@@ -32,6 +32,9 @@ AUTO_KEYS = ("risk",)
 INTEGERS = {"max_positions", "pace_seconds", "scan_limit", "max_bots", "slow_cycle_ms", "slow_cycles",
             "losing_hours", "stale_data_s"}
 HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
+#: Account currencies the practice account can be kept in (prices are converted, see ``currency``).
+CURRENCIES = ("USD", "EUR", "GBP", "JPY", "CHF", "AUD", "CAD", "NZD", "MXN", "INR", "CNY", "SGD", "HKD", "SEK",
+              "NOK", "ZAR")
 
 
 def load() -> Dict[str, Any]:
@@ -69,7 +72,7 @@ def save(changes: Dict[str, Any], unpin: Iterable[str] = ()) -> Dict[str, Any]:
             current[key] = _number(key, value, LIMITS[key])
             if key in AUTO_KEYS:
                 pins[key] = current[key]
-        elif key in ("auto", "learn_first", "running"):
+        elif key in ("auto", "learn_first", "running", "setup_done"):
             current[key] = bool(value)
         elif key == "markets" and isinstance(value, dict):
             current["markets"].update({k: bool(v) for k, v in value.items() if k in current["markets"]})
@@ -85,6 +88,8 @@ def save(changes: Dict[str, Any], unpin: Iterable[str] = ()) -> Dict[str, Any]:
                 current["theme"]["sync"] = value["sync"]
         elif key == "claude" and isinstance(value, dict):
             current["claude"]["enabled"] = bool(value.get("enabled"))
+        elif key == "base_currency" and str(value).upper() in CURRENCIES:
+            current["base_currency"] = str(value).upper()  # used from the next practice-account reset
         elif key == "broker" and value in ("sim", "alpaca"):
             current["broker"] = value
     for key in unpin or ():
@@ -99,4 +104,4 @@ def describe() -> Dict[str, Any]:
     limits = {k: list(v) for k, v in LIMITS.items()}
     limits.update({f"shutdown.{k}": list(v) for k, v in SHUTDOWN_LIMITS.items()})
     return {"settings": load(), "effective": effective(), "chosen": chosen(), "limits": limits,
-            "auto_keys": list(AUTO_KEYS)}
+            "auto_keys": list(AUTO_KEYS), "currencies": list(CURRENCIES)}

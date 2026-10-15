@@ -1,6 +1,6 @@
 """Mira, the mild skeptic: reads every buy before it goes.
 
-Shagnik: "add a mild skeptic since if a trade really looks fishy and it has an extremely high
+The owner: "add a mild skeptic since if a trade really looks fishy and it has an extremely high
 chance of failing it should make sure to alert and make decisions."
 
 Mild means two levels:

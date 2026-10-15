@@ -7,6 +7,7 @@ import Markets from "./views/Markets";
 import Team from "./views/Team";
 import Tuning from "./views/Tuning";
 import Connectors from "./views/Connectors";
+import Setup from "./views/Setup";
 
 const VIEWS = [
   { id: "home", title: "Overview", icon: "home" },
@@ -14,6 +15,7 @@ const VIEWS = [
   { id: "team", title: "Team", icon: "team" },
   { id: "tune", title: "Tuning", icon: "tune" },
   { id: "plug", title: "Connectors", icon: "plug" },
+  { id: "setup", title: "Setup", icon: "wand" },
 ] as const;
 type View = (typeof VIEWS)[number]["id"];
 
@@ -40,6 +42,10 @@ export default function App() {
   }, []);
 
   useEffect(() => { api.me().then(setMe).catch((e) => setError(e.message)); }, []);
+  // First open: the owner lands on Setup until it has been saved once.
+  useEffect(() => {
+    if (me?.user?.role === "owner") api.setup().then((s) => { if (!s.done) setView("setup"); }).catch(() => {});
+  }, [me]);
   useEffect(() => {
     if (!me?.signed_in) return;
     refresh();
@@ -110,6 +116,7 @@ export default function App() {
         </header>
         {error && <div className="banner bad">{error}</div>}
         {!owner && <div className="banner info">You are a viewer: you can see how the trader is set up, but not change it or use its keys.</div>}
+        {dash?.broker_error && <div className="banner bad">{dash.broker}: {dash.broker_error}</div>}
         {dash?.state === "shutdown" && <div className="banner bad">{dash.stopped_reason} Press Start when you are ready.</div>}
         {!dash ? <div className="splash small">Loading the dashboard…</div> : (
           <>
@@ -118,6 +125,7 @@ export default function App() {
             {view === "team" && <Team d={dash} />}
             {view === "tune" && <Tuning d={dash} owner={owner} onChange={refresh} />}
             {view === "plug" && <Connectors owner={owner} />}
+            {view === "setup" && <Setup owner={owner} onDone={() => { refresh(); setView("home"); }} />}
           </>
         )}
       </main>

@@ -2,7 +2,8 @@
 
 ``--forever`` restarts the server if it ever exits (a crash, or the PC waking from sleep with a
 dead socket), waiting a little longer each time it fails quickly, so the trader can run 24/7.
-``--offline`` uses the built-in simulated market (no internet needed).
+``--offline`` uses the built-in simulated market (no internet needed). ``--open`` opens the
+dashboard once it answers, and ``--autostart on|off`` makes it start with Windows (or stops that).
 By default it listens on 127.0.0.1 only. ``--host 0.0.0.0`` is for a cloud machine and needs a
 login set up first (Google, GitHub or a passcode), or every visitor is refused.
 """
@@ -14,10 +15,14 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
 import time
+import urllib.request
+import webbrowser
 from pathlib import Path
 
 from ichos_trader import config
+from ichos_trader.autostart import set_autostart
 
 HERE = Path(__file__).resolve().parent
 WEB = HERE / "web"
@@ -38,14 +43,32 @@ def build_dashboard() -> None:
             return
 
 
+def open_when_up(url: str, tries: int = 120) -> None:
+    """Open the browser once the server answers, so the person never sees "can't connect"."""
+    for _ in range(tries):
+        try:
+            with urllib.request.urlopen(url + "/api/health", timeout=1):
+                webbrowser.open(url)
+                return
+        except OSError:
+            time.sleep(0.5)
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="Run Ichos Trader.")
     parser.add_argument("--host", default=config.DEFAULT_HOST)
     parser.add_argument("--port", type=int, default=config.DEFAULT_PORT)
     parser.add_argument("--forever", action="store_true", help="restart the server whenever it exits")
     parser.add_argument("--offline", action="store_true", help="use the simulated market")
+    parser.add_argument("--open", action="store_true", help="open the dashboard in the browser once it is up")
+    parser.add_argument("--autostart", choices=("on", "off"), help="start with Windows (or stop doing so), then exit")
     args = parser.parse_args(argv)
+    if args.autostart:
+        print(set_autostart(args.autostart == "on", HERE))
+        return 0
     build_dashboard()
+    if args.open:
+        threading.Thread(target=open_when_up, args=(f"http://{args.host}:{args.port}",), daemon=True).start()
     env = dict(os.environ, **({"ICHOS_TRADER_OFFLINE": "1"} if args.offline else {}))
     command = [sys.executable, "-m", "uvicorn", "ichos_trader.server:app", "--host", args.host,
                "--port", str(args.port)]

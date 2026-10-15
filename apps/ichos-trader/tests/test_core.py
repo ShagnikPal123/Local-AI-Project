@@ -70,3 +70,15 @@ def test_old_settings_files_still_load_with_new_defaults():
     assert settings["risk"] == 0.9
     assert settings["shutdown"]["max_drawdown_pct"] == 5.0
     assert settings["shutdown"]["slow_cycles"] == 5
+
+
+def test_start_with_windows_adds_and_removes_one_file(tmp_path, monkeypatch):
+    from ichos_trader.autostart import NAME, set_autostart
+    monkeypatch.setenv("APPDATA", str(tmp_path))
+    assert "will start with Windows" in set_autostart(True, tmp_path / "trader")
+    made = tmp_path / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "Startup" / NAME
+    assert "run_trader.py --forever" in made.read_text() and "\r\n" in made.read_text(newline="")
+    set_autostart(False, tmp_path / "trader")
+    assert not made.exists()
+    monkeypatch.delenv("APPDATA")
+    assert "only works on Windows" in set_autostart(True, tmp_path)

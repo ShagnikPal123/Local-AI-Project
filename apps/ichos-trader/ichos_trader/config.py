@@ -4,7 +4,7 @@ Everything the trader saves (the practice account, settings, saved keys, what it
 one data folder. By default that is ``data/`` next to this app; ``ICHOS_TRADER_DATA`` moves it,
 which is how tests get a fresh empty folder and how a cloud copy points at a persistent disk.
 
-The settings here are the defaults the dashboard's Tuning section edits. Shagnik asked for it to be
+The settings here are the defaults the dashboard's Tuning section edits. The owner asked for it to be
 "auto for everything and not dependent on me other than turning on and off", so ``auto`` is on and
 the manager bot re-chooses every value the owner has not pinned by hand.
 """
@@ -80,6 +80,10 @@ def default_settings() -> Dict[str, Any]:
         "claude": {"enabled": False},
         # Which broker executes orders. "sim" is the built-in practice account.
         "broker": "sim",
+        # With a real broker: the most money the bots may use (0 = the whole practice account).
+        "budget": 0.0,
+        # Setup shows on first open and can be opened again any time.
+        "setup_done": False,
     }
 
 

@@ -1,6 +1,6 @@
 """The trader's own ranking: how easy a market is to trade, and how good a trade looks right now.
 
-Shagnik: "It should have its own ranking based on liquidity, spread, market depth, and order flow."
+The owner: "It should have its own ranking based on liquidity, spread, market depth, and order flow."
 Each of the four becomes a number from 0 to 1 (flow from -1 to 1), with a sentence for the
 dashboard:
 
