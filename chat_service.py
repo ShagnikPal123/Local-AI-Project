@@ -924,6 +924,15 @@ If the user asks to change model or provider, or to go local/offline, call switc
             laws = ""
         if laws:
             note = (note or CONTEXT_PREFIX) + "\n\n" + laws
+        try:
+            import emotions
+
+            # The neutral helper's latest notes (Free Will > Emotions). Ichos's own chats only, never an avatar's.
+            helped = "" if avatar_chat else emotions.turn_context()
+        except Exception:
+            helped = ""
+        if helped:
+            note = (note or CONTEXT_PREFIX) + "\n\n" + helped
         if note:
             self.conversation_history.append({"role": "system", "content": note})
         return note
