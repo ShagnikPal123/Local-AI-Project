@@ -390,3 +390,26 @@ def test_a_thread_gets_a_job_from_its_task_and_its_brief_says_what_that_job_mean
     assert cm.set_pick(build["id"], job="review")["job"] == "review"
     with pytest.raises(cm.CommanderError):
         cm.set_pick(build["id"], job="nap")
+
+
+# --- Projects like Claude's (item 1.28): knowledge and instructions in the brief, results kept in the Library ------
+
+def test_a_project_thread_gets_matching_knowledge_and_files_its_result_in_the_library(world, monkeypatch, tmp_path):
+    import project_knowledge
+    import projects
+
+    monkeypatch.setattr(project_knowledge, "_path", lambda: tmp_path / "project_knowledge.json")
+    monkeypatch.setattr(projects, "_path", lambda: tmp_path / "projects.json")
+    cm = world.cm
+    project = projects.create("Trader")
+    projects.update(project["id"], {"instructions": "Keep every change behind a setting."})
+    project_knowledge.add(project["id"], "Export spec", "The CSV export lists every trade with its fee.")
+    main = cm.delegator_for_project(project["id"], "Trader")
+    thread = cm.start_thread(main, "CSV export", "Build the CSV export of trades")
+    brief = world.sent[-1]["text"]
+    assert "with its fee" in brief and "Keep every change behind a setting." in brief
+    world.store.say(thread["chat_id"], "assistant", "Done: the export is in exports/trades.csv")
+    cm.board(delegator=main)
+    cm.board(delegator=main)
+    library = projects.list_artifacts(project["id"])
+    assert len(library) == 1 and library[0]["ref"] == thread["id"] and "exports/trades.csv" in library[0]["note"]

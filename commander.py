@@ -369,8 +369,21 @@ def _tail(thread: Dict[str, Any]) -> str:
                               job=job, job_hint=commander_pick.JOB_HINTS.get(job, ""))
 
 
+def _knowledge(project_id: str, task: str) -> str:
+    """The project's knowledge that fits this task (project_knowledge.py), as a paragraph for the brief."""
+    if not project_id:
+        return ""
+    try:
+        import project_knowledge
+
+        found = project_knowledge.brief(project_id, task)
+        return f"{found}\n\n" if found else ""
+    except Exception:
+        return ""
+
+
 def _brief_message(thread: Dict[str, Any], task: str) -> str:
-    return f"{task.strip()}\n\n{_tail(thread)}"
+    return f"{task.strip()}\n\n{_knowledge(thread['project_id'], task)}{_tail(thread)}"
 
 
 def _find(state: Dict[str, Any], ref: str, delegator: str = "") -> Optional[Dict[str, Any]]:
@@ -483,6 +496,7 @@ def refresh_thread(thread_id: str, task: str, *, role: str = "local", messages: 
     pct = round(use["share"] * 100)
     opening = (f"[Fresh start] This continues the thread “{old['title']}”, which was {pct}% full of what its model "
                f"reads at once. What happened there:\n{summary}\n\nNow: {task.strip()}\n\n"
+               + _knowledge(old["project_id"], task)
                + _tail({**old, "title": fresh_title}))
     new = start_thread(old["delegator"], fresh_title, task, tier=old["tier"], effort=old["effort"],
                        provider=old["provider"], model=old["model"], sector=old["sector"], job=old.get("job", ""),
@@ -704,6 +718,7 @@ def sync_asks(delegator: str, rows: Optional[List[Dict[str, Any]]] = None) -> Li
         anchor = 0
     now = time.time()
     changed = False
+    filing: List[Dict[str, Any]] = []
     with _LOCK:
         state = _load()
         asks = state.setdefault("asks", {})
@@ -723,6 +738,8 @@ def sync_asks(delegator: str, rows: Optional[List[Dict[str, Any]]] = None) -> Li
                    "created": now, "open": kind != "result", "answer": "", "where": ""}
             asks[ask["id"]] = mine[key] = ask
             changed = True
+            if kind == "result" and t.get("project_id"):
+                filing.append(t)
         for ask in mine.values():
             if ask["open"] and live.get(ask["thread_id"]) != ask["key"]:
                 ask.update(open=False, where=ask["where"] or "thread", closed=now)
@@ -734,9 +751,23 @@ def sync_asks(delegator: str, rows: Optional[List[Dict[str, Any]]] = None) -> Li
                     asks.pop(old["id"], None)
             _save(state)
         out = sorted((dict(a) for a in asks.values() if a["delegator"] == delegator), key=lambda a: a["created"])
+    for thread in filing:
+        _file_result(thread)
     if changed:
         _publish()
     return out[-60:]
+
+
+def _file_result(thread: Dict[str, Any]) -> None:
+    """A finished thread's result goes into its project's Library (the project's artifacts), one entry per thread:
+    like this Claude project's Library, what the threads made is kept where the owner can find it later."""
+    try:
+        import projects
+
+        kind = "plan" if thread.get("job") == "plan" else "document"
+        projects.file_result(thread["project_id"], thread["id"], thread["title"], thread["line"], kind)
+    except Exception:
+        pass
 
 
 def answer_ask(ask_id: str, *, text: str = "", approve: Optional[bool] = None, role: str = "local") -> Dict[str, Any]:
@@ -782,7 +813,7 @@ def brief(chat_id: str) -> str:
         f"- {t['title']} · {t['status_label']} · {t.get('job') or 'build'} · {t['tier_label']}/{t['effort']} · "
         f"{round(t['tokens']['share'] * 100)}% full · {t['line'][:90]}" for t in mine) or "- none yet"
     return (
-        f"{BRIEF_PREFIX} Commander{where}\n"
+        f"{BRIEF_PREFIX} Commander{where}\n{_note(row.get('project_id', '')).strip()}\n"
         "This chat is the delegator. Keep it clean: hand the work to threads instead of doing it here.\n"
         "- Each separate piece of work gets its own thread: start_thread with a short title (a few plain words) and a "
         "full brief, because threads do not see this chat. Leave model_kind and effort empty so Nyx picks them, unless "
