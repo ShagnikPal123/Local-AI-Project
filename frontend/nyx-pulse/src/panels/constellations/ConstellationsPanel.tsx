@@ -5,11 +5,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../api";
 import { CommanderView } from "../../components/commander/CommanderView";
+import { KnowledgeCard } from "../../components/commander/KnowledgeCard";
 import "./constellations.css";
 
 interface Group { id: string; name: string; about?: string; auto: boolean; tabs: string[] }
 interface Artifact { id: string; title: string; kind: string; note: string; project_id: string; ref: string; created: number }
-interface Project { id: string; name: string; goal: string; tabs: string[]; groups: Group[]; members: Record<string, string[]>; artifacts: Artifact[] }
+interface Project {
+  id: string; name: string; goal: string; tabs: string[]; groups: Group[]; members: Record<string, string[]>; artifacts: Artifact[];
+  instructions?: string; starred?: boolean;
+}
+interface TaskCount { done: number; total: number; needs_you: number }
 interface Avatar { id: string; name: string }
 interface Task {
   id: string; title: string; prompt: string; repeat: string; every_minutes: number; time: string; days: number[]; avatar: string;
@@ -40,7 +45,7 @@ export function ProjectsPanel() {
   const [error, setError] = useState("");
   const [view, setView] = useState<"chat" | "setup">("chat");
   const [mainChat, setMainChat] = useState<Record<string, string>>({});
-  const [tasks, setTasks] = useState<Record<string, { done: number; total: number }>>({});
+  const [tasks, setTasks] = useState<Record<string, TaskCount>>({});
   const project = projects.find((p) => p.id === sel) ?? projects[0];
 
   // A project's main chat (its delegator) is made the first time the project is opened. Once per project: a reload
@@ -66,7 +71,7 @@ export function ProjectsPanel() {
   useEffect(() => {
     const count = async () => {
       if (document.hidden) return;
-      const r = await api.get<{ board: { by_project: Record<string, { done: number; total: number }> } }>("/api/commander");
+      const r = await api.get<{ board: { by_project: Record<string, TaskCount> } }>("/api/commander");
       if (r.ok) setTasks(r.data.board.by_project);
     };
     void count();
@@ -97,9 +102,12 @@ export function ProjectsPanel() {
           </form>
           <ul className="cx-list">
             {projects.map((p) => (
-              <li key={p.id}><button className={`cx-pick ${project?.id === p.id ? "is-on" : ""}`} onClick={() => setSel(p.id)}>
-                <b>{p.name}</b><span className="cx-muted">{tasks[p.id]?.total ? `Tasks ${tasks[p.id].done}/${tasks[p.id].total} · ` : ""}{p.tabs.length} tabs · {Object.values(p.members).flat().length} helpers · {p.artifacts.length} artifacts</span>
-              </button></li>
+              <li key={p.id} className="cx-item"><button className={`cx-pick ${project?.id === p.id ? "is-on" : ""}`} onClick={() => setSel(p.id)}>
+                <b>{p.name}{tasks[p.id]?.needs_you ? <span className="cx-needs" title="A thread needs you"> ● Needs you</span> : null}</b>
+                <span className="cx-muted">{tasks[p.id]?.total ? `Tasks ${tasks[p.id].done}/${tasks[p.id].total} · ` : ""}{p.tabs.length} tabs · {Object.values(p.members).flat().length} helpers · {p.artifacts.length} in the Library</span>
+              </button>
+              <button className={`cx-star ${p.starred ? "is-on" : ""}`} aria-pressed={Boolean(p.starred)} title={p.starred ? "Unstar" : "Star: keep at the top"}
+                aria-label={`${p.starred ? "Unstar" : "Star"} ${p.name}`} onClick={() => void act(() => api.put(`/api/projects/${p.id}`, { starred: !p.starred }))}>{p.starred ? "★" : "☆"}</button></li>
             ))}
           </ul>
           {projects.length === 0 && <p className="cx-muted">No projects yet.</p>}
@@ -120,9 +128,24 @@ export function ProjectsPanel() {
                 onBlur={(e) => { if (e.target.value.trim() && e.target.value !== project.name) void act(() => api.put(`/api/projects/${project.id}`, { name: e.target.value })); }} />
               <textarea rows={2} defaultValue={project.goal} key={project.id + "g"} placeholder="What is this project for? Helpers on it read this." aria-label="Project goal"
                 onBlur={(e) => { if (e.target.value !== project.goal) void act(() => api.put(`/api/projects/${project.id}`, { goal: e.target.value })); }} />
+              <textarea rows={3} defaultValue={project.instructions ?? ""} key={project.id + "i"} aria-label="Project instructions"
+                placeholder="Instructions for this project: how to work, what to avoid. The main chat and every thread follow them."
+                onBlur={(e) => { if (e.target.value !== (project.instructions ?? "")) void act(() => api.put(`/api/projects/${project.id}`, { instructions: e.target.value })); }} />
               <div className="cx-row">
                 <button className="btn btn-secondary" onClick={() => { if (confirm(`Delete “${project.name}”? Its artifacts are kept.`)) void act(async () => { const r = await api.del(`/api/projects/${project.id}`); setSel(""); return r; }); }}>Delete project</button>
               </div>
+            </section>
+
+            <KnowledgeCard projectId={project.id} />
+
+            <section className="cx-card">
+              <h2>Library <small>what this project's threads made, and artifacts filed here</small></h2>
+              {project.artifacts.length === 0 && <p className="cx-muted">Empty for now. A thread's result lands here when it finishes.</p>}
+              <ul className="cx-library">
+                {project.artifacts.slice(0, 30).map((a) => (
+                  <li key={a.id}><b>{a.title}</b> <span className="cx-muted">{a.ref.startsWith("th-") ? "from a thread" : a.kind}</span>{a.note && <p>{a.note}</p>}</li>
+                ))}
+              </ul>
             </section>
 
             <section className="cx-card">
