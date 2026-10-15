@@ -32,6 +32,9 @@ AUTO_KEYS = ("risk",)
 INTEGERS = {"max_positions", "pace_seconds", "scan_limit", "max_bots", "slow_cycle_ms", "slow_cycles",
             "losing_hours", "stale_data_s"}
 HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
+#: Account currencies the practice account can be kept in (prices are converted, see ``currency``).
+CURRENCIES = ("USD", "EUR", "GBP", "JPY", "CHF", "AUD", "CAD", "NZD", "MXN", "INR", "CNY", "SGD", "HKD", "SEK",
+              "NOK", "ZAR")
 
 
 def load() -> Dict[str, Any]:
@@ -85,6 +88,8 @@ def save(changes: Dict[str, Any], unpin: Iterable[str] = ()) -> Dict[str, Any]:
                 current["theme"]["sync"] = value["sync"]
         elif key == "claude" and isinstance(value, dict):
             current["claude"]["enabled"] = bool(value.get("enabled"))
+        elif key == "base_currency" and str(value).upper() in CURRENCIES:
+            current["base_currency"] = str(value).upper()  # used from the next practice-account reset
         elif key == "broker" and value in ("sim", "alpaca"):
             current["broker"] = value
     for key in unpin or ():
@@ -99,4 +104,4 @@ def describe() -> Dict[str, Any]:
     limits = {k: list(v) for k, v in LIMITS.items()}
     limits.update({f"shutdown.{k}": list(v) for k, v in SHUTDOWN_LIMITS.items()})
     return {"settings": load(), "effective": effective(), "chosen": chosen(), "limits": limits,
-            "auto_keys": list(AUTO_KEYS)}
+            "auto_keys": list(AUTO_KEYS), "currencies": list(CURRENCIES)}

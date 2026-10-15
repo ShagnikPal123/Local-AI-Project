@@ -26,15 +26,16 @@ import time
 from collections import deque
 from typing import Any, Callable, Deque, Dict, List, Optional
 
-from . import ranking, risk, settings as settings_mod, store, watchdog
+from . import currency, ranking, risk, settings as settings_mod, store, watchdog
 from .core import clock as market_clock, forecast
 from .latency import Recorder, Stopwatch
 from .markets import MarketHub
-from .models import BrokerError, Order, Snapshot
+from .models import BrokerError, Instrument, Order, Snapshot
 from .paper import PaperAccount
 from .team import Team, advisor, manager, skeptic, strategist, traders
 
 GROUPS = {"crypto": ["crypto"], "stocks": ["stock", "etf"], "fx": ["fx"]}
+ALL_CLASSES = ["crypto", "stock", "etf", "fx"]
 TOP = 40
 PREDICT_TOP = 5
 PREDICTION_HOURS = 24
@@ -203,9 +204,19 @@ class Engine:
         have = {i.symbol for i in wanted}
         held = {p["symbol"] for p in self.broker.positions()} - have
         if held:  # always price what is held, even if its market was switched off
-            wanted += [i for i in self.hub.instruments(GROUPS["crypto"] + GROUPS["stocks"] + GROUPS["fx"])
-                       if i.symbol in held]
-        return self.hub.snapshots(wanted)
+            wanted += [i for i in self.hub.instruments(ALL_CLASSES) if i.symbol in held]
+        return self._fetch(wanted)
+
+    def _fetch(self, wanted: List[Instrument], with_book: bool = True) -> List[Snapshot]:
+        """Snapshots of ``wanted`` with every price already in the account's currency."""
+        base = self.broker.account()["currency"]
+        extra: List[Instrument] = []
+        if currency.needs_rates(wanted, base):  # fetch the currency pairs needed to convert, once
+            names = {i.symbol for i in wanted}
+            extra = [i for i in self.hub.instruments(["fx"]) if i.symbol in currency.RATE_PAIRS and i.symbol not in names]
+        snaps = self.hub.snapshots(wanted + extra, with_book=with_book)
+        worth = currency.rates(snaps, base)
+        return [currency.to_base(s, base, worth) for s in snaps[:len(wanted)]]
 
     def _execute(self, order: Order, snap: Optional[Snapshot], row: Optional[Dict[str, Any]],
                  tip: Optional[Dict[str, Any]], cfg: Dict[str, Any], now: float) -> Optional[Dict[str, Any]]:
@@ -320,9 +331,12 @@ class Engine:
         """Sell everything the bots hold, at the latest prices. Returns how many were sold."""
         with self._lock:
             sold = 0
-            for pos in self.broker.positions():
-                inst = next((i for i in self.hub.instruments([pos["asset_class"]]) if i.symbol == pos["symbol"]), None)
-                snap = self.hub.snapshot(inst, with_book=False) if inst else None
+            held = self.broker.positions()
+            names = {p["symbol"] for p in held}
+            snaps = {s.symbol: s for s in self._fetch([i for i in self.hub.instruments(ALL_CLASSES) if i.symbol in names],
+                                                      with_book=False)}
+            for pos in held:
+                snap = snaps.get(pos["symbol"])
                 if snap is None or snap.quote is None:
                     continue
                 try:
