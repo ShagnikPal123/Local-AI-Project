@@ -495,6 +495,8 @@ class CopyChatRequest(BaseModel):
     title: str = ""
     #: Branch only: how many user/assistant messages to keep (None keeps all).
     upto: Optional[int] = None
+    #: Branch only, "/rewind n": leave out the last n exchanges (each starts at one of your messages).
+    back: Optional[int] = None
 
 
 @router.post("/api/chats/{chat_id}/duplicate")
@@ -514,8 +516,20 @@ def branch_chat(chat_id: str, body: CopyChatRequest, _user=RequireChat) -> Dict[
     """A linked chat with the real messages up to ``upto``, to go another way from there."""
     import server
 
+    store = server._shared_chat_store()
+    upto = body.upto
+    if body.back:
+        spoken = [m.get("role") for m in store.messages(chat_id) if m.get("role") in ("user", "assistant")]
+        starts = [i for i, role in enumerate(spoken) if role == "user"]
+        if len(starts) < body.back:
+            raise HTTPException(status_code=400, detail="There are not that many exchanges to rewind.")
+        upto = starts[-body.back]
+    title = body.title.strip() or None
+    if body.back and not title:
+        parent = next((c for c in store.summaries() if c.get("id") == chat_id), {})
+        title = f"{parent.get('title') or 'Chat'} — rewound"[:80]
     try:
-        chat = server._shared_chat_store().branch(chat_id, body.upto, body.title.strip() or None)
+        chat = store.branch(chat_id, upto, title)
     except RuntimeError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
     return {"chat": {"id": chat["id"], "title": chat.get("title"), "kind": "branch", "kept": chat.get("branched_at", 0)}}
