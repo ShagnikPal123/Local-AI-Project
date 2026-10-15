@@ -768,6 +768,22 @@ select option, select optgroup { background-color: #15151c; color: #f5f5f7; }
   font-size: 12.5px; color: var(--color-neutral-400); background: transparent; cursor: pointer; }
 .code-bar:hover { color: var(--color-text); background: var(--color-surface); }
 .code-bar__env { color: var(--color-neutral-500); }
+.code-bar-row { display: inline-flex; align-items: center; gap: 2px; }
+.code-bar__link { color: var(--color-accent); }
+
+/* Review first in the chat (CodeSwitch.tsx CodeProposals): proposed changes with Apply / Skip, above the composer. */
+.code-proposals { display: flex; flex-direction: column; gap: 4px; margin: 0 0 8px; padding: 8px 10px; border-radius: 10px;
+  background: var(--color-surface-2); }
+.code-proposals__head { font-size: 12px; font-weight: 600; color: var(--color-neutral-400); }
+.code-proposals__item { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 8px; }
+.code-proposals__name { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; min-width: 0; padding: 2px 0; border: none;
+  font: inherit; font-size: 12.5px; text-align: left; color: var(--color-text); background: none; cursor: pointer; }
+.code-proposals__count { font-family: var(--font-mono); font-size: 11.5px; color: var(--color-neutral-500); }
+.code-proposals__why { flex-basis: 100%; font-size: 12px; color: var(--color-neutral-500); overflow-wrap: anywhere; }
+.code-proposals__actions { display: inline-flex; gap: 4px; }
+.code-proposals__actions .btn { padding: 3px 10px; font-size: 12px; }
+.code-proposals__diff { grid-column: 1 / -1; max-height: 260px; overflow: auto; margin: 0; padding: 8px; border-radius: 8px;
+  font-family: var(--font-mono); font-size: 11.5px; line-height: 1.45; white-space: pre; background: var(--color-surface); }
 
 /* Places at the top of the chat list and the person at its foot, like Claude's sidebar (owner, 2026-10-15). */
 .chat-rail__top .chat-rail__search { flex: 1; min-width: 0; }
