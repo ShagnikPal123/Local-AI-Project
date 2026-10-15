@@ -242,6 +242,14 @@ def is_delegator(chat_id: str) -> bool:
         return chat_id in _load()["delegators"]
 
 
+def delegator_project(chat_id: str) -> str:
+    """The project a main chat belongs to ("" for a plain Commander chat or any other chat)."""
+    if not chat_id:
+        return ""
+    with _LOCK:
+        return str((_load()["delegators"].get(chat_id) or {}).get("project_id") or "")
+
+
 def make_delegator(chat_id: str, project_id: str = "") -> Dict[str, Any]:
     """Switch a chat to Commander: from its next message it hands work to threads."""
     if not chat_id:

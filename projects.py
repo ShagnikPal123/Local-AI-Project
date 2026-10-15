@@ -170,6 +170,10 @@ def update(project_id: str, changes: Dict[str, Any]) -> Dict[str, Any]:
             project["instructions"] = str(changes["instructions"] or "").replace("\r\n", "\n").strip()[:4000]
         if "starred" in changes:
             project["starred"] = bool(changes["starred"])
+        # Like a Claude project's folder (owner, 2026-10-15): the folder on this PC the project's chats work in when
+        # Code is on. Only the path is kept; reading it still goes through the Code gate.
+        if "folder" in changes:
+            project["folder"] = str(changes["folder"] or "").strip().strip('"')[:500]
         if "tabs" in changes:
             project["tabs"] = _tab_ids(changes["tabs"])
             _regroup(project)

@@ -103,3 +103,10 @@ def test_run_now_records_the_avatars_answer(sc, monkeypatch):
     assert sc.run_now(task["id"])["reply"] == "Read 3 emails"
     saved = sc.list_tasks()[0]
     assert saved["last_ok"] is True and saved["last_reply"] == "Read 3 emails" and saved["last_run"] > 0
+
+
+def test_a_project_keeps_its_folder_like_a_claude_project(pr):
+    project = pr.create("Moon base")
+    saved = pr.update(project["id"], {"folder": ' "C:\\Users\\me\\Moon base" '})
+    assert saved["folder"] == "C:\\Users\\me\\Moon base"
+    assert pr.update(project["id"], {"folder": ""})["folder"] == ""
