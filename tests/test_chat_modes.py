@@ -86,6 +86,25 @@ def test_the_plan_gate_narrows_an_existing_gate_and_never_widens_it():
         service.tool_guard("file_excerpt", "files")  # allowed by Plan, refused by the gate underneath
 
 
+def test_the_plan_gate_lasts_one_turn_and_never_stacks():
+    def only_web(name: str, category: str) -> None:
+        if category != "web":
+            raise PermissionDenied("Free Will says no.")
+
+    service = _Service()
+    service.tool_guard = only_web
+    chat_modes.prepare(service, "plan")
+    chat_modes.prepare(service, "plan")
+    assert service.tool_guard._plan_inner is only_web  # one plan gate, not two stacked
+    chat_modes.prepare(service, "plan_go")
+    assert service.tool_guard is only_web  # the approved turn may work again; the owner's gate stays
+
+    bare = _Service()
+    chat_modes.prepare(bare, "plan")
+    chat_modes.prepare(bare, "normal")
+    assert bare.tool_guard is None
+
+
 def test_the_approved_turn_is_the_one_allowed_to_work():
     service = _Service()
     switches = chat_modes.prepare(service, "plan_go")
