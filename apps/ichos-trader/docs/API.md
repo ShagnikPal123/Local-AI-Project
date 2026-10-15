@@ -148,6 +148,12 @@ stops the trader, sets the money (the practice account's starting cash, or Alpac
 setup done, and starts again when `start` is true. 400 with a plain sentence when the amount is
 missing or Alpaca's keys are not added yet.
 
+Real money: the same call with `{"money": "real", "amount": 500, "daily_loss_pct": 5, "confirmation":
+"I understand this uses real money"}`. It needs the `alpaca_live` connector's keys; the amount is the
+budget. `GET /api/setup` carries `real_money` (`on`, `budget`, `daily_loss_pct`, `confirmation`, `keys`).
+
+`POST /api/real-money/off` (owner) → stops the bots, then switches back to practice.
+
 ## Practice account
 
 `POST /api/paper/reset` `{"cash": 10000}` → empties the practice account and starts again.

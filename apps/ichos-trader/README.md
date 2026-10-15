@@ -5,8 +5,12 @@ ETFs and currencies), ranks them on liquidity, spread, depth and order flow, and
 bots trades the best of them. It learns before its first trade, keeps learning from how its own
 trades went, runs 24/7, and switches itself off when it is slow or losing.
 
-It trades **practice money**: the built-in practice account, or a free Alpaca practice account that
-fills orders at real prices. Real money is not switched on in this version.
+It has two modes, switched at the top of the dashboard:
+
+- **Practice** (the default): training money in the built-in practice account, or a free Alpaca
+  practice account that fills orders at real prices.
+- **Real money**: your own Alpaca account, fully automatic, inside a budget you set, with a daily
+  loss limit. Going live is a deliberate step (below).
 
 This folder is a complete app on its own (it imports nothing from Nyx Ichos).
 
@@ -38,6 +42,25 @@ The first time it opens you land on **Setup**:
      **Paper** account, and paste its two API keys into Setup. The bots then trade that account,
      only ever with the amount you chose, and never touch anything else held in it.
 3. Press **Save and start**.
+
+## Switch to real money (when you are ready)
+
+Run it on practice first and watch how it does. When you want it to trade real money:
+
+1. Open an [Alpaca](https://alpaca.markets) live (brokerage) account and fund it. In Alpaca, create
+   the **live** API keys (they are different from the Paper keys).
+2. In the trader, press **Real money** in the top bar (or open **Setup → Mode → Real money**).
+3. Set the **budget**: the most real money the bots may use. They only ever use the budget plus
+   what they earn, never anything else in the account, and never borrow or short.
+4. Set the **daily loss limit** (default 5% of the budget): past it, the trader stops for the day.
+5. Paste the live keys and press **Connect live account** (this only reads the account; it never
+   places an order).
+6. Type **I understand this uses real money** and press **Use real money and start**.
+
+The top bar then shows **Real money** in red. To go back, press **Practice** in the top bar: the
+bots stop first, and anything they bought stays in your Alpaca account for you to keep or sell.
+The usual shut-downs (a drawdown, slow cycles, a day below where it started) apply to real money
+too. Trading carries risk: only use money you can afford to lose.
 
 Everything else is optional:
 
@@ -76,7 +99,7 @@ characters.
 | `ICHOS_TRADER_DATA` | Where it keeps its data (default: the `data` folder) |
 | `ICHOS_TRADER_OFFLINE=1` | Use the built-in simulated market (same as `--offline`) |
 | `ICHOS_PASSCODE`, `ICHOS_GOOGLE_*`, `ICHOS_GITHUB_*`, `ICHOS_OWNER_*`, `ICHOS_PUBLIC_URL` | Logins for a copy other people can open ([CONNECTORS](docs/CONNECTORS.md#logins-for-a-cloud-copy)) |
-| `ICHOS_ALPACA_KEY_ID`, `ICHOS_ALPACA_SECRET_KEY`, `ICHOS_ANTHROPIC_API_KEY` | Keys from the environment instead of the Connectors page |
+| `ICHOS_ALPACA_KEY_ID`, `ICHOS_ALPACA_SECRET_KEY`, `ICHOS_ALPACA_LIVE_KEY_ID`, `ICHOS_ALPACA_LIVE_SECRET_KEY`, `ICHOS_ANTHROPIC_API_KEY` | Keys from the environment instead of Setup or the Connectors page |
 
 `run_trader.py` options: `--port 8100`, `--host 127.0.0.1`, `--forever`, `--offline`, `--open`,
 `--autostart on|off`. Extra options after `Start Ichos Trader.bat` are passed through.
@@ -93,9 +116,12 @@ characters.
 
 ## Safety
 
-- **Practice money only.** Real money is refused in code (`risk.py`, `connectors/alpaca.py`).
+- **Practice by default.** Real money is refused in code (`risk.py`, `connectors/alpaca.py`,
+  `realmoney.py`) until the owner switches to it with live keys, a budget and the typed
+  confirmation. Practice keys can never move real money.
 - **It only uses what you give it.** No borrowing, no short selling, no single market past its
-  share, and with Alpaca never more than the amount chosen in Setup (plus what it earns).
+  share, never more than the budget (plus what it earns), and a daily loss limit on real money.
+  It only sees and sells what it bought itself, so your own holdings are safe from it.
 - **Deny by default.** Every API route needs a signed-in person, and changes need the owner. With
   no login set up it answers only to the PC it runs on. Others can sign in with Google or GitHub to
   see the setup, but never use its keys or its account.
@@ -107,7 +133,8 @@ characters.
 | "Python 3.11 or newer is needed" | Install Python with "Add python.exe to PATH" ticked, then double-click the starter again |
 | The page says "can't connect" | The small "Ichos Trader" window was closed: double-click the starter again |
 | A yellow **Simulated market** tag | It could not reach the live price feeds; check the internet connection (or you started it with `--offline`) |
-| A red banner about Alpaca | Its keys are missing or wrong: re-add the **Paper** keys in Setup or Connectors |
+| A red banner about Alpaca | Its keys are missing or wrong: re-add the **Paper** keys (practice) or the **live** keys (real money) in Setup |
+| "Shut down: real money lost … today" | The daily loss limit stopped it. Press Start the next day, or raise the limit in Setup |
 | Port 8100 is busy | Start it with another port: `Start Ichos Trader.bat --port 8101` |
 
 ## Developers
