@@ -39,6 +39,33 @@ TIERS = ("pico", "monolith", "crescendo", "zencode")
 EFFORTS = ("low", "mid", "normal", "high", "higher", "super", "aleph")
 SECTORS = ("Updates", "Fixes", "Questions", "Research")
 
+# Owner's ask (Drive doc 1, item 1.30): threads work like a team where each has one job, the way the modern AI tools
+# coordinate agents. The job goes in the thread's brief, so a research thread reports instead of changing things and a
+# test thread tries to break the work instead of rebuilding it.
+JOBS = ("research", "plan", "build", "test", "review")
+JOB_HINTS = {
+    "research": "find out and compare; report what you found and where it came from, and change nothing",
+    "plan": "work out the steps, their order and the risks; write the plan and do not build it",
+    "build": "make the change, run the checks you can, and say what changed",
+    "test": "try to break it: run the tests, reproduce the problem, and report what passed and what failed",
+    "review": "read the work critically: list the real problems with where they are, then what is fine",
+}
+_JOB_WORDS = {
+    "research": {"research", "compare", "comparison", "find", "investigate", "look", "explore", "survey", "option",
+                 "alternative", "which", "learn", "source", "read"},
+    "plan": {"plan", "design", "spec", "outline", "architecture", "roadmap", "approach", "strategy", "steps", "split"},
+    "test": {"test", "verify", "check", "reproduce", "qa", "regression", "coverage", "try", "break", "confirm"},
+    "review": {"review", "audit", "critique", "proofread", "inspect", "assess", "feedback", "pr", "diff"},
+}
+
+
+def job_for(text: str) -> str:
+    """The thread's job from the words alone: the job whose words appear most, and build when none do."""
+    found = set(words(text))
+    hits = {job: len(found & vocab) for job, vocab in _JOB_WORDS.items()}
+    best = max(hits, key=lambda job: hits[job])
+    return best if hits[best] else "build"
+
 
 def _family_names() -> Dict[str, str]:
     """The families' display names from the lineup, so a rename there shows here too."""
