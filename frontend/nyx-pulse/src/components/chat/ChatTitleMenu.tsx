@@ -6,6 +6,14 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import type { ChatMakeKind } from "./ChatActions";
+
+/** The compact chat (2026-10-15) folds ChatActions into this one menu, so the head shows one "⋯", not two. */
+const MAKE: { kind: ChatMakeKind; label: string; detail: string }[] = [
+  { kind: "duplicate", label: "Duplicate", detail: "Exact copy of every message" },
+  { kind: "branch", label: "Branch", detail: "Linked copy, go a different way" },
+  { kind: "fork", label: "Fork", detail: "Linked, starts from a summary" },
+];
 
 interface Props {
   chatId: string;
@@ -14,9 +22,11 @@ interface Props {
   onRename: (chatId: string, title: string) => void;
   onDelete: (chatId: string) => void;
   disabled?: boolean;
+  /** When given, Duplicate / Branch / Fork sit in the same menu (and the menu works even when Rename is disabled). */
+  onMake?: (kind: ChatMakeKind) => void;
 }
 
-export function ChatTitleMenu({ chatId, title, onRename, onDelete, disabled }: Props) {
+export function ChatTitleMenu({ chatId, title, onRename, onDelete, disabled, onMake }: Props) {
   const [open, setOpen] = useState(false);
   const [sure, setSure] = useState(false);
   const [renaming, setRenaming] = useState(false);
@@ -37,13 +47,19 @@ export function ChatTitleMenu({ chatId, title, onRename, onDelete, disabled }: P
   return (
     <div className="chat-actions-menu">
       <button ref={buttonRef} className="chat-switcher__edit" aria-haspopup="menu" aria-expanded={open}
-        aria-label={`Actions for ${title}`} title="Rename or delete this chat" disabled={disabled} onClick={() => setOpen((v) => !v)}>
+        aria-label={`Actions for ${title}`} title={onMake ? "Rename, delete, duplicate, branch or fork" : "Rename or delete this chat"} disabled={disabled && !onMake} onClick={() => setOpen((v) => !v)}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" /></svg>
       </button>
       {open && (
         <div ref={menuRef} role="menu" tabIndex={-1} className="chat-switcher__menu chat-actions-menu__list"
           onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); setOpen(false); buttonRef.current?.focus(); } }}>
-          {renaming ? (
+          {onMake && MAKE.map((item) => (
+            <div key={item.kind} role="menuitem" className="chat-switcher__row" onClick={() => { setOpen(false); onMake(item.kind); }}>
+              <span className="chat-switcher__name">{item.label}</span>
+              <span className="chat-switcher__meta">{item.detail}</span>
+            </div>
+          ))}
+          {!disabled && <>{renaming ? (
             <form className="chat-switcher__row" onSubmit={(e) => {
               e.preventDefault();
               const next = draft.trim();
@@ -66,7 +82,7 @@ export function ChatTitleMenu({ chatId, title, onRename, onDelete, disabled }: P
             <div role="menuitem" className="chat-switcher__row is-risk" onClick={() => setSure(true)}>
               <span className="chat-switcher__name">Delete</span>
             </div>
-          )}
+          )}</>}
         </div>
       )}
     </div>

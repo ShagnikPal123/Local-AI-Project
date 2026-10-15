@@ -313,3 +313,31 @@ def test_a_note_that_arrives_while_the_answer_is_written_gets_one_more_pass(monk
     assert reply == "A haiku about rain, and one about snow."
     assert any("and one about snow" in str(m.get("content")) for m in service.conversation_history)
     assert [e["type"] for e in events].count("answer.reset") >= 1
+
+
+def test_a_lineup_pick_becomes_the_turns_plan(monkeypatch, tmp_path):
+    """Doc step 2: the new model names do something. "carbon" answers through Big Kahuna with Monolith's plan."""
+    import model_lineup
+
+    monkeypatch.setattr(model_lineup, "data_path", lambda name: tmp_path / name)
+    runner = TurnRunner(_Service(_ScriptedRouter([])), "hello", sink=lambda e: None, provider="carbon")
+    assert runner.lineup_plan is not None and runner.lineup_plan.family_id == "monolith"
+    assert runner.prefer_provider == "identity0"
+
+
+def test_a_provider_picked_by_hand_keeps_answering_when_effort_is_set(monkeypatch, tmp_path):
+    import model_lineup
+
+    monkeypatch.setattr(model_lineup, "data_path", lambda name: tmp_path / name)
+    model_lineup.save_effort("high")
+    runner = TurnRunner(_Service(_ScriptedRouter([])), "hello", sink=lambda e: None, provider="gemini")
+    assert runner.lineup_plan is not None and runner.lineup_plan.effort == "high"
+    assert runner.prefer_provider == "gemini"
+
+
+def test_no_pick_and_auto_effort_leave_the_turn_as_it_was(monkeypatch, tmp_path):
+    import model_lineup
+
+    monkeypatch.setattr(model_lineup, "data_path", lambda name: tmp_path / name)
+    runner = TurnRunner(_Service(_ScriptedRouter([])), "hello", sink=lambda e: None)
+    assert runner.lineup_plan is None and runner.prefer_provider is None

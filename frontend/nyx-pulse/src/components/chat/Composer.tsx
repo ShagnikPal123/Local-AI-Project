@@ -120,6 +120,8 @@ export function Composer({
   slash,
   onBusySend,
   busyAdvice,
+  codeOn,
+  onToggleCode,
 }: ComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -327,6 +329,8 @@ export function Composer({
         <FilesMenu
           disabled={busy || disabled}
           onAttach={() => fileRef.current?.click()}
+          codeOn={codeOn}
+          onToggleCode={onToggleCode}
         />
         <AbilitiesMenu
           disabled={busy || disabled}
@@ -491,7 +495,7 @@ function MenuItem({ glyph, label, hint, onPick }: { glyph: string; label: string
   );
 }
 
-function FilesMenu({ disabled, onAttach }: { disabled?: boolean; onAttach: () => void }) {
+function FilesMenu({ disabled, onAttach, codeOn, onToggleCode }: { disabled?: boolean; onAttach: () => void; codeOn?: boolean; onToggleCode?: () => void }) {
   const { open, setOpen, ref } = useMenu();
   const win = (kind: string) => offerWindow(kind);
   const pick = (run: () => void) => () => { setOpen(false); run(); };
@@ -506,6 +510,7 @@ function FilesMenu({ disabled, onAttach }: { disabled?: boolean; onAttach: () =>
           <MenuItem glyph="▤" label="A file from this PC" hint="Open any file by its path" onPick={pick(() => win("file"))} />
           <MenuItem glyph="▣" label="Share your screen" hint="Ichos looks and helps step by step" onPick={pick(() => win("screen"))} />
           <MenuItem glyph="⌘" label="Screenshot → Code" hint="Turn a UI image into a page" onPick={pick(() => pickAbility("s2c"))} />
+          {onToggleCode && <MenuItem glyph="‹›" label={codeOn ? "Switch back to Chat" : "Code in a folder"} hint={codeOn ? "Stop working in a folder" : "Work in a folder, like the Code tab"} onPick={pick(onToggleCode)} />}
         </div>
       )}
     </div>

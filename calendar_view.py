@@ -110,6 +110,10 @@ def occurrences(tasks: List[Dict[str, Any]], start: date, days: int = 7) -> List
     out: List[Dict[str, Any]] = []
 
     def add(task: Dict[str, Any], when: datetime, all_day: bool = False) -> None:
+        # A repeating Orbit has no runs before the day it was made (owner, 2026-10-15, "calendar doesn't work": a new
+        # daily task filled the whole past week as if it had been running all along).
+        if task.get("repeat") != "once" and task.get("created") and when.date() < datetime.fromtimestamp(task["created"]).date():
+            return
         out.append({"id": task["id"], "title": task["title"], "avatar": task.get("avatar", ""), "repeat": task["repeat"],
                     "at": when.timestamp(), "time": "all day" if all_day else when.strftime("%H:%M"),
                     "day": (when.date() - start).days, "all_day": all_day, "enabled": bool(task.get("enabled", True)),

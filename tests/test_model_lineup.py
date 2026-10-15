@@ -225,3 +225,18 @@ def test_whatsapp_gets_its_own_pick_when_the_turn_has_none(monkeypatch):
     lineup.save_surface("whatsapp", "boron", "mid")
     plan = lineup.plan_for_turn(None, "hi", surface="whatsapp")
     assert plan.model_id == "boron" and plan.effort == "mid"
+
+
+# --- the picker's routes ---------------------------------------------------------------------------------
+
+
+def test_the_lineup_routes_save_and_refuse_unknown_names():
+    from fastapi import HTTPException
+
+    import routes_models
+
+    assert routes_models.model_lineup_catalog()["pick"] == ""
+    saved = routes_models.model_lineup_save(routes_models.LineupPick(pick="xenon", effort="aleph"))
+    assert saved["pick"] == "xenon" and saved["effort"] == "aleph" and saved["pick_label"] == "Monolith · Xenon"
+    with pytest.raises(HTTPException):
+        routes_models.model_lineup_save(routes_models.LineupPick(pick="gpt-99"))

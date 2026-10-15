@@ -91,10 +91,10 @@ export function ChatCodeSwitch({ on, onChange }: { on: boolean; onChange: (on: b
   return (
     <div className="code-switch" role="group" aria-label="Chat or Code">
       <button type="button" className="code-switch__option" aria-pressed={!on} title="Chat" onClick={() => onChange(false)}>
-        <i className="ph ph-chat-circle" aria-hidden="true" /><span className="sr-only">Chat</span>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.6A8 8 0 1 1 21 12Z" /></svg><span className="sr-only">Chat</span>
       </button>
       <button type="button" className="code-switch__option" aria-pressed={on} title="Code: work in a folder" onClick={() => onChange(true)}>
-        <i className="ph ph-code" aria-hidden="true" /><span className="sr-only">Code</span>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m8 7-5 5 5 5M16 7l5 5-5 5M14 4l-4 16" /></svg><span className="sr-only">Code</span>
       </button>
     </div>
   );
@@ -153,12 +153,12 @@ export function CodeSessionCard({ state, onChange, onClose }: {
       <div className="code-card__row">
         <button type="button" className="code-card__pick" aria-expanded={folderOpen} onClick={() => setFolderOpen((v) => !v)}
           title={state.folder || "Choose a folder"}>
-          <i className="ph ph-laptop" aria-hidden="true" />
+          <span aria-hidden="true">▭</span>
           <span className="code-card__label">{state.folder ? folderName(state.folder) : "Choose a folder"}</span>
-          {state.folder && <i className="ph ph-check code-card__check" aria-label="chosen" />}
+          {state.folder && <span className="code-card__check" aria-label="chosen">✓</span>}
         </button>
         {state.folder && <button type="button" className="code-card__close" onClick={onClose} aria-label="Done" title="Done">
-          <i className="ph ph-x" aria-hidden="true" />
+          <span aria-hidden="true">✕</span>
         </button>}
       </div>
       {folderOpen && (
@@ -171,7 +171,7 @@ export function CodeSessionCard({ state, onChange, onClose }: {
             </button>
           ))}
           <button type="button" className="code-card__item code-card__item--action" disabled={busy} onClick={() => void browse()}>
-            <i className="ph ph-folder-open" aria-hidden="true" /> {busy ? "Waiting for the folder picker…" : "Open a folder on this PC…"}
+            <span aria-hidden="true">▤</span> {busy ? "Waiting for the folder picker…" : "Open a folder on this PC…"}
           </button>
           <form className="code-card__typed" onSubmit={(e) => { e.preventDefault(); void openTyped(); }}>
             <input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="or paste a folder path" aria-label="Folder path" />
@@ -182,7 +182,7 @@ export function CodeSessionCard({ state, onChange, onClose }: {
       <div className="code-card__row code-card__row--env">
         <button type="button" className="code-card__pick code-card__pick--env" aria-expanded={envOpen} onClick={() => setEnvOpen((v) => !v)}>
           <span className="code-card__label">{state.folder || state.environment !== "local" ? env.name : "Choose environment"}</span>
-          <i className="ph ph-caret-down" aria-hidden="true" />
+          <span aria-hidden="true">▾</span>
         </button>
       </div>
       {envOpen && (
@@ -205,7 +205,7 @@ export function CodeBar({ state, onOpen }: { state: CodeState; onOpen: () => voi
   if (!state.on || !state.folder) return null;
   return (
     <button type="button" className="code-bar" onClick={onOpen} title={`${state.folder} · ${ENVIRONMENTS[state.environment].means}`}>
-      <i className="ph ph-laptop" aria-hidden="true" />
+      <span aria-hidden="true">▭</span>
       <span>{folderName(state.folder)}</span>
       <span className="code-bar__env">{ENVIRONMENTS[state.environment].name}</span>
     </button>

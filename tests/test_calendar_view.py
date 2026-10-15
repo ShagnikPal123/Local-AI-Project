@@ -105,3 +105,11 @@ def test_week_bundles_days_items_look_and_google_state():
     assert {i["source"] for i in data["items"]} == {"orbit", "google"}
     cv.set_look({"show_google": False})
     assert cv.week(date(2026, 10, 14), tasks=[task()])["google"]["connected"] is False
+
+
+def test_a_repeating_task_has_no_runs_before_the_day_it_was_made():
+    made = datetime(2026, 10, 15, 10, 0).timestamp()
+    rows = cv.occurrences([task(created=made)], MONDAY)
+    assert [r["day"] for r in rows] == [3, 4, 5, 6]
+    once = datetime(2026, 10, 13, 9, 0).timestamp()
+    assert [r["day"] for r in cv.occurrences([task(id="o", repeat="once", at=once, created=made)], MONDAY)] == [1]

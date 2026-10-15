@@ -170,7 +170,7 @@ def status() -> Dict[str, Any]:
 
 #: Scripts a person runs from a console on purpose (setup, release). A window
 #: there is the point, not an interruption.
-DEV_SCRIPTS = {"build_release.py", "release_beta.py", "setup_nyx.py", "quiet_windows.py"}
+DEV_SCRIPTS = {"build_release.py", "release_beta.py", "setup_nyx.py", "quiet_windows.py", "changelog_gen.py"}
 
 #: Commands that only ever run on macOS or Linux, where none of this applies.
 _POSIX_ONLY = ("pbpaste", "pbcopy", "xclip", "xdg-open", "pmset", "osascript", '"ps"', "[\"ps\"", "'ps'")
@@ -188,7 +188,9 @@ def check_call_sites(root: Optional[str] = None) -> List[Dict[str, str]]:
 
     base = Path(root) if root else Path(__file__).resolve().parent
     skip_dirs = {".venv", ".venv.broken", "node_modules", "frontend", "temp_inspect", "_preview", "build",
-                 "dist", "__pycache__", "openai_mcp", "openai_mcp - Copy", "_archive", "code_backups", "tests"}
+                 "dist", "__pycache__", "openai_mcp", "openai_mcp - Copy", "_archive", "code_backups", "tests",
+                 # Separate programs with their own console on purpose (Ichos Trader runs from its own .bat).
+                 "apps", "local_pytest_tmp"}
     call = re.compile(r"subprocess\.(Popen|run|call|check_output|check_call)\(|os\.system\(|os\.popen\(")
     findings: List[Dict[str, str]] = []
     for path in sorted(base.rglob("*.py")):

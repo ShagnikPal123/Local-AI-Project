@@ -303,6 +303,12 @@ class TurnRunner:
         self.prefer_provider: Optional[str] = (provider or "").strip().lower() or None
         if self.prefer_provider == "auto":
             self.prefer_provider = None
+        #: A lineup pick ("carbon", "monolith") or a moved effort slider becomes a plan: who answers first and how
+        #: many tool steps. A provider picked by hand keeps answering; the plan only adds effort.
+        self.lineup_plan = self._lineup_plan(provider)
+        if self.lineup_plan is not None:
+            if self.prefer_provider is None or self._is_lineup(self.prefer_provider):
+                self.prefer_provider = self.lineup_plan.prefer
         #: Why providers could not answer this turn, by name (for the "answered instead" notice).
         self._provider_problems: Dict[str, str] = {}
         self._fallback_announced = False
@@ -350,6 +356,22 @@ class TurnRunner:
 
     # --- the turn ---------------------------------------------------------------
 
+    @staticmethod
+    def _is_lineup(name: Optional[str]) -> bool:
+        try:
+            import model_lineup
+            return bool(name) and (model_lineup.is_lineup_id(name) or name == model_lineup.AUTO)
+        except Exception:  # noqa: BLE001 - the lineup is optional; a broken file must not stop a turn
+            return False
+
+    def _lineup_plan(self, provider: Optional[str]) -> Any:
+        """The lineup's plan for this turn, or None (no pick, effort on Auto, or the lineup failed to load)."""
+        try:
+            import model_lineup
+            return model_lineup.plan_for_turn(provider, self.message)
+        except Exception:  # noqa: BLE001
+            return None
+
     def run(self) -> Dict[str, Any]:
         with use_context(self.context):
             try:
@@ -390,6 +412,8 @@ class TurnRunner:
             mode = "full"
         self.emit("turn.start", chat_id=service.chat_id, attachments=records)
         self.emit("status", phase="route", text="Reading your message")
+        if self.lineup_plan is not None:
+            self.emit("status", phase="route", text=self.lineup_plan.describe())
 
         stored = user_text
         if records:
@@ -619,7 +643,8 @@ class TurnRunner:
         service.conversation_history.append(turn_message)
         history_start = len(service.conversation_history) - 1
 
-        reply = self._tool_loop(max_steps=self.mode_switches.get("max_steps") or getattr(SETTINGS, "max_tool_steps", 24))
+        plan_steps = self.lineup_plan.max_steps if self.lineup_plan is not None else None
+        reply = self._tool_loop(max_steps=self.mode_switches.get("max_steps") or plan_steps or getattr(SETTINGS, "max_tool_steps", 24))
         self._compact_turn(history_start)
         if model_text != user_text and history_start < len(service.conversation_history):
             # Later turns carry the owner's own words, not this turn's brief.

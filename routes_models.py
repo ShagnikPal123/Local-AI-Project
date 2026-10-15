@@ -458,3 +458,31 @@ def model_catalog(provider: str, job: str = "", refresh: bool = False, _user=Req
     return {"provider": name, "models": models, "default": model_hub.default_model(name, job or "text"),
             "signup_url": model_hub.SIGNUP_URLS.get(name, "")}
 
+
+
+class LineupPick(BaseModel):
+    pick: Optional[str] = None
+    effort: Optional[str] = None
+
+
+@router.get("/api/models/lineup")
+def model_lineup_catalog(_user=RequireChat) -> Dict[str, Any]:
+    """Nyx's own names (Pico, Monolith, Crescendo, Zencode) and the effort stops, for the picker under the chat box."""
+    import model_lineup
+
+    return model_lineup.catalog()
+
+
+@router.put("/api/models/lineup")
+def model_lineup_save(body: LineupPick, _user=RequireChat) -> Dict[str, Any]:
+    """Remember the chat's lineup pick and effort; a blank pick means Auto (the router decides)."""
+    import model_lineup
+
+    try:
+        if body.pick is not None:
+            model_lineup.save_pick(body.pick)
+        if body.effort is not None:
+            model_lineup.save_effort(body.effort)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return model_lineup.catalog()
