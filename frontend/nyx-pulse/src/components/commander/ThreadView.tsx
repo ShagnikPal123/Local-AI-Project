@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../api";
 import { Markdown } from "../chat/Markdown";
 import { QuestionDoneContext, QuestionSendContext } from "../chat/QuestionCard";
-import { tokensText, type CommanderState, type Thread } from "./ThreadsPanel";
+import { cap, tokensText, type CommanderState, type Thread } from "./ThreadsPanel";
 
 interface Message { role: "user" | "assistant"; content: string }
 
@@ -77,7 +77,12 @@ export function ThreadView({ thread, state, onBack, onChange, onFollow }: {
         </label>
         <label>Effort
           <select value={thread.effort} onChange={(e) => void change({ effort: e.target.value })}>
-            {state?.efforts.map((e) => <option key={e} value={e}>{e[0].toUpperCase() + e.slice(1)}</option>)}
+            {state?.efforts.map((e) => <option key={e} value={e}>{cap(e)}</option>)}
+          </select>
+        </label>
+        <label>Job
+          <select value={thread.job || "build"} onChange={(e) => void change({ job: e.target.value })}>
+            {state?.jobs.map((j) => <option key={j} value={j}>{cap(j)}</option>)}
           </select>
         </label>
         <label>Sector

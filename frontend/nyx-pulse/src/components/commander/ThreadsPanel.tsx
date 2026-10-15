@@ -11,14 +11,14 @@ import "./commander.css";
 
 export interface ThreadTokens { used: number; window: number; share: number }
 export interface Thread {
-  id: string; chat_id: string; delegator: string; project_id: string; title: string; task: string; sector: string;
+  id: string; chat_id: string; delegator: string; project_id: string; title: string; task: string; sector: string; job: string;
   tier: string; tier_label: string; effort: string; provider: string; model: string; model_label: string; why: string;
   source: string; pinned: boolean; resolved: boolean; created: number; updated: number; refreshed_from: string;
   refreshed_to: string; status: "needs_you" | "working" | "idle" | "resolved"; status_label: string; kind: string;
   line: string; approval_id: string; tokens: ThreadTokens; fresh_soon: boolean; messages: number;
 }
 interface Group { id: string; label: string; threads: Thread[] }
-export interface TaskCount { done: number; total: number }
+export interface TaskCount { done: number; total: number; needs_you: number }
 /** Something a thread sent up to its main chat (commander.sync_asks): a question, an approval, a "Waiting on you"
  *  line, or a finished result. ``after`` is how many main chat messages came before it, so it is drawn in place. */
 export interface Ask {
@@ -32,7 +32,7 @@ export interface Board {
 }
 export interface CommanderState {
   board: Board; is_delegator: boolean; settings: { divisions_in_chat: boolean; auto_pick: boolean };
-  kinds: { id: string; label: string }[]; efforts: string[]; sectors: string[];
+  kinds: { id: string; label: string }[]; efforts: string[]; sectors: string[]; jobs: string[];
 }
 
 /** How often the panel re-reads the board. Local and cheap; a turn's status line changes every few seconds. */
@@ -53,6 +53,8 @@ export function useCommander(delegator: string, projectId = "") {
   }, [load]);
   return { state, error, reload: load };
 }
+
+export const cap = (word: string) => word.charAt(0).toUpperCase() + word.slice(1);
 
 export function tokensText(t: ThreadTokens): string {
   const k = (n: number) => (n >= 1000 ? `${Math.round(n / 1000)}k` : String(n));
@@ -77,7 +79,7 @@ function Row({ thread, onOpen, onChange }: { thread: Thread; onOpen: (t: Thread)
           </span>
         </span>
         <span className="th-meta" title={`${thread.model_label || "Router decides"} · ${thread.why}`}>
-          {thread.tier_label} · {thread.effort}
+          {cap(thread.job || "build")} · {thread.tier_label} · {thread.effort}
           <span className={`th-fill ${thread.fresh_soon ? "is-full" : ""}`} title={`${tokensText(thread.tokens)} (${pct}% full)`}>
             <i style={{ width: `${Math.min(100, Math.max(4, pct))}%` }} />
           </span>
