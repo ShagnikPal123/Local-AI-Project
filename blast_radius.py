@@ -120,8 +120,10 @@ def probe(risk: Risk, cwd: str = "") -> str:
     base = Path(cwd or ".").expanduser()
     try:
         if risk.probe == "git-dirty":
-            done = subprocess.run(["git", "status", "--porcelain"], cwd=str(base), capture_output=True,
-                                  text=True, timeout=10)
+            import quiet_windows
+
+            done = subprocess.run(["git", "status", "--porcelain"], **quiet_windows.popen_kwargs(
+                cwd=str(base), capture_output=True, text=True, timeout=10))  # no console window flashing up
             if done.returncode != 0:
                 return ""
             return "Would lose: " + summarize_dirty(done.stdout)
