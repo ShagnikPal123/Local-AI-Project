@@ -96,18 +96,19 @@ sub-second speed (arbitrage, market making) are not attempted, and the dashboard
 
 ```
 apps/ichos-trader/
-  run_trader.py            start it (add --forever to restart on exit)
+  Start Ichos Trader.bat   one click on Windows: installs on the first run, then starts and opens it
+  run_trader.py            start it (--forever restarts on exit, --open, --autostart on|off)
   ichos_trader/
     config.py store.py models.py
     core/                  maths copied from the main app (indicators, strategies, forecast, clock)
     markets/               feeds: simulated, stocks, crypto, currencies; the hub; the universe
     ranking.py latency.py
     team/                  scout, strategist, advisor, traders, skeptic, manager, researcher
-    paper.py risk.py settings.py watchdog.py engine.py
+    paper.py risk.py settings.py currency.py watchdog.py engine.py autostart.py
     access/                logins and saved keys
-    connectors/            brokers, local and free cloud models, Claude (only when asked)
+    connectors/            Alpaca practice (with a budget), local models, Claude (only when asked)
     server.py              the web API
-  web/                     the dashboard (React + TypeScript + Vite)
+  web/                     the dashboard (React + TypeScript + Vite); web/dist is committed
   tests/                   pytest, all offline
   docs/                    this file, API.md, CONNECTORS.md, STATUS_CHECK.md
 ```
