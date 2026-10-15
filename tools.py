@@ -226,6 +226,12 @@ class ToolRegistry:
                 import blast_radius
 
                 blast_radius.check(ctx, name, tool.category, kwargs)  # rm -rf, git reset --hard … ask, naming the damage
+                import user_hooks
+
+                stopped = user_hooks.before_tool(name, tool.category, _safe_args(kwargs),
+                                                 str(getattr(ctx, "chat_id", "") or ""))
+                if stopped:  # the owner's own before_tool hook exited with code 2
+                    raise PermissionDenied(stopped)
             except PermissionDenied as denied:
                 ok = False
                 result = str(denied)
@@ -257,6 +263,13 @@ class ToolRegistry:
             import work_files
 
             work_files.note(getattr(ctx, "chat_id", "default"), name, tool.category, kwargs)
+        try:
+            import user_hooks
+
+            user_hooks.after_tool(name, tool.category, _safe_args(kwargs), ok, result,
+                                  str(getattr(ctx, "chat_id", "") or "") if ctx is not None else "")
+        except Exception:  # noqa: BLE001 - a hook never costs the result
+            pass
 
         if ctx is not None:
             ctx.emit(
