@@ -60,6 +60,20 @@ class MoveBody(BaseModel):
     project_id: str = ""
 
 
+class PathBody(BaseModel):
+    path: str
+
+
+def _work(action):
+    """Run a project_workspace call, its refusals as a plain 400."""
+    import project_workspace
+
+    try:
+        return action()
+    except project_workspace.WorkspaceError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
 # --- projects ----------------------------------------------------------------------------------------------------
 
 @router.get("/api/projects")
@@ -130,6 +144,29 @@ def projects_member(project_id: str, body: MemberBody, _o=Depends(_owner)) -> Di
     return {"project": _call(lambda: projects.set_member(project_id, body.kind, body.member, body.on))}
 
 
+# A project's folder and drives, read-only, and adding a file from them to its knowledge (project_workspace.py).
+@router.get("/api/projects/{project_id}/files")
+def projects_files(project_id: str, path: str = "", match: str = "", _o=Depends(_owner)) -> Dict[str, Any]:
+    import project_workspace
+
+    return _work(lambda: project_workspace.browse(project_id, path, match))
+
+
+@router.post("/api/projects/{project_id}/files")
+def projects_add_file(project_id: str, body: PathBody, _o=Depends(_owner)) -> Dict[str, Any]:
+    import project_workspace
+
+    return {"doc": _work(lambda: project_workspace.add_file(project_id, body.path))}
+
+
+@router.get("/api/projects/{project_id}/balance")
+def projects_balance(project_id: str, _o=Depends(_owner)) -> Dict[str, Any]:
+    import commander
+    import project_workspace
+
+    return project_workspace.balance(commander.threads(project_id=project_id))
+
+
 # --- artifacts ---------------------------------------------------------------------------------------------------
 
 @router.get("/api/artifacts")
@@ -151,6 +188,14 @@ def artifacts_move(artifact_id: str, body: MoveBody, _o=Depends(_owner)) -> Dict
     import projects
 
     return {"artifact": _call(lambda: projects.move_artifact(artifact_id, body.project_id))}
+
+
+@router.post("/api/artifacts/{artifact_id}/chat")
+def artifacts_chat(artifact_id: str, _o=Depends(_owner)) -> Dict[str, Any]:
+    """The chat a Library item opens in, so Constellations opens it in the main chat."""
+    import project_workspace
+
+    return {"chat_id": _work(lambda: project_workspace.artifact_chat(artifact_id))}
 
 
 @router.delete("/api/artifacts/{artifact_id}")

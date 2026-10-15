@@ -2,9 +2,8 @@
  *  plain subtitle so they stay findable: Constellations (Projects), Quasars (Artifacts), Orbits (Scheduled), Fractal (Design).
  *  Data and rules live in projects.py / scheduled.py; nothing here runs code. */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api } from "../../api";
-import { CommanderView } from "../../components/commander/CommanderView";
 import { KnowledgeCard } from "../../components/commander/KnowledgeCard";
 import "./constellations.css";
 
@@ -14,7 +13,6 @@ interface Project {
   id: string; name: string; goal: string; tabs: string[]; groups: Group[]; members: Record<string, string[]>; artifacts: Artifact[];
   instructions?: string; starred?: boolean;
 }
-interface TaskCount { done: number; total: number; needs_you: number }
 interface Avatar { id: string; name: string }
 interface Task {
   id: string; title: string; prompt: string; repeat: string; every_minutes: number; time: string; days: number[]; avatar: string;
@@ -34,161 +32,96 @@ function Head({ name, plain, about }: { name: string; plain: string; about: stri
   return <header className="cx-head"><h1>{name}<small>{plain}</small></h1><p>{about}</p></header>;
 }
 
-// --- Constellations: projects -------------------------------------------------------------------------------------
+// --- A project's setup (opened from its home in the chat) -------------------------------------------------------
 
-export function ProjectsPanel() {
-  const [projects, setProjects] = useState<Project[]>([]);
+/** Name, goal, instructions, knowledge, Library, tabs and helpers of one project. Projects open in the chat now
+ *  (owner, 2026-10-15: no separate Projects tab), so this shows inside the project's home there. */
+export function ProjectSetup({ projectId, onChanged, onDeleted }: { projectId: string; onChanged?: () => void; onDeleted?: () => void }) {
+  const [project, setProject] = useState<Project | null>(null);
   const [avatars, setAvatars] = useState<Avatar[]>([]);
-  const [sel, setSel] = useState("");
-  const [name, setName] = useState("");
   const [member, setMember] = useState("");
   const [error, setError] = useState("");
-  const [view, setView] = useState<"chat" | "setup">("chat");
-  const [mainChat, setMainChat] = useState<Record<string, string>>({});
-  const [tasks, setTasks] = useState<Record<string, TaskCount>>({});
-  const project = projects.find((p) => p.id === sel) ?? projects[0];
-
-  // A project's main chat (its delegator) is made the first time the project is opened. Once per project: a reload
-  // while the first request is still out must not make a second chat.
-  const opening = useRef(new Set<string>());
-  useEffect(() => {
-    if (!project || mainChat[project.id] || opening.current.has(project.id)) return;
-    opening.current.add(project.id);
-    void api.post<{ chat_id: string }>(`/api/commander/projects/${project.id}/chat`).then((r) => {
-      if (r.ok) setMainChat((m) => ({ ...m, [project.id]: r.data.chat_id })); else setError(r.error);
-    });
-  }, [project, mainChat]);
 
   const load = useCallback(async () => {
-    const r = await api.get<{ projects: Project[] }>("/api/projects");
-    if (r.ok) setProjects(r.data.projects); else setError(r.error);
+    const r = await api.get<{ project: Project }>(`/api/projects/${projectId}`);
+    if (r.ok) setProject(r.data.project); else setError(r.error);
     const a = await api.get<{ avatars: Avatar[] }>("/api/avatars");
     if (a.ok) setAvatars(a.data.avatars);
-  }, []);
+  }, [projectId]);
   useEffect(() => { void load(); }, [load]);
-
-  // "Tasks 3/7" on each project in the list (the owner's ask, 2026-10-14): its threads done out of all.
-  useEffect(() => {
-    const count = async () => {
-      if (document.hidden) return;
-      const r = await api.get<{ board: { by_project: Record<string, TaskCount> } }>("/api/commander");
-      if (r.ok) setTasks(r.data.board.by_project);
-    };
-    void count();
-    const timer = window.setInterval(() => void count(), 15000);
-    return () => window.clearInterval(timer);
-  }, []);
 
   const act = async (run: () => Promise<{ ok: boolean; error?: string }>) => {
     setError("");
     const r = await run();
-    if (!r.ok) setError(r.error ?? "That did not work."); else void load();
+    if (!r.ok) setError(r.error ?? "That did not work."); else { void load(); onChanged?.(); }
   };
-  const create = () => act(async () => {
-    const r = await api.post<{ project: Project }>("/api/projects", { name });
-    if (r.ok) { setName(""); setSel(r.data.project.id); }
-    return r;
-  });
+  if (!project) return error ? <p className="cx-error" role="alert">{error}</p> : null;
 
   return (
-    <div className="cx">
-      <Head name="Constellations" plain="Projects" about="A big project that groups what belongs together. Tabs are grouped and named for you — rename a group and it stays yours. Add agents, sub-agents and avatars so they work on it." />
+    <div className="cx cx-setup">
       {error && <p className="cx-error" role="alert">{error}</p>}
-      <div className="cx-body">
-        <div className="cx-card">
-          <form className="cx-row" onSubmit={(e) => { e.preventDefault(); if (name.trim()) void create(); }}>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="New project name" aria-label="New project name" style={{ flex: 1, minWidth: 0 }} />
-            <button className="btn btn-primary" disabled={!name.trim()}>Add</button>
-          </form>
-          <ul className="cx-list">
-            {projects.map((p) => (
-              <li key={p.id} className="cx-item"><button className={`cx-pick ${project?.id === p.id ? "is-on" : ""}`} onClick={() => setSel(p.id)}>
-                <b>{p.name}{tasks[p.id]?.needs_you ? <span className="cx-needs" title="A thread needs you"> ● Needs you</span> : null}</b>
-                <span className="cx-muted">{tasks[p.id]?.total ? `Tasks ${tasks[p.id].done}/${tasks[p.id].total} · ` : ""}{p.tabs.length} tabs · {Object.values(p.members).flat().length} helpers · {p.artifacts.length} in the Library</span>
-              </button>
-              <button className={`cx-star ${p.starred ? "is-on" : ""}`} aria-pressed={Boolean(p.starred)} title={p.starred ? "Unstar" : "Star: keep at the top"}
-                aria-label={`${p.starred ? "Unstar" : "Star"} ${p.name}`} onClick={() => void act(() => api.put(`/api/projects/${p.id}`, { starred: !p.starred }))}>{p.starred ? "★" : "☆"}</button></li>
-            ))}
-          </ul>
-          {projects.length === 0 && <p className="cx-muted">No projects yet.</p>}
+      <section className="cx-card">
+        <input defaultValue={project.name} key={project.id + project.name} aria-label="Project name" style={{ fontWeight: 600, fontSize: 16 }}
+          onBlur={(e) => { if (e.target.value.trim() && e.target.value !== project.name) void act(() => api.put(`/api/projects/${project.id}`, { name: e.target.value })); }} />
+        <textarea rows={2} defaultValue={project.goal} key={project.id + "g"} placeholder="What is this project for? Helpers on it read this." aria-label="Project goal"
+          onBlur={(e) => { if (e.target.value !== project.goal) void act(() => api.put(`/api/projects/${project.id}`, { goal: e.target.value })); }} />
+        <textarea rows={3} defaultValue={project.instructions ?? ""} key={project.id + "i"} aria-label="Project instructions"
+          placeholder="Instructions for this project: how to work, what to avoid. The main chat and every thread follow them."
+          onBlur={(e) => { if (e.target.value !== (project.instructions ?? "")) void act(() => api.put(`/api/projects/${project.id}`, { instructions: e.target.value })); }} />
+        <div className="cx-row">
+          <button className="btn btn-secondary" onClick={() => { if (confirm(`Delete “${project.name}”? Its artifacts are kept.`)) void act(async () => { const r = await api.del(`/api/projects/${project.id}`); if (r.ok) onDeleted?.(); return r; }); }}>Delete project</button>
         </div>
+      </section>
 
-        {project && (
-          <div style={{ display: "grid", gap: 14, minWidth: 0 }}>
-            <div className="cx-row" role="tablist" aria-label={`${project.name} views`}>
-              <button role="tab" aria-selected={view === "chat"} className={`cx-chip ${view === "chat" ? "is-on" : ""}`} onClick={() => setView("chat")}>Main chat and threads</button>
-              <button role="tab" aria-selected={view === "setup"} className={`cx-chip ${view === "setup" ? "is-on" : ""}`} onClick={() => setView("setup")}>Setup</button>
+      <KnowledgeCard projectId={project.id} />
+
+      <section className="cx-card">
+        <h2>Library <small>what this project's threads made, and artifacts filed here</small></h2>
+        {project.artifacts.length === 0 && <p className="cx-muted">Empty for now. A thread's result lands here when it finishes.</p>}
+        <ul className="cx-library">
+          {project.artifacts.slice(0, 30).map((a) => (
+            <li key={a.id}><b>{a.title}</b> <span className="cx-muted">{a.ref.startsWith("th-") ? "from a thread" : a.kind}</span>{a.note && <p>{a.note}</p>}</li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="cx-card">
+        <h2>Tabs <small>grouped automatically — edit a group name to change it</small></h2>
+        <div className="cx-groups">
+          {project.groups.map((g) => (
+            <div className="cx-group" key={g.id}>
+              <input defaultValue={g.name} key={g.id + g.name} aria-label={`Group name (${g.about ?? "your group"})`}
+                onBlur={(e) => { if (e.target.value.trim() && e.target.value !== g.name) void act(() => api.put(`/api/projects/${project.id}/groups/${g.id}`, { name: e.target.value })); }} />
+              <span className="cx-muted">{g.auto ? g.about : "Named by you"}</span>
+              <div className="cx-chips">
+                {g.tabs.map((t) => <button key={t} className="cx-chip" title="Remove from project" onClick={() => void act(() => api.del(`/api/projects/${project.id}/tabs/${t}`))}>{t} ✕</button>)}
+              </div>
             </div>
-            {view === "chat" && (mainChat[project.id]
-              ? <CommanderView key={project.id} chatId={mainChat[project.id]} projectId={project.id} name={project.name} />
-              : <p className="cx-muted">Opening the main chat…</p>)}
-            {view === "setup" && <>
-            <section className="cx-card">
-              <input defaultValue={project.name} key={project.id + project.name} aria-label="Project name" style={{ fontWeight: 600, fontSize: 16 }}
-                onBlur={(e) => { if (e.target.value.trim() && e.target.value !== project.name) void act(() => api.put(`/api/projects/${project.id}`, { name: e.target.value })); }} />
-              <textarea rows={2} defaultValue={project.goal} key={project.id + "g"} placeholder="What is this project for? Helpers on it read this." aria-label="Project goal"
-                onBlur={(e) => { if (e.target.value !== project.goal) void act(() => api.put(`/api/projects/${project.id}`, { goal: e.target.value })); }} />
-              <textarea rows={3} defaultValue={project.instructions ?? ""} key={project.id + "i"} aria-label="Project instructions"
-                placeholder="Instructions for this project: how to work, what to avoid. The main chat and every thread follow them."
-                onBlur={(e) => { if (e.target.value !== (project.instructions ?? "")) void act(() => api.put(`/api/projects/${project.id}`, { instructions: e.target.value })); }} />
-              <div className="cx-row">
-                <button className="btn btn-secondary" onClick={() => { if (confirm(`Delete “${project.name}”? Its artifacts are kept.`)) void act(async () => { const r = await api.del(`/api/projects/${project.id}`); setSel(""); return r; }); }}>Delete project</button>
-              </div>
-            </section>
+          ))}
+        </div>
+        <div className="cx-chips" aria-label="Add a tab">
+          {TABS.filter((t) => !project.tabs.includes(t)).map((t) => <button key={t} className="cx-chip" onClick={() => void act(() => api.post(`/api/projects/${project.id}/tabs`, { tab: t }))}>+ {t}</button>)}
+        </div>
+      </section>
 
-            <KnowledgeCard projectId={project.id} />
-
-            <section className="cx-card">
-              <h2>Library <small>what this project's threads made, and artifacts filed here</small></h2>
-              {project.artifacts.length === 0 && <p className="cx-muted">Empty for now. A thread's result lands here when it finishes.</p>}
-              <ul className="cx-library">
-                {project.artifacts.slice(0, 30).map((a) => (
-                  <li key={a.id}><b>{a.title}</b> <span className="cx-muted">{a.ref.startsWith("th-") ? "from a thread" : a.kind}</span>{a.note && <p>{a.note}</p>}</li>
-                ))}
-              </ul>
-            </section>
-
-            <section className="cx-card">
-              <h2>Tabs <small>grouped automatically — edit a group name to change it</small></h2>
-              <div className="cx-groups">
-                {project.groups.map((g) => (
-                  <div className="cx-group" key={g.id}>
-                    <input defaultValue={g.name} key={g.id + g.name} aria-label={`Group name (${g.about ?? "your group"})`}
-                      onBlur={(e) => { if (e.target.value.trim() && e.target.value !== g.name) void act(() => api.put(`/api/projects/${project.id}/groups/${g.id}`, { name: e.target.value })); }} />
-                    <span className="cx-muted">{g.auto ? g.about : "Named by you"}</span>
-                    <div className="cx-chips">
-                      {g.tabs.map((t) => <button key={t} className="cx-chip" title="Remove from project" onClick={() => void act(() => api.del(`/api/projects/${project.id}/tabs/${t}`))}>{t} ✕</button>)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="cx-chips" aria-label="Add a tab">
-                {TABS.filter((t) => !project.tabs.includes(t)).map((t) => <button key={t} className="cx-chip" onClick={() => void act(() => api.post(`/api/projects/${project.id}/tabs`, { tab: t }))}>+ {t}</button>)}
-              </div>
-            </section>
-
-            <section className="cx-card">
-              <h2>On this project <small>agents, sub-agents and avatars</small></h2>
-              {(["avatars", "agents", "subagents"] as const).map((kind) => (
-                <div key={kind} className="cx-row">
-                  <b style={{ width: 84, fontSize: 12 }}>{kind === "subagents" ? "Sub-agents" : kind[0].toUpperCase() + kind.slice(1)}</b>
-                  {(project.members[kind] ?? []).map((m) => <button key={m} className="cx-chip" title="Take off the project" onClick={() => void act(() => api.post(`/api/projects/${project.id}/members`, { kind, member: m, on: false }))}>{m} ✕</button>)}
-                  {(project.members[kind] ?? []).length === 0 && <span className="cx-muted">none yet</span>}
-                </div>
-              ))}
-              <div className="cx-row">
-                <select value={member} onChange={(e) => setMember(e.target.value)} aria-label="Add a helper">
-                  <option value="">Add an avatar…</option>
-                  {avatars.filter((a) => !(project.members.avatars ?? []).includes(a.id)).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                </select>
-                <button className="btn btn-secondary" disabled={!member} onClick={() => void act(async () => { const r = await api.post(`/api/projects/${project.id}/members`, { kind: "avatars", member }); setMember(""); return r; })}>Add</button>
-              </div>
-              <p className="cx-muted">Agents and sub-agents are added by name from chat: “put the Researcher agent on {project.name}”.</p>
-            </section>
-            </>}
+      <section className="cx-card">
+        <h2>On this project <small>agents, sub-agents and avatars</small></h2>
+        {(["avatars", "agents", "subagents"] as const).map((kind) => (
+          <div key={kind} className="cx-row">
+            <b style={{ width: 84, fontSize: 12 }}>{kind === "subagents" ? "Sub-agents" : kind[0].toUpperCase() + kind.slice(1)}</b>
+            {(project.members[kind] ?? []).map((m) => <button key={m} className="cx-chip" title="Take off the project" onClick={() => void act(() => api.post(`/api/projects/${project.id}/members`, { kind, member: m, on: false }))}>{m} ✕</button>)}
+            {(project.members[kind] ?? []).length === 0 && <span className="cx-muted">none yet</span>}
           </div>
-        )}
-      </div>
+        ))}
+        <div className="cx-row">
+          <select value={member} onChange={(e) => setMember(e.target.value)} aria-label="Add a helper">
+            <option value="">Add an avatar…</option>
+            {avatars.filter((a) => !(project.members.avatars ?? []).includes(a.id)).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+          </select>
+          <button className="btn btn-secondary" disabled={!member} onClick={() => void act(async () => { const r = await api.post(`/api/projects/${project.id}/members`, { kind: "avatars", member }); setMember(""); return r; })}>Add</button>
+        </div>
+        <p className="cx-muted">Agents are added or made from the project chat: “make a Researcher agent for {project.name}”.</p>
+      </section>
     </div>
   );
 }

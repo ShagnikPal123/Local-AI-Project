@@ -174,6 +174,16 @@ def update(project_id: str, changes: Dict[str, Any]) -> Dict[str, Any]:
         # Code is on. Only the path is kept; reading it still goes through the Code gate.
         if "folder" in changes:
             project["folder"] = str(changes["folder"] or "").strip().strip('"')[:500]
+        # More places the project may open (owner, 2026-10-15: "open drives"): extra folders on this PC, and Google
+        # Drive folders written "drive:<name or id>" (those open once Google sign-in works). The main chat can only
+        # browse the folder and these drives, nothing else on the PC.
+        if "drives" in changes:
+            seen: List[str] = []
+            for value in changes["drives"] or []:
+                path = str(value or "").strip().strip('"')[:500]
+                if path and path not in seen:
+                    seen.append(path)
+            project["drives"] = seen[:12]
         if "tabs" in changes:
             project["tabs"] = _tab_ids(changes["tabs"])
             _regroup(project)
@@ -295,6 +305,15 @@ def list_artifacts(project_id: Optional[str] = None) -> List[Dict[str, Any]]:
     if project_id is not None:
         rows = [a for a in rows if a.get("project_id") == project_id]
     return sorted(rows, key=lambda a: -a.get("created", 0))
+
+
+def set_artifact_chat(artifact_id: str, chat_id: str) -> None:
+    """Remember the chat a Library item opens in (project_workspace.artifact_chat), so it opens the same one again."""
+    with _LOCK:
+        state = _load()
+        if artifact_id in state["artifacts"]:
+            state["artifacts"][artifact_id]["chat_id"] = _text(chat_id, 80)
+            _save(state)
 
 
 def move_artifact(artifact_id: str, project_id: str) -> Dict[str, Any]:
