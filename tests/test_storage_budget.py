@@ -55,3 +55,14 @@ def test_only_listed_leftovers_can_be_removed(tmp_path, monkeypatch):
     except KeyError:
         pass
     assert storage_budget.remove_leftover("old") == 2000 and not target.exists()
+
+
+def test_report_says_how_much_is_yours_and_how_big_the_drive_is(tmp_path, monkeypatch):
+    monkeypatch.setattr(storage_budget, "data_path", lambda name: tmp_path / name)
+    monkeypatch.setattr(storage_budget, "PROJECT_DIR", tmp_path)
+    (tmp_path / "uploads").mkdir()
+    (tmp_path / "uploads" / "a.bin").write_bytes(b"x" * 1000)
+    report = storage_budget.report()
+    assert report["yours_bytes"] >= 1000
+    assert report["disk"]["total_bytes"] > 0
+    assert 0 <= report["disk"]["free_bytes"] <= report["disk"]["total_bytes"]

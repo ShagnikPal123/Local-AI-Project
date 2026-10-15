@@ -186,7 +186,15 @@ def report() -> Dict[str, Any]:
         if str(path) and path.exists():
             leftovers.append({"id": key, "label": path.name, "path": str(path), "bytes": folder_size(path), "why": item["why"]})
     brain = growing[0]["bytes"]
+    # The Library's foot line ("24.4 MB of 10.7 GB used", owner's 2026-10-15 image) needs the drive Nyx lives on.
+    try:
+        disk = shutil.disk_usage(PROJECT_DIR)
+        disk_info = {"total_bytes": disk.total, "free_bytes": disk.free}
+    except OSError:
+        disk_info = {"total_bytes": 0, "free_bytes": 0}
     return {
+        "yours_bytes": sum(e["bytes"] for e in growing),
+        "disk": disk_info,
         "growing": growing, "fixed": fixed, "leftovers": leftovers,
         "total_bytes": sum(e["bytes"] for e in growing + fixed) + sum(e["bytes"] for e in leftovers),
         "reclaimable_bytes": sum(e["bytes"] for e in leftovers),
