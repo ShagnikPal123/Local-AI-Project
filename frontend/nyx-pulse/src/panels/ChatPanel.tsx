@@ -38,6 +38,7 @@ import { ProjectHome, ProjectsSection, useChatProject } from "../components/chat
 import "../components/chat/compact/compact.css";
 import { ModeSlider, readMode, type ChatMode } from "../components/chat/ModeSlider";
 import { WorkFiles } from "../components/chat/WorkFiles";
+import { CacheChip } from "../components/chat/CacheChip";
 import { ChatCodeSwitch, CodeBar, CodeProposals, CodeSessionCard, folderName, useCodeSession } from "../components/chat/CodeSwitch";
 import { ChatRail, type RailMakeKind } from "../components/chat/ChatRail";
 import { ChatTitleMenu } from "../components/chat/ChatTitleMenu";
@@ -1263,6 +1264,7 @@ export function ChatPanel({
             <WorkQueue items={queued} now={busy ? runningTurn?.status : undefined}
               onRemove={(id) => setQueued((c) => c.filter((x) => x.id !== id))} />
             <WorkFiles chatId={activeChatId} busy={busy} />
+            <CacheChip busy={busy} />
             {dispatches.length > 0 && (
               <div className="dispatch-tray" aria-label="Agents working in this chat">
                 {dispatches.map((d) => (
@@ -1362,6 +1364,7 @@ export function ChatPanel({
         <WorkQueue items={queued} now={busy ? runningTurn?.status : undefined}
           onRemove={(id) => setQueued((c) => c.filter((x) => x.id !== id))} />
         <WorkFiles chatId={activeChatId} busy={busy} />
+            <CacheChip busy={busy} />
         {dispatches.length > 0 && (
           <div className="dispatch-tray" aria-label="Agents working in this chat">
             {dispatches.map((d) => (
@@ -1440,6 +1443,7 @@ export function ChatPanel({
         <WorkQueue items={queued} now={busy ? runningTurn?.status : undefined}
           onRemove={(id) => setQueued((c) => c.filter((x) => x.id !== id))} />
         <WorkFiles chatId={activeChatId} busy={busy} />
+            <CacheChip busy={busy} />
         {dispatches.length > 0 && (
           <div className="dispatch-tray" aria-label="Agents working in this chat">
             {dispatches.map((d) => (
