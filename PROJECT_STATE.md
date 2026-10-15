@@ -132,6 +132,18 @@ more false positives cost.
 
 ## Session log
 
+### Session — 2026-10-15 (Ichos Trader, the trading tab as its own app)
+
+The trading tab now has its own app in `apps/ichos-trader/` (PR #18), which imports nothing from Nyx.
+- **Markets and ranking:** a scanner covers about 200 markets (Coinbase, Yahoo or a simulated market) and ranks them on liquidity, spread, depth and order flow.
+- **The bot team:** scout; a strategist that learns before the first buy; an advisor; three traders, one of which rotates between coins; a mild skeptic; a manager that hires and retires traders; and a researcher.
+- **Settings and safety:** auto tuning with dials the owner can pin, and auto shut-down when it is slow or losing.
+- **Sign-in and keys:** sign-in is local, by passcode, or with Google or GitHub; owners can change things and viewers can only look. Keys are masked. Alpaca is wired for practice only, and Claude is called only when the owner asks.
+- **Dashboard:** a glass dashboard in React and Vite.
+
+Practice money only. The 82 trader tests pass, the leak sweep is clean, and Nyx's README links to the new app.
+Next: remove or slim Nyx's own trading tab so that it points to the trader.
+
 ### Session — 2026-10-14 (Active speech, text and voice)
 
 The owner asked for "active speech": confirm the ask at once, talk at the start, middle and end, and answer a message
