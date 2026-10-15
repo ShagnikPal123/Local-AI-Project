@@ -29,6 +29,7 @@ export function lineupLabel(catalog: Catalog | null, value: string): string {
 export function LineupPicker({ value, onChange }: { value: string; onChange: (next: string) => void }) {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [open, setOpen] = useState(false);
+  const [hovered, setHovered] = useState("");
   const { snapshot } = useProviders();
   const ref = useRef<HTMLDivElement>(null);
 
@@ -48,6 +49,10 @@ export function LineupPicker({ value, onChange }: { value: string; onChange: (ne
 
   const effort = catalog?.effort ?? "auto";
   const effortName = effort === "auto" ? "Auto effort" : catalog?.efforts.find((e) => e.id === effort)?.name ?? effort;
+  const models = [...(catalog?.levels ?? []), ...(catalog?.specialists ?? [])].flatMap((f) => f.models);
+  const shown = models.find((m) => m.id === (hovered || value));
+  const runsLine = shown?.runs_on ? `${shown.name} runs on ${shown.runs_on}` : "Point at a model to see what runs it";
+  const chosenRuns = models.find((m) => m.id === value)?.runs_on;
   const pick = (next: string) => { setOpen(false); onChange(next); };
   const setEffort = async (id: string) => {
     const r = await api.put<Catalog>("/api/models/lineup", { effort: id });
@@ -57,13 +62,14 @@ export function LineupPicker({ value, onChange }: { value: string; onChange: (ne
   return (
     <div ref={ref} className="lp">
       <button type="button" className="lp-btn" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((v) => !v)}
-        title="Who answers, and how hard it works">
+        title={`Who answers, and how hard it works${chosenRuns ? `. Runs on ${chosenRuns}` : ""}`}>
         <span className="lp-model">{lineupLabel(catalog, value)}</span>
         <span className="lp-effort">{effortName}</span>
         <span aria-hidden="true" className="lp-caret">⌄</span>
       </button>
       {open && (
-        <div className="lp-pop" role="dialog" aria-label="Model and effort">
+        <div className="lp-pop" role="dialog" aria-label="Model and effort" onMouseLeave={() => setHovered("")}>
+          <div className="lp-runs" aria-live="polite">{runsLine}</div>
           <button type="button" className={`lp-row${value === AUTO_PROVIDER ? " is-on" : ""}`} onClick={() => pick(AUTO_PROVIDER)}>
             <b>Auto</b><span>The router picks per message</span>
           </button>
@@ -75,12 +81,10 @@ export function LineupPicker({ value, onChange }: { value: string; onChange: (ne
                   title={`${fam.name} picks the size for each message`}>Auto</button>
                 {fam.models.map((m) => (
                   <button key={m.id} type="button" className={`lp-chip${value === m.id ? " is-on" : ""}`} onClick={() => pick(m.id)}
+                    onMouseEnter={() => setHovered(m.id)} onFocus={() => setHovered(m.id)}
                     title={`${m.size_label}: ${m.tagline}${m.runs_on ? `. Runs on ${m.runs_on}` : ""}`}>{m.name}</button>
                 ))}
               </div>
-              {fam.models.filter((m) => m.id === value && m.runs_on).map((m) => (
-                <div key={m.id} className="lp-runs">{m.name} runs on {m.runs_on}</div>
-              ))}
             </section>
           ))}
           {catalog && (
