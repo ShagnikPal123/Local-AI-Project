@@ -222,3 +222,13 @@ td.why { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-spac
   .sliders { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* Setup: three steps, big amount, two account choices */
+.grid.setup { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 900px; }
+.setup form { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+input.big { font-size: 28px; font-weight: 600; max-width: 260px; }
+.choices { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.choice { text-align: left; align-items: flex-start; display: flex; flex-direction: column; gap: 4px; padding: 14px; cursor: pointer; color: inherit; }
+.choice.on { outline: 2px solid var(--accent); }
+@media (max-width: 760px) { .grid.setup { grid-template-columns: 1fr; } .grid.setup .wide-2 { grid-column: span 1; } }
+.setup .row { justify-content: flex-start; gap: 8px; flex-wrap: wrap; }

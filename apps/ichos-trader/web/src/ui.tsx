@@ -11,6 +11,7 @@ const PATHS: Record<string, string> = {
   stop: "M7 7h10v10H7z",
   bolt: "M13 3 5 14h6l-1 7 8-11h-6z",
   arrow: "M8 16 16 8m-7 0h7v7",
+  wand: "M4 20 15 9m2-5v3m3-1h-3m3 6h-2m-6-6V3m4 8 2 2",
   out: "M15 4h4v16h-4M10 8l-4 4 4 4m-4-4h11",
   sun: "M12 4V2m0 20v-2m8-8h2M2 12h2m13.7-5.7 1.4-1.4M4.9 19.1l1.4-1.4m0-11.4L4.9 4.9m14.2 14.2-1.4-1.4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z",
 };
