@@ -72,7 +72,7 @@ def main(argv=None) -> int:
     env = dict(os.environ, **({"ICHOS_TRADER_OFFLINE": "1"} if args.offline else {}))
     command = [sys.executable, "-m", "uvicorn", "ichos_trader.server:app", "--host", args.host,
                "--port", str(args.port)]
-    print(f"Ichos Trader on http://{args.host}:{args.port}  (practice money only)")
+    print(f"Ichos Trader on http://{args.host}:{args.port}  (practice by default; real money only after you switch to it in Setup)")
     wait = 2.0
     while True:
         began = time.time()

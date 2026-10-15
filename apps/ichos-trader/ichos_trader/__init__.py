@@ -17,7 +17,7 @@ The parts, in the order a trade goes through them:
   and the Claude connector that is only used when asked.
 * ``server``      - the web API and the dashboard.
 
-Practice money only. Real money waits for the owner's word.
+Practice money by default; real money only after the owner switches to it in Setup (see ``realmoney``).
 """
 
 __version__ = "0.1.0"

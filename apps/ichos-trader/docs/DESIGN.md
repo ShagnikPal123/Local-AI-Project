@@ -50,7 +50,7 @@ Every bot writes what it is thinking into a short feed the dashboard shows live.
 
 With `learn_first` on (the default), the first time it is switched on the trader studies before it
 trades: the strategist backtests every strategy on every market it plans to use, and the state is
-"learning" until it has. It trades with practice money only.
+"learning" until it has. It trades practice money unless the owner switched to real money (``realmoney.py``).
 
 ## What "fast" means here
 
@@ -104,7 +104,7 @@ apps/ichos-trader/
     markets/               feeds: simulated, stocks, crypto, currencies; the hub; the universe
     ranking.py latency.py
     team/                  scout, strategist, advisor, traders, skeptic, manager, researcher
-    paper.py risk.py settings.py currency.py watchdog.py engine.py autostart.py
+    paper.py risk.py realmoney.py settings.py currency.py watchdog.py engine.py autostart.py
     access/                logins and saved keys
     connectors/            Alpaca practice (with a budget), local models, Claude (only when asked)
     server.py              the web API
