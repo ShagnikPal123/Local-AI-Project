@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { fetchDesktopTheme } from "./desktopSync";
 import { clearTabOrder } from "../state/tabOrder";
 import { mascotShown, setMascotShown } from "../components/mascot/Mascot";
+import { ImageStyleRow } from "./ImageStyleRow";
 import { ACCENTS, PALETTES, applyAppearance, readAppearance, type DesktopTheme, type NavChoice } from "./appearance";
 
 const SIDES: { id: NavChoice; label: string }[] = [
@@ -33,6 +34,7 @@ export function AppearanceSection() {
         </div>
         <span className="appearance__hint">Re-tones the Desk look. Your accent colour above still wins if you picked one.</span>
       </div>
+      <ImageStyleRow onChange={() => setSaved(readAppearance())} />
       <div className="appearance__row">
         <span className="appearance__label">Accent colour</span>
         <div className="appearance__swatches" role="radiogroup" aria-label="Accent colour">
