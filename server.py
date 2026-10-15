@@ -219,6 +219,15 @@ class ChatResponse(BaseModel):
 class MemoryItem(BaseModel):
     topic: str
     content: str
+    keep: Optional[bool] = None
+    keep_reason: Optional[str] = None
+
+
+class MemoryEdit(BaseModel):
+    topic: Optional[str] = None
+    content: Optional[str] = None
+    keep: Optional[bool] = None
+    keep_reason: Optional[str] = None
 
 
 class FolderAddRequest(BaseModel):
@@ -1214,19 +1223,39 @@ def list_memory() -> Dict[str, Any]:
 
 
 @app.post("/api/memory/important")
-def add_important(item: MemoryItem) -> Dict[str, str]:
-    """Store an important memory."""
+def add_important(item: MemoryItem) -> Dict[str, Any]:
+    """Store an important memory. The same topic updates it; the entry comes back with its id and dates."""
     service = _get_service()
-    service.remember_important(item.topic, item.content)
+    try:
+        entry = service.memory.remember_important(item.topic, item.content, keep=item.keep, keep_reason=item.keep_reason)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+    service.rag.mark_dirty()
     _get_rag().mark_dirty()
-    return {"status": "stored", "topic": item.topic}
+    return {"status": "stored", "topic": entry["topic"], "memory": entry}
 
 
-@app.delete("/api/memory/important/{topic}")
-def remove_important(topic: str) -> Dict[str, Any]:
-    """Remove an important memory by topic."""
+@app.patch("/api/memory/important/{ref}")
+def edit_important(ref: str, edit: MemoryEdit) -> Dict[str, Any]:
+    """Edit one memory by id (or topic): its text, topic, or the keep-long-term mark and reason."""
     service = _get_service()
-    removed = service.remove_important_memory(topic)
+    try:
+        entry = service.memory.update_important(ref, **edit.model_dump(exclude_none=True))
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+    if entry is None:
+        raise HTTPException(status_code=404, detail="No memory with that id.")
+    service.rag.mark_dirty()
+    _get_rag().mark_dirty()
+    return {"memory": entry}
+
+
+@app.delete("/api/memory/important/{ref}")
+def remove_important(ref: str) -> Dict[str, Any]:
+    """Remove an important memory by id or topic."""
+    service = _get_service()
+    removed = service.memory.remove_important(ref)
+    service.rag.mark_dirty()
     _get_rag().mark_dirty()
     return {"removed": removed}
 
