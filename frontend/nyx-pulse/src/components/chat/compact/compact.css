@@ -271,3 +271,10 @@ button.ov-tname { cursor: pointer; }
 @media (prefers-reduced-motion: reduce) { .lp-effort-slider__track::after { transition: none; } }
 /* Desk: the same slider, a touch calmer (Claude's app has no neon). */
 :root[data-style~="desk"] .lp-effort-slider__track::after { box-shadow: 0 0 6px var(--fx-glow); }
+/* Inside a project the Overview shows that project; this switches back to every chat (ProjectOverview.tsx). */
+.ov-scope { display: flex; gap: 4px; padding: 6px 12px 0; }
+.ov-scope__btn { flex: 1; border: none; border-radius: 7px; padding: 4px 8px; background: transparent; color: var(--color-neutral-400);
+  font: inherit; font-size: 12px; cursor: pointer; }
+.ov-scope__btn:hover { color: var(--color-text); }
+.ov-scope__btn.is-on { background: var(--color-surface-2); color: var(--color-text); }
+.ov-library h3.ov-group__head { margin: 0; cursor: default; }
