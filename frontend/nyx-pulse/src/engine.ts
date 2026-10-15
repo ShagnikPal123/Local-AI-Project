@@ -76,6 +76,16 @@ export function registerShellCache(): void {
   // plain http://localhost:8000. A dev server on another port still works; it
   // just registers its own copy.
   window.addEventListener("load", () => {
+    // Nyx's own window (WebView2) starts the engine itself, so it never needs the offline copy. WebView2 failed
+    // to fetch the worker there and logged "An unknown error occurred when fetching the script" over and over,
+    // so it is not registered in that window, and an older registration is removed.
+    const w = window as unknown as { chrome?: { webview?: unknown }; pywebview?: unknown };
+    if (w.chrome?.webview || w.pywebview) {
+      navigator.serviceWorker.getRegistrations()
+        .then((all) => all.forEach((r) => void r.unregister()))
+        .catch(() => undefined);
+      return;
+    }
     navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {
       /* Private windows and some policies block service workers — the app
          still works, it just cannot show the start screen while offline. */
