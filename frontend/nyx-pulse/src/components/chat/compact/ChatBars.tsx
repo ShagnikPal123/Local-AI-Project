@@ -9,6 +9,8 @@
  *  This file only arranges bars; what each bar shows is passed in by the chat, so a bar keeps its own data and code. */
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { ITEM_DRAG } from "../../../state/dragItems";
+import { CHAT_TAB, floatPanel, useFloats } from "../../floating/FloatingPanels";
 
 export type BarId = "context" | "usage" | "environment" | "connectors" | "remote" | "team";
 export type Zone = "top" | "bottom" | "hidden";
@@ -104,7 +106,16 @@ function Chip({ id, spec, zone, layout, onLayout }: {
   const go = (to: Zone) => { setMenu(false); onLayout(moveBar(layout, id, to)); };
   return (
     <div ref={ref} className={`cb-chip is-${id}${spec.body ? "" : " is-inline"}${blank ? " is-blank" : ""}`} draggable
-      onDragStart={(e) => { e.dataTransfer.setData(DRAG, id); e.dataTransfer.effectAllowed = "move"; }}
+      onDragStart={(e) => {
+        e.dataTransfer.setData(DRAG, id);
+        // Also a droppable item, so a tab takes it: the bar then floats on that tab (FloatingPanels.tsx).
+        e.dataTransfer.setData(ITEM_DRAG, JSON.stringify({ kind: "item", id: `bar:${id}`, label: spec.label }));
+        e.dataTransfer.effectAllowed = "copyMove";
+      }}
+      onDragEnd={(e) => {
+        // Let go anywhere that is not a bar place or a tab: it floats right there.
+        if (e.dataTransfer.dropEffect === "none" && (e.clientX || e.clientY)) floatPanel(id, e.clientX - 24, e.clientY - 16, CHAT_TAB);
+      }}
       onDragOver={(e) => { if (e.dataTransfer.types.includes(DRAG)) e.preventDefault(); }}
       onDrop={(e) => {
         const dragged = e.dataTransfer.getData(DRAG) as BarId;
@@ -124,6 +135,11 @@ function Chip({ id, spec, zone, layout, onLayout }: {
         <span role="menu" className={`cb-menu is-${zone}`}>
           {zone !== "top" && <button role="menuitem" type="button" onClick={() => go("top")}>Move to the top</button>}
           {zone !== "bottom" && <button role="menuitem" type="button" onClick={() => go("bottom")}>Move under the chat box</button>}
+          <button role="menuitem" type="button" onClick={() => {
+            setMenu(false);
+            const box = ref.current?.getBoundingClientRect();
+            floatPanel(id, (box?.left ?? 200), Math.max(60, (box?.top ?? 300) - 220), CHAT_TAB);
+          }}>Float on the screen</button>
           <button role="menuitem" type="button" onClick={() => go("hidden")}>Hide</button>
         </span>
       )}
@@ -138,7 +154,8 @@ export function BarZone({ zone, layout, onLayout, bars, extra }: {
   bars: Record<BarId, BarSpec | null>; extra?: ReactNode;
 }) {
   const [hiddenOpen, setHiddenOpen] = useState(false);
-  const ids = layout[zone].filter((id) => bars[id]);
+  const floats = useFloats();  // a bar pulled out onto the screen is not shown in its zone until it is docked
+  const ids = layout[zone].filter((id) => bars[id] && !floats[id]);
   const hidden = layout.hidden.filter((id) => bars[id]);
   return (
     <div className={`cb-zone is-${zone}`} aria-label={zone === "top" ? "Bars at the top" : "Bars under the chat box"}

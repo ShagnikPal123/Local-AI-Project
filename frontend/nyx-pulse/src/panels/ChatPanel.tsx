@@ -32,6 +32,7 @@ import { UsageBar } from "../components/UsageBar";
 import { ContextBar } from "../components/chat/ContextBar";
 import { OverviewPanel } from "../components/chat/compact/OverviewPanel";
 import { BarZone, useBarLayout, type BarId, type BarSpec } from "../components/chat/compact/ChatBars";
+import { CHAT_BOUND, CHAT_TAB, FloatingCard, useFloats } from "../components/floating/FloatingPanels";
 import { LineupPicker } from "../components/chat/compact/LineupPicker";
 import { ConnectorsBody, RemoteBody, useConnectors, usePhone } from "../components/chat/compact/BarChips";
 import { ProjectHome, ProjectsSection, useChatProject } from "../components/chat/compact/ProjectHome";
@@ -563,6 +564,7 @@ export function ChatPanel({
 
   /** Chat / Code (Drive doc 2, 2.1): in Code the chat works in a folder, in an environment. */
   const code = useCodeSession(activeChatId);
+  const floats = useFloats();  // bars pulled out onto the screen (components/floating)
   const codeCard = code.picking ? (
     <CodeSessionCard state={code.state} onChange={code.update} onClose={() => code.setPicking(false)} />
   ) : null;
@@ -1201,6 +1203,12 @@ export function ChatPanel({
     };
     return (
       <div className={`chat-home${overviewOpen && !isPane ? " has-overview" : ""}`}>
+        {!isPane && CHAT_BOUND.map((id) => {
+          const spot = floats[id];
+          const spec = bars[id];
+          if (!spot || spot.tab !== CHAT_TAB || !spec) return null;
+          return <FloatingCard key={id} id={id} label={spec.label} spot={spot}>{spec.body ?? spec.summary}</FloatingCard>;
+        })}
         <ChatRail
           chats={chats}
           activeId={activeChatId}

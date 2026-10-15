@@ -26,6 +26,8 @@ export function useTabDnd({ horizontal, onReorder, onDropItem }: Options) {
 
   const props = useCallback((id: string) => ({
     draggable: true,
+    // Floating panels look for this when one is let go over a tab (components/floating/FloatingPanels.tsx).
+    "data-tab-id": id,
     onDragStart: (event: DragEvent<HTMLElement>) => {
       event.dataTransfer.setData(TAB_DRAG, id);
       event.dataTransfer.setData("text/plain", id);
