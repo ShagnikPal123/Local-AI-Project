@@ -9,6 +9,7 @@
 import { useEffect, useState } from "react";
 
 export const STYLES = [
+  { id: "desk", label: "Desk", hint: "Flat, quiet dark panels edge to edge, like Claude's desktop app" },
   { id: "studio", label: "Studio Glass", hint: "Floating glass panels over a warm backdrop, orange accent, icon rail, dashboard home" },
   { id: "particles", label: "Particles", hint: "A slow field of points behind everything" },
   { id: "liquid", label: "Liquid morph", hint: "Soft blobs that change shape behind headers" },
@@ -35,6 +36,9 @@ export const STYLES = [
 export type StyleId = (typeof STYLES)[number]["id"];
 
 export const PRESETS: { id: string; label: string; styles: StyleId[]; hint: string }[] = [
+  // Owner, 2026-10-15: "use these images as reference to what I want the normal chat as well as the actual app to look
+  // like" (Claude's desktop app). Studio keeps its rail and layout; Desk flattens it. The default.
+  { id: "desk", label: "Desk", hint: "Flat dark panels, thin lines, one quiet accent — like Claude's desktop app", styles: ["studio", "desk"] },
   // Owner, 2026-10-10: "make the AI look similar" to a glassy dashboard reference, with our own touches — the default.
   { id: "studio-glass", label: "Studio Glass", hint: "Floating glass panels, orange accent, icon rail, dashboard home", styles: ["studio", "glass", "neon", "kinetic", "splitflap"] },
   { id: "signature", label: "Signature", hint: "Mesh, glass, neon, holographic, particles, moving type", styles: ["mesh", "glass", "neon", "holo", "particles", "kinetic", "splitflap", "liquid"] },
@@ -49,6 +53,8 @@ export const PRESETS: { id: string; label: string; styles: StyleId[]; hint: stri
 const KEY = "ichos.style.mix";
 // Studio Glass arrived after mixes were already saved; it is added to a saved mix once, then left to the owner.
 const STUDIO_SEEN = "ichos.style.studio-seen";
+// Desk became the default on 2026-10-15; a saved mix switches to it once, and Settings › Appearance can go back.
+const DESK_SEEN = "ichos.style.desk-seen";
 
 export function currentMix(): StyleId[] {
   try {
@@ -60,9 +66,15 @@ export function currentMix(): StyleId[] {
         if (!saved.includes("studio")) saved.unshift("studio");
         localStorage.setItem(KEY, JSON.stringify(saved));
       }
+      if (localStorage.getItem(DESK_SEEN) === null) {
+        localStorage.setItem(DESK_SEEN, "1");
+        localStorage.setItem(KEY, JSON.stringify(PRESETS[0].styles));
+        return [...PRESETS[0].styles];
+      }
       return saved;
     }
     localStorage.setItem(STUDIO_SEEN, "1");
+    localStorage.setItem(DESK_SEEN, "1");
   } catch { /* fall through */ }
   return PRESETS[0].styles;
 }

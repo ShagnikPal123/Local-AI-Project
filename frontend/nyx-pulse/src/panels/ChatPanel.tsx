@@ -1284,7 +1284,8 @@ export function ChatPanel({
           </div>
         </section>
         {overviewOpen && !isPane && (
-          <OverviewPanel chats={chats} activeId={activeChatId} onOpen={setActiveChatId} onClose={() => setOverviewOpen(false)} />
+          <OverviewPanel chats={chats} activeId={activeChatId} onOpen={setActiveChatId} onClose={() => setOverviewOpen(false)}
+            onNew={() => void onNewChat()} />
         )}
         {teamDetails && !agentSheet && <AgentDetails onClose={() => setTeamDetails(false)} onEdit={(name) => setAgentSheet(name)} />}
         {agentSheet && <AgentProperties name={agentSheet} onClose={() => setAgentSheet(null)} onRenamed={setAgentSheet} />}
