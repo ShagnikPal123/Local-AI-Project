@@ -149,8 +149,8 @@
 :root[data-style~="desk"] .ov-toggle { min-height: 26px; padding: 2px 9px; font-size: 12.5px; border-radius: 6px; }
 :root[data-style~="desk"] .ov-toggle { background: transparent; border: 0; color: var(--desk-muted); }
 :root[data-style~="desk"] .ov-toggle.is-on { background: var(--desk-hover); color: var(--desk-text); }
-:root[data-style~="desk"] .chat-home__dock { padding-inline: max(20px, calc((100% - 700px) / 2)) !important; }
-:root[data-style~="desk"] .chat-home__column > div { padding-inline: max(20px, calc((100% - 700px) / 2)) !important; }
+:root[data-style~="desk"] .chat-home__dock { max-width: none; margin: 0; padding-inline: max(20px, calc((100% - 760px) / 2)) !important; }
+:root[data-style~="desk"] .chat-home__column > div { padding-inline: max(20px, calc((100% - 760px) / 2)) !important; }
 
 /* Chat list: Claude's left sidebar. */
 :root[data-style~="desk"] .chat-rail { width: 236px; background: var(--desk-sidebar); border-right: 1px solid var(--desk-line); padding: 8px 8px 0; gap: 2px; }
@@ -303,7 +303,8 @@
   display: flex; flex-direction: column; justify-content: space-between; gap: 2px; flex: 0 0 auto;
   padding-right: 6px; border-right: 1px solid var(--desk-line);
 }
-:root[data-style~="desk"] .composer-row > .composer-box { order: 0; flex: 1 1 auto; min-width: 0; align-self: stretch; }
+:root[data-style~="desk"] .composer-row > .composer-box { order: 0; flex: 1 1 0; min-width: 0; align-self: stretch; }
+:root[data-style~="desk"] .chat-home__dock > * { min-width: 0; }
 :root[data-style~="desk"] .composer-row .composer-input { min-height: 56px; }
 :root[data-style~="desk"] .composer-row > .composer-mic,
 :root[data-style~="desk"] .composer-row > .btn-primary,
@@ -316,3 +317,19 @@
   :root[data-style~="desk"] .chat-bottom-row { flex-wrap: wrap; }
   :root[data-style~="desk"] .chat-bottom-row > .cb-zone.is-bottom { order: 4; flex: 1 0 100%; justify-content: flex-start; }
 }
+
+/* Side panels make room instead of covering the chat on smaller windows (owner 2026-10-15): the profile and calendar
+   column stays in its place down to 1000 px and then folds away; the Overview keeps a narrower column. */
+@media (max-width: 1100px) {
+  :root[data-style~="desk"] .studio-side { position: static; width: 260px; }
+}
+@media (max-width: 1000px) {
+  :root[data-style~="desk"] .studio-side { display: none; }
+  :root[data-style~="desk"] .chat-rail { width: 200px; }
+}
+/* The row under the box keeps each label on one line; when the column is narrow the bars move to a second line. */
+:root[data-style~="desk"] .chat-bottom-row { flex-wrap: wrap; }
+:root[data-style~="desk"] .chat-bottom-row > .cb-zone.is-bottom { flex-wrap: wrap; max-width: 100%; }
+:root[data-style~="desk"] .chat-bottom-row .cb-chip,
+:root[data-style~="desk"] .chat-bottom-row .lp-btn,
+:root[data-style~="desk"] .chat-bottom-row .lp-btn * { white-space: nowrap; }
