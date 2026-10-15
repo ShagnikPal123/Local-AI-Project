@@ -21,10 +21,10 @@ def opened(monkeypatch):
 
 @pytest.mark.parametrize("name", ["Finances", "finance", "the finances tab", "Finance page", "money", "stocks",
                                   "Trading", "trading"])
-def test_every_name_for_the_money_tab_opens_trading(opened, name):
+def test_every_name_for_the_money_tab_says_where_trading_went(opened, name):
     result = landscape_tools.tool_ui_open_tab(name)
-    assert opened == [("ui.open_tab", {"tab_id": "trading"})], result
-    assert result == "Opened the Trading tab."
+    assert opened == [], result
+    assert result == landscape_tools.MOVED["trading"] and "Ichos Trader" in result
 
 
 @pytest.mark.parametrize("name, tab_id", [
@@ -53,6 +53,6 @@ def test_the_owners_own_tab_with_that_exact_name_wins(monkeypatch):
     assert events == [{"tab_id": "my-money"}]
 
 
-def test_every_alias_points_at_a_real_tab():
-    real = set(landscape_tools.CORE_TABS)
+def test_every_alias_points_at_a_real_tab_or_says_where_it_moved():
+    real = set(landscape_tools.CORE_TABS) | set(landscape_tools.MOVED)
     assert set(landscape_tools.TAB_ALIASES.values()) <= real

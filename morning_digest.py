@@ -4,7 +4,7 @@ markets, and what Nyx's offices finished overnight. Spoken on the equalize page,
 From OpenJarvis (Apache-2.0), which the owner pointed at on 2026-10-09: its ``morning_digest`` agent is "a daily
 spoken briefing from email, calendar, health, and news". This is Nyx's own version, built from what Nyx already has:
 Google Calendar and Gmail through Connectors, the mail accounts in Keys, Open-Meteo for the weather (no key),
-``web_access`` for the news, ``trading.market`` for prices, and the offices' Output boxes.
+``web_access`` for the news, the finance connector for prices, and the offices' Output boxes.
 
 Every section is optional and fails on its own: a source that is not connected, or does not answer, is left out and
 named in ``skipped`` — the digest still arrives. The model only writes the spoken words from the facts gathered; with
@@ -175,13 +175,18 @@ def _news(conf: Dict[str, Any]) -> List[str]:
 
 
 def _markets(conf: Dict[str, Any]) -> List[str]:
-    from trading import market
+    # Trading moved to its own app (apps/ichos-trader); the briefing only needs a price, which the
+    # keyless finance connector gives.
+    from connectors import CONNECTOR_REGISTRY
 
     lines = []
     for symbol in conf.get("symbols") or []:
         try:
-            q = market.quote(symbol)
-            lines.append(f"{symbol} {q['price']:.2f} ({q.get('change_pct', 0):+.2f}%)")
+            result = CONNECTOR_REGISTRY.execute("finance", "quote", symbols=symbol)
+            row = (result.get("quotes") or [])[0]
+            price, before = float(row["close"]), row.get("previous_close")
+            change = f" ({(price / float(before) - 1) * 100:+.2f}%)" if before else ""
+            lines.append(f"{symbol} {price:.2f}{change}")
         except Exception:  # noqa: BLE001 - one symbol missing is not the section
             continue
     if not lines:

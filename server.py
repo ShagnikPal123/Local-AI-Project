@@ -2678,10 +2678,10 @@ def _include_routers() -> Dict[str, str]:
     status: Dict[str, str] = {}
     for module_name in ("routes_live", "routes_system", "routes_computer", "routes_email",
                         "routes_access", "routes_voice", "routes_learning", "routes_providers", "routes_models",
-                        "routes_improve", "routes_intelligence", "routes_notes", "routes_code", "routes_trading", "routes_key_pool",
+                        "routes_improve", "routes_intelligence", "routes_notes", "routes_code", "routes_key_pool",
                         "routes_build", "routes_game", "routes_command_zone", "routes_core", "routes_collab", "routes_research", "routes_context",
                         "routes_absorb", "routes_local_models", "routes_diagram", "routes_screen", "routes_apply",
-                        "routes_security", "routes_proto_voice", "routes_features", "routes_curiosity", "routes_finance_lab", "routes_voice_gestures",
+                        "routes_security", "routes_proto_voice", "routes_features", "routes_curiosity", "routes_voice_gestures",
                         "routes_design", "routes_accounts", "routes_swarm", "routes_own_computer", "routes_connectors",
                         "routes_freewill", "routes_identity0", "routes_office", "routes_world", "routes_whatsapp", "routes_sketch", "routes_equalize", "routes_court", "routes_notch", "routes_workbench", "routes_predict", "routes_avatars", "routes_projects", "routes_commander",
                         "routes_phone",

@@ -54,7 +54,6 @@ TOOL_MODULES: List[Tuple[str, str]] = [
     ("design_sense", "register_design_tools"),
     ("backgrounds", "register_background_tools"),
     ("routes_notes", "register_notes_tools"),
-    ("routes_trading", "register_trading_tools"),
     ("routes_build", "register_build_tools"),
     ("routes_game", "register_game_tools"),
     ("command_zone", "register_command_zone_tools"),

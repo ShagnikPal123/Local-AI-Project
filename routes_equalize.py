@@ -35,16 +35,6 @@ def needs_you() -> List[Dict[str, Any]]:
     except Exception:  # noqa: BLE001
         pass
     try:
-        from trading import guard
-
-        for a in guard.pending_approvals():
-            order = a.get("order", {})
-            items.append({"kind": "trade", "id": a.get("id", ""), "where": "trading", "since": a.get("created_at", 0),
-                          "title": f"{order.get('side', '').title()} {order.get('symbol', '')} — waiting for your approval",
-                          "detail": order.get("reason", "")})
-    except Exception:  # noqa: BLE001
-        pass
-    try:
         import claude_sessions
 
         for s in claude_sessions.sessions():

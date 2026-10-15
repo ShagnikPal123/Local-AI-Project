@@ -86,7 +86,6 @@ export const CORE_TABS: TabDef[] = [
   { id: "code", label: "Code", icon: "ph-code", pinned: true, core: true },
   // Office Space + World (+ the court they share).
   { id: "office", label: "Office & World", icon: "ph-buildings", pinned: true, core: true },
-  { id: "trading", label: "Trading", icon: "ph-chart-line-up", pinned: true, core: true },
   // Improve + Learn + Free Will (the Integrity team removes Free Will; its third mind moves to the info page).
   { id: "improve", label: "Improve", icon: "ph-arrows-clockwise", pinned: true, core: true },
   { id: "equalize", label: "Equalize", icon: "ph-circles-three", pinned: true, core: true },
@@ -136,6 +135,8 @@ export const REDIRECTS: Record<string, Redirect> = {
   collab: { kind: "hub", tab: "code", section: "collab" },
   learn: { kind: "hub", tab: "improve", section: "learn" },
   freewill: { kind: "hub", tab: "improve", section: "freewill" },
+  // Owner, 2026-10-15: trading became its own app, Ichos Trader (apps/ichos-trader); old links land in the chat.
+  trading: { kind: "hub", tab: "nyx", section: "" },
 };
 
 /** Old names people (and Nyx) still say, so voice and ui_open_tab can find the new home. */

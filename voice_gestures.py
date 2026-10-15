@@ -241,14 +241,6 @@ def _spoken_status() -> str:
         parts.append(f"{len(running)} thing{'s' if len(running) != 1 else ''} running." if running else "Nothing running.")
     except Exception:  # pragma: no cover - status is best effort
         pass
-    try:
-        from trading import autopilot
-
-        run = autopilot.run_status()
-        if run.get("enabled"):
-            parts.append(f"The AI trader is {run['summary'][0].lower()}{run['summary'][1:]}")
-    except Exception:  # pragma: no cover
-        pass
     return " ".join(parts)
 
 
