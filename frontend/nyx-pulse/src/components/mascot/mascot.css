@@ -1,0 +1,27 @@
+/* Io sits on the top edge of the chat box, at the right, and peeks over it. */
+.io-mascot { position: absolute; right: 18px; top: -40px; z-index: 3; line-height: 0; outline: none; cursor: default;
+  filter: drop-shadow(0 1px 0 rgba(0,0,0,.35)); }
+.io-mascot svg { display: block; image-rendering: pixelated; }
+.io-mascot.is-busy svg { animation: io-bob 1.4s ease-in-out infinite; }
+.io-arm { transform-box: view-box; }
+.io-arm.is-lit rect { filter: drop-shadow(0 0 .4px currentColor); }
+.io-mascot.is-working .io-arm.is-lit { animation: io-sway 1.8s ease-in-out infinite; }
+.io-arm.is-lit:nth-of-type(2n) { animation-delay: -.6s; }
+.io-arm.is-stuck { animation: io-scratch .5s ease-in-out infinite !important; }
+.io-mascot__more { position: absolute; right: -10px; bottom: 2px; font: 600 10px/1 var(--font-sans, system-ui);
+  color: var(--color-neutral-300, #ccc); }
+.io-mascot__tip { position: absolute; right: 0; bottom: calc(100% + 6px); min-width: 200px; max-width: 280px; padding: 8px 10px;
+  display: none; gap: 6px; border-radius: 10px; background: var(--color-surface-3, #1f1f1e); border: 1px solid var(--color-border, #2a2a29);
+  box-shadow: 0 8px 24px rgba(0,0,0,.4); font: 12px/1.4 var(--font-sans, system-ui); color: var(--color-text, #eee); }
+.io-mascot:hover .io-mascot__tip, .io-mascot:focus-visible .io-mascot__tip { display: grid; animation: io-tip .14s ease-out; }
+.io-mascot__row { display: flex; gap: 6px; align-items: baseline; }
+.io-mascot__row i { width: 7px; height: 7px; border-radius: 2px; flex: none; transform: translateY(-1px); }
+.io-mascot__row span { color: var(--color-neutral-400, #999); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@keyframes io-bob { 50% { transform: translateY(-2px); } }
+@keyframes io-sway { 50% { transform: rotate(9deg); } }
+@keyframes io-scratch { 0%, 100% { transform: rotate(-14deg); } 50% { transform: rotate(14deg); } }
+@keyframes io-tip { from { opacity: 0; transform: translateY(3px); } }
+@media (prefers-reduced-motion: reduce) {
+  .io-mascot svg, .io-arm, .io-arm.is-stuck { animation: none !important; }
+}
+:root[data-style~="desk"] .io-mascot__tip { background: #1a1a19; border-color: #2a2a28; }

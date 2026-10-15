@@ -24,7 +24,19 @@ export const ACCENTS: { id: string; label: string; hex: string }[] = [
 ];
 
 const KEY = "ichos.appearance";
-interface Saved { accent: string; nav: NavChoice; sync: boolean }
+interface Saved { accent: string; nav: NavChoice; sync: boolean; palette: PaletteId }
+
+/** Full palettes (Fixer Upper S18): the base tones behind the Desk look, not only the accent. "" keeps Desk's own
+ * near-black. They re-tone the Desk layer (style/palettes.css); other looks keep their own colours. */
+export type PaletteId = "" | "midnight" | "foundry" | "graphite" | "dusk" | "night-glass";
+export const PALETTES: { id: PaletteId; label: string; hint: string; swatch: [string, string, string] }[] = [
+  { id: "", label: "Desk", hint: "Near-black, like Claude's app", swatch: ["#111111", "#1a1a19", "#d97757"] },
+  { id: "midnight", label: "Midnight", hint: "Deep navy with a cool blue accent", swatch: ["#0b1020", "#141b2e", "#6c8cff"] },
+  { id: "foundry", label: "Foundry", hint: "Warm charcoal and ember orange", swatch: ["#14110f", "#1f1a16", "#e0763a"] },
+  { id: "graphite", label: "Graphite", hint: "Neutral grey, green accent", swatch: ["#121314", "#1b1d1f", "#3ecf8e"] },
+  { id: "dusk", label: "Dusk", hint: "Plum-tinted dark with a rose accent", swatch: ["#140f17", "#1e1722", "#e2739f"] },
+  { id: "night-glass", label: "Night Glass", hint: "Slate with frosted cards and an indigo highlight (p19 to p21)", swatch: ["#0d1117", "#161c26", "#7c83ff"] },
+];
 
 export function readAppearance(): Saved {
   try {
@@ -32,9 +44,10 @@ export function readAppearance(): Saved {
     // `navSet` marks a pick made on purpose. Older saves wrote "left" for everyone who only changed the accent,
     // and that must not move the strip of a look that never had a rail.
     const chosen = raw.navSet === true && ["left", "right", "top", "bottom"].includes(raw.nav);
-    return { accent: typeof raw.accent === "string" ? raw.accent : "", nav: chosen ? raw.nav : "", sync: raw.sync === true };
+    const palette = PALETTES.some((p) => p.id === raw.palette) ? raw.palette as PaletteId : "";
+    return { accent: typeof raw.accent === "string" ? raw.accent : "", nav: chosen ? raw.nav : "", sync: raw.sync === true, palette };
   } catch {
-    return { accent: "", nav: "", sync: false };
+    return { accent: "", nav: "", sync: false, palette: "" };
   }
 }
 
@@ -101,6 +114,7 @@ export function applyAppearance(next: Partial<Saved> = {}): Saved {
   const root = document.documentElement;
   // The shell turns this choice into <html data-nav> once it knows the look (style/useNavSide.ts).
   root.dataset.navChoice = saved.nav;
+  if (saved.palette) root.dataset.palette = saved.palette; else delete root.dataset.palette;
   paintTheme();
   window.dispatchEvent(new CustomEvent("ichos:appearance", { detail: saved }));
   return saved;

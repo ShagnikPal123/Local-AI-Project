@@ -30,7 +30,7 @@ export const TOUR: Step[] = [
     tryIt: "Leave it on Auto until you want something specific." },
   { tab: "nyx", spot: ".mode-slider", title: "How a chat works", body: "Normal answers and acts. Co-work checks in as it goes. Plan writes a plan first and asks before doing it. Swarm splits work across helpers. Auto picks for you." },
   { tab: "nyx", spot: ".cb-zone.is-bottom", title: "Bars you can move", body: "Context, usage, environment, connectors, remote access and team are small bars. Drag one by its ⠿ to the top or back, or hide it with its ⋮." },
-  { tab: "nyx", spot: ".code-switch, .composer-box", title: "Code in a folder", body: "At the start of a chat, the </> switch turns on Code: pick a folder on this PC and Ichos works there. Later, the + beside the box does the same." },
+  { tab: "nyx", spot: ".chat-rail__mode, .code-switch, .composer-box", title: "Code in a folder", body: "Chat or Code sits at the top of your chat list. Code works in a folder on this PC; the + beside the box does the same in any chat." },
   { tab: "nyx", spot: ".ov-panel, .ov-toggle", title: "Overview", body: "The panel on the right shows every chat that needs you or is working, a usage graph, your Library of files and artifacts, and what Ichos touched.",
     tryIt: "The Overview button at the top of the chat opens and closes it." },
   { tab: "nyx", spot: ".pj-rail", title: "Projects", body: "A project keeps chats, files, instructions and helpers together, like Claude Projects. Open one and its home shows the folder, instructions, knowledge and threads.",

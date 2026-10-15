@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../../../api";
 import { AUTO_PROVIDER, useProviders } from "../../ProviderPicker";
 
-interface LineupModel { id: string; name: string; size_label: string; tagline: string }
+interface LineupModel { id: string; name: string; size_label: string; tagline: string; runs_on?: string }
 interface Family { id: string; name: string; used_for: string; models: LineupModel[] }
 interface Effort { id: string; name: string; summary: string }
 interface Catalog { levels: Family[]; specialists: Family[]; efforts: Effort[]; effort: string; pick: string }
@@ -75,20 +75,18 @@ export function LineupPicker({ value, onChange }: { value: string; onChange: (ne
                   title={`${fam.name} picks the size for each message`}>Auto</button>
                 {fam.models.map((m) => (
                   <button key={m.id} type="button" className={`lp-chip${value === m.id ? " is-on" : ""}`} onClick={() => pick(m.id)}
-                    title={`${m.size_label}: ${m.tagline}`}>{m.name}</button>
+                    title={`${m.size_label}: ${m.tagline}${m.runs_on ? `. Runs on ${m.runs_on}` : ""}`}>{m.name}</button>
                 ))}
               </div>
+              {fam.models.filter((m) => m.id === value && m.runs_on).map((m) => (
+                <div key={m.id} className="lp-runs">{m.name} runs on {m.runs_on}</div>
+              ))}
             </section>
           ))}
           {catalog && (
             <section className="lp-fam">
               <header>Effort <span>How hard it works</span></header>
-              <div className="lp-models lp-efforts">
-                {[{ id: "auto", name: "Auto", summary: "Picked per message" }, ...catalog.efforts].map((e) => (
-                  <button key={e.id} type="button" className={`lp-chip${effort === e.id ? " is-on" : ""}`} title={e.summary}
-                    onClick={() => void setEffort(e.id)}>{e.name}</button>
-                ))}
-              </div>
+              <EffortSlider efforts={catalog.efforts} value={effort} onPick={(id) => void setEffort(id)} />
             </section>
           )}
           {(snapshot?.providers.length ?? 0) > 0 && (
@@ -104,6 +102,46 @@ export function LineupPicker({ value, onChange }: { value: string; onChange: (ne
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/** The glowing effort slider (Fixer Upper WS5: "the rainbow effort slider"): one stop per effort from Low to Aleph on
+ * a cool-to-hot track, the part up to the thumb lit and the thumb glowing in its own colour. "Auto" sits beside it and
+ * lets Ichos pick per message. Arrow keys move one stop; the name and what it means show under the track. */
+const HUES = ["#38bdf8", "#34d399", "#a3e635", "#facc15", "#fb923c", "#f43f5e", "#c084fc", "#e879f9"];
+
+export function EffortSlider({ efforts, value, onPick }: { efforts: Effort[]; value: string; onPick: (id: string) => void }) {
+  const auto = value === "auto" || !efforts.some((e) => e.id === value);
+  const at = auto ? -1 : efforts.findIndex((e) => e.id === value);
+  const [hover, setHover] = useState<number | null>(null);
+  const shown = hover ?? at;
+  const last = Math.max(1, efforts.length - 1);
+  const colour = (i: number) => HUES[Math.round((i / last) * (HUES.length - 1))] ?? HUES[0];
+  const pct = at < 0 ? 0 : (at / last) * 100;
+  const stops = efforts.map((_, i) => `${colour(i)} ${(i / last) * 100}%`).join(", ");
+  return (
+    <div className={`lp-effort-slider${auto ? " is-auto" : ""}`}
+      style={{ ["--fx-stops" as string]: stops, ["--fx-pct" as string]: `${pct}%`, ["--fx-glow" as string]: at < 0 ? "transparent" : colour(at) }}>
+      <div className="lp-effort-slider__row">
+        <button type="button" className={`lp-chip${auto ? " is-on" : ""}`} title="Picked per message" onClick={() => onPick("auto")}>Auto</button>
+        <div className="lp-effort-slider__track">
+          <input type="range" min={0} max={efforts.length - 1} step={1} value={at < 0 ? 0 : at}
+            aria-label="Effort" aria-valuetext={at < 0 ? "Auto" : efforts[at]?.name}
+            onChange={(e) => onPick(efforts[Number(e.target.value)].id)}
+            onPointerMove={(e) => {
+              const box = e.currentTarget.getBoundingClientRect();
+              setHover(Math.round(Math.min(1, Math.max(0, (e.clientX - box.left) / box.width)) * last));
+            }}
+            onPointerLeave={() => setHover(null)} />
+          <div className="lp-effort-slider__ticks" aria-hidden>
+            {efforts.map((e, i) => <i key={e.id} className={i <= at ? "is-lit" : ""} style={{ left: `${(i / last) * 100}%` }} />)}
+          </div>
+        </div>
+      </div>
+      <div className="lp-effort-slider__label" aria-live="polite">
+        {shown < 0 ? <><b>Auto</b> Picked per message</> : <><b style={{ color: colour(shown) }}>{efforts[shown]?.name}</b> {efforts[shown]?.summary}</>}
+      </div>
     </div>
   );
 }

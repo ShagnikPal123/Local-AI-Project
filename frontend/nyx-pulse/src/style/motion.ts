@@ -13,6 +13,9 @@ import gsap from "gsap";
 import Lenis from "lenis";
 
 const reduced = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+/** The Desk look moves like Claude's app (style/transitions.css): a short fade when a page opens, no sparks or
+ * spotlight. The other looks keep the livelier motion below. */
+const desk = () => (document.documentElement.dataset.style ?? "").split(/\s+/).includes("desk");
 
 let lenis: Lenis | null = null;
 let frame = 0;
@@ -41,6 +44,10 @@ function smoothScroll(root: HTMLElement): void {
 
 function settle(root: HTMLElement): void {
   if (reduced()) return;
+  if (desk()) {
+    gsap.fromTo(root, { opacity: 0, y: 4 }, { opacity: 1, y: 0, duration: 0.18, ease: "power2.out", clearProps: "transform,opacity" });
+    return;
+  }
   gsap.fromTo(root, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.32, ease: "power2.out", clearProps: "transform,opacity" });
   const cards = root.querySelectorAll(".card, .model-tile, .pd-scale, .study__choice, .ability-box");
   if (cards.length) {
@@ -87,14 +94,14 @@ export function startMotion(): void {
 
   document.addEventListener("click", (e) => {
     const target = (e.target as HTMLElement | null)?.closest(".btn-primary, .ability-box__open, .plus-menu__button");
-    if (!target || reduced()) return;
+    if (!target || reduced() || desk()) return;
     spark(e.clientX, e.clientY, getComputedStyle(document.documentElement).getPropertyValue("--color-accent").trim() || "#a594ff");
   });
 
   // Spotlight on cards: the light follows the pointer (CSS reads --mx/--my).
   document.addEventListener("pointermove", (e) => {
     const card = (e.target as HTMLElement | null)?.closest(".card, .model-tile, .pd-scale") as HTMLElement | null;
-    if (!card) return;
+    if (!card || desk()) return;
     const box = card.getBoundingClientRect();
     card.style.setProperty("--mx", `${e.clientX - box.left}px`);
     card.style.setProperty("--my", `${e.clientY - box.top}px`);

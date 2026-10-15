@@ -17,6 +17,7 @@ import { ComposerLinks } from "./ComposerLinks";
 import "../windows/windows.css";
 import { toggleAgentsPanel } from "../agents/AgentsSidePanel";
 import { ABILITIES, onBoxes, openBox, offerWindow, pickAbility, removeBox, type Box } from "../../state/abilities";
+import { Mascot } from "../mascot/Mascot";
 
 const BUSY_LABELS: Record<BusyMode, { short: string; long: string }> = {
   queue: { short: "Queue", long: "Queue — send when this answer finishes" },
@@ -241,6 +242,7 @@ export function Composer({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: "none", position: "relative" }}>
+      <Mascot agents={agents ?? []} busy={Boolean(busy)} />
       {slashOpen && (
         <SlashMenu
           rows={slashMenu.rows}

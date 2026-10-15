@@ -21,6 +21,7 @@ import { api } from "../../api";
 import { Spinner } from "./AgentDisc";
 import type { ChatSummaryView } from "./types";
 import { PersonaBadge } from "./PersonaBadge";
+import { WhatsAppMark, useWhatsAppChats } from "./WhatsAppMark";
 import { AttentionMark, useAttention } from "../commander/attention";
 import { openChatPane, startChatDrag } from "./panes/paneDrag";
 import { ownerName } from "./phrases";
@@ -98,8 +99,11 @@ function NavIcon({ d }: { d: string }) {
   );
 }
 
+type RailFilter = "all" | "pinned" | "working" | "needs" | "phone";
+const FILTER_LABEL: Record<RailFilter, string> = { all: "All", pinned: "Pinned", working: "Working", needs: "Needs you", phone: "On phone" };
+
 export function ChatRail({ chats, activeId, runningByChat, onSelect, onNew, onRename, onDelete, onMake, onRestored,
-  brain, onOpenBrain, projects }: {
+  brain, onOpenBrain, projects, codeOn, onCode }: {
   chats: ChatSummaryView[];
   activeId: string;
   runningByChat: Record<string, string | undefined>;
@@ -115,10 +119,22 @@ export function ChatRail({ chats, activeId, runningByChat, onSelect, onNew, onRe
   onOpenBrain?: () => void;
   /** The compact chat's Projects list (ProjectHome.tsx), shown above the chats like Claude's. */
   projects?: ReactNode;
+  /** The open chat's Chat/Code mode: the switch sits at the top of this list, like Claude's app (owner, 2026-10-15). */
+  codeOn?: boolean;
+  onCode?: (on: boolean) => void;
 }) {
+  const whatsapp = useWhatsAppChats();
   const needs = useAttention();  // which chats need the owner: a mark beside the name (Drive doc 1, item 1.19)
   const [folded, setFolded] = useState(() => { try { return localStorage.getItem("nyx.rail.folded") === "1"; } catch { return false; } });
   const [query, setQuery] = useState("");
+  // Quick filters under the search box: the whole list, or only pinned, working, needing you, or on the phone.
+  const [filter, setFilter] = useState<RailFilter>(() => {
+    try { const v = localStorage.getItem("nyx.rail.filter") as RailFilter | null; return v && v in FILTER_LABEL ? v : "all"; } catch { return "all"; }
+  });
+  const pickFilter = (next: RailFilter) => {
+    setFilter(next);
+    try { localStorage.setItem("nyx.rail.filter", next); } catch { /* not kept */ }
+  };
   const [menu, setMenu] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -158,12 +174,23 @@ export function ChatRail({ chats, activeId, runningByChat, onSelect, onNew, onRe
     const out: Record<string, ChatSummaryView[]> = {};
     for (const chat of chats) {
       if (wanted && !chat.title.toLowerCase().includes(wanted)) continue;
-      if (hideEmpty && isEmpty(chat)) continue;
+      if (filter === "pinned" && !pins.includes(chat.id)) continue;
+      if (filter === "working" && !runningByChat[chat.id]) continue;
+      if (filter === "needs" && !needs[chat.id]) continue;
+      if (filter === "phone" && !whatsapp.linked.has(chat.id)) continue;
+      if (hideEmpty && isEmpty(chat) && filter === "all") continue;
       if (pins.includes(chat.id)) { (out.Pinned ??= []).push(chat); continue; }
       (out[groupOf(when(chat.updatedAt), now)] ??= []).push(chat);
     }
     return out;
-  }, [chats, query, hideEmpty, isEmpty, pins]);
+  }, [chats, query, hideEmpty, isEmpty, pins, filter, runningByChat, needs, whatsapp.linked]);
+  const counts: Record<RailFilter, number> = {
+    all: chats.length,
+    pinned: chats.filter((c) => pins.includes(c.id)).length,
+    working: chats.filter((c) => runningByChat[c.id]).length,
+    needs: chats.filter((c) => needs[c.id]).length,
+    phone: chats.filter((c) => whatsapp.linked.has(c.id)).length,
+  };
 
   const loadDeleted = useCallback(async () => {
     const result = await api.get<{ chats: DeletedChat[] }>("/api/chat-trash");
@@ -193,10 +220,32 @@ export function ChatRail({ chats, activeId, runningByChat, onSelect, onNew, onRe
 
   return (
     <nav className="chat-rail" aria-label="Chats">
+      {onCode && (
+        <div className="chat-rail__mode" role="radiogroup" aria-label="Chat or Code">
+          <button type="button" role="radio" aria-checked={!codeOn} className={!codeOn ? "is-on" : ""} onClick={() => onCode(false)}>
+            <NavIcon d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.6A8 8 0 1 1 21 12Z" /> Chat
+          </button>
+          <button type="button" role="radio" aria-checked={Boolean(codeOn)} className={codeOn ? "is-on" : ""} onClick={() => onCode(true)}
+            title="Code: work in a folder on this PC">
+            <NavIcon d="m8 7-5 5 5 5M16 7l5 5-5 5M14 4l-4 16" /> Code
+          </button>
+        </div>
+      )}
       <div className="chat-rail__top">
         <input className="chat-rail__search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search"
                aria-label="Search chats" />
         <button type="button" className="chat-rail__icon" onClick={() => setFolded(true)} aria-label="Hide the chat list" title="Hide the chat list">⟨</button>
+      </div>
+      <div className="chat-rail__filters" role="radiogroup" aria-label="Show">
+        {(Object.keys(FILTER_LABEL) as RailFilter[])
+          .filter((f) => f === "all" || f === filter || counts[f] > 0)
+          .filter((f) => f !== "phone" || whatsapp.available)
+          .map((f) => (
+            <button key={f} type="button" role="radio" aria-checked={filter === f} className={filter === f ? "is-on" : ""}
+              onClick={() => pickFilter(filter === f && f !== "all" ? "all" : f)}>
+              {FILTER_LABEL[f]}{f !== "all" && counts[f] > 0 && <span>{counts[f]}</span>}
+            </button>
+          ))}
       </div>
       <ul className="chat-rail__nav" aria-label="Places">
         <li><button type="button" className="chat-rail__navitem" onClick={onNew}><NavIcon d="M12 5v14M5 12h14" /> New</button></li>
@@ -229,7 +278,7 @@ export function ChatRail({ chats, activeId, runningByChat, onSelect, onNew, onRe
       <div className="chat-rail__list">
         {chats.length === 0 && <p className="chat-rail__empty">Your conversations will appear here.</p>}
         {chats.length > 0 && ["Pinned", ...GROUPS].every((g) => !groups[g]?.length) && (
-          <p className="chat-rail__empty">{query.trim() ? `No chat matches “${query}”.` : "Every chat here is empty — untick Hide empty chats to see them."}</p>
+          <p className="chat-rail__empty">{query.trim() ? `No chat matches “${query}”.` : filter !== "all" ? `No ${FILTER_LABEL[filter].toLowerCase()} chats right now.` : "Every chat here is empty — untick Hide empty chats to see them."}</p>
         )}
         {["Pinned", ...GROUPS].filter((g) => groups[g]?.length).map((group) => (
           <section key={group} aria-label={group}>
@@ -253,6 +302,7 @@ export function ChatRail({ chats, activeId, runningByChat, onSelect, onNew, onRe
                         <span className="chat-rail__title">{chat.title || "New chat"}</span>
                         <AttentionMark need={needs[chat.id]} />
                         <PersonaBadge persona={chat.persona} small />
+                        <WhatsAppMark on={whatsapp.linked.has(chat.id)} />
                         {made && <span className="chat-rail__made">{made}{parent ? ` of ${parent}` : ""}</span>}
                       </button>
                     )}
@@ -266,6 +316,12 @@ export function ChatRail({ chats, activeId, runningByChat, onSelect, onNew, onRe
                         </button>
                         <button role="menuitem" onClick={() => { setMenu(null); togglePin(chat.id); }}>{pins.includes(chat.id) ? "Unpin" : "Pin"}</button>
                         <button role="menuitem" onClick={() => { setMenu(null); setDraft(chat.title); setRenaming(chat.id); }}>Rename</button>
+                        {whatsapp.available && (
+                          <button role="menuitem" onClick={() => { setMenu(null); void whatsapp.toggle(chat.id); }}>
+                            {whatsapp.linked.has(chat.id) ? "Take off WhatsApp" : "Connect to WhatsApp"}
+                            <small>{whatsapp.linked.has(chat.id) ? "the phone stops seeing this chat" : "carry on from your phone with /chat"}</small>
+                          </button>
+                        )}
                         <button role="menuitem" onClick={() => { setMenu(null); onMake(chat.id, "branch"); }}>
                           Branch<small>every message, then go another way</small>
                         </button>

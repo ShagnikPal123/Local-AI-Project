@@ -124,3 +124,27 @@
 .chat-reset__item > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 13px; }
 .chat-reset__item small { color: var(--color-neutral-600); font-size: 12px; line-height: 1.4; }
 .chat-reset__foot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 12px; overflow-wrap: anywhere; }
+
+/* Settings › Sessions & memory › Saved memories (MemoriesSection.tsx): one card per memory, kept ones marked. */
+.memories { display: flex; flex-direction: column; gap: 10px; }
+.memories__bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.memories__note { font-size: 12px; color: var(--color-neutral-500); }
+.memories__empty { font-size: 12.5px; color: var(--color-neutral-500); line-height: 1.6; }
+.memories__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.memories__item { padding: 10px 12px; border-radius: 10px; background: var(--color-surface-2); }
+.memories__item--kept { box-shadow: inset 3px 0 0 var(--color-accent); }
+.memories__head { display: flex; align-items: center; gap: 8px; }
+.memories__topic { font-size: 13px; font-weight: 600; color: var(--color-text); overflow-wrap: anywhere; }
+.memories__badge { font-size: 11px; padding: 1px 8px; border-radius: 999px; color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent); }
+.memories__content { font-size: 13px; line-height: 1.55; margin-top: 3px; overflow-wrap: anywhere; white-space: pre-wrap; }
+.memories__why { font-size: 12px; color: var(--color-neutral-500); margin-top: 3px; }
+.memories__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 6px;
+  font-size: 11.5px; color: var(--color-neutral-600); }
+.memories__meta code { font-family: var(--font-mono); font-size: 11px; }
+.memories__tools { display: inline-flex; gap: 2px; margin-left: auto; }
+.memories__tools .btn { padding: 3px 8px; font-size: 12px; }
+.memories__form { display: flex; flex-direction: column; gap: 6px; }
+.memories__keep { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+.memories__keep input { accent-color: var(--color-accent); }
+.memories__actions { display: flex; gap: 6px; }

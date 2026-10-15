@@ -1,5 +1,5 @@
 /* Avatars (AvatarsPanel.tsx) */
-.av { display: flex; flex-direction: column; gap: 14px; padding: 18px 20px 28px; max-width: 1320px; margin: 0 auto; }
+.av { display: flex; flex-direction: column; gap: 14px; padding: 18px 20px 28px; max-width: 1320px; margin: 0; }
 .av-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .av-head h1 { margin: 0 0 4px; font: 600 24px/1.2 var(--font-heading); letter-spacing: -0.01em; }
 .av-head p { max-width: 720px; }
@@ -101,6 +101,9 @@
 .av-add > button { justify-self: start; }
 
 .av-activity summary { cursor: pointer; }
+/* Its own scroll box, and no scroll anchoring: new entries arriving no longer pull the page up. */
+.av-activity { overflow-anchor: none; }
+.av-activity ol { max-height: 320px; overflow-y: auto; overscroll-behavior: contain; }
 .av-activity ol { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
 .av-activity li { display: flex; flex-direction: column; gap: 2px; padding-left: 10px; font-size: 13px; line-height: 1.5;
   border-left: 2px solid var(--color-accent-700); white-space: pre-wrap; }
@@ -116,3 +119,20 @@
   .av-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 520px) { .av { padding: 12px 16px; } .av-seg { grid-template-columns: 1fr; } }
+
+/* Settings sections like the owner's reference (p11): one search box, then rows that fold open. */
+.av-search { width: 100%; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--color-border, rgba(255,255,255,.1));
+  background: var(--color-surface-2, rgba(255,255,255,.04)); color: inherit; font: inherit; }
+.av-sec { border-bottom: 1px solid var(--color-border, rgba(255,255,255,.08)); }
+.av-sec__head { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 6px; background: none; border: 0;
+  color: inherit; font: inherit; font-size: 14px; text-align: left; cursor: pointer; border-radius: 8px;
+  transition: background-color .15s ease; }
+.av-sec__head:hover { background: var(--color-surface-2, rgba(255,255,255,.04)); }
+.av-sec__icon { width: 18px; text-align: center; color: var(--color-neutral-400); }
+.av-sec__title { flex: 1; font-weight: 500; }
+.av-sec__chev { color: var(--color-neutral-400); transition: transform .2s ease; }
+.av-sec.is-open .av-sec__chev { transform: rotate(180deg); }
+.av-sec__body { display: grid; gap: 12px; padding: 4px 6px 16px; animation: av-sec-in .2s ease-out; }
+@keyframes av-sec-in { from { opacity: 0; transform: translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) { .av-sec__body { animation: none; } .av-sec__chev { transition: none; } }
+:root[data-style~="desk"] .av-sec.is-open .av-sec__head { background: #1f1f1e; }

@@ -22,7 +22,7 @@ export const QuestionSendContext = createContext<((text: string) => void) | null
 export const QuestionDoneContext = createContext<string | null>(null);
 
 interface Option { label: string; means?: string; recommended?: boolean }
-interface Card { question: string; options: Option[]; multi?: boolean; other?: string }
+interface Card { question: string; options: Option[]; multi?: boolean; other?: string; drop?: boolean }
 
 /** One card from a JSON object. Models also send arrays and {questions: […]}; see `parseAll`. */
 function parseOne(raw: unknown): Card | null {
@@ -36,8 +36,11 @@ function parseOne(raw: unknown): Card | null {
           : { label: String((item as Option).label ?? ""), means: String((item as Option).means ?? ""), recommended: Boolean((item as Option).recommended) })
         .filter((option) => option.label.trim())
       : [];
-    if (!question || options.length < 2) return null;
-    return { question, options, multi: Boolean(data.multi), other: String(data.other ?? "Something else — tell me your approach") };
+    // An image drop box (doc 1, 1.19): {"question": …, "kind": "image"} asks for a picture and needs no options.
+    const drop = data.kind === "image" || data.drop === true;
+    if (!question || (options.length < 2 && !drop)) return null;
+    return { question, options, multi: Boolean(data.multi), drop,
+      other: String(data.other ?? (drop ? "Or describe it in words" : "Something else — tell me your approach")) };
   } catch {
     return null;
   }
@@ -105,6 +108,11 @@ function parseAll(source: string): Card[] {
   return list.slice(0, 4).map(parseOne).filter((card): card is Card => card !== null);
 }
 
+/** Files dropped on a card go to the chat box as attachments (ChatPanel listens), ready to send with the answer. */
+function attach(files: File[]): void {
+  window.dispatchEvent(new CustomEvent("nyx:attach-files", { detail: { files } }));
+}
+
 function send(text: string): void {
   window.dispatchEvent(new CustomEvent("nyx:chat-send", { detail: { text } }));
 }
@@ -121,6 +129,8 @@ function OneQuestion({ card }: { card: Card }) {
   const [picked, setPicked] = useState<string[]>([]);
   const [other, setOther] = useState("");
   const [answered, setAnswered] = useState<string | null>(null);
+  const [dropped, setDropped] = useState<string[]>([]);
+  const [over, setOver] = useState(false);
 
   if (!card) return null;
   const closed = answered ?? elsewhere;
@@ -139,9 +149,11 @@ function OneQuestion({ card }: { card: Card }) {
       const means = meanings.get(label);
       lines.push(`→ ${label}${means ? ` (${means})` : ""}`);
     }
+    if (dropped.length) lines.push(`→ Attached: ${dropped.join(", ")}`);
     if (typed.trim()) lines.push(`→ My own approach: ${typed.trim()}`);
     const text = lines.join("\n");
-    setAnswered(labels.length ? labels.join(", ") + (typed.trim() ? " + my own" : "") : "my own approach");
+    setAnswered(labels.length ? labels.join(", ") + (typed.trim() ? " + my own" : "")
+      : dropped.length ? `${dropped.length} image${dropped.length === 1 ? "" : "s"}` : "my own approach");
     sendTo(text);
   }
 
@@ -160,16 +172,38 @@ function OneQuestion({ card }: { card: Card }) {
               disabled={Boolean(closed)}
               onClick={() => toggle(option.label)}
             >
-              <b>{option.label}{option.recommended && <span className="q-card__tag">would pick</span>}</b>
+              <b>
+                {card.multi && <span className={`q-card__box${chosen ? " is-on" : ""}`} aria-hidden="true">{chosen ? "✓" : ""}</span>}
+                {option.label}{option.recommended && <span className="q-card__tag">would pick</span>}
+              </b>
               {option.means && <span>{option.means}</span>}
             </button>
           );
         })}
       </div>
+      {card.multi && !closed && <p className="q-card__hint">Pick as many as fit.</p>}
+      {card.drop && !closed && (
+        <label className={`q-card__drop${over ? " is-over" : ""}`}
+          onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)}
+          onDrop={(e) => {
+            e.preventDefault(); setOver(false);
+            const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/"));
+            if (files.length) { attach(files); setDropped((d) => [...d, ...files.map((f) => f.name)]); }
+          }}>
+          <input type="file" accept="image/*" multiple hidden onChange={(e) => {
+            const files = Array.from(e.target.files ?? []);
+            if (files.length) { attach(files); setDropped((d) => [...d, ...files.map((f) => f.name)]); }
+            e.target.value = "";
+          }} />
+          <span className="q-card__drop-icon" aria-hidden="true">⤓</span>
+          {dropped.length ? <span><b>{dropped.length} added to the chat box.</b> Send below, or drop more.</span>
+            : <span><b>Drop an image here</b> or click to pick one</span>}
+        </label>
+      )}
       {!closed && (
         <form
           className="q-card__other"
-          onSubmit={(event) => { event.preventDefault(); if (other.trim() || picked.length) answer(picked, other); }}
+          onSubmit={(event) => { event.preventDefault(); if (other.trim() || picked.length || dropped.length) answer(picked, other); }}
         >
           <input
             value={other}
@@ -177,7 +211,7 @@ function OneQuestion({ card }: { card: Card }) {
             placeholder={card.other}
             aria-label="Your own approach"
           />
-          <button type="submit" className="nyx-btn nyx-btn--sm" disabled={!other.trim() && picked.length === 0}>
+          <button type="submit" className="nyx-btn nyx-btn--sm" disabled={!other.trim() && picked.length === 0 && dropped.length === 0}>
             {card.multi && picked.length ? `Send ${picked.length} chosen` : "Send"}
           </button>
         </form>

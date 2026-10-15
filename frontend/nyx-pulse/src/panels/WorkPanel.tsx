@@ -9,9 +9,10 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import { ErrorState, Loading, PanelShell } from "../components/Panel";
+import { MemoriesSection, type SavedMemory } from "../components/settings/MemoriesSection";
 
 interface MemoryResponse {
-  important?: { topic: string; content: string }[];
+  important?: SavedMemory[];
   preferences?: Record<string, unknown>;
 }
 
@@ -115,33 +116,28 @@ export function WorkPanel() {
         </Layer>
 
         <Layer
-          title="Working memory"
-          subtitle="Facts and preferences the agent picked up while talking to you."
+          title="Saved memories"
+          subtitle="Facts Ichos keeps about you, each with an id and the day it was added. Mark the ones to keep long term; say “remember this” in a chat to add one."
         >
-          {important.length === 0 && preferences.length === 0 ? (
-            <Empty text="Nothing saved yet. This fills as you chat." />
-          ) : (
-            <>
-              {important.map((item, i) => (
-                <div key={i} style={{ padding: "7px 0", boxShadow: "inset 0 -1px 0 var(--color-divider)" }}>
-                  <div style={{ fontSize: 12, color: "var(--color-accent)", fontFamily: "var(--font-mono)" }}>
-                    {item.topic}
-                  </div>
-                  <div style={{ fontSize: 13, marginTop: 2, lineHeight: 1.55 }}>{item.content}</div>
-                </div>
-              ))}
-              {preferences.map(([key, value]) => (
-                <div key={key} style={{
-                  display: "flex", justifyContent: "space-between", gap: 12,
-                  padding: "6px 0", fontSize: 13,
-                }}>
-                  <span style={{ color: "var(--color-neutral-500)" }}>{key}</span>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>{String(value)}</span>
-                </div>
-              ))}
-            </>
-          )}
+          <MemoriesSection initial={important} />
         </Layer>
+
+        {preferences.length > 0 && (
+          <Layer
+            title="Working memory"
+            subtitle="Preferences the agent picked up while talking to you."
+          >
+            {preferences.map(([key, value]) => (
+              <div key={key} style={{
+                display: "flex", justifyContent: "space-between", gap: 12,
+                padding: "6px 0", fontSize: 13,
+              }}>
+                <span style={{ color: "var(--color-neutral-500)" }}>{key}</span>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>{String(value)}</span>
+              </div>
+            ))}
+          </Layer>
+        )}
 
         <Layer
           title="Sessions"
@@ -169,9 +165,9 @@ export function WorkPanel() {
         <div className="card" style={{ borderLeft: "3px solid var(--color-accent-700)" }}>
           <div className="label" style={{ marginBottom: 6 }}>Still to build</div>
           <div style={{ fontSize: 12, color: "var(--color-neutral-400)", lineHeight: 1.65 }}>
-            Obsidian as the primary store with this memory demoted to secondary (E2), a RAG
-            search box over stored memories (E1), and editing or deleting entries from here.
-            Right now memory is read-only in the UI.
+            Obsidian as the primary store with this memory demoted to secondary (E2) and a RAG
+            search box over stored memories (E1). Saved memories are also written as one note per
+            topic in the data folder's memory_notes.
           </div>
         </div>
       </div>

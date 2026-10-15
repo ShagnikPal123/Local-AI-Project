@@ -372,6 +372,16 @@ export function ChatPanel({
     return () => window.removeEventListener("nyx:chat-send", onCardSend);
   }, []);
 
+  // An image dropped on a question card's drop box lands in the chat box's attachments (doc 1, 1.19).
+  useEffect(() => {
+    const onAttach = (event: Event) => {
+      const files = (event as CustomEvent<{ files?: File[] }>).detail?.files ?? [];
+      if (files.length && mine()) attachRef.current(files);
+    };
+    window.addEventListener("nyx:attach-files", onAttach);
+    return () => window.removeEventListener("nyx:attach-files", onAttach);
+  }, []);
+
   const handBack = useCallback(async () => {
     const result = await api.post(`/api/chats/${encodeURIComponent(activeChatId)}/agent`, { agent: "" });
     if (!result.ok) { pushToast(result.error, "warn"); return; }
@@ -537,6 +547,8 @@ export function ChatPanel({
       })();
     }
   }, []);
+  const attachRef = useRef(onAttachFiles);
+  attachRef.current = onAttachFiles;
 
   // Files dragged anywhere over Nyx come here while the chat is the open thing.
   useFileTarget("chat", (files) => onAttachFiles(files), { label: "the chat" });
@@ -1201,6 +1213,8 @@ export function ChatPanel({
           onRestored={() => void loadChats()}
           brain={brain}
           onOpenBrain={onOpenBrain}
+          codeOn={code.state.on}
+          onCode={(on) => code.update({ on })}
           projects={<ProjectsSection activeProject={chatProject} onOpenChat={(id) => void loadChats().then(() => setActiveChatId(id))} />}
         />
         <section className="chat-home__main" aria-label={`Chat: ${title}`}>
@@ -1214,8 +1228,7 @@ export function ChatPanel({
               onDelete={(id) => void onDeleteChat(id)} />
             <span className="chat-home__spacer" />
             {activeTalkSupported() && <VoiceSwitch mode={voice} onMode={setVoice} />}
-            {/* Only at the start of a chat, or while Code is on; otherwise it is added from the + beside the box (owner, 2026-10-15). */}
-            {(messages.length === 0 || code.state.on) && <ChatCodeSwitch on={code.state.on} onChange={(on) => code.update({ on })} />}
+            {/* The Chat/Code switch lives at the top of the chat list now (owner, 2026-10-15); the + still adds Code. */}
             {!isPane && (
               <button type="button" className={`ov-toggle${overviewOpen ? " is-on" : ""}`} aria-pressed={overviewOpen}
                 onClick={() => setOverviewOpen((v) => !v)} title="Threads, usage, Library and activity">
