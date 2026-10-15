@@ -974,6 +974,22 @@ export function ChatPanel({
   const makeChatRef = useRef(makeChat);
   makeChatRef.current = makeChat;
 
+  /** "/rewind [n]": like Claude Code's /rewind, but nothing is lost. A branch of this chat without the last n
+   *  exchanges opens, and the original stays in the list ("Go back" returns to it). */
+  const rewind = useCallback(async (back: number) => {
+    if (activeChatId === "default") { pushToast("Nothing to rewind yet.", "info"); return; }
+    const result = await api.post<{ chat: { id: string; title: string } }>(
+      `/api/chats/${encodeURIComponent(activeChatId)}/branch`, { back, title: "" });
+    if (!result.ok) { pushToast(result.error, "warn"); return; }
+    const previous = activeChatId;
+    await loadChats();
+    setActiveChatId(result.data.chat.id);
+    pushToast(`Rewound ${back} exchange${back === 1 ? "" : "s"} into “${result.data.chat.title}”. The original chat is unchanged.`, "ok",
+      { label: "Go back", onClick: () => setActiveChatId(previous) });
+  }, [activeChatId, loadChats]);
+  const rewindRef = useRef(rewind);
+  rewindRef.current = rewind;
+
   /** The rail's ⋯ menu: branch, semi-branch (fork) or duplicate any chat in the list, then open the new one. */
   const makeChatFrom = useCallback(async (sourceId: string, kind: RailMakeKind) => {
     const result = await api.post<{ chat: { id: string; title: string } }>(`/api/chats/${encodeURIComponent(sourceId)}/${kind}`, {});
@@ -1037,6 +1053,8 @@ export function ChatPanel({
         case "tab.open": window.dispatchEvent(new CustomEvent("nyx:open-tab", { detail: { tab: args } })); break;
         case "window.game": window.dispatchEvent(new CustomEvent("ichos:open-window", { detail: { kind: "game" } })); break;
         case "context.compact": window.dispatchEvent(new CustomEvent("nyx:context-compact", { detail: { focus: args } })); break;
+        case "context.show": window.dispatchEvent(new CustomEvent("nyx:context-show")); break;
+        case "chat.rewind": void rewindRef.current(Math.max(1, parseInt(args, 10) || 1)); break;
         case "skill.create": openSkillCreator(args); break;
         case "diagram.open": void drawDiagram(args); break;
         case "diagram.picture": void drawDiagram(args, true); break;
