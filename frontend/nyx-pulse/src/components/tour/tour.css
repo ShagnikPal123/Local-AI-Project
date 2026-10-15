@@ -1,0 +1,21 @@
+/* The Ichos tour: a card in the corner and a soft ring around what each step talks about. Theme tokens only. */
+.tour-card, .tour-offer { position: fixed; z-index: 2000; right: 24px; bottom: 24px; width: min(380px, calc(100vw - 32px)); box-sizing: border-box;
+  padding: 16px 18px; border-radius: 16px; background: var(--color-flyout, var(--color-surface-2)); color: var(--color-text);
+  box-shadow: 0 18px 50px rgb(0 0 0 / 0.55), inset 0 0 0 1px var(--color-divider); animation: tour-in 0.18s ease-out; }
+.tour-card h2 { margin: 2px 0 6px; font: 600 20px/1.25 Georgia, "Iowan Old Style", "Times New Roman", serif; }
+.tour-card p { margin: 0 0 8px; font-size: 14px; line-height: 1.5; color: var(--color-neutral-300); }
+.tour-card__try { color: var(--color-text) !important; }
+.tour-card__try span { color: var(--color-accent); }
+.tour-card__count { font-size: 12px; color: var(--color-neutral-500); }
+.tour-card__dots { display: flex; flex-wrap: wrap; gap: 4px; margin: 10px 0 12px; }
+.tour-card__dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--color-neutral-700); }
+.tour-card__dots i.is-done { background: var(--color-neutral-500); }
+.tour-card__dots i.is-on { background: var(--color-accent); width: 16px; border-radius: 3px; }
+.tour-card__acts, .tour-offer__acts { display: flex; align-items: center; gap: 8px; }
+.tour-card__spacer { flex: 1; }
+.tour-offer { display: grid; gap: 6px; font-size: 14px; }
+.tour-offer span { color: var(--color-neutral-300); }
+.tour-spot { position: fixed; z-index: 1999; pointer-events: none; border-radius: 12px; transition: all 0.2s ease;
+  box-shadow: 0 0 0 2px var(--color-accent), 0 0 0 9999px rgb(0 0 0 / 0.35); }
+@keyframes tour-in { from { opacity: 0; transform: translateY(8px); } }
+@media (prefers-reduced-motion: reduce) { .tour-card, .tour-offer { animation: none; } .tour-spot { transition: none; } }
