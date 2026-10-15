@@ -262,6 +262,7 @@ class TurnRunner:
         voice_session: str = "",
         mode: Optional[str] = None,
         voice: bool = False,
+        code: Optional[Dict[str, Any]] = None,
     ) -> None:
         self.service = service
         self.message = message or ""
@@ -288,6 +289,9 @@ class TurnRunner:
         #: The slider under the composer: normal | cowork | plan | plan_go (chat_modes.py).
         self.chat_mode = mode or "normal"
         self.mode_switches: Dict[str, Any] = {}
+        #: The chat's Code switch (Drive doc 2, 2.1): {"folder", "environment"} while the chat is in Code.
+        self.code_request: Dict[str, Any] = dict(code or {})
+        self.code_session: Optional[Dict[str, str]] = None
         self.escalated = False
         self.skill_ids: List[str] = []
         self.agent_names: List[str] = []
@@ -643,9 +647,29 @@ class TurnRunner:
             self.emit("status", phase="route", text=f"Auto picked {words} ({switches.get('auto_reason')})")
         elif switches["mode"] != "normal":
             self.emit("status", phase="route", text=words)
+        self._apply_code_session()
         self.emit("chat.mode", mode=switches["mode"], auto=bool(switches.get("auto")),
                   reason=str(switches.get("auto_reason") or ""), swarm=int(switches.get("swarm") or 0))
         return switches
+
+    def _apply_code_session(self) -> None:
+        """Code in the normal chat: name the folder for the model, start commands there, gate Review first."""
+        try:
+            import chat_modes
+        except Exception:  # pragma: no cover
+            return
+        self.code_session = chat_modes.prepare_code(self.service, self.code_request.get("folder"),
+                                                    self.code_request.get("environment"))
+        if not self.code_session:
+            if self.code_request.get("folder"):
+                self.emit("status", phase="route", text="Code: that folder is not there any more, so this turn is plain chat")
+            return
+        self.context.code_root = self.code_session["folder"]
+        if self.code_session["environment"] == "review":
+            # This turn's gate only: the conversation's own gate is left as it was for the next turn.
+            self.context.guard = chat_modes.code_review_guard(self.context.guard)
+        self.emit("status", phase="route",
+                  text=f"Code · {self.code_session['name']} · {self.code_session['environment_label']}")
 
     def _consult_settings(self) -> Dict[str, Any]:
         try:

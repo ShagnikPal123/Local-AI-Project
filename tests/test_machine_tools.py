@@ -168,3 +168,12 @@ def test_the_assistant_can_only_switch_digging_off(dig_file):
     assert "stop_digging" in registry.tools and "start_digging" not in registry.tools
     machine_tools.stop_digging()
     assert machine_tools.digging_settings()["on"] is False
+
+
+def test_commands_start_in_the_code_session_folder(tmp_path):
+    """A chat in Code (Drive doc 2, 2.1): run_command's default folder is the session's, not the user folder."""
+    import tool_context
+
+    assert machine_tools._code_root() is None
+    with tool_context.use_context(tool_context.ToolContext(code_root=str(tmp_path))):
+        assert machine_tools._code_root() == tmp_path

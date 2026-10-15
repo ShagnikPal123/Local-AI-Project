@@ -88,6 +88,8 @@ class StreamRequest(BaseModel):
     voice_session: str = ""
     #: The slider under the composer (chat_modes.py): normal | cowork | plan | plan_go.
     mode: Optional[str] = None
+    #: The Chat / Code switch (Drive doc 2, 2.1): {"folder": ..., "environment": "local" | "review"} while in Code.
+    code: Optional[Dict[str, str]] = None
 
 
 class StopRequest(BaseModel):
@@ -216,6 +218,7 @@ def start_turn(body: StreamRequest, user: Any) -> tuple[str, str]:
                 voice_session=body.voice_session,
                 mode=body.mode,
                 voice=body.voice,
+                **({"code": body.code} if body.code else {}),
             )
             if cancel.is_set() or (isinstance(result, dict) and result.get("stopped")):
                 state = "stopped"
