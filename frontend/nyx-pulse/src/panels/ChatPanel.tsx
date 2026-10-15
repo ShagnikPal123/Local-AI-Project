@@ -198,7 +198,7 @@ export function ChatPanel({
       // open): take the server's copy instead of keeping a transcript without it (H9).
       const shown = current.filter((m) => m.role === "user" || m.role === "assistant").length;
       if (current.length > 0 && transcript.length > shown && !turnsStore.get().runningByChat[activeChatId]) {
-        const refreshed: ChatMessageView[] = transcript.map((m) => ({ id: nextId(), role: m.role, content: m.content, sources: m.sources }));
+        const refreshed: ChatMessageView[] = transcript.map((m) => ({ id: nextId(), role: m.role, content: m.content, sources: m.sources, edited: m.edited }));
         persist(activeChatId, refreshed);
         return refreshed;
       }
@@ -208,11 +208,30 @@ export function ChatPanel({
         role: m.role,
         content: m.content,
         sources: m.sources,
+        edited: m.edited,
       }));
       persist(activeChatId, seeded);
       return seeded;
     });
   }, [transcript, loadingTranscript, activeChatId, persist]);
+
+  /** Copy the server's current wording onto the shown messages, matched by position from the newest (2.4). */
+  const refreshEdited = useCallback(async (chatId: string) => {
+    const result = await api.get<{ messages: { role: string; content: string; edited?: unknown }[] }>(`/api/chats/${encodeURIComponent(chatId)}/messages`);
+    if (!result.ok) return;
+    const server = result.data.messages.filter((m) => m.role === "user" || m.role === "assistant");
+    setMessages((current) => {
+      let back = server.length;
+      const next = [...current].reverse().map((m) => {
+        if (m.role !== "user" && m.role !== "assistant") return m;
+        const fresh = server[--back];
+        if (!fresh || fresh.role !== m.role || !fresh.edited || fresh.content === m.content) return m;
+        return { ...m, content: fresh.content, edited: true, turn: m.turn ? { ...m.turn, answer: fresh.content } : m.turn };
+      }).reverse();
+      persist(chatId, next);
+      return next;
+    });
+  }, [persist]);
 
   // Fold a finished turn into the transcript exactly once.
   const foldedRef = useRef<string | null>(null);
@@ -237,6 +256,8 @@ export function ChatPanel({
       persist(turn.chatId || activeChatId, next);
       return next;
     });
+    // Nyx crossed out part of an earlier reply (edit_my_message): take the server's wording for those messages.
+    if (turn.editedEarlier) void refreshEdited(turn.chatId || activeChatId);
     // A first message sent from the "default" placeholder lands in a real chat;
     // follow it so a reload reopens this conversation.
     if (activeChatId === "default" && turn.chatId && turn.chatId !== "default") {
@@ -834,6 +855,24 @@ export function ChatPanel({
             if (target) await copyToClipboard(target.content);
           })();
           break;
+        case "edit": {
+          // The owner redoes a message they sent (Drive doc 2, 2.4); Nyx is told with the next turn.
+          const shown = messages.filter((m) => m.role === "user" || m.role === "assistant");
+          const at = shown.findIndex((m) => m.id === action.messageId);
+          const target = shown[at];
+          if (!target || busy) { if (busy) pushToast("Wait for this answer to finish, then edit.", "info"); break; }
+          void api.patch<{ ok: boolean }>(`/api/chats/${encodeURIComponent(activeChatId)}/messages`,
+            { from_end: shown.length - 1 - at, was: target.content, text: action.text }).then((result) => {
+            if (!result.ok) { pushToast(result.error, "warn"); return; }
+            setMessages((current) => {
+              const next = current.map((m) => (m.id === action.messageId ? { ...m, content: action.text.trim(), edited: true } : m));
+              persist(activeChatId, next);
+              return next;
+            });
+            pushToast("Edited. Ichos sees the change with your next message.", "ok");
+          });
+          break;
+        }
         case "retry":
           resendBefore(action.messageId);
           break;
@@ -856,7 +895,7 @@ export function ChatPanel({
           break;
       }
     },
-    [activeChatId, messages, resendBefore, runningTurn, stop],
+    [activeChatId, busy, messages, persist, resendBefore, runningTurn, stop],
   );
 
   // --- chat management ---------------------------------------------------------------

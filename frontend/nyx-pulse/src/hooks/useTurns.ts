@@ -54,7 +54,7 @@ export interface UseTurnsResult {
   send: (options: SendOptions) => Promise<void>;
   stop: (turnId: string) => Promise<void>;
   /** Server transcript for the chat, or null when the backend has none. */
-  transcript: { role: "user" | "assistant"; content: string; sources?: SourceLink[] }[] | null;
+  transcript: { role: "user" | "assistant"; content: string; sources?: SourceLink[]; edited?: boolean }[] | null;
   loadingTranscript: boolean;
 }
 
@@ -71,7 +71,7 @@ export function useTurns(chatId: string): UseTurnsResult {
   // Keyed by chat: after a switch, the previous chat's transcript must never be
   // handed out as the new chat's — the panel seeded a brand-new chat with it, so
   // "New chat" looked like it duplicated the current one (Request G15).
-  const [loaded, setLoaded] = useState<{ chatId: string; messages: { role: "user" | "assistant"; content: string; sources?: SourceLink[] }[] | null }>({ chatId: "", messages: null });
+  const [loaded, setLoaded] = useState<{ chatId: string; messages: { role: "user" | "assistant"; content: string; sources?: SourceLink[]; edited?: boolean }[] | null }>({ chatId: "", messages: null });
   const [loadingFor, setLoadingFor] = useState<string | null>(null);
   const transcript = loaded.chatId === chatId ? loaded.messages : null;
   const loadingTranscript = loadingFor === chatId || loaded.chatId !== chatId;
@@ -151,7 +151,7 @@ export function useTurns(chatId: string): UseTurnsResult {
     let alive = true;
     setLoadingFor(chatId);
     void (async () => {
-      const result = await api.get<{ messages: { role: string; content: string; sources?: SourceLink[] }[] }>(
+      const result = await api.get<{ messages: { role: string; content: string; sources?: SourceLink[]; edited?: unknown }[] }>(
         `/api/chats/${encodeURIComponent(chatId)}/messages`,
       );
       if (!alive) return;
@@ -159,7 +159,7 @@ export function useTurns(chatId: string): UseTurnsResult {
       if (result.ok && Array.isArray(result.data.messages)) {
         const messages = result.data.messages
           .filter((m) => m.role === "user" || m.role === "assistant")
-          .map((m) => ({ role: m.role as "user" | "assistant", content: String(m.content ?? ""), sources: Array.isArray(m.sources) ? m.sources : undefined }));
+          .map((m) => ({ role: m.role as "user" | "assistant", content: String(m.content ?? ""), sources: Array.isArray(m.sources) ? m.sources : undefined, edited: Boolean(m.edited) }));
         setLoaded({ chatId, messages: messages.length > 0 ? messages : null });
       } else {
         setLoaded({ chatId, messages: null });

@@ -328,6 +328,15 @@ function renderInline(text: string, keyPrefix: string, depth = 0): ReactNode[] {
       } else {
         node = m[3];
       }
+    } else if (m[6] !== undefined && /^chat:[\w-]{4,40}$/.test(m[6].trim())) {
+      // A link to another chat, written [title](chat:<id>) (Drive doc 2, 2.4): a chip that opens it, like Claude's.
+      const chatId = m[6].trim().slice(5);
+      node = (
+        <button key={key} type="button" className="nyx-md__chat" title="Open this chat"
+          onClick={() => window.dispatchEvent(new CustomEvent("nyx:open-chat", { detail: { chatId } }))}>
+          <span className="nyx-md__chat-dot" aria-hidden="true" />{renderInline(m[5], key, depth + 1)}
+        </button>
+      );
     } else if (m[6] !== undefined) {
       const href = safeHref(m[6]);
       const label = renderInline(m[5], key, depth + 1);
