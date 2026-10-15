@@ -46,6 +46,9 @@ the local passcode. `POST /api/auth/logout`.
   "state_words": "Trading 14 markets with 6 bots.",
   "stopped_reason": "",        // filled when the watchdog shut it down
   "money_kind": "practice",    // "practice" | "real" - shown big, never ambiguous
+  "broker": "Practice account (simulated money)",  // or "Alpaca practice account"
+  "broker_error": "",          // why the broker can't be reached; the rest of the screen still draws
+  "budget": null,              // with Alpaca: the most money the bots may use
   "money": {
     "currency": "USD", "equity": 10234.5, "cash": 6120.0, "start": 10000.0,
     "pl": 234.5, "pl_pct": 2.35, "today_pl": 41.2, "today_pl_pct": 0.4,
@@ -134,6 +137,16 @@ leaves it alone) unless `"unpin": ["risk"]` is sent, which hands it back to auto
  "decision_ms": 2.9, "cycle_ms": 690.0, "markets": 287,
  "targets": {"decision_ms": {"fast": 100, "ok": 500}, "cycle_ms": {"fast": 5000, "ok": 15000}}}
 ```
+
+## Setup (the first screen)
+
+`GET /api/setup` → `{"done": false, "broker": "sim", "start_cash": 10000, "currency": "USD", "budget": 0,
+"alpaca": false, "currencies": [...], "workers": 16, "cpus": 4}`
+
+`POST /api/setup` `{"amount": 2500, "currency": "EUR", "broker": "sim" | "alpaca", "start": true}` (owner) →
+stops the trader, sets the money (the practice account's starting cash, or Alpaca's budget), marks
+setup done, and starts again when `start` is true. 400 with a plain sentence when the amount is
+missing or Alpaca's keys are not added yet.
 
 ## Practice account
 
