@@ -1,0 +1,7 @@
+# Ichos Trader - the standalone trading app. Python 3.11 or newer.
+fastapi
+uvicorn
+requests
+# Tests only
+pytest
+httpx2
