@@ -192,3 +192,36 @@ button.cb-summary:hover { color: var(--color-text); }
 .pj-act:hover { box-shadow: inset 0 0 0 1px var(--color-neutral-500); }
 .pj-hint { margin: 0; font-size: 13px; color: var(--color-neutral-400); }
 @media (max-width: 760px) { .pj-where { display: none; } .chat-home__project { padding: 0 12px; } }
+
+/* --- Overview, second pass (owner's 2026-10-15 images): search, widen, message counts, a Library file table ------- */
+.chat-home.has-overview:has(> .ov-panel.is-wide) { grid-template-columns: auto minmax(0, 1fr) minmax(300px, 62%); }
+.ov-close.is-on { background: var(--color-surface-2); color: var(--color-text); }
+.ov-search { margin: 0 12px 8px; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--color-divider-strong, var(--color-divider));
+  background: var(--color-surface); color: var(--color-text); font: inherit; font-size: 13px; }
+.ov-pill { display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px; border-radius: 999px; font-size: 11.5px;
+  color: var(--color-neutral-400); box-shadow: inset 0 0 0 1px var(--color-divider-strong, var(--color-divider)); flex: none; }
+.ov-type select { border: 0; background: transparent; color: var(--color-neutral-400); font: inherit; font-size: 12.5px; cursor: pointer; }
+.ov-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.ov-table th { text-align: left; font-weight: 500; color: var(--color-neutral-600); padding: 6px 8px; background: var(--color-surface);
+  white-space: nowrap; }
+.ov-table th:first-child { border-radius: 6px 0 0 6px; }
+.ov-table th:last-child { border-radius: 0 6px 6px 0; }
+.ov-table td { padding: 7px 8px; color: var(--color-neutral-600); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+.ov-table td:first-child { color: var(--color-text); }
+.ov-tr:hover td { background: var(--color-surface); }
+.ov-tr.is-nested td:first-child { padding-left: 34px; }
+.ov-tname { display: inline-flex; align-items: center; gap: 7px; border: 0; background: none; color: inherit; font: inherit; padding: 0;
+  cursor: default; min-width: 0; }
+button.ov-tname { cursor: pointer; }
+.ov-tname small { color: var(--color-neutral-600); font-size: 11px; margin-left: 4px; }
+.ov-tipcard { display: flex; align-items: flex-start; gap: 10px; margin: 16px 0 8px; padding: 10px 12px; border-radius: 8px;
+  background: var(--color-surface); box-shadow: inset 0 0 0 1px var(--color-divider); }
+.ov-tipcard__icon { font-size: 22px; line-height: 1; }
+.ov-tipcard b { display: block; font-size: 12.5px; }
+.ov-tipcard small { display: block; font-size: 12px; color: var(--color-neutral-500); }
+.ov-tipcard button { margin-left: auto; border: 0; background: none; color: var(--color-neutral-500); cursor: pointer; }
+.ov-storage { display: grid; gap: 4px; margin-top: 8px; font-size: 11.5px; color: var(--color-neutral-600); }
+.ov-storage__bar { height: 2px; border-radius: 2px; background: var(--color-divider); overflow: hidden; }
+.ov-storage__bar span { display: block; height: 100%; background: var(--color-link, #6aa5ec); }
+.ov-library { display: flex; flex-direction: column; min-height: 100%; }
+.ov-library .ov-tipcard { margin-top: auto; }

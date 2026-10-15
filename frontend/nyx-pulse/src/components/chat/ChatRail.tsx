@@ -128,6 +128,7 @@ export function ChatRail({ chats, activeId, runningByChat, onSelect, onNew, onRe
   const togglePin = (id: string) => setPins((current) => {
     const next = current.includes(id) ? current.filter((x) => x !== id) : [id, ...current];
     try { localStorage.setItem(PINS_KEY, JSON.stringify(next)); } catch { /* not kept */ }
+    window.setTimeout(() => window.dispatchEvent(new Event("nyx:pins")), 0);  // the Overview's Pinned group follows
     return next;
   });
 
