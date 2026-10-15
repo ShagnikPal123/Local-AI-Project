@@ -58,8 +58,8 @@ _FILLER = ("the ", "my ", "a ", "to ", "open ", "go to ", "take me to ", "naviga
 
 #: Tabs that became their own apps, and what to tell someone who asks for one.
 MOVED = {
-    "trading": "Trading moved to its own app, Ichos Trader: double-click \"Start Ichos Trader.bat\" in "
-               "apps/ichos-trader, then open http://127.0.0.1:8100.",
+    "trading": "Trading moved to its own app, Ichos Trader (github.com/ShagnikPal123/Ichos-Trader): "
+               "double-click \"Start Ichos Trader.bat\", then open http://127.0.0.1:8100.",
 }
 
 

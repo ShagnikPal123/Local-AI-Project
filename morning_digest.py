@@ -175,7 +175,7 @@ def _news(conf: Dict[str, Any]) -> List[str]:
 
 
 def _markets(conf: Dict[str, Any]) -> List[str]:
-    # Trading moved to its own app (apps/ichos-trader); the briefing only needs a price, which the
+    # Trading moved to its own app (repo ShagnikPal123/Ichos-Trader); the briefing only needs a price, which the
     # keyless finance connector gives.
     from connectors import CONNECTOR_REGISTRY
 

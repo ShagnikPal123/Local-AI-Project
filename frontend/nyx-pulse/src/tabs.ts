@@ -135,7 +135,7 @@ export const REDIRECTS: Record<string, Redirect> = {
   collab: { kind: "hub", tab: "code", section: "collab" },
   learn: { kind: "hub", tab: "improve", section: "learn" },
   freewill: { kind: "hub", tab: "improve", section: "freewill" },
-  // Owner, 2026-10-15: trading became its own app, Ichos Trader (apps/ichos-trader); old links land in the chat.
+  // Owner, 2026-10-15: trading became its own app, Ichos Trader (its own repo, ShagnikPal123/Ichos-Trader); old links land in the chat.
   trading: { kind: "hub", tab: "nyx", section: "" },
 };
 

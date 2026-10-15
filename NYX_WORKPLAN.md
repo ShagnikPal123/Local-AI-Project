@@ -157,8 +157,8 @@ Standing file ownership when delegating:
 
 ### 2026-10-15 — WS1 Ichos Trader finished; Trading removed from Ichos (PRs #22, #23)
 - [x] `apps/ichos-trader/`: Setup screen, Alpaca practice broker with a budget, one-click Windows start, install README.
-- [ ] Owner: yes/no on real money (ready aside, not shipped); create an empty `ichos-trader` repo, then move the app
-  there with `git subtree split --prefix apps/ichos-trader`.
+- [x] Real-money mode shipped (PR #29). The app moved with its history to its own repo,
+  `ShagnikPal123/Ichos-Trader`, and `apps/ichos-trader/` was removed from this repo (2026-10-15).
 
 ### 2026-10-13 — Fixer Upper: split into 15 workstreams
 - [~] **Plan:** `docs/FIXER_UPPER_PLAN.md` — each item marked Done / Partial / Not started against the code at
