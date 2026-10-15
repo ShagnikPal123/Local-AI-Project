@@ -59,7 +59,7 @@ class LineupModel:
 
     def view(self) -> Dict[str, Any]:
         return {"id": self.id, "name": self.name, "size": self.size, "size_label": _SIZE_LABEL[self.size],
-                "tagline": self.tagline}
+                "tagline": self.tagline, "runs_on": runs_on(self.id)}
 
 
 @dataclass(frozen=True)
@@ -192,6 +192,50 @@ DEFAULT_EFFORT_FOR_SIZE: Dict[str, str] = {
     "super": "super",
 }
 
+#: The real model behind each Monolith and Crescendo name, best first. A turn uses the first one whose provider can
+#: answer right now (key set, not paid-only in free mode, online); with none, Big Kahuna answers and routes it. So
+#: Argon is a small fast model and Eclipse the strongest one there is, not the same brain with a different name.
+#: An empty list means "Big Kahuna on purpose" (Abyss adjusts to each task, so the router picks per message).
+BACKING: Dict[str, Tuple[Tuple[str, str], ...]] = {
+    # Monolith: general work, balanced between speed and depth.
+    "argon": (("groq", "llama-3.1-8b-instant"), ("gemini", "gemini-2.5-flash-lite")),
+    "boron": (("gemini", "gemini-2.5-flash"), ("groq", "llama-3.3-70b-versatile")),
+    "carbon": (("gemini", "gemini-3.5-flash"), ("deepseek", "deepseek-chat"), ("claude", "claude-haiku-5-5")),
+    "silicon": (("claude", "claude-sonnet-5-5"), ("gemini", "gemini-2.5-pro"), ("deepseek", "deepseek-reasoner")),
+    "xenon": (("claude", "claude-opus-5-5"), ("gemini", "gemini-2.5-pro"), ("openai", "gpt-4o")),
+    # Crescendo: the heavyweights. Each size sits a step above Monolith's.
+    "photon": (("gemini", "gemini-2.5-flash"), ("groq", "llama-3.3-70b-versatile")),
+    "azure": (("gemini", "gemini-3.5-flash"), ("claude", "claude-haiku-5-5"), ("deepseek", "deepseek-chat")),
+    "radiance": (("claude", "claude-sonnet-5-5"), ("gemini", "gemini-2.5-pro")),
+    "nexus": (("claude", "claude-opus-5-5"), ("deepseek", "deepseek-reasoner"), ("gemini", "gemini-2.5-pro")),
+    "abyss": (),
+    "eclipse": (("claude", "claude-opus-5-5"), ("gemini", "gemini-2.5-pro"), ("openai", "gpt-4o")),
+}
+
+#: Pico's quick answers when no small local model is installed: the fastest cloud models.
+PICO_CLOUD: Tuple[Tuple[str, str], ...] = (("groq", "llama-3.1-8b-instant"), ("gemini", "gemini-2.5-flash-lite"))
+
+_PROVIDER_LABEL = {"groq": "Groq", "gemini": "Gemini", "deepseek": "DeepSeek", "claude": "Claude", "openai": "OpenAI",
+                   "ollama": "Ollama"}
+
+
+def runs_on(model_id: str) -> str:
+    """What a name runs on, in words, for the picker ("Gemini gemini-2.5-flash, else Groq …")."""
+    fam_model = _BY_MODEL.get(str(model_id or "").lower())
+    if fam_model is None:
+        return ""
+    fam, _model = fam_model
+    if fam.id == "pico":
+        return "The lightest local model that fits this PC, else a fast cloud model"
+    if fam.id == "zencode":
+        return "The model set for Code in Keys & Models"
+    chain = BACKING.get(model_id, ())
+    if not chain:
+        return "Big Kahuna picks the model for each message"
+    first = ", else ".join(f"{_PROVIDER_LABEL.get(p, p)} {m}" for p, m in chain[:2])
+    return f"{first} (Big Kahuna if none is set up)"
+
+
 #: The biggest local model (GB on disk) each Pico size may load. Overtone (0) takes whatever fits this machine.
 PICO_LOCAL_GB: Dict[str, float] = {"small": 2.0, "normal": 3.5, "middle": 6.0, "max": 10.0, "super": 0.0}
 
@@ -216,6 +260,11 @@ class TurnPlan:
     #: Provider and model the quick path tries first (Pico's light model); None uses ``prefer``.
     fast_prefer: Optional[str] = None
     fast_model: Optional[str] = None
+    #: The real models behind the name, best first; ``turn_runner`` takes the first that can answer now and
+    #: otherwise keeps ``prefer`` (Big Kahuna).
+    candidates: List[Tuple[str, str]] = field(default_factory=list)
+    #: Same for the quick path (Pico's cloud fallback).
+    fast_candidates: List[Tuple[str, str]] = field(default_factory=list)
     speed: str = "auto"
     thinking: Optional[bool] = None
     optimizer: Optional[bool] = None
@@ -502,11 +551,14 @@ def _route_family(plan: TurnPlan, fam: Family, model: LineupModel, light_picker:
         if picked:
             plan.fast_prefer, plan.fast_model, why = picked
             plan.notes.append(why)
+        else:
+            plan.fast_candidates = list(PICO_CLOUD)
         # Pico stays light for quick answers; anything that needs tools goes to Big Kahuna, because small models
         # write tool calls badly and a failed tool call costs more time than it saved.
         plan.prefer = "identity0"
     elif fam.id in ("monolith", "crescendo"):
         plan.prefer = "identity0"
+        plan.candidates = list(BACKING.get(model.id, ()))
     elif fam.id == "zencode":
         provider, model_name = _code_role()
         plan.prefer, plan.prefer_model = provider, model_name
