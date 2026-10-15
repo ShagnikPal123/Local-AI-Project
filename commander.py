@@ -832,6 +832,10 @@ def brief(chat_id: str) -> str:
         "that is too full is restarted fresh with a summary for you automatically.\n"
         "- read_thread shows what a thread said; resolve_thread when its work is done and nothing is owed.\n"
         "- A small question you can answer from what you already know gets a one-line answer here, no thread.\n"
+        "- With several threads open, balance_threads says which is free before you send more work.\n"
+        + ("- This is a project's working file: project_files opens its folder and drives, add_project_file and "
+           "add_project_note add to its knowledge, find_in_project looks things up, add_helper puts (or makes) an "
+           "agent on it.\n" if row.get("project_id") else "") +
         "- Give each thread one job (research, plan, build, test or review). Big work is a team: a plan thread, then "
         "build threads, then a test or review thread on what they made.\n"
         "- Threads' questions, approvals and results show up in this chat by themselves, and the owner can answer them "

@@ -58,6 +58,7 @@ TOOL_MODULES: List[Tuple[str, str]] = [
     ("routes_game", "register_game_tools"),
     ("command_zone", "register_command_zone_tools"),
     ("commander", "register_commander_tools"),
+    ("project_workspace", "register_project_tools"),
     ("absorb_engine", "register_absorb_tools"),
     ("data_process", "register_data_tools"),
     ("diagram_engine", "register_diagram_tools"),
