@@ -9,7 +9,7 @@
  * voice channel waveform at the bottom and one monospace status line. Here every panel is real data from
  * `/api/core/overview` (polled while visible):
  *   • gauges — machine CPU / memory / GPU and this engine's own CPU;
- *   • APIs — each provider's calls, success, latency, limits and key health; markets from the Trading watchlist;
+ *   • APIs — each provider's calls, success, latency, limits and key health;
  *   • Sub-agents — drag one into the project dock (drag again for a second copy), Run, or + to make a new one;
  *   • Processes — everything running in the background, found rather than listed (`feature_catalog`, U31): jobs
  *     with their progress first, then the loops that are always on, folded away; a row opens the tab that shows it;
@@ -54,7 +54,6 @@ interface Overview {
   providers: Provider[]; agents: CoreAgent[]; processes: Process[];
   today: { turns: number; ok?: number; median_latency_s?: number | null; agents_used?: number; tools_used?: number };
 }
-interface Signal { symbol: string; change_pct?: number | null; sparkline?: number[]; indicators?: { price: number }; error?: string }
 interface Project { value: string; name: string; path?: string; kind: "code" | "build" }
 
 const PROVIDER_LABEL: Record<string, string> = {
@@ -326,7 +325,6 @@ export function CoreView({ shiftX = 0, onOpenAgent, onOpenTab }: {
   const [data, setData] = useState<Overview | null>(null);
   const [history, setHistory] = useState<Record<string, number[]>>({});
   const [speaking, setSpeaking] = useState(false);
-  const [signals, setSignals] = useState<Signal[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [project, setProject] = useState("");
   const [boxes, setBoxes] = useState<BoxItem[]>([]);
@@ -371,12 +369,6 @@ export function CoreView({ shiftX = 0, onOpenAgent, onOpenTab }: {
 
   useEffect(() => {
     let alive = true;
-    const loadSignals = async () => {
-      const result = await api.get<{ signals: Signal[] }>("/api/trading/signals", 20_000);
-      if (alive && result.ok) setSignals(result.data.signals.filter((s) => !s.error && s.indicators).slice(0, 3));
-    };
-    void loadSignals();
-    const timer = window.setInterval(() => { if (!document.hidden) void loadSignals(); }, 5 * 60_000);
     void Promise.all([
       api.get<{ workspaces: { id: string; name: string; path: string }[] }>("/api/code/workspaces"),
       api.get<{ projects: { id: string; name: string }[] }>("/api/build/projects"),
@@ -389,7 +381,7 @@ export function CoreView({ shiftX = 0, onOpenAgent, onOpenTab }: {
       setProjects(list);
       if (active.ok) setDispatches(active.data.dispatches.slice(0, 3));
     });
-    return () => { alive = false; window.clearInterval(timer); };
+    return () => { alive = false; };
   }, []);
 
   const turns = useStore(turnsStore, (s) => s.turns);
@@ -502,24 +494,6 @@ export function CoreView({ shiftX = 0, onOpenAgent, onOpenTab }: {
               {data && data.providers.length === 0 && <li className="core__empty">No API calls yet.</li>}
             </ul>
           </section>
-          {signals.length > 0 && (
-            <section className="core__panel core__markets" aria-label="Markets">
-              <div className="core__caption">Markets</div>
-              <ul className="core__rows">
-                {signals.map((s) => (
-                  <li key={s.symbol} className="core__api">
-                    <span className="core__badge is-market">{s.symbol.slice(0, 1)}</span>
-                    <span className="core__api-name"><b>{s.symbol}</b><span>watchlist</span></span>
-                    <Spark values={(s.sparkline ?? []).slice(-30)} className={(s.change_pct ?? 0) < 0 ? "is-down" : "is-up"} />
-                    <span className="core__api-num">
-                      <b>{s.indicators ? s.indicators.price.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "—"}</b>
-                      <span className={(s.change_pct ?? 0) < 0 ? "is-down" : "is-up"}>{typeof s.change_pct === "number" ? `${s.change_pct > 0 ? "+" : ""}${s.change_pct.toFixed(2)}%` : ""}</span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
         </div>
 
         {/* Right: sub-agents and processes */}

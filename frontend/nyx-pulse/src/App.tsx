@@ -63,7 +63,6 @@ const NotesPanel = lazy(() => import("./panels/notes/NotesPanel").then((m) => ({
 const CodePanel = lazy(() => import("./panels/code/CodePanel").then((m) => ({ default: m.CodePanel })));
 const SubAgentsPanel = lazy(() => import("./panels/SubAgentsPanel").then((m) => ({ default: m.SubAgentsPanel })));
 const CollabPanel = lazy(() => import("./panels/CollabPanel").then((m) => ({ default: m.CollabPanel })));
-const TradingPanel = lazy(() => import("./panels/trading/TradingPanel").then((m) => ({ default: m.TradingPanel })));
 const ResearchPanel = lazy(() => import("./panels/research/ResearchPanel").then((m) => ({ default: m.ResearchPanel })));
 const ModelsPanel = lazy(() => import("./panels/ModelsPanel").then((m) => ({ default: m.ModelsPanel })));
 const KeysPanel = lazy(() => import("./panels/KeysPanel").then((m) => ({ default: m.KeysPanel })));
@@ -488,7 +487,6 @@ export default function App() {
             ) },
           ]} />
         )}
-        {active === "trading" && <TradingPanel />}
         {active === "build" && <BuildPanel />}
         {active === "research" && (
           <HubPanel id="research" title="Research Lab" sections={[

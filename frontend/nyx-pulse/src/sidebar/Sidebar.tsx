@@ -52,7 +52,7 @@ export function matchTabs(query: string): string[] {
 }
 
 /** Where each waiting item is answered, so its tab can carry a badge. */
-const WAITING_TAB: Record<string, string> = { chat: "nyx", trading: "trading", claude: "equalize" };
+const WAITING_TAB: Record<string, string> = { chat: "nyx", claude: "equalize" };
 
 export function Sidebar() {
   const [status, setStatus] = useState<Status>({ state: "idle", voice: false });

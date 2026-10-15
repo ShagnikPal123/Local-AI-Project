@@ -21,7 +21,7 @@ interface Task {
   enabled: boolean; calendar: boolean; last_run: number; last_reply: string; last_ok: boolean; next: number; at: number;
 }
 
-const TABS = ["nyx", "code", "research", "learn", "agents", "avatars", "office", "design", "connectors", "computer", "trading", "equalize"];
+const TABS = ["nyx", "code", "research", "learn", "agents", "avatars", "office", "design", "connectors", "computer", "equalize"];
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const REPEAT_WORDS: Record<string, string> = { once: "Once", every: "Every few minutes", daily: "Every day", weekdays: "Weekdays", weekly: "Chosen days" };
 

@@ -229,7 +229,7 @@ export function SingleView({ view, controls, onSaid }: { view: HomeViewId; contr
 
 // ── Waiting on you: approvals, trades, Claude Code, question cards ──────────
 
-const WHERE: Record<string, string> = { chat: "Chat", trading: "Trading", claude: "Claude Code" };
+const WHERE: Record<string, string> = { chat: "Chat", claude: "Claude Code" };
 
 export function WaitingView({ items, onAnswer, onOpen, onLater }: {
   items: WaitingItem[]; onAnswer: (item: WaitingItem, label: string) => void; onOpen: (item: WaitingItem) => void;
