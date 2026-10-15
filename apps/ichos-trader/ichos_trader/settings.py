@@ -21,7 +21,7 @@ from . import config, store
 LIMITS: Dict[str, Tuple[float, float]] = {
     "risk": (0.0, 1.0), "skeptic": (0.0, 1.0), "max_positions": (1, 40), "max_position_pct": (0.02, 1.0),
     "stop_loss_pct": (0.5, 50.0), "take_profit_pct": (0.5, 200.0), "pace_seconds": (10, 3600),
-    "scan_limit": (10, 1000), "start_cash": (1.0, 100_000_000.0), "max_bots": (3, 20),
+    "scan_limit": (10, 1000), "start_cash": (1.0, 100_000_000.0), "max_bots": (3, 20), "budget": (0.0, 100_000_000.0),
 }
 SHUTDOWN_LIMITS: Dict[str, Tuple[float, float]] = {
     "max_drawdown_pct": (1.0, 90.0), "slow_cycle_ms": (500, 600_000), "slow_cycles": (1, 100),
@@ -72,7 +72,7 @@ def save(changes: Dict[str, Any], unpin: Iterable[str] = ()) -> Dict[str, Any]:
             current[key] = _number(key, value, LIMITS[key])
             if key in AUTO_KEYS:
                 pins[key] = current[key]
-        elif key in ("auto", "learn_first", "running"):
+        elif key in ("auto", "learn_first", "running", "setup_done"):
             current[key] = bool(value)
         elif key == "markets" and isinstance(value, dict):
             current["markets"].update({k: bool(v) for k, v in value.items() if k in current["markets"]})

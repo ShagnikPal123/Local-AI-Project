@@ -80,6 +80,10 @@ def default_settings() -> Dict[str, Any]:
         "claude": {"enabled": False},
         # Which broker executes orders. "sim" is the built-in practice account.
         "broker": "sim",
+        # With a real broker: the most money the bots may use (0 = the whole practice account).
+        "budget": 0.0,
+        # Setup shows on first open and can be opened again any time.
+        "setup_done": False,
     }
 
 

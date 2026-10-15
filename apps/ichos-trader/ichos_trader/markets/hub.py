@@ -13,6 +13,7 @@ It does three jobs so the bots never have to:
 
 from __future__ import annotations
 
+import os
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -26,7 +27,9 @@ from .simulated import SimulatedFeed
 
 QUOTE_TTL = 10.0
 CANDLE_TTL = 300.0
-WORKERS = 16
+#: Prices are fetched in parallel. Fetching waits on the network, not the processor, so a bigger
+#: machine gets more at once; ``ICHOS_WORKERS`` sets it by hand.
+WORKERS = int(os.environ.get("ICHOS_WORKERS") or min(64, (os.cpu_count() or 4) * 4))
 
 
 class MarketHub:

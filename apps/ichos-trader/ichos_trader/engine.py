@@ -27,6 +27,7 @@ from collections import deque
 from typing import Any, Callable, Deque, Dict, List, Optional
 
 from . import currency, ranking, risk, settings as settings_mod, store, watchdog
+from .connectors.alpaca import Alpaca
 from .core import clock as market_clock, forecast
 from .latency import Recorder, Stopwatch
 from .markets import MarketHub
@@ -48,11 +49,34 @@ def _empty_state() -> Dict[str, Any]:
             "predictions": [], "research": [], "errors": 0, "last_error": ""}
 
 
+def broker_kind(cfg: Dict[str, Any]) -> tuple:
+    """Which broker the settings ask for, as a key that changes whenever the broker must change."""
+    if cfg.get("broker") != "alpaca":
+        return ("sim",)
+    return ("alpaca", float(cfg.get("budget") or 0))
+
+
+def make_broker(cfg: Dict[str, Any], clock: Callable[[], float] = time.time) -> Any:
+    """The built-in practice account, or Alpaca's practice account with a budget."""
+    kind = broker_kind(cfg)
+    if kind[0] == "sim":
+        return PaperAccount(clock)
+    return Alpaca(budget=kind[1], clock=clock)
+
+
+def _blank_account(currency_code: str, money: str, now: float) -> Dict[str, Any]:
+    return {"currency": currency_code, "cash": 0.0, "equity": 0.0, "start": 0.0, "pl": 0.0, "pl_pct": 0.0, "peak": 0.0,
+            "realized": 0.0, "fees": 0.0, "wins": 0, "losses": 0, "closed": 0, "win_rate": None, "created_at": now,
+            "money": money}
+
+
 class Engine:
     def __init__(self, hub: Optional[MarketHub] = None, broker: Any = None, clock: Callable[[], float] = time.time):
         self.clock = clock
         self.hub = hub or MarketHub(clock=clock)
-        self.broker = broker or PaperAccount(clock)
+        self._fixed_broker = broker is not None  # tests hand one in; it is never swapped
+        self._broker_kind = broker_kind(settings_mod.load())
+        self.broker = broker or make_broker(settings_mod.load(), clock)
         self.team = Team()
         self.recorder = Recorder()
         self.state: Dict[str, Any] = {**_empty_state(), **store.read("engine")}
@@ -63,11 +87,22 @@ class Engine:
 
     # --- switching on and off -----------------------------------------------------------------
 
+    def use_settings_broker(self) -> None:
+        """Swap to the broker the settings now ask for (Setup, Connectors or the real-money switch)."""
+        with self._lock:
+            kind = broker_kind(settings_mod.load())
+            if self._fixed_broker or kind == self._broker_kind:
+                return
+            self.broker, self._broker_kind = make_broker(settings_mod.load(), self.clock), kind
+            self.team.notes.add(self.team.one("manager"), f"Now trading through: {self.broker.label}.", "info")
+
     def start(self) -> None:
         with self._lock:
+            self.use_settings_broker()
+            run_start_equity = self.broker.account()["equity"]  # a broker that is not connected says so here
             settings_mod.save({"running": True})
             self.state.update(stopped_reason="", paused="", errors=0,
-                              run_started_at=self.clock(), run_start_equity=self.broker.account()["equity"])
+                              run_started_at=self.clock(), run_start_equity=run_start_equity)
             self._save()
         self.team.notes.add(self.team.one("manager"), "Switched on.", "info")
         self._launch()
@@ -125,6 +160,7 @@ class Engine:
 
     def _cycle(self) -> Dict[str, Any]:
         now = self.clock()
+        self.use_settings_broker()
         cfg = settings_mod.effective()
         watch = Stopwatch()
         team = self.team
@@ -361,12 +397,12 @@ class Engine:
         return {"state": "trading", "state_words": f"Trading {self.state['scanned']} markets with "
                                                    f"{len(self.team.active())} bots."}
 
-    def _money(self, account: Dict[str, Any], now: float) -> Dict[str, Any]:
+    def _money(self, account: Dict[str, Any], positions: List[Dict[str, Any]], now: float) -> Dict[str, Any]:
         curve = self.broker.curve() if hasattr(self.broker, "curve") else []
         day_ago = next((p["equity"] for p in curve if p["t"] >= now - 86_400), account["start"])
         expected = low = high = 0.0
         open_preds = {p["symbol"]: p for p in self.state["predictions"] if not p["graded"]}
-        for pos in self.broker.positions():
+        for pos in positions:
             p = open_preds.get(pos["symbol"])
             if p:
                 weight = pos["value"] / max(account["equity"], 1)
@@ -383,7 +419,12 @@ class Engine:
     def dashboard(self) -> Dict[str, Any]:
         now = self.clock()
         with self._lock:
-            account = self.broker.account()
+            try:  # a real broker can be unreachable; the dashboard still opens and says why
+                account, positions, trades = self.broker.account(), self.broker.positions(), self.broker.fills(50)
+                broker_error = ""
+            except BrokerError as error:
+                account, positions, trades = _blank_account("USD", self.broker.money(), now), [], self.broker.fills(50)
+                broker_error = str(error)
             graded = [p for p in self.state["predictions"] if p["graded"]]
             right = sum(1 for p in graded if p["right"])
             bots = []
@@ -397,14 +438,17 @@ class Engine:
                 **self.status(),
                 "stopped_reason": self.state.get("stopped_reason", ""),
                 "money_kind": self.broker.money(),
+                "broker": getattr(self.broker, "label", self.broker.name),
+                "broker_error": broker_error,
+                "budget": account.get("budget"),
                 "market_source": self.hub.source,
-                "money": self._money(account, now),
+                "money": self._money(account, positions, now),
                 "win_rate": {"closed": account["closed"], "wins": account["wins"], "rate": account["win_rate"]},
                 "equity_curve": self._curve(account, now),
                 "scanned": self.state["scanned"],
                 "markets": self.state["markets"],
-                "positions": self.broker.positions(),
-                "trades": self.broker.fills(50),
+                "positions": positions,
+                "trades": trades,
                 "bots": bots,
                 "bots_running": sum(1 for b in bots if b["status"] == "working"),
                 "thinking": self.team.notes.latest(60),
