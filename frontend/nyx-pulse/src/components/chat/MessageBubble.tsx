@@ -20,6 +20,7 @@ import { Handoff } from "../agents/Handoff";
 import { MODE_LABELS, type ChatMode } from "./ModeSlider";
 import { IchosOrb, orbStateFor } from "../orbs";
 import { isGenericStatus, thinkingPhrase } from "./phrases";
+import { TurnTalk } from "./TurnTalk";
 
 const cardStyle: React.CSSProperties = {
   background: "var(--color-surface)",
@@ -303,6 +304,9 @@ export function MessageBubble({ message, onAction, isLatest = false }: MessageBu
           );
         })()}
 
+        {/* Active speech: what it understood, what it is doing, and its reply to anything sent mid-task. */}
+        <TurnTalk lines={turn?.speech} part="before" />
+
         {/* The slider was on Auto: which mode it picked for this message, and why (Update 1, U6). */}
         {turn?.chatModeAuto && turn.chatMode && (
           <p className="turn-mode">
@@ -479,6 +483,8 @@ export function MessageBubble({ message, onAction, isLatest = false }: MessageBu
             </button>
           </div>
         )}
+
+        <TurnTalk lines={turn?.speech} part="after" />
 
         {learningNotes.map((note, i) => (
           <div key={i} style={{ fontSize: 12, color: "var(--color-neutral-600)", marginTop: 6 }}>🧠 {note}</div>

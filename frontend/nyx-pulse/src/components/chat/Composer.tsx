@@ -23,6 +23,7 @@ const BUSY_LABELS: Record<BusyMode, { short: string; long: string }> = {
   interrupt: { short: "Interrupt", long: "Interrupt — stop this answer and send now" },
   parallel: { short: "Run alongside", long: "Run alongside — another AI answers at the same time" },
   branch: { short: "Branch", long: "Branch — a new branch chat with this, current one keeps going" },
+  fold: { short: "Add to this", long: "Add to this — fold it into the task running now" },
 };
 
 type Recognition = {

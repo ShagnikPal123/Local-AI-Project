@@ -217,3 +217,39 @@ def test_a_running_turn_is_reported_for_its_chat(client):
 def test_unknown_turns_are_404(client):
     assert client.get("/api/turns/nope").status_code == 404
     assert client.get("/api/turns/nope/stream").status_code == 404
+
+
+def test_a_turn_says_what_it_understood_and_a_mid_task_message_is_answered_at_once(client):
+    """Active speech: a speech line opens the turn, and /api/turns/heard answers a message sent while it runs."""
+    import json
+
+    import active_speech
+
+    active_speech.save_settings(model_ack=False)
+    events = []
+
+    def start():
+        with client.stream("POST", "/api/chat/stream",
+                           json={"message": "can you sort my downloads", "use_rag": False}) as response:
+            for line in response.iter_lines():
+                if line.startswith("data: "):
+                    events.append(json.loads(line[6:]))
+
+    starter = threading.Thread(target=start, daemon=True)
+    starter.start()
+    deadline = time.time() + 4
+    while time.time() < deadline and client.get("/api/chats/fake-chat/turn").json()["turn"] is None:
+        time.sleep(0.05)
+    heard = client.post("/api/turns/heard", json={"text": "also do the pictures folder", "chat_id": "fake-chat",
+                                                  "mode": "fold"}).json()
+    # The fake turn never enters a tool loop, so it cannot take the note: it queues, and says so.
+    assert heard["running"] and heard["folded"] is False and heard["mode"] == "queue"
+    assert "right after this" in heard["ack"]
+
+    client.release.set()
+    starter.join(5)
+    speech = [e for e in events if e["type"] == "speech"]
+    assert speech[0]["phase"] == "start" and speech[0]["text"] == "Got it — I'll sort your downloads."
+    assert any(e["phase"] == "heard" and e["text"] == heard["ack"] for e in speech)
+    assert events[-1]["type"] == "done"
+    assert client.post("/api/turns/heard", json={"text": "hello", "chat_id": "fake-chat"}).json()["running"] is False

@@ -255,9 +255,14 @@ export function useVoiceEngine({ mode, busy, chatId, onSend, onCommand }: {
 
     if (text.split(/\s+/).filter(Boolean).length < MIN_WORDS) { newUtterance(); return; }
     if (busyRef.current) {
-      pending.current = pending.current ? `${pending.current} ${text}` : text;   // it goes when this answer ends
-      setWaiting(true);
+      // Active speech: Nyx answers at once (the reply is said by the chat's talk loop) and takes it into the
+      // running task when it can; otherwise it goes when this answer ends.
       newUtterance();
+      const heard = await api.post<{ folded: boolean }>("/api/turns/heard",
+        { text, chat_id: chatRef.current === "default" ? "" : chatRef.current });
+      if (heard.ok && heard.data.folded) return;
+      pending.current = pending.current ? `${pending.current} ${text}` : text;
+      setWaiting(true);
       return;
     }
     stopSpeaking();
