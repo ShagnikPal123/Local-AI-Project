@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { fetchDesktopTheme } from "./desktopSync";
 import { clearTabOrder } from "../state/tabOrder";
 import { mascotShown, setMascotShown } from "../components/mascot/Mascot";
-import { ACCENTS, applyAppearance, readAppearance, type DesktopTheme, type NavChoice } from "./appearance";
+import { ACCENTS, PALETTES, applyAppearance, readAppearance, type DesktopTheme, type NavChoice } from "./appearance";
 
 const SIDES: { id: NavChoice; label: string }[] = [
   { id: "", label: "Look default" }, { id: "left", label: "Left" }, { id: "right", label: "Right" }, { id: "top", label: "Top" }, { id: "bottom", label: "Bottom" },
@@ -18,6 +18,21 @@ export function AppearanceSection() {
   const [mascot, setMascot] = useState(mascotShown);
   return (
     <div className="appearance">
+      <div className="appearance__row">
+        <span className="appearance__label">Palette</span>
+        <div className="appearance__palettes" role="radiogroup" aria-label="Palette">
+          {PALETTES.map((p) => (
+            <button key={p.id || "desk"} type="button" role="radio" aria-checked={saved.palette === p.id} title={p.hint}
+              className={`appearance__palette${saved.palette === p.id ? " is-on" : ""}`} onClick={() => set({ palette: p.id })}>
+              <span className="appearance__palette-dots" aria-hidden="true">
+                {p.swatch.map((c) => <i key={c} style={{ background: c }} />)}
+              </span>
+              {p.label}
+            </button>
+          ))}
+        </div>
+        <span className="appearance__hint">Re-tones the Desk look. Your accent colour above still wins if you picked one.</span>
+      </div>
       <div className="appearance__row">
         <span className="appearance__label">Accent colour</span>
         <div className="appearance__swatches" role="radiogroup" aria-label="Accent colour">
