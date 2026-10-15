@@ -392,8 +392,9 @@ def code_note(session: Dict[str, str]) -> str:
         "and finish by saying which files changed and how to check it works.",
     ]
     if session["environment"] == "review":
-        lines.append("Review first: nothing may be written or run this turn. Show each change as a ```diff block "
-                     "against the file's path so the owner can apply it from the Code tab.")
+        lines.append("Review first: nothing may be written or run this turn. For each file you would change, call "
+                     "propose_change with its full new text; the owner applies or skips it from the chat. "
+                     "Say in a line what each change does.")
     return "\n".join(lines)
 
 
