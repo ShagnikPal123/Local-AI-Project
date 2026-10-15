@@ -8,14 +8,15 @@ ever shown back masked to its last 4 characters. Viewers see that a key is set, 
 
 | Broker | Markets | Practice account | Status | Why |
 |---|---|---|---|---|
-| **Alpaca** (recommended) | US stocks, ETFs, crypto | Free, real prices | Wired (practice only) | One free API for most of what the scanner ranks |
+| **Alpaca** (recommended) | US stocks, ETFs, crypto | Free, real prices | Wired (practice, and real money behind the Setup switch) | One free API for most of what the scanner ranks |
 | Kraken | Crypto | No separate one | Planned | Low fees and many coins, once crypto needs its own broker |
 | OANDA | Currencies | Free | Planned | The cleanest practice FX account |
 | Interactive Brokers | Nearly everything | Yes | Planned | Widest reach, but needs their gateway app running |
 
-The built-in **practice account** (`paper.py`) is the default and needs nothing. Alpaca only ever
-talks to `paper-api.alpaca.markets`; the live address is refused in code until the owner says yes to
-real money.
+The built-in **practice account** (`paper.py`) is the default and needs nothing. Alpaca talks to
+`paper-api.alpaca.markets` with the practice keys. It uses the live address only with the separate
+`alpaca_live` keys, after the owner switches to real money in Setup with a budget and the typed
+confirmation (`realmoney.py`).
 
 ## Market data
 

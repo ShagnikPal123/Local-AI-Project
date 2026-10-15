@@ -24,6 +24,11 @@ CATALOG: List[Dict[str, Any]] = [
      "why": "Stocks, ETFs and crypto in one free API, with a free practice account on real prices. The best first broker.",
      "fields": [_field("key_id", "API key ID (practice)", False, "alpaca_key_id"),
                 _field("secret_key", "Secret key (practice)", True, "alpaca_secret_key")]},
+    {"id": "alpaca_live", "kind": "broker", "title": "Alpaca (real money)", "recommended": False, "wired": True,
+     "money": "real", "why": "The same Alpaca with real money. Separate keys, and only used after you switch to "
+                             "real money in Setup with a budget.",
+     "fields": [_field("key_id", "API key ID (live)", False, "alpaca_live_key_id"),
+                _field("secret_key", "Secret key (live)", True, "alpaca_live_secret_key")]},
     {"id": "coinbase", "kind": "data", "title": "Coinbase prices", "recommended": True, "wired": True, "money": "none",
      "why": "Live crypto prices and order books with no key. Used for the crypto scan.", "fields": []},
     {"id": "yahoo", "kind": "data", "title": "Yahoo prices", "recommended": True, "wired": True, "money": "none",
@@ -101,9 +106,10 @@ def connect(cid: str, values: Dict[str, str], tester: Optional[Callable[[], str]
         if str(values.get(f["key"], "")).strip():
             secrets.put(f["name"], str(values[f["key"]]))
     note = "Saved."
-    if cid == "alpaca":
+    if cid in ("alpaca", "alpaca_live"):  # a look at the account only: connecting never places an order
         try:
-            note = (tester or Alpaca().test)()
+            live = cid == "alpaca_live"
+            note = (tester or Alpaca(money="real" if live else "practice", allow_real=live).test)()
         except BrokerError as error:
             disconnect(cid)
             raise ValueError(str(error)) from error

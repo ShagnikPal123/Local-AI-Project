@@ -53,15 +53,18 @@ def broker_kind(cfg: Dict[str, Any]) -> tuple:
     """Which broker the settings ask for, as a key that changes whenever the broker must change."""
     if cfg.get("broker") != "alpaca":
         return ("sim",)
-    return ("alpaca", float(cfg.get("budget") or 0))
+    real = cfg.get("real_money") or {}
+    if real.get("on"):
+        return ("alpaca", "real", float(real.get("budget") or 0))
+    return ("alpaca", "practice", float(cfg.get("budget") or 0))
 
 
 def make_broker(cfg: Dict[str, Any], clock: Callable[[], float] = time.time) -> Any:
-    """The built-in practice account, or Alpaca's practice account with a budget."""
+    """The built-in practice account, Alpaca's practice account, or Alpaca with real money."""
     kind = broker_kind(cfg)
     if kind[0] == "sim":
         return PaperAccount(clock)
-    return Alpaca(budget=kind[1], clock=clock)
+    return Alpaca(money=kind[1], allow_real=kind[1] == "real", budget=kind[2], clock=clock)
 
 
 def _blank_account(currency_code: str, money: str, now: float) -> Dict[str, Any]:
@@ -225,6 +228,9 @@ class Engine:
         reason = watchdog.check(recent_cycle_ms=list(self._cycle_ms), equity=account["equity"], peak=account["peak"],
                                 run_start_equity=float(self.state["run_start_equity"] or account["equity"]),
                                 run_hours=hours, rules=cfg["shutdown"])
+        if not reason and self.broker.money() == "real":
+            reason = watchdog.daily_loss(self._money(account, [], now)["today_pl"], account["start"],
+                                         float((cfg.get("real_money") or {}).get("daily_loss_pct") or 5.0))
         self.state.update(last_cycle_at=now, next_cycle_at=now + float(cfg["pace_seconds"]), scanned=len(snaps),
                           markets=ranked[:TOP], errors=0, plan=self._plan(ranked, cfg, learning, now))
         self._save()

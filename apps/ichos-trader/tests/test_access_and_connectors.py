@@ -155,3 +155,19 @@ def test_alpaca_only_sees_and_sells_what_it_bought_and_keeps_to_the_budget():
     account = broker.account()
     assert account["cash"] == 950.0 and account["equity"] == 1005.0  # the budget, not the 50,000 in the account
     assert broker.fills(5)[0]["bot"] == "Vega"
+
+
+def test_real_money_needs_the_switch_and_its_own_keys():
+    with pytest.raises(BrokerError, match="Real money is off"):
+        AlpacaPaper(money="real")
+    secrets.put("alpaca_key_id", "PKFAKEFAKEFAKE")
+    secrets.put("alpaca_secret_key", FAKE_SECRET)  # practice keys never move real money
+    with pytest.raises(BrokerError, match="real-money"):
+        AlpacaPaper(http=FakeHttp({}), money="real", allow_real=True).test()
+    secrets.put("alpaca_live_key_id", "AKFAKEFAKEFAKE")
+    secrets.put("alpaca_live_secret_key", FAKE_SECRET)
+    http = FakeHttp({"/v2/orders": {"id": "o1", "filled_avg_price": "200"}})
+    live = AlpacaPaper(http=http, money="real", allow_real=True, budget=500)
+    fill = live.place(Order("AAPL", "buy", 1, "stock", "Vega"), Quote("AAPL", 200.0))
+    assert http.calls[0][1] == "https://api.alpaca.markets/v2/orders" and fill.money == "real"
+    assert live.held("AAPL") == 1 and AlpacaPaper().held("AAPL") == 0  # separate ledgers

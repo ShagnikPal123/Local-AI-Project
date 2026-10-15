@@ -3,8 +3,9 @@
 Carried over from the main app's finance lab capital guard (``finance_lab/capital_guard.py``):
 "it can only access the money it has and the money it earns". In order:
 
-1. **No real money.** A broker whose money is real refuses every order until the owner turns real
-   trading on himself. There is no switch for it in this version at all.
+1. **No real money unless the owner switched to it.** A broker whose money is real refuses every
+   order until the owner switches to real money in Setup (``realmoney``: live keys, a budget, the
+   typed confirmation). The broker then only lets the bots use that budget and what they earn.
 2. **No borrowing.** A buy must fit in the cash it has; there is no margin path in the code.
 3. **No short selling.** It can only sell what it holds.
 4. **One market can't sink it.** No market grows past ``max_position_pct`` of the money, and no
@@ -26,8 +27,8 @@ from .models import Instrument, Order, Quote
 def check(order: Order, quote: Quote, inst: Instrument, account: Dict[str, Any], positions: List[Dict[str, Any]],
           settings: Dict[str, Any], money: str = "practice") -> Tuple[float, List[str]]:
     """``(allowed_qty, reasons)``. ``allowed_qty`` 0 means refused."""
-    if money != "practice":
-        return 0.0, ["Real money is off. Only the owner can turn it on, and this version has no switch for it."]
+    if money != "practice" and not (settings.get("real_money") or {}).get("on"):
+        return 0.0, ["Real money is off. Only the owner can switch to it, in Setup."]
     held = {p["symbol"]: p for p in positions}
     price = quote.ask or quote.price
     if order.side == "sell":

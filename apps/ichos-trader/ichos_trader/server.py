@@ -18,7 +18,7 @@ from typing import Any, Deque, Dict, Optional
 from fastapi import Body, Depends, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
-from . import __version__, config, settings as settings_mod
+from . import __version__, config, realmoney, settings as settings_mod
 from .access import auth
 from .connectors import catalog, models
 from .engine import Engine
@@ -206,20 +206,21 @@ def create_app(engine: Optional[Engine] = None) -> FastAPI:
         except (BrokerError, ValueError, TypeError) as error:
             raise HTTPException(400, str(error) or "Starting cash must be a number.") from error
 
-    # --- setup: how much, which practice account, and go -----------------------------------
+    # --- setup: how much, which money, which account, and go ------------------------------
 
     @app.get("/api/setup")
     def get_setup(_: Dict[str, Any] = Depends(viewer)) -> Dict[str, Any]:
         cfg = settings_mod.load()
         connected = {row["id"]: row["connected"] for row in catalog.describe(False)}
         return {"done": bool(cfg.get("setup_done")), "broker": cfg["broker"], "start_cash": cfg["start_cash"],
-                "currency": cfg["base_currency"], "budget": cfg.get("budget", 0.0),
-                "alpaca": connected.get("alpaca", False), "currencies": list(settings_mod.CURRENCIES),
+                "currency": cfg["base_currency"], "budget": cfg.get("budget", 0.0), "real_money": realmoney.status(),
+                "alpaca": connected.get("alpaca", False), "alpaca_live": connected.get("alpaca_live", False),
+                "currencies": list(settings_mod.CURRENCIES),
                 "workers": WORKERS, "cpus": os.cpu_count() or 1}
 
     @app.post("/api/setup")
     def setup(body: Dict[str, Any] = Body(default={}), user: Dict[str, Any] = Depends(owner)) -> Dict[str, Any]:
-        """One form, a couple of clicks: how much money, which practice account, and start."""
+        """One form, a couple of clicks: how much money, practice or real, which account, and start."""
         try:
             amount = float(body.get("amount", 0))
         except (TypeError, ValueError) as error:
@@ -227,9 +228,16 @@ def create_app(engine: Optional[Engine] = None) -> FastAPI:
         if amount <= 0:
             raise HTTPException(400, "Choose how much money the trader may use.")
         eng().stop("")
-        if body.get("broker") == "alpaca":
+        if body.get("money") == "real":
+            try:
+                realmoney.switch_on(amount, str(body.get("confirmation", "")), body.get("daily_loss_pct"))
+            except ValueError as error:
+                raise HTTPException(400, str(error)) from error
+        elif body.get("broker") == "alpaca":
+            realmoney.switch_off()
             settings_mod.save({"broker": "alpaca", "budget": amount})
         else:
+            realmoney.switch_off()
             currency = str(body.get("currency", "USD")).upper()
             settings_mod.save({"broker": "sim", "start_cash": amount, "base_currency": currency})
             account = PaperAccount().account()
@@ -243,6 +251,14 @@ def create_app(engine: Optional[Engine] = None) -> FastAPI:
             except BrokerError as error:
                 raise HTTPException(400, f"Saved, but it could not start: {error}") from error
         return {**get_setup(user), **eng().status()}
+
+    @app.post("/api/real-money/off")
+    def real_money_off(_: Dict[str, Any] = Depends(owner)) -> Dict[str, Any]:
+        """Back to practice in one click: stops the bots first, so no real order goes out after it."""
+        eng().stop("Switched back to practice money by the owner.")
+        status = realmoney.switch_off()
+        eng().use_settings_broker()
+        return status
 
     # --- connectors and Claude ------------------------------------------------------------
 

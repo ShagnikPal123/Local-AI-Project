@@ -1,11 +1,11 @@
-"""Alpaca's practice (paper) account as a broker, and nothing else.
+"""Alpaca as a broker: the practice account by default, real money only after the owner switches it on.
 
 Alpaca is the recommended first broker: stocks, ETFs and crypto behind one free API, with a free
-practice account that fills against real prices. This adapter only ever talks to the **paper**
-endpoint; the live one is refused in code until the owner says yes to real money.
+practice account that fills against real prices. Real money uses a **separate pair of keys** (so a
+practice key can never move real money) and the live address only when ``realmoney`` says the owner
+switched it on, with a budget and the typed confirmation.
 
-Three rules make it behave the way a real account would need, even though the person may hold
-other things in the same account:
+Three rules keep a real account safe even though the person may hold other things in it:
 
 * **It only sees what it bought.** Positions are the account's positions that the trader's own
   ledger says it opened, and never more than the quantity it bought. The person's own shares are
@@ -29,7 +29,8 @@ from ..models import BrokerError, Fill, Order, Quote
 
 PAPER_URL = "https://paper-api.alpaca.markets"
 LIVE_URL = "https://api.alpaca.markets"
-KEYS = ("alpaca_key_id", "alpaca_secret_key")
+#: Practice and real money never share keys.
+KEYS = {"practice": ("alpaca_key_id", "alpaca_secret_key"), "real": ("alpaca_live_key_id", "alpaca_live_secret_key")}
 CURVE_EVERY = 300.0
 
 
@@ -50,17 +51,21 @@ def _symbol(raw: str, asset_class: str) -> str:
 class Alpaca:
     name = "alpaca"
 
-    def __init__(self, http: Optional[requests.Session] = None, budget: float = 0.0, base_url: str = PAPER_URL,
-                 clock: Callable[[], float] = time.time):
-        if base_url.rstrip("/") != PAPER_URL:
-            raise BrokerError("Only Alpaca's practice account is allowed. Real money is off.")
-        self.kind = "practice"
-        self.base = PAPER_URL
+    def __init__(self, http: Optional[requests.Session] = None, money: str = "practice", allow_real: bool = False,
+                 budget: float = 0.0, base_url: Optional[str] = None, clock: Callable[[], float] = time.time):
+        if money not in KEYS:
+            raise BrokerError("Money must be practice or real.")
+        if money == "real" and not allow_real:
+            raise BrokerError("Real money is off. Only the owner can switch it on, in Setup.")
+        self.kind = money
+        self.base = LIVE_URL if money == "real" else PAPER_URL
+        if base_url and base_url.rstrip("/") != self.base:
+            raise BrokerError("Only Alpaca's practice account is allowed while real money is off.")
         self.http = http or requests.Session()
         self.budget = max(0.0, float(budget or 0))
-        self.label = "Alpaca practice account"
+        self.label = "Alpaca real money" if money == "real" else "Alpaca practice account"
         self._clock = clock
-        self._store = "alpaca_practice"
+        self._store = f"alpaca_{money}"
 
     def money(self) -> str:
         return self.kind
@@ -68,9 +73,10 @@ class Alpaca:
     # --- talking to Alpaca ------------------------------------------------------------------
 
     def _headers(self) -> Dict[str, str]:
-        key, secret = (secrets.get(n) for n in KEYS)
+        key, secret = (secrets.get(n) for n in KEYS[self.kind])
         if not key or not secret:
-            raise BrokerError("Alpaca is not connected: add the practice keys on the Connectors page.")
+            which = "real-money (live)" if self.kind == "real" else "practice"
+            raise BrokerError(f"Alpaca is not connected: add the {which} keys in Setup or on the Connectors page.")
         return {"APCA-API-KEY-ID": key, "APCA-API-SECRET-KEY": secret}
 
     def _call(self, method: str, path: str, **kwargs: Any) -> Any:
@@ -79,14 +85,16 @@ class Alpaca:
         except requests.RequestException as error:
             raise BrokerError("Could not reach Alpaca.") from error
         if reply.status_code in (401, 403):
-            raise BrokerError("Alpaca refused the keys. Check they are the practice (paper) keys.")
+            which = "real-money (live)" if self.kind == "real" else "practice (paper)"
+            raise BrokerError(f"Alpaca refused the keys. Check they are the {which} keys.")
         if reply.status_code >= 400:
             raise BrokerError(f"Alpaca said no ({reply.status_code}).")
         return reply.json()
 
     def test(self) -> str:
         account = self._call("GET", "/v2/account")
-        return f"Connected to the practice account ({account.get('currency', 'USD')} {float(account.get('equity', 0)):,.2f})."
+        which = "real-money" if self.kind == "real" else "practice"
+        return f"Connected to the {which} account ({account.get('currency', 'USD')} {float(account.get('equity', 0)):,.2f})."
 
     # --- what the bots see ------------------------------------------------------------------
 

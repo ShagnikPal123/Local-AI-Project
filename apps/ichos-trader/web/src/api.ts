@@ -43,7 +43,9 @@ export type Connector = {
   fields: { key: string; label: string; secret: boolean }[]; connected: boolean; status: string;
   masked: Record<string, { from: string; last4?: string }>; note?: string;
 };
-export type SetupView = { done: boolean; broker: string; start_cash: number; currency: string; budget: number; alpaca: boolean; currencies: string[]; workers: number; cpus: number };
+export type RealMoney = { on: boolean; budget: number; daily_loss_pct: number; agreed_at: number; confirmation: string; keys: boolean; max_budget: number };
+export type SetupView = { done: boolean; broker: string; start_cash: number; currency: string; budget: number; real_money: RealMoney; alpaca: boolean; alpaca_live: boolean; currencies: string[]; workers: number; cpus: number };
+export type SetupBody = { amount: number; currency: string; broker: string; start: boolean; money?: "practice" | "real"; confirmation?: string; daily_loss_pct?: number };
 export type SpeedTest = { grade: string; words: string; stages: Record<string, number>; decision_ms: number; cycle_ms: number; markets: number };
 
 async function call<T>(path: string, method = "GET", body?: unknown): Promise<T> {
@@ -73,7 +75,8 @@ export const api = {
   connect: (id: string, values: Record<string, string>) => call<Connector>(`/api/connectors/${id}`, "POST", values),
   disconnect: (id: string) => call<{ ok: boolean }>(`/api/connectors/${id}`, "DELETE"),
   setup: () => call<SetupView>("/api/setup"),
-  saveSetup: (body: { amount: number; currency: string; broker: string; start: boolean }) => call<SetupView>("/api/setup", "POST", body),
+  saveSetup: (body: SetupBody) => call<SetupView>("/api/setup", "POST", body),
+  realMoneyOff: () => call<RealMoney>("/api/real-money/off", "POST", {}),
   ask: (question: string) => call<{ answer: string; model: string }>("/api/claude/ask", "POST", { question }),
 };
 

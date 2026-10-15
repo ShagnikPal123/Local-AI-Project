@@ -31,6 +31,7 @@ export default function App() {
     try { return (localStorage.getItem("ichos.view") as View) || "home"; } catch { return "home"; }
   });
   const [busy, setBusy] = useState(false);
+  const [wantMode, setWantMode] = useState<"practice" | "real" | undefined>();
 
   const refresh = useCallback(async () => {
     try {
@@ -71,6 +72,15 @@ export default function App() {
 
   const owner = me.user?.role === "owner";
   const running = dash ? !["off", "shutdown"].includes(dash.state) : false;
+  // The Practice / Real switch, like the old Trading tab's: going real opens Setup (keys, budget,
+  // confirmation); going back to practice is one click, and stops the bots first.
+  const switchMode = async (to: "practice" | "real") => {
+    if (!dash || to === dash.money_kind) return;
+    if (to === "real") { setWantMode("real"); setView("setup"); return; }
+    if (!confirm("Switch back to practice money? The trader stops first; your real positions stay in Alpaca.")) return;
+    setBusy(true);
+    try { await api.realMoneyOff(); await refresh(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
+  };
   const press = async (what: "start" | "stop" | "cycle") => {
     setBusy(true);
     try { await api.control(what); await refresh(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
@@ -100,7 +110,12 @@ export default function App() {
           </div>
           <div className="top-right">
             {dash && <Tag tone={STATE_TONE[dash.state]}>{dash.state}</Tag>}
-            {dash && <Tag tone={dash.money_kind === "practice" ? "info" : "bad"}>{dash.money_kind === "practice" ? "Practice money" : "REAL MONEY"}</Tag>}
+            {dash && (owner ? (
+              <div className={`mode-switch ${dash.money_kind}`} role="radiogroup" aria-label="Money">
+                <button role="radio" aria-checked={dash.money_kind === "practice"} disabled={busy} onClick={() => switchMode("practice")}>Practice</button>
+                <button role="radio" aria-checked={dash.money_kind === "real"} disabled={busy} onClick={() => switchMode("real")}>Real money</button>
+              </div>
+            ) : <Tag tone={dash.money_kind === "practice" ? "info" : "bad"}>{dash.money_kind === "practice" ? "Practice money" : "REAL MONEY"}</Tag>)}
             {dash?.market_source === "simulated" && <Tag tone="warn">Simulated market</Tag>}
             <span className="date">{new Date().toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}</span>
             {owner && (
@@ -125,7 +140,7 @@ export default function App() {
             {view === "team" && <Team d={dash} />}
             {view === "tune" && <Tuning d={dash} owner={owner} onChange={refresh} />}
             {view === "plug" && <Connectors owner={owner} />}
-            {view === "setup" && <Setup owner={owner} onDone={() => { refresh(); setView("home"); }} />}
+            {view === "setup" && <Setup key={wantMode ?? "saved"} want={wantMode} owner={owner} onDone={() => { setWantMode(undefined); refresh(); setView("home"); }} />}
           </>
         )}
       </main>
