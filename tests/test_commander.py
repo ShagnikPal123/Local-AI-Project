@@ -354,7 +354,7 @@ def test_a_finished_thread_reports_its_result_once_and_counts_as_a_done_task(wor
     results = [a for a in board["asks"] if a["kind"] == "result"]
     assert len(results) == 1 and results[0]["open"] is False and "reports/week.md" in results[0]["line"]
     assert len([a for a in cm.board(delegator=world.main)["asks"] if a["kind"] == "result"]) == 1
-    assert board["tasks"] == {"done": 1, "total": 2}
+    assert board["tasks"] == {"done": 1, "total": 2, "needs_you": 0}
 
 
 def test_the_answer_route_relays_and_is_refused_for_a_closed_ask(world, monkeypatch, tmp_path):

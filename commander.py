@@ -639,9 +639,11 @@ def _done(thread: Dict[str, Any]) -> bool:
 
 
 def task_counts(rows: List[Dict[str, Any]]) -> Dict[str, int]:
-    """Tasks done out of all, for "Tasks 3/7". A thread restarted fresh is one task, counted once in its fresh thread."""
+    """Tasks done out of all, for "Tasks 3/7", and how many need the owner (the project list marks those, item 1.19).
+    A thread restarted fresh is one task, counted once in its fresh thread."""
     tasks = [t for t in rows if not t.get("refreshed_to")]
-    return {"done": sum(1 for t in tasks if _done(t)), "total": len(tasks)}
+    return {"done": sum(1 for t in tasks if _done(t)), "total": len(tasks),
+            "needs_you": sum(1 for t in tasks if t["status"] == "needs_you")}
 
 
 def board(*, delegator: str = "", project_id: str = "") -> Dict[str, Any]:
