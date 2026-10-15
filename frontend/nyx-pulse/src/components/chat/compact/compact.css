@@ -225,3 +225,34 @@ button.ov-tname { cursor: pointer; }
 .ov-storage__bar span { display: block; height: 100%; background: var(--color-link, #6aa5ec); }
 .ov-library { display: flex; flex-direction: column; min-height: 100%; }
 .ov-library .ov-tipcard { margin-top: auto; }
+
+/* The effort slider: a cool-to-hot track, lit up to the thumb, and a thumb that glows in its colour. */
+.lp-effort-slider { display: grid; gap: 6px; padding: 2px 2px 4px; }
+.lp-effort-slider__row { display: flex; align-items: center; gap: 10px; }
+.lp-effort-slider__track { position: relative; flex: 1; height: 22px; }
+.lp-effort-slider__track::before, .lp-effort-slider__track::after { content: ""; position: absolute; left: 0; right: 0; top: 9px;
+  height: 4px; border-radius: 999px; background: linear-gradient(90deg, var(--fx-stops)); pointer-events: none; }
+.lp-effort-slider__track::before { opacity: .22; }
+.lp-effort-slider__track::after { right: calc(100% - var(--fx-pct)); box-shadow: 0 0 10px var(--fx-glow);
+  transition: right .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s ease; }
+.lp-effort-slider.is-auto .lp-effort-slider__track::after { opacity: 0; }
+.lp-effort-slider input[type="range"] { position: absolute; inset: 0; width: 100%; margin: 0; background: transparent;
+  -webkit-appearance: none; appearance: none; cursor: pointer; z-index: 1; }
+.lp-effort-slider input[type="range"]::-webkit-slider-runnable-track { height: 22px; background: transparent; }
+.lp-effort-slider input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: 4px;
+  border-radius: 50%; background: #fff; border: 2px solid var(--fx-glow);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--fx-glow) 25%, transparent), 0 0 14px var(--fx-glow);
+  transition: box-shadow .2s ease, transform .15s ease; }
+.lp-effort-slider input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.15); }
+.lp-effort-slider input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: #fff;
+  border: 2px solid var(--fx-glow); box-shadow: 0 0 14px var(--fx-glow); }
+.lp-effort-slider.is-auto input[type="range"]::-webkit-slider-thumb { background: var(--color-neutral-500); border-color: var(--color-neutral-400); box-shadow: none; }
+.lp-effort-slider input[type="range"]:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; border-radius: 999px; }
+.lp-effort-slider__ticks i { position: absolute; top: 10px; width: 2px; height: 2px; margin-left: -1px; border-radius: 50%;
+  background: var(--color-neutral-500); pointer-events: none; }
+.lp-effort-slider__ticks i.is-lit { background: rgba(255,255,255,.85); }
+.lp-effort-slider__label { font-size: 12px; color: var(--color-neutral-400); min-height: 16px; }
+.lp-effort-slider__label b { font-weight: 600; margin-right: 4px; color: var(--color-text); }
+@media (prefers-reduced-motion: reduce) { .lp-effort-slider__track::after { transition: none; } }
+/* Desk: the same slider, a touch calmer (Claude's app has no neon). */
+:root[data-style~="desk"] .lp-effort-slider__track::after { box-shadow: 0 0 6px var(--fx-glow); }
