@@ -241,6 +241,7 @@ class Engine:
         except BrokerError as error:
             self.team.notes.add(bot, f"The broker refused {order.symbol}: {error}", "warn", order.symbol)
             return None
+        strategist.record_fill(fill, tip or {}, self.team)
         self.team.notes.add(bot, f"{'Bought' if fill.side == 'buy' else 'Sold'} {fill.qty:.6g} {fill.symbol} at "
                                  f"{fill.price:,.4g} (${fill.value:,.2f}, practice money).", "trade", fill.symbol)
         return fill.to_dict()

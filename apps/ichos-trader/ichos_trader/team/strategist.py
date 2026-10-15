@@ -12,6 +12,12 @@ just holding by 4% on average over 9 studies". The advisor reads it to pick a st
 places no trades. After that it keeps studying a few markets every cycle (oldest study first), so
 the playbook follows the market instead of freezing on day one. A study costs a few milliseconds
 of arithmetic, so a handful per cycle never slows the cycle down.
+
+**Lessons from real trades:** backtests are only half the story. ``record_fill`` remembers which
+strategy and market mood each buy came from, and when it is sold files the result under
+``live``. ``best_for`` then leans toward strategies that are winning live and away from ones that are
+losing ("after more than a day of running it can have the best setup"), so the trader gets better
+the longer it runs.
 """
 
 from __future__ import annotations
@@ -21,7 +27,7 @@ from typing import Any, Dict, List
 
 from .. import store
 from ..core import clock, forecast, strategies
-from ..models import Snapshot
+from ..models import Fill, Snapshot
 
 LEARN_TARGET = 24
 PER_CYCLE = 6
@@ -76,15 +82,64 @@ def learning_status() -> Dict[str, Any]:
     studied = len(book["studied"])
     return {"done": bool(book["done"]), "studied": studied, "total": max(LEARN_TARGET, studied),
             "words": ("Studied " if book["done"] else "Learning: studied ") + f"{studied} markets.",
-            "best": best_overall()}
+            "best": best_overall(), "lessons": lessons()}
+
+
+def _live_bonus(cell: Dict[str, Any]) -> float:
+    """Up to +/-5 points: win rate above or below half, trusted more as trades add up."""
+    trades = int(cell.get("trades") or 0)
+    if not trades:
+        return 0.0
+    return (cell["wins"] / trades - 0.5) * 10 * min(1.0, trades / 5)
 
 
 def best_for(mood: str, min_runs: int = 2) -> List[Dict[str, Any]]:
-    """Strategies for one kind of market, best first by how much they beat holding."""
-    row = playbook()["table"].get(mood, {})
-    rows = [{"strategy": k, "title": strategies.STRATEGIES[k]["title"], "regime": mood, "edge_pct": v["beat"],
-             "runs": v["runs"]} for k, v in row.items() if v["runs"] >= min_runs and k in strategies.STRATEGIES]
+    """Strategies for one kind of market, best first: backtest edge, adjusted by live results."""
+    book = playbook()
+    row, live = book["table"].get(mood, {}), (book.get("live") or {}).get(mood, {})
+    rows = []
+    for k, v in row.items():
+        if v["runs"] < min_runs or k not in strategies.STRATEGIES:
+            continue
+        cell = live.get(k, {})
+        rows.append({"strategy": k, "title": strategies.STRATEGIES[k]["title"], "regime": mood,
+                     "edge_pct": round(v["beat"] + _live_bonus(cell), 3), "runs": v["runs"],
+                     "live_trades": int(cell.get("trades") or 0), "live_wins": int(cell.get("wins") or 0)})
     return sorted(rows, key=lambda r: -r["edge_pct"])
+
+
+def record_fill(fill: Fill, tip: Dict[str, Any], team: Any) -> None:
+    """Remember why a market was bought; when it is sold, learn from how it went."""
+    book = playbook()
+    entries = book.setdefault("entries", {})
+    if fill.side == "buy":
+        entries.setdefault(fill.symbol, {"strategy": (tip or {}).get("strategy", "trend_sma"),
+                                         "regime": (tip or {}).get("regime", "quiet"), "price": fill.price,
+                                         "at": fill.at})
+    else:
+        entry = entries.pop(fill.symbol, None)
+        if entry and entry.get("price"):
+            pct = (fill.price / entry["price"] - 1) * 100
+            cell = book.setdefault("live", {}).setdefault(entry["regime"], {}).setdefault(
+                entry["strategy"], {"trades": 0, "wins": 0, "pct": 0.0})
+            cell["trades"] += 1
+            cell["wins"] += 1 if pct > 0 else 0
+            cell["pct"] = round(cell["pct"] + pct, 3)
+            title = strategies.STRATEGIES.get(entry["strategy"], {}).get("title", entry["strategy"])
+            if pct < 0:
+                team.notes.add(team.one("strategist"), f"Lesson from {fill.symbol}: {title} in a {entry['regime']} market "
+                                                       f"lost {pct:.1f}%. Trusting it a little less there.", "idea", fill.symbol)
+    store.write("playbook", book)
+
+
+def lessons() -> Dict[str, Any]:
+    """Live results by mood and strategy, for the dashboard."""
+    live = playbook().get("live") or {}
+    rows = [{"regime": mood, "strategy": k, "title": strategies.STRATEGIES.get(k, {}).get("title", k), **v}
+            for mood, cells in live.items() for k, v in cells.items()]
+    trades = sum(r["trades"] for r in rows)
+    wins = sum(r["wins"] for r in rows)
+    return {"trades": trades, "wins": wins, "rows": sorted(rows, key=lambda r: -r["trades"])[:12]}
 
 
 def best_overall() -> List[Dict[str, Any]]:
