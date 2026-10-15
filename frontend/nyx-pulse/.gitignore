@@ -3,3 +3,6 @@ dist/
 .env
 .env.*
 !.env.example
+
+# rewritten by every build (tsc -b); tracking it blocked every pull
+*.tsbuildinfo
