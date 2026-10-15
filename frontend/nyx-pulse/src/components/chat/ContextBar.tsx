@@ -89,6 +89,13 @@ export function ContextBar({ chatId, provider, refreshKey }: { chatId: string; p
     return () => window.removeEventListener("nyx:context-compact", onCompact);
   }, [compact]);
 
+  // "/context" in the composer opens the breakdown, like Claude Code's /context.
+  useEffect(() => {
+    const onShow = () => setOpen(true);
+    window.addEventListener("nyx:context-show", onShow);
+    return () => window.removeEventListener("nyx:context-show", onShow);
+  }, []);
+
   async function undo() {
     setBusy(true);
     const result = await api.post<{ after: Measure }>(`/api/chats/${encodeURIComponent(chatId)}/compact/undo`, { provider });

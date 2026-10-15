@@ -76,6 +76,14 @@ BUILTIN_COMMANDS: List[Dict[str, Any]] = [
      "template": "Create an agent: {args}"},
     {"name": "intent", "title": "Write an intent.md", "description": "Capture the problem, outcome and limits before building",
      "args": "the idea", "template": "Help me write an intent.md for this idea. Ask me the analyst questions first, then write it: {args}"},
+    # Claude Code's /context, /rewind and /goal (Drive doc 1, item 1.29).
+    {"name": "context", "title": "Show context", "description": "How full this chat's context is, and what fills it",
+     "kind": "client", "action": "context.show"},
+    {"name": "rewind", "title": "Rewind", "description": "Go back before the last exchanges in a branch; the original stays",
+     "args": "how many exchanges (default 1)", "kind": "client", "action": "chat.rewind"},
+    {"name": "goal", "title": "Set a goal", "description": "A goal this chat keeps working toward until it is reached",
+     "args": "the goal", "template": "From now on in this chat, the goal is: {args}. Keep working toward it on every turn, "
+     "say what is left after each step, and tell me clearly when the goal is reached."},
     {"name": "compact", "title": "Compact context", "description": "Summarize earlier messages so the chat has room again",
      "args": "what to keep exactly (optional)", "kind": "client", "action": "context.compact"},
     {"name": "improve", "title": "Improve Nyx", "description": "Start a self-improvement run", "args": "what to improve (optional)",
