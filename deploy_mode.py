@@ -89,6 +89,7 @@ HOSTED_BLOCKED_PREFIXES = (
     # questions and mistakes, and the money it is allowed to work with.
     "/api/proto-voice",
     "/api/curiosity",
+    "/api/emotions",
     "/api/finance-lab",
     "/api/overlay/restore",
     # Accounts split one PC's data into folders and restart the engine; a hosted build has real sign-in instead.

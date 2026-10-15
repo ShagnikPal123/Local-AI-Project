@@ -86,3 +86,33 @@ def curiosity_settings(body: CuriositySettings, request: Request) -> Dict[str, A
     if "per_day" in changes:
         changes["per_day"] = max(0, min(24, int(changes["per_day"])))
     return {"settings": curiosity.update_settings(**changes)}
+
+
+# --- Emotions (emotions.py, WS15): what it feels, and the neutral helper's notes ------------------------------------
+
+
+@router.get("/api/emotions")
+def emotions_state(request: Request) -> Dict[str, Any]:
+    _owner(request)
+    import emotions
+
+    return emotions.state()
+
+
+@router.post("/api/emotions/check-in")
+def emotions_check_in(request: Request) -> Dict[str, Any]:
+    _owner(request)
+    import emotions
+
+    helped = emotions.check_in()
+    return {**emotions.state(), "helped": len(helped)}
+
+
+@router.delete("/api/emotions/{entry_id}")
+def emotions_remove(entry_id: str, request: Request) -> Dict[str, Any]:
+    _owner(request)
+    import emotions
+
+    if not emotions.remove(entry_id):
+        raise HTTPException(status_code=404, detail="No entry with that id.")
+    return emotions.state()
