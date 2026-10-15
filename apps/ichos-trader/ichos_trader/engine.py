@@ -270,15 +270,17 @@ class Engine:
                          right=(moved > 0) == (p["expected_pct"] > 0) or abs(moved) < 0.1 and abs(p["expected_pct"]) < 0.1)
             keep.append(p)
         open_symbols = {p["symbol"] for p in keep if not p["graded"]}
-        for row in ranked[:PREDICT_TOP]:
-            snap = by_symbol[row["symbol"]]
-            if row["symbol"] in open_symbols:
+        # The top picks, plus everything held: the money's predicted change is built from the holdings.
+        wanted = [r["symbol"] for r in ranked[:PREDICT_TOP]] + [p["symbol"] for p in self.broker.positions()]
+        for symbol in dict.fromkeys(wanted):
+            snap = by_symbol.get(symbol)
+            if snap is None or symbol in open_symbols:
                 continue
             years = market_clock.periods_per_year(snap.instrument.asset_class)
             cone = forecast.predict(snap.closes, horizon=1, seed=int(now) % 100_000, periods_per_year=years)
             if not cone.get("ok"):
                 continue
-            keep.append({"symbol": row["symbol"], "horizon_h": PREDICTION_HOURS, "expected_pct": cone["expected_change_pct"],
+            keep.append({"symbol": symbol, "horizon_h": PREDICTION_HOURS, "expected_pct": cone["expected_change_pct"],
                          "low_pct": cone["band_pct"][0], "high_pct": cone["band_pct"][1],
                          "confidence": cone["confidence"], "price": snap.quote.price, "made_at": now,
                          "graded": False, "right": None})
@@ -383,7 +385,7 @@ class Engine:
                 "market_source": self.hub.source,
                 "money": self._money(account, now),
                 "win_rate": {"closed": account["closed"], "wins": account["wins"], "rate": account["win_rate"]},
-                "equity_curve": self.broker.curve() if hasattr(self.broker, "curve") else [],
+                "equity_curve": self._curve(account, now),
                 "scanned": self.state["scanned"],
                 "markets": self.state["markets"],
                 "positions": self.broker.positions(),
@@ -404,6 +406,15 @@ class Engine:
                 "theme": settings_mod.load()["theme"],
                 "updated_at": self.state.get("last_cycle_at") or now,
             }
+
+    def _curve(self, account: Dict[str, Any], now: float) -> List[Dict[str, float]]:
+        """The saved points (one per 5 minutes) plus where the money is right now."""
+        curve = self.broker.curve() if hasattr(self.broker, "curve") else []
+        if not curve:
+            curve = [{"t": float(account.get("created_at") or now), "equity": float(account["start"])}]
+        if now - curve[-1]["t"] > 1:
+            curve = curve + [{"t": now, "equity": account["equity"]}]
+        return curve
 
     def _save(self) -> None:
         store.write("engine", {**self.state, "cycle_ms": list(self._cycle_ms)})
