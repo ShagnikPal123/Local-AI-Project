@@ -225,3 +225,17 @@ button.ov-tname { cursor: pointer; }
 .ov-storage__bar span { display: block; height: 100%; background: var(--color-link, #6aa5ec); }
 .ov-library { display: flex; flex-direction: column; min-height: 100%; }
 .ov-library .ov-tipcard { margin-top: auto; }
+.pj-home__tools { display: flex; gap: 4px; }
+.pj-home__tools .is-on { color: var(--color-warn); }
+.pj-files__places { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 6px; }
+.pj-files__place { display: inline-flex; align-items: center; border-radius: 999px; background: var(--color-surface-2); font-size: 12px; }
+.pj-files__place button { border: none; background: transparent; color: var(--color-text); font: inherit; padding: 3px 10px; cursor: pointer; }
+.pj-files__place.is-on { box-shadow: inset 0 0 0 1.5px var(--color-accent); }
+.pj-files__x { padding: 3px 8px 3px 0 !important; color: var(--color-neutral-400) !important; }
+.pj-files__list { max-height: 260px; overflow: auto; }
+.pj-files__row { width: 100%; display: flex; align-items: center; gap: 8px; padding: 4px 6px; border: none; border-radius: 6px; background: transparent;
+  color: var(--color-text); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.pj-files__row:hover { background: var(--color-surface-2); }
+.pj-files__row.is-file { cursor: default; }
+.pj-files__row .pj-where { margin-left: auto; }
+.pj-home .cx-setup { padding: 0; }

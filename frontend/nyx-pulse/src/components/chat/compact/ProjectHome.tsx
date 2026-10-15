@@ -11,13 +11,20 @@
  *  Everything is read from what Constellations and Commander already keep (/api/projects, /api/commander); the only
  *  writes are the folder, the instructions and a knowledge note, each through its existing route. */
 
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../../api";
 import { ownerName } from "../phrases";
 import { ago } from "./OverviewPanel";
+import { RAIL_PROJECTS_EVENT } from "../ChatRail";
+import { ProjectFiles } from "./ProjectFiles";
+
+// The full setup (tabs, helpers, Library) only loads when opened.
+const ProjectSetup = lazy(() => import("../../../panels/constellations/ConstellationsPanel").then((m) => ({ default: m.ProjectSetup })));
+
+interface Balance { counts: { free: number; busy: number; waiting: number; full: number }; advice: string }
 
 interface Project {
-  id: string; name: string; goal: string; instructions?: string; starred?: boolean; folder?: string; tabs: string[];
+  id: string; name: string; goal: string; instructions?: string; starred?: boolean; folder?: string; drives?: string[]; tabs: string[];
   members: Record<string, string[]>; artifacts: { id: string; title: string }[];
 }
 interface Thread { id: string; chat_id: string; title: string; status: string; line: string; status_label: string; updated: number }
@@ -52,6 +59,17 @@ export function ProjectsSection({ activeProject, onOpenChat }: { activeProject: 
   }, []);
   useEffect(() => { void load(); }, [load, activeProject]);
   useEffect(() => { try { localStorage.setItem("nyx.rail.projects", open ? "1" : "0"); } catch { /* not kept */ } }, [open]);
+  // "Projects" at the top of the rail opens this list (and starts a new one when there are none) instead of a tab.
+  const sectionRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const show = () => {
+      setOpen(true);
+      if (projects.length === 0) setNaming(true);
+      sectionRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    };
+    window.addEventListener(RAIL_PROJECTS_EVENT, show);
+    return () => window.removeEventListener(RAIL_PROJECTS_EVENT, show);
+  }, [projects.length]);
 
   const openProject = async (id: string) => {
     setError("");
@@ -69,7 +87,7 @@ export function ProjectsSection({ activeProject, onOpenChat }: { activeProject: 
   };
 
   return (
-    <section className="pj-rail" aria-label="Projects">
+    <section className="pj-rail" aria-label="Projects" ref={sectionRef}>
       <div className="pj-rail__head">
         <button type="button" className="pj-rail__toggle" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
           <span aria-hidden="true">{open ? "⌄" : "›"}</span> Projects <span className="ov-n">{projects.length}</span>
@@ -112,23 +130,28 @@ export function ProjectHome({ projectId, empty, onOpenChat, onUseFolder, onShowT
   const [project, setProject] = useState<Project | null>(null);
   const [docs, setDocs] = useState<{ id: string; title: string }[]>([]);
   const [board, setBoard] = useState<Board | null>(null);
+  const [balance, setBalance] = useState<Balance | null>(null);
+  const [panel, setPanel] = useState<"" | "files" | "setup">("");
   const [open, setOpen] = useState(empty);
   const [editing, setEditing] = useState<"" | "folder" | "instructions" | "note">("");
   const [draft, setDraft] = useState("");
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
-    const [p, k, b] = await Promise.all([
+    const [p, k, b, l] = await Promise.all([
       api.get<{ project: Project }>(`/api/projects/${projectId}`),
       api.get<{ docs: { id: string; title: string }[] }>(`/api/commander/projects/${projectId}/knowledge`),
       api.get<{ board: Board }>(`/api/commander?project_id=${encodeURIComponent(projectId)}`),
+      api.get<Balance>(`/api/projects/${projectId}/balance`),
     ]);
     if (p.ok) setProject(p.data.project);
+    if (l.ok) setBalance(l.data);
     if (k.ok) setDocs(k.data.docs);
     if (b.ok) setBoard(b.data.board);
   }, [projectId]);
   useEffect(() => { void load(); }, [load]);
   useEffect(() => { setOpen(empty); }, [projectId, empty]);
+  useEffect(() => { setPanel(""); }, [projectId]);
 
   if (!project) return null;
   const name = ownerName();
@@ -161,14 +184,18 @@ export function ProjectHome({ projectId, empty, onOpenChat, onUseFolder, onShowT
   const rows: { icon: string; label: string; where: string; action?: () => void; actionLabel?: string }[] = [
     { icon: "▭", label: project.folder ? project.folder.split(/[\\/]/).filter(Boolean).pop() || project.folder : "No folder yet",
       where: project.folder ? "Project folder on this PC" : "Link a folder", action: () => edit("folder", project.folder || ""), actionLabel: project.folder ? "Change" : "Link" },
+    { icon: "☁", label: `${(project.drives ?? []).length} ${(project.drives ?? []).length === 1 ? "drive" : "drives"} · browse and add files`,
+      where: "Folders the main chat may open", action: () => setPanel(panel === "files" ? "" : "files"), actionLabel: panel === "files" ? "Close" : "Open" },
     { icon: "✎", label: project.instructions ? "Instructions" : "No instructions yet", where: "Every chat and thread here follows them",
       action: () => edit("instructions", project.instructions || ""), actionLabel: project.instructions ? "Edit" : "Add" },
     { icon: "▤", label: `${docs.length} knowledge ${docs.length === 1 ? "file" : "files"} · ${project.artifacts.length} in the Library`, where: "What threads draw on",
       action: () => edit("note"), actionLabel: "Add a note" },
     { icon: "◌", label: `${threads.length} ${threads.length === 1 ? "thread" : "threads"}${board?.needs_you ? ` · ${board.needs_you} need you` : ""}`,
       where: "In the Threads panel", action: onShowThreads, actionLabel: "Open" },
+    { icon: "⚖", label: balance ? `${balance.counts.free} free · ${balance.counts.busy} busy · ${balance.counts.waiting} waiting · ${balance.counts.full} full` : "No threads yet",
+      where: "The main chat balances work across them" },
     { icon: "⇄", label: helpers.length || project.tabs.length ? `${helpers.length} helpers · ${project.tabs.length} tabs` : "No connections yet",
-      where: "Connected helpers and tabs (edit in Constellations)" },
+      where: "Helpers, tabs and the Library", action: () => setPanel(panel === "setup" ? "" : "setup"), actionLabel: panel === "setup" ? "Close" : "Setup" },
   ];
 
   return (
@@ -178,7 +205,12 @@ export function ProjectHome({ projectId, empty, onOpenChat, onUseFolder, onShowT
           <h2>Hi{name ? ` ${name}` : ""} <span aria-hidden="true">👋</span><br />let me show you around</h2>
           <p>{project.goal || `${project.name}: one chat for the whole project. Ask for anything and the work splits into threads.`}</p>
         </div>
-        {!empty && <button type="button" className="ov-close" onClick={() => setOpen(false)} aria-label="Fold the project home" title="Fold">⌃</button>}
+        <span className="pj-home__tools">
+          <button type="button" className={`ov-close${project.starred ? " is-on" : ""}`} aria-pressed={Boolean(project.starred)}
+            onClick={() => void api.put(`/api/projects/${projectId}`, { starred: !project.starred }).then(() => load())}
+            aria-label={project.starred ? "Unstar this project" : "Star this project"} title={project.starred ? "Unstar" : "Star: keep at the top"}>{project.starred ? "★" : "☆"}</button>
+          {!empty && <button type="button" className="ov-close" onClick={() => setOpen(false)} aria-label="Fold the project home" title="Fold">⌃</button>}
+        </span>
       </header>
       <div className="pj-card">
         <h3>Your context</h3>
@@ -205,6 +237,12 @@ export function ProjectHome({ projectId, empty, onOpenChat, onUseFolder, onShowT
           </form>
         )}
       </div>
+      {panel === "files" && <ProjectFiles projectId={projectId} folder={project.folder || ""} drives={project.drives ?? []} onChanged={() => void load()} />}
+      {panel === "setup" && (
+        <Suspense fallback={<p className="pj-hint">Opening the setup…</p>}>
+          <ProjectSetup projectId={projectId} onChanged={() => void load()} onDeleted={() => setPanel("")} />
+        </Suspense>
+      )}
       {threads.length > 0 && (
         <div className="pj-card">
           <h3>Your recent threads</h3>
