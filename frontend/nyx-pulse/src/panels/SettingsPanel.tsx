@@ -22,6 +22,7 @@ import { StyleMixSection } from "../style/StyleMixSection";
 import { AppearanceSection } from "../style/AppearanceSection";
 import { ChatCleanupSection } from "../components/settings/ChatCleanupSection";
 import { ChatResetSection } from "../components/settings/ChatResetSection";
+import { HooksSection } from "../components/settings/HooksSection";
 
 interface SpeedMode {
   id: string;
@@ -356,6 +357,9 @@ export function SettingsPanel({ group = "general" }: { group?: SettingsGroup }) 
           <SafetySection />
           <BlastRadiusSection />
           <SelfApprovalSection />
+          <Section title="Hooks" hint="Your own commands that run when something happens in a chat, like Claude Code's hooks. A before-tool hook that exits with code 2 stops the tool and tells the AI why.">
+            <HooksSection />
+          </Section>
           <NotificationsSection />
           <PhoneSection />
           <Section
